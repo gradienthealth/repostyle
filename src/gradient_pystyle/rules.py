@@ -14,6 +14,7 @@ import itertools
 import re
 import tokenize
 from collections.abc import Callable, Iterator
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -58,8 +59,13 @@ PORT_IMPLEMENTATION_TOKENS: tuple[str, ...] = (
     "psycopg",
     "sqlalchemy",
 )
+_PORT_TOKEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+    (token, re.compile(rf"\b{re.escape(token)}\b", re.IGNORECASE))
+    for token in PORT_IMPLEMENTATION_TOKENS
+)
 
 TEST_NAME_PATTERN = re.compile(r"^test_[A-Z][A-Za-z0-9]*_[A-Z][A-Za-z0-9]*$")
+ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
 DOUBLE_BACKTICK_PATTERN = re.compile(r"(?<!`)``(?!`)")
 SECONDS_CONSTANT_PATTERN = re.compile(r"^_?[A-Z][A-Z0-9_]*_SECONDS$")
 PORT_PATH_FRAGMENT = "src/fhir_ingestor/application/ports/"
@@ -90,6 +96,9 @@ def _posix(path: Path) -> str:
     return str(path).replace("\\", "/")
 
 
+# Cache on (path, source) so each file is parsed once and the tree is
+# shared across every rule, rather than re-parsed by each check_* call.
+@lru_cache(maxsize=128)
 def _parse_python(path: Path, source: str) -> ast.AST | None:
     if path.suffix != ".py":
         return None
@@ -262,7 +271,7 @@ def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
         docstring = ast.get_docstring(node, clean=False)
         if docstring is None:
             continue
-        if re.search(r"^\s*Attributes:\s*$", docstring, re.MULTILINE) is None:
+        if ATTRIBUTES_SECTION_PATTERN.search(docstring) is None:
             continue
         yield Violation(
             getattr(node, "lineno", 1),
@@ -324,8 +333,8 @@ def check_port_no_implementation(path: Path, source: str) -> Iterator[Violation]
     for node in ast.walk(tree):
         if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
             continue
-        for token in PORT_IMPLEMENTATION_TOKENS:
-            if re.search(rf"\b{re.escape(token)}\b", node.value, re.IGNORECASE):
+        for token, pattern in _PORT_TOKEN_PATTERNS:
+            if pattern.search(node.value):
                 yield Violation(
                     node.lineno,
                     RS_PORT_NO_IMPLEMENTATION,
@@ -702,39 +711,32 @@ def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violatio
                 break
 
 
-RULES: dict[str, Callable[[Path, str], Iterator[Violation]]] = {
-    RS_ACRONYM_CASING: check_acronym_casing,
-    RS_TEST_NAMING: check_test_naming,
-    RS_NO_MOCK_PATCH: check_no_mock_patch,
-    RS_NO_ATTRIBUTES_BLOCK: check_no_attributes_block,
-    RS_NO_DOUBLE_BACKTICKS: check_no_double_backticks_in_md,
-    RS_PORT_NO_IMPLEMENTATION: check_port_no_implementation,
-    RS_DURATION_AS_TIMEDELTA: check_duration_as_timedelta,
-    RS_NO_PHI_SAFE_EXC_INFO: check_no_phi_safe_with_exc_info,
-    RS_DOC_FILL: check_doc_fill,
-    RS_BANNED_ABBREVIATION: check_banned_abbreviation,
-    RS_DISCOURAGED_CLASS_SUFFIX: check_discouraged_class_suffix,
+RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
+    RS_ACRONYM_CASING: (check_acronym_casing,),
+    RS_TEST_NAMING: (check_test_naming,),
+    RS_NO_MOCK_PATCH: (check_no_mock_patch,),
+    RS_NO_ATTRIBUTES_BLOCK: (check_no_attributes_block,),
+    RS_NO_DOUBLE_BACKTICKS: (
+        check_no_double_backticks_in_md,
+        check_no_double_backticks_in_docstrings,
+    ),
+    RS_PORT_NO_IMPLEMENTATION: (check_port_no_implementation,),
+    RS_DURATION_AS_TIMEDELTA: (check_duration_as_timedelta,),
+    RS_NO_PHI_SAFE_EXC_INFO: (check_no_phi_safe_with_exc_info,),
+    RS_DOC_FILL: (check_doc_fill,),
+    RS_BANNED_ABBREVIATION: (check_banned_abbreviation,),
+    RS_DISCOURAGED_CLASS_SUFFIX: (check_discouraged_class_suffix,),
 }
-
-
-_RS005_EXTRA_CHECKS: tuple[Callable[[Path, str], Iterator[Violation]], ...] = (
-    check_no_double_backticks_in_docstrings,
-)
 
 
 def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
     """Run a single rule by id over one source, yielding its violations.
 
-    RS005 covers both markdown prose and Python docstrings, registered
-    under a single id; running it dispatches to both check functions.
+    A rule id maps to one or more check functions; RS005 maps to the
+    markdown and the Python-docstring backtick checks both.
     """
-    check = RULES.get(rule_id)
-    if check is None:
-        return
-    yield from check(path, source)
-    if rule_id == RS_NO_DOUBLE_BACKTICKS:
-        for extra in _RS005_EXTRA_CHECKS:
-            yield from extra(path, source)
+    for check in RULES.get(rule_id, ()):
+        yield from check(path, source)
 
 
 ALL_RULE_IDS: frozenset[str] = frozenset(RULES)
