@@ -29,9 +29,10 @@ from gradient_pystyle.rules import (
     check_test_naming,
 )
 
-# PEP 695 type-alias / type-parameter syntax only parses on Python 3.12+, so
-# these cases skip on 3.11, where the source is a SyntaxError the checker
-# correctly cannot inspect (such code cannot exist on 3.11 anyway).
+# PEP 695 type-alias / type-parameter syntax only parses on Python
+# 3.12+, so these cases skip on 3.11, where the source is a SyntaxError
+# the checker correctly cannot inspect (such code cannot exist on 3.11
+# anyway).
 _REQUIRES_PEP695 = pytest.mark.skipif(
     sys.version_info < (3, 12), reason="PEP 695 syntax requires Python 3.12+"
 )

@@ -1,0 +1,37 @@
+name: PR Title Conventional Commit Check
+
+# release-please derives the version bump from the squash-merge commit subject,
+# which is the PR title. This enforces the Conventional-Commit form so every
+# merged title is parseable. Put the Linear ticket (or NO-ISSUE) in the scope
+# — `feat(PROC-123): ...` — to also satisfy the org-wide PR Title Check.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional-prefix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            perf
+            ci
+            build
+            revert
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The PR title subject (after the type/scope) should not start with an uppercase letter.

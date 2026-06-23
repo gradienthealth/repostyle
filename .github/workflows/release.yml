@@ -1,0 +1,95 @@
+name: Release and Publish
+
+# release-please derives the next semver from Conventional-Commit PR titles on
+# main, maintains a release PR, and on merge of that PR creates the
+# `gradient-pystyle-vX.Y.Z` tag + GitHub Release + CHANGELOG. The build and
+# publish jobs then ship the wheel to the internal Artifact Registry. A manual
+# `workflow_dispatch` rebuilds and republishes the current main, e.g. to
+# recover a failed upload without cutting a new release.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+    steps:
+      - id: release
+        if: github.event_name == 'push'
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build:
+    name: Build distribution packages
+    needs: release-please
+    if: |
+      needs.release-please.outputs.release_created == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish-to-artifact-registry:
+    name: Publish to Artifact Registry
+    needs:
+      - release-please
+      - build
+    if: |
+      needs.release-please.outputs.release_created == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GRADIENT_PYSTYLE_CI_SA_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Publish to Artifact Registry
+        run: |
+          pip install --quiet twine keyrings.google-artifactregistry-auth
+          twine upload \
+            --repository-url https://us-central1-python.pkg.dev/gradient-health-resources/python-packages/ \
+            dist/*
