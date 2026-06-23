@@ -1,0 +1,63 @@
+# Shared base ruff config for gradienthealth Python repos.
+#
+# Consuming repos extend this file from their own pyproject.toml:
+#
+#   [tool.ruff]
+#   extend = "path/to/ruff-base.toml"
+#
+# then override only what they need (e.g. target-version, per-file
+# ignores). Keep repo-specific knobs out of this file; it is the
+# shared baseline every repo inherits.
+
+line-length = 88
+
+[format]
+indent-style = "space"
+quote-style = "double"
+
+[lint]
+# D100-D107 require docstrings on every module/class/function. The
+# convention is no docstring over a low-content one (docstring
+# minimalism). The remaining D rules still enforce shape and content
+# when a docstring exists. D203/D213 are mutually exclusive with
+# D211/D212. PT004 (leading-underscore on no-return fixtures) was
+# removed upstream because the convention "isn't a practice
+# recommended by the pytest community"; the broad PT select still
+# pulls it in, so ignore explicitly.
+ignore = [
+    "E501",
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D203",
+    "D213",
+    "PT004",
+]
+select = [
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "D",   # pydocstyle (Google convention)
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "PT",  # flake8-pytest-style
+    "RUF", # ruff-specific
+    "SIM", # flake8-simplify
+    "TID", # flake8-tidy-imports (ban relative imports)
+    "UP",  # pyupgrade
+    "W",   # pycodestyle warnings
+]
+
+[lint.pycodestyle]
+max-doc-length = 88
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
