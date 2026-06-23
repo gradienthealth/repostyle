@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,13 @@ from gradient_pystyle.rules import (
     check_test_naming,
 )
 
+# PEP 695 type-alias / type-parameter syntax only parses on Python 3.12+, so
+# these cases skip on 3.11, where the source is a SyntaxError the checker
+# correctly cannot inspect (such code cannot exist on 3.11 anyway).
+_REQUIRES_PEP695 = pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="PEP 695 syntax requires Python 3.12+"
+)
+
 _ATTRIBUTES_BLOCK_HEADER = (
     "class Demographics:\n"
     '    """Patient demographics.\n'
@@ -55,9 +63,11 @@ class TestCheckAcronymCasing:
             ("class PatientId: ...", "ID"),
             ("T = TypeVar('FhirT')", "FHIR"),
             ("T = typing.TypeVar('FhirT')", "FHIR"),
-            ("type FhirAlias = int", "FHIR"),
-            ("class Container[FhirT]: ...", "FHIR"),
-            ("def fn[FhirT]() -> None: ...", "FHIR"),
+            pytest.param("type FhirAlias = int", "FHIR", marks=_REQUIRES_PEP695),
+            pytest.param("class Container[FhirT]: ...", "FHIR", marks=_REQUIRES_PEP695),
+            pytest.param(
+                "def fn[FhirT]() -> None: ...", "FHIR", marks=_REQUIRES_PEP695
+            ),
         ],
     )
     def test_LowercaseAcronym_FlagsViolation(self, source: str, acronym: str) -> None:
@@ -77,8 +87,8 @@ class TestCheckAcronymCasing:
             "TToken = typing.TypeVar('TToken')",
             "patient_id = 1",
             "class API: ...",
-            "type FHIRAlias = int",
-            "class Container[FHIRT]: ...",
+            pytest.param("type FHIRAlias = int", marks=_REQUIRES_PEP695),
+            pytest.param("class Container[FHIRT]: ...", marks=_REQUIRES_PEP695),
             "class TestDeidentifyBundle: ...",
             "class Identifier: ...",
             "class TestIdentityResolver: ...",

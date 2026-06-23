@@ -11,7 +11,11 @@ from gradient_pystyle.runner import lint_path, resolve_enabled_rules_for_paths
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     paths = [Path(arg) for arg in args]
-    enabled = resolve_enabled_rules_for_paths(paths)
+    try:
+        enabled = resolve_enabled_rules_for_paths(paths)
+    except ValueError as error:
+        print(f"gradient-pystyle: {error}", file=sys.stderr)
+        return 2
     found = False
     for path in paths:
         for line, rule, message in lint_path(path, enabled):

@@ -13,15 +13,24 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
     """Resolve enabled rule ids from a `[tool.gradient-pystyle]` table.
 
     `select` defaults to every rule; `ignore` defaults to none. The
-    enabled set is `select` minus `ignore`, restricted to known rule
-    ids. A missing or empty table enables all rules.
+    enabled set is `select` minus `ignore`. A missing or empty table
+    enables all rules. An unknown id in `select` or `ignore` raises
+    `ValueError`: silently dropping it could resolve `select` to the
+    empty set and make the linter pass everything.
     """
     if not config:
         return set(ALL_RULE_IDS)
+    known = set(ALL_RULE_IDS)
     select = config.get("select")
-    selected = set(select) if select else set(ALL_RULE_IDS)
-    ignored = set(config.get("ignore", []))
-    return (selected - ignored) & set(ALL_RULE_IDS)
+    ignore = config.get("ignore", [])
+    unknown = (set(select or ()) | set(ignore)) - known
+    if unknown:
+        raise ValueError(
+            "unknown gradient-pystyle rule id(s): "
+            f"{', '.join(sorted(unknown))}. Known ids: {', '.join(sorted(known))}."
+        )
+    selected = set(select) if select else known
+    return selected - set(ignore)
 
 
 def find_pyproject(start: Path) -> Path | None:

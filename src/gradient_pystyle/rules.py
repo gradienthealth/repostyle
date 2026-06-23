@@ -129,6 +129,21 @@ def _identifier_words(name: str) -> Iterator[str]:
 
 _TYPE_FACTORY_NAMES = frozenset({"TypeVar", "NewType", "ParamSpec", "TypeVarTuple"})
 
+# PEP 695 type-alias / type-parameter syntax parses only on Python 3.12+, so
+# these AST node classes are absent on 3.11. Resolve them defensively to an
+# empty tuple there: `isinstance(node, ())` is always False, and no PEP 695
+# node can appear in a 3.11 parse anyway.
+_PEP695_TYPE_ALIAS = getattr(ast, "TypeAlias", ())
+_PEP695_TYPE_PARAMS = tuple(
+    node
+    for node in (
+        getattr(ast, "TypeVar", None),
+        getattr(ast, "ParamSpec", None),
+        getattr(ast, "TypeVarTuple", None),
+    )
+    if node is not None
+)
+
 
 def _typevar_factory_name(call: ast.Call) -> str | None:
     """Return the unqualified name of a TypeVar-family factory call, if any."""
@@ -155,9 +170,9 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
         names: list[tuple[str, int]] = []
         if isinstance(node, ast.ClassDef):
             names.append((node.name, node.lineno))
-        elif isinstance(node, ast.TypeAlias):
+        elif isinstance(node, _PEP695_TYPE_ALIAS):
             names.append((node.name.id, node.lineno))
-        elif isinstance(node, ast.TypeVar | ast.ParamSpec | ast.TypeVarTuple):
+        elif isinstance(node, _PEP695_TYPE_PARAMS):
             names.append((node.name, node.lineno))
         elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
             factory = _typevar_factory_name(node.value)

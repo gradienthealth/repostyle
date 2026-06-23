@@ -46,9 +46,17 @@ class TestResolveEnabledRules:
         }
         assert resolve_enabled_rules(config) == {RS_ACRONYM_CASING}
 
-    def test_UnknownRuleId_DroppedFromSelection(self) -> None:
-        config = {"select": [RS_ACRONYM_CASING, "RS999"]}
-        assert resolve_enabled_rules(config) == {RS_ACRONYM_CASING}
+    def test_UnknownRuleIdInSelect_Raises(self) -> None:
+        with pytest.raises(ValueError, match="RS999"):
+            resolve_enabled_rules({"select": [RS_ACRONYM_CASING, "RS999"]})
+
+    def test_UnknownRuleIdInIgnore_Raises(self) -> None:
+        with pytest.raises(ValueError, match="RS999"):
+            resolve_enabled_rules({"ignore": ["RS999"]})
+
+    def test_AllUnknownSelect_RaisesRatherThanRunningNothing(self) -> None:
+        with pytest.raises(ValueError):
+            resolve_enabled_rules({"select": ["RS999"]})
 
 
 class TestLintPathWithEnabledRules:
@@ -89,9 +97,7 @@ class TestConfigDiscovery:
     def test_ReadsGradientPystyleTable_FromPyproject(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text(
-            "[tool.gradient-pystyle]\n"
-            'select = ["RS001"]\n'
-            'ignore = ["RS011"]\n',
+            '[tool.gradient-pystyle]\nselect = ["RS001"]\nignore = ["RS011"]\n',
             encoding="utf-8",
         )
         config = load_config(pyproject)
