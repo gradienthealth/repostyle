@@ -21,11 +21,9 @@ _ACRONYM_AND_SUFFIX_SOURCE = "class FhirManager: ...\n"
 
 
 class TestResolveEnabledRules:
-    def test_NoConfig_EnablesAllRules(self) -> None:
-        assert resolve_enabled_rules(None) == set(ALL_RULE_IDS)
-
-    def test_EmptyConfig_EnablesAllRules(self) -> None:
-        assert resolve_enabled_rules({}) == set(ALL_RULE_IDS)
+    @pytest.mark.parametrize("config", [None, {}], ids=["missing_table", "empty_table"])
+    def test_MissingOrEmptyConfig_EnablesAllRules(self, config: dict | None) -> None:
+        assert resolve_enabled_rules(config) == set(ALL_RULE_IDS)
 
     def test_SelectSubset_EnablesOnlyThose(self) -> None:
         config = {"select": [RS_ACRONYM_CASING, RS_DISCOURAGED_CLASS_SUFFIX]}
