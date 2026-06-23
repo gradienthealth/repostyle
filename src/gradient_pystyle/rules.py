@@ -732,8 +732,8 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
 def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
     """Run a single rule by id over one source, yielding its violations.
 
-    A rule id maps to one or more check functions; RS005 maps to the
-    markdown and the Python-docstring backtick checks both.
+    A rule id maps to one or more check functions; e.g. RS005 runs both
+    the markdown and the Python-docstring backtick checks.
     """
     for check in RULES.get(rule_id, ()):
         yield from check(path, source)
