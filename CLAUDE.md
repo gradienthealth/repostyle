@@ -39,7 +39,7 @@ Their definitions, scope, and rationale live in the rule docstrings in
 These are the general conventions from fhir-ingestor's `docs/code-style.md` and
 `docs/testing.md` (the deeper rationale lives there) — the subset that applies to
 this package's own code. Several are rules this package itself defines, so it
-must pass them.
+holds itself to them too.
 
 - Imperative Google-style docstrings stating the unit's own contract — no caller
   postulation, no implementation mechanics, no narration of rejected

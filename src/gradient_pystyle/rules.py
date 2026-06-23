@@ -138,10 +138,10 @@ def _identifier_words(name: str) -> Iterator[str]:
 
 _TYPE_FACTORY_NAMES = frozenset({"TypeVar", "NewType", "ParamSpec", "TypeVarTuple"})
 
-# PEP 695 type-alias / type-parameter syntax parses only on Python 3.12+, so
-# these AST node classes are absent on 3.11. Resolve them defensively to an
-# empty tuple there: `isinstance(node, ())` is always False, and no PEP 695
-# node can appear in a 3.11 parse anyway.
+# PEP 695 type-alias / type-parameter syntax parses only on Python
+# 3.12+, so these AST node classes are absent on 3.11. Resolve them
+# defensively to an empty tuple there: `isinstance(node, ())` is always
+# False, and no PEP 695 node can appear in a 3.11 parse anyway.
 _PEP695_TYPE_ALIAS = getattr(ast, "TypeAlias", ())
 _PEP695_TYPE_PARAMS = tuple(
     node
