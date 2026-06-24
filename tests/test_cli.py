@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from gradient_pystyle.cli import main
+from gradient_pystyle.rules import RS_ACRONYM_CASING, RULE_SEVERITY, Severity
 
 
 def _project(tmp_path: Path, source: str, select: str) -> Path:
@@ -14,16 +15,31 @@ def _project(tmp_path: Path, source: str, select: str) -> Path:
     return target
 
 
+_ACRONYM_SOURCE = "if True:\n    class FhirClient: ...\n"
+
+
 class TestMain:
-    def test_Violation_PrintsLineColRuleMessage(
+    def test_ErrorViolation_PrintsSeverityLineAndFails(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        source = "if True:\n    class FhirClient: ...\n"
-        target = _project(tmp_path, source, '["RS001"]')
+        target = _project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
         exit_code = main([str(target)])
         out = capsys.readouterr().out
         assert exit_code == 1
-        assert f"{target}:2:5: RS001" in out
+        assert f"{target}:2:5: error: RS001" in out
+
+    def test_WarningRule_PrintsWarningAndPasses(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setitem(RULE_SEVERITY, RS_ACRONYM_CASING, Severity.WARNING)
+        target = _project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        exit_code = main([str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert f"{target}:2:5: warning: RS001" in out
 
     def test_CleanPath_ReturnsZeroAndPrintsNothing(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
