@@ -2,8 +2,8 @@
 
 Score a function's documentation value from its cognitive complexity and
 signature, and warn only when a non-trivial public function is
-under-documented, so trivial one-liners stay silent. The warning reads as
-"documentation would help here," distinct from a binary "missing
+under-documented, so trivial one-liners stay silent. The warning reads
+as "documentation would help here," distinct from a binary "missing
 docstring" error.
 
 The signal has three triggers. The presence trigger fires when a complex
@@ -53,7 +53,7 @@ def _param_count(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
 
 
 def _returns_multi_element_tuple(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Report whether the return annotation is a `tuple` of named parts.
+    """Report whether the return annotation is a multi-element `tuple`.
 
     A multi-element `tuple` is an anonymous composite whose parts a
     single summary line cannot enumerate, so it warrants a `Returns:`
@@ -132,8 +132,8 @@ def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
     A public function with no docstring earns a warning when it is
     complex or many-argumented; a documented public function earns one
     when it has many parameters but no `Args:` section, or returns a
-    multi-element `tuple` but no `Returns:` section. Trivial, non-public,
-    test, and `@overload` definitions never fire.
+    multi-element `tuple` but no `Returns:` section. Trivial,
+    non-public, test, and `@overload` definitions never fire.
     """
     if _is_test_file(path):
         return
