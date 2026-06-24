@@ -14,7 +14,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
 - `src/gradient_pystyle/runner.py` — config resolution (`select` minus `ignore`), pyproject discovery, and linting a path with the enabled rule set.
 - `src/gradient_pystyle/suppressions.py` — the `# style: ignore[RSnnn]` line and `# style: ignore-file` whole-file directives the runner applies to drop findings.
 - `src/gradient_pystyle/changed_lines.py` — the git-diff line set the CLI's `--diff` mode intersects findings against, so a finding is reported only on lines the change touched.
-- `src/gradient_pystyle/cli.py` — the `gradient-pystyle` console script the hook invokes; its `--diff` flag scopes findings to git-changed lines.
+- `src/gradient_pystyle/cli.py` — the `gradient-pystyle` console script the hook invokes; its `--diff` flag scopes findings to git-changed lines and its `--fix` flag rewraps RS009 findings in place.
 - `tests/` — `test_rules.py` (per-rule behavior), `test_runner.py` (config and dispatch), `test_cli.py` (CLI output and exit status), `test_suppressions.py` (suppression directives), `test_changed_lines.py` (the `--diff` line set), `test_complexity.py` (RS012), and `test_import_layering.py` (RS017), with a git repo from the `conftest.py` fixture.
 - `ruff-base.toml`, `.pre-commit-hooks.yaml` — the shared ruff baseline and the hook definition consumers reference.
 

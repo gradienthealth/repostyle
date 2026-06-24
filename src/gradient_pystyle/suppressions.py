@@ -39,6 +39,12 @@ class _LineSuppressions:
         """Report whether `rule` on `line` is suppressed."""
         return line in self._all or rule in self._by_rule.get(line, set())
 
+    def lines_waiving(self, rule: str) -> set[int]:
+        """Return every line on which `rule` is suppressed."""
+        return self._all | {
+            line for line, rules in self._by_rule.items() if rule in rules
+        }
+
 
 def _parse(source: str) -> tuple[bool, _LineSuppressions]:
     file_suppressed = False
@@ -72,3 +78,16 @@ def filter_suppressed(violations: Iterable[Violation], source: str) -> list[Viol
     if file_suppressed:
         return []
     return [v for v in violations if not lines.suppresses(v.line, v.rule)]
+
+
+def suppressed_lines(source: str, rule: str) -> tuple[bool, frozenset[int]]:
+    """Report whole-file suppression and the lines waiving `rule`.
+
+    The first element is whether a `# style: ignore-file` directive
+    waives the entire file; the second is the set of lines on which
+    `rule` is suppressed, whether by an unscoped `# style: ignore` or
+    one naming `rule`. An autofixer consults this to leave waived lines
+    untouched.
+    """
+    file_suppressed, lines = _parse(source)
+    return file_suppressed, frozenset(lines.lines_waiving(rule))
