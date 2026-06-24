@@ -1,0 +1,70 @@
+"""Repo-style lint rules not covered by ruff or other off-the-shelf tools.
+
+Each rule is a function taking `(path, source)` and yielding `Violation`
+records, defined in a themed module. This package re-exports the whole
+public surface, so `from gradient_pystyle.rules import <name>` resolves
+regardless of which module the name lives in.
+"""
+
+from __future__ import annotations
+
+from gradient_pystyle.rules._registry import ALL_RULE_IDS, RULES, run_rule
+from gradient_pystyle.rules._violation import (
+    RS_ACRONYM_CASING,
+    RS_BANNED_ABBREVIATION,
+    RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_DOC_FILL,
+    RS_DURATION_AS_TIMEDELTA,
+    RS_NO_ATTRIBUTES_BLOCK,
+    RS_NO_DOUBLE_BACKTICKS,
+    RS_NO_MOCK_PATCH,
+    RS_NO_PHI_SAFE_EXC_INFO,
+    RS_PORT_NO_IMPLEMENTATION,
+    RS_TEST_NAMING,
+    Violation,
+)
+from gradient_pystyle.rules.doc_fill import check_doc_fill
+from gradient_pystyle.rules.docstrings import (
+    check_no_attributes_block,
+    check_no_double_backticks_in_docstrings,
+    check_no_double_backticks_in_md,
+)
+from gradient_pystyle.rules.duration import check_duration_as_timedelta
+from gradient_pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
+from gradient_pystyle.rules.naming import (
+    check_acronym_casing,
+    check_banned_abbreviation,
+    check_discouraged_class_suffix,
+)
+from gradient_pystyle.rules.ports import check_port_no_implementation
+from gradient_pystyle.rules.testing import check_no_mock_patch, check_test_naming
+
+__all__ = [
+    "ALL_RULE_IDS",
+    "RULES",
+    "RS_ACRONYM_CASING",
+    "RS_BANNED_ABBREVIATION",
+    "RS_DISCOURAGED_CLASS_SUFFIX",
+    "RS_DOC_FILL",
+    "RS_DURATION_AS_TIMEDELTA",
+    "RS_NO_ATTRIBUTES_BLOCK",
+    "RS_NO_DOUBLE_BACKTICKS",
+    "RS_NO_MOCK_PATCH",
+    "RS_NO_PHI_SAFE_EXC_INFO",
+    "RS_PORT_NO_IMPLEMENTATION",
+    "RS_TEST_NAMING",
+    "Violation",
+    "check_acronym_casing",
+    "check_banned_abbreviation",
+    "check_discouraged_class_suffix",
+    "check_doc_fill",
+    "check_duration_as_timedelta",
+    "check_no_attributes_block",
+    "check_no_double_backticks_in_docstrings",
+    "check_no_double_backticks_in_md",
+    "check_no_mock_patch",
+    "check_no_phi_safe_with_exc_info",
+    "check_port_no_implementation",
+    "check_test_naming",
+    "run_rule",
+]
