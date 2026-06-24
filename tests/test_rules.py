@@ -77,6 +77,11 @@ class TestCheckAcronymCasing:
         assert violations[0].rule == RS_ACRONYM_CASING
         assert acronym in violations[0].message
 
+    def test_IndentedDeclaration_ColumnPointsAtDeclaration(self) -> None:
+        source = "if True:\n    class FhirClient: ...\n"
+        violations = list(check_acronym_casing(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (2, 5)
+
     @pytest.mark.parametrize(
         "source",
         [
@@ -182,6 +187,11 @@ class TestCheckNoAttributesBlock:
         assert len(violations) == 1
         assert violations[0].rule == RS_NO_ATTRIBUTES_BLOCK
 
+    def test_ModuleDocstring_ColumnFallsBackToOne(self) -> None:
+        source = '"""Attributes:\n    name: full name.\n"""\n'
+        violations = list(check_no_attributes_block(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (1, 1)
+
     @pytest.mark.parametrize(
         "source",
         [_ATTRIBUTES_NO_BLOCK, _ATTRIBUTES_INLINE_PROSE],
@@ -200,6 +210,14 @@ class TestCheckNoDoubleBackticksInMd:
         )
         assert len(violations) == 1
         assert violations[0].rule == RS_NO_DOUBLE_BACKTICKS
+
+    def test_DoubleBackticksMidLine_ColumnAtBacktickPair(self) -> None:
+        violations = list(
+            check_no_double_backticks_in_md(
+                Path("README.md"), "See ``ClassName`` for details."
+            )
+        )
+        assert (violations[0].line, violations[0].col) == (1, 5)
 
     @pytest.mark.parametrize(
         "source",
@@ -419,6 +437,11 @@ class TestCheckDocFill:
         assert len(violations) == 1
         assert violations[0].rule == RS_DOC_FILL
         assert fragment in violations[0].message
+
+    def test_IndentedDocstring_ColumnAtParagraphIndent(self) -> None:
+        source = 'def f():\n    """Summary.\n\n    aaa\n    bbb\n    """'
+        violations = list(check_doc_fill(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (4, 5)
 
     @pytest.mark.parametrize(
         "source",

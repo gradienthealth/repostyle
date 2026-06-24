@@ -51,6 +51,7 @@ def check_duration_as_timedelta(path: Path, source: str) -> Iterator[Violation]:
                 continue
             yield Violation(
                 stmt.lineno,
+                stmt.col_offset + 1,
                 RS_DURATION_AS_TIMEDELTA,
                 f"'{target.id}' is a module-level duration; "
                 f"use `timedelta(seconds={value.value})` instead",

@@ -41,6 +41,7 @@ def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
             continue
         yield Violation(
             getattr(node, "lineno", 1),
+            getattr(node, "col_offset", 0) + 1,
             RS_NO_ATTRIBUTES_BLOCK,
             "use per-field attribute docstrings, not a Google `Attributes:` block",
         )
@@ -55,9 +56,11 @@ def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
             continue
         if in_fence:
             continue
-        if DOUBLE_BACKTICK_PATTERN.search(line):
+        match = DOUBLE_BACKTICK_PATTERN.search(line)
+        if match:
             yield Violation(
                 lineno,
+                match.start() + 1,
                 RS_NO_DOUBLE_BACKTICKS,
                 "use single backticks, not double, in prose",
             )
@@ -84,6 +87,7 @@ def check_no_double_backticks_in_docstrings(
         if DOUBLE_BACKTICK_PATTERN.search(docstring):
             yield Violation(
                 getattr(node, "lineno", 1),
+                getattr(node, "col_offset", 0) + 1,
                 RS_NO_DOUBLE_BACKTICKS,
                 "use single backticks, not double, in docstrings",
             )
