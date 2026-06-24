@@ -86,6 +86,22 @@ target-version = "py311"
 Override only repo-specific knobs (target version, per-file ignores) on
 top of the inherited baseline.
 
+## Check docstrings against signatures
+
+The base config enforces docstring *style* (Google convention, via the
+ruff `D` rules) but not that a docstring's `Args`/`Returns`/`Raises`
+match the actual signature — ruff has no rule for that. Add
+[pydoclint](https://github.com/jsh9/pydoclint) as a pre-commit hook in
+the consuming repo to catch that drift:
+
+```yaml
+  - repo: https://github.com/jsh9/pydoclint
+    rev: <latest>
+    hooks:
+      - id: pydoclint
+        args: [--style=google]
+```
+
 ## Development
 
 ```bash
