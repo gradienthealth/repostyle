@@ -7,6 +7,8 @@ from gradient_pystyle.rules import (
     RS_ACRONYM_CASING,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_NO_DOUBLE_BACKTICKS,
+    Severity,
+    severity_of,
 )
 from gradient_pystyle.runner import (
     find_pyproject,
@@ -134,6 +136,14 @@ class TestLintPaths:
         rules = {v.rule for v in lint_paths([first, second], set(ALL_RULE_IDS))}
         assert RS_ACRONYM_CASING in rules
         assert RS_DISCOURAGED_CLASS_SUFFIX in rules
+
+
+class TestSeverityOf:
+    @pytest.mark.parametrize(
+        "rule_id", [RS_ACRONYM_CASING, "RS999"], ids=["known_rule", "unknown_id"]
+    )
+    def test_NoSeverityOverride_DefaultsToError(self, rule_id: str) -> None:
+        assert severity_of(rule_id) is Severity.ERROR
 
 
 @pytest.mark.parametrize("rule_id", sorted(ALL_RULE_IDS))
