@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python, _walk_docstring_owners
+from gradient_pystyle.rules._shared import _parse_python
 from gradient_pystyle.rules._violation import (
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -16,6 +16,16 @@ from gradient_pystyle.rules._violation import (
 
 ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
 DOUBLE_BACKTICK_PATTERN = re.compile(r"(?<!`)``(?!`)")
+
+
+def _walk_docstring_owners(
+    tree: ast.AST,
+) -> Iterator[ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module]:
+    for node in ast.walk(tree):
+        if isinstance(
+            node, ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module
+        ):
+            yield node
 
 
 def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:

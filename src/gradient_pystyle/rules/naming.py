@@ -7,19 +7,46 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import (
-    _PEP695_TYPE_ALIAS,
-    _PEP695_TYPE_PARAMS,
-    _capwords_acronym_violations,
-    _identifier_words,
-    _parse_python,
-    _typevar_factory_name,
-)
+from gradient_pystyle.rules._shared import _parse_python
 from gradient_pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_DISCOURAGED_CLASS_SUFFIX,
     Violation,
+)
+
+ACRONYMS: tuple[str, ...] = (
+    "API",
+    "DOB",
+    "FHIR",
+    "GCP",
+    "HTTP",
+    "ID",
+    "JSON",
+    "JWT",
+    "MRN",
+    "SMART",
+    "URL",
+)
+
+_CAPWORDS_WORD = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+")
+_ACRONYM_SET = frozenset(ACRONYMS)
+
+_TYPE_FACTORY_NAMES = frozenset({"TypeVar", "NewType", "ParamSpec", "TypeVarTuple"})
+
+# PEP 695 type-alias / type-parameter syntax parses only on Python
+# 3.12+, so these AST node classes are absent on 3.11. Resolve them
+# defensively to an empty tuple there: `isinstance(node, ())` is always
+# False, and no PEP 695 node can appear in a 3.11 parse anyway.
+_PEP695_TYPE_ALIAS = getattr(ast, "TypeAlias", ())
+_PEP695_TYPE_PARAMS = tuple(
+    node
+    for node in (
+        getattr(ast, "TypeVar", None),
+        getattr(ast, "ParamSpec", None),
+        getattr(ast, "TypeVarTuple", None),
+    )
+    if node is not None
 )
 
 BANNED_ABBREVIATIONS: frozenset[str] = frozenset(
@@ -40,6 +67,30 @@ BANNED_ABBREVIATIONS: frozenset[str] = frozenset(
 
 DISCOURAGED_CLASS_SUFFIXES: tuple[str, ...] = ("Helper", "Manager", "Util", "Utils")
 TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
+
+
+def _capwords_acronym_violations(name: str) -> Iterator[str]:
+    for word in _CAPWORDS_WORD.findall(name):
+        upper = word.upper()
+        if upper in _ACRONYM_SET and word != upper:
+            yield upper
+
+
+def _identifier_words(name: str) -> Iterator[str]:
+    """Yield the lowercased words composing a snake_case or CapWords name."""
+    for part in name.split("_"):
+        for word in _CAPWORDS_WORD.findall(part):
+            yield word.lower()
+
+
+def _typevar_factory_name(call: ast.Call) -> str | None:
+    """Return the unqualified name of a TypeVar-family factory call, if any."""
+    func = call.func
+    if isinstance(func, ast.Name):
+        return func.id if func.id in _TYPE_FACTORY_NAMES else None
+    if isinstance(func, ast.Attribute):
+        return func.attr if func.attr in _TYPE_FACTORY_NAMES else None
+    return None
 
 
 def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
