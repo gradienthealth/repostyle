@@ -2,7 +2,7 @@
 
 Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config. The rules are a stdlib-only AST/token/line linter that catches conventions ruff does not cover; consuming repos select the subset they want and run it as a pre-commit remote hook.
 
-This repo ships three shared artifacts: the RS checker and `ruff-base.toml` enforce the mechanical tier (what a tool can catch), and `principles.md` holds the write-time tier — the non-mechanical judgments that should guide writing Python before any check runs. Consuming repos vendor `principles.md` into their `docs/shared/` and `@import` it from `docs/code-style.md`.
+This repo ships three shared artifacts: the RS checker and `ruff-base.toml` enforce the mechanical tier (what a tool can catch), and `principles.md` holds the write-time tier — the non-mechanical judgments that should guide writing Python before any check runs. Consuming repos reference `principles.md` as always-on context — `@import`ing it from their `docs/code-style.md` by relative path to a sibling gradient-pystyle checkout, with a session-start check that flags it if the source is missing.
 
 ## Rules
 
