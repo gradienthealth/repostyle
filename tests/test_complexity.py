@@ -22,8 +22,13 @@ class TestCheckCognitiveComplexity:
         assert "cognitive complexity" in violations[0].message
 
     def test_FlatFunction_NoViolation(self) -> None:
-        source = "def f(a, b):\n    if a:\n        return 1\n    if b:\n        return 2\n"
+        source = (
+            "def f(a, b):\n"
+            "    if a:\n        return 1\n"
+            "    if b:\n        return 2\n"
+        )
         assert list(check_cognitive_complexity(Path("src/x.py"), source)) == []
 
     def test_NonPythonFile_NotChecked(self) -> None:
-        assert list(check_cognitive_complexity(Path("README.md"), _COMPLEX_SOURCE)) == []
+        result = check_cognitive_complexity(Path("README.md"), _COMPLEX_SOURCE)
+        assert list(result) == []
