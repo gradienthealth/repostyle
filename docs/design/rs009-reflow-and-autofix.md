@@ -37,6 +37,7 @@ The table and diagram exemption is new: a line opening with `|` or a run of box-
 - Reflow treats an inline backtick code span as ordinary words, so a span containing spaces can wrap across a line boundary. The content is preserved; only the line break moves. Protecting spans as unbreakable units is a future refinement.
 - ASCII-art detection covers the `|`- and box-character-led cases, not free-form art. Fence such art or suppress the line.
 - Reflow normalizes intra-line runs of whitespace to single spaces, matching the single-space house style.
+- A unit whose text line carries an inline closing docstring quote (`bbb"""` rather than the quote on its own line) is left alone, because rewrapping would move the quote. The check still flags such a unit, so `--fix` cannot resolve it — the developer rewraps by hand. The house style puts the closing quote on its own line, so this is rare.
 
 ## Scope deferred
 

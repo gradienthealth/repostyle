@@ -39,6 +39,12 @@ class _LineSuppressions:
         """Report whether `rule` on `line` is suppressed."""
         return line in self._all or rule in self._by_rule.get(line, set())
 
+    def lines_waiving(self, rule: str) -> set[int]:
+        """Return every line on which `rule` is suppressed."""
+        return self._all | {
+            line for line, rules in self._by_rule.items() if rule in rules
+        }
+
 
 def _parse(source: str) -> tuple[bool, _LineSuppressions]:
     file_suppressed = False
@@ -84,6 +90,4 @@ def suppressed_lines(source: str, rule: str) -> tuple[bool, frozenset[int]]:
     untouched.
     """
     file_suppressed, lines = _parse(source)
-    waived = set(lines._all)
-    waived.update(line for line, rules in lines._by_rule.items() if rule in rules)
-    return file_suppressed, frozenset(waived)
+    return file_suppressed, frozenset(lines.lines_waiving(rule))

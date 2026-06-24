@@ -42,6 +42,16 @@ class TestReflowDocFill:
         source = "# aaa\n# bbb\nx = 1\n"
         assert reflow_doc_fill(_PY, source) == "# aaa bbb\nx = 1\n"
 
+    def test_FlagLikeProseLine_IsFilledNotTreatedAsVerbatim(self) -> None:
+        source = '"""Summary.\n\naaa\n--fix bbb\n"""\n'
+        assert reflow_doc_fill(_PY, source) == '"""Summary.\n\naaa --fix bbb\n"""\n'
+
+    def test_CarriageReturnNewlines_ArePreserved(self) -> None:
+        source = 'def f():\r\n    """Summary.\r\n\r\n    aaa\r\n    bbb\r\n    """\r\n'
+        rewritten = reflow_doc_fill(_PY, source)
+        assert "    aaa bbb\r\n" in rewritten
+        assert rewritten.count("\n") == rewritten.count("\r\n")
+
     @pytest.mark.parametrize(
         "source",
         [
