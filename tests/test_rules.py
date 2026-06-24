@@ -205,7 +205,14 @@ class TestCheckNoDoubleBackticksInMd:
         )
         assert len(violations) == 1
         assert violations[0].rule == RS_NO_DOUBLE_BACKTICKS
-        assert violations[0].col == 5
+
+    def test_DoubleBackticksMidLine_ColumnAtBacktickPair(self) -> None:
+        violations = list(
+            check_no_double_backticks_in_md(
+                Path("README.md"), "See ``ClassName`` for details."
+            )
+        )
+        assert (violations[0].line, violations[0].col) == (1, 5)
 
     @pytest.mark.parametrize(
         "source",
