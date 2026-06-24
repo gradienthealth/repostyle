@@ -1,17 +1,13 @@
 # gradient-pystyle
 
-Shared repo-style lint rules for gradienthealth Python repos, plus a
-base ruff config. The rules are a stdlib-only AST/token/line linter that
-catches conventions ruff does not cover; consuming repos select the
-subset they want and run it as a pre-commit remote hook.
+Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config. The rules are a stdlib-only AST/token/line linter that catches conventions ruff does not cover; consuming repos select the subset they want and run it as a pre-commit remote hook.
 
 ## Rules
 
-Each rule is identified by an `RSnnn` id and can be selected or ignored
-per repo.
+Each rule is identified by an `RSnnn` id and can be selected or ignored per repo.
 
-| Rule  | Description |
-| ----- | ----------- |
+| Rule | Description |
+| -- | -- |
 | RS001 | Acronym casing: a known acronym in a CapWords identifier must stay uppercase (`FHIRClient`, not `FhirClient`). |
 | RS002 | Test naming: tests under `tests/unit/` must match `test_StateUnderTest_ExpectedBehavior`. |
 | RS003 | No mock/patch: `unittest.mock` and `mock` imports are rejected outside `tests/fakes/`. |
@@ -26,20 +22,12 @@ per repo.
 
 ### Repo-agnostic vs repo-specific
 
-Most rules are repo-agnostic and safe to enable anywhere. Two are tied
-to the fhir-ingestor hexagonal architecture and its test conventions,
-and other repos (for example a Beam monorepo) should NOT select them:
+Most rules are repo-agnostic and safe to enable anywhere. Two are tied to the fhir-ingestor hexagonal architecture and its test conventions, and other repos (for example a Beam monorepo) should NOT select them:
 
-- **RS002** assumes PascalCase test naming under `tests/unit/`. Repos
-  with a different test-naming convention should not select it.
-- **RS006** bans concrete implementation libraries inside a
-  `src/fhir_ingestor/application/ports/` path. The path fragment and the
-  hexagonal `ports` layering are fhir-ingestor-specific.
+- **RS002** assumes PascalCase test naming under `tests/unit/`. Repos with a different test-naming convention should not select it.
+- **RS006** bans concrete implementation libraries inside a `src/fhir_ingestor/application/ports/` path. The path fragment and the hexagonal `ports` layering are fhir-ingestor-specific.
 
-RS003 (mock ban) is also somewhat opinionated, since it presumes a
-`tests/fakes/` directory; enable it only where that convention holds.
-The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011) are
-general style rules.
+RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011) are general style rules.
 
 ## Consume as a pre-commit remote hook
 
@@ -53,8 +41,7 @@ repos:
       - id: gradient-pystyle
 ```
 
-The hook runs the `gradient-pystyle` console script over the staged
-Python and markdown files.
+The hook runs the `gradient-pystyle` console script over the staged Python and markdown files.
 
 ## Select rules per repo
 
@@ -66,16 +53,11 @@ select = ["RS001", "RS004", "RS005", "RS007", "RS008", "RS009", "RS010", "RS011"
 ignore = []
 ```
 
-Enabled rules are `select` minus `ignore`. If the table is missing or
-empty, all rules are enabled. The nearest `pyproject.toml` is discovered
-by walking up from the first target path's directory.
+Enabled rules are `select` minus `ignore`. If the table is missing or empty, all rules are enabled. The nearest `pyproject.toml` is discovered by walking up from the first target path's directory.
 
 ## Extend the base ruff config
 
-`ruff-base.toml` is the shared baseline (line length 88, double-quote
-format, the `select`/`ignore` set, Google pydocstyle, banned relative
-imports, 88-column doc lines). Extend it from the consuming repo's
-`pyproject.toml`:
+`ruff-base.toml` is the shared baseline (line length 88, double-quote format, the `select`/`ignore` set, Google pydocstyle, banned relative imports, 88-column doc lines). Extend it from the consuming repo's `pyproject.toml`:
 
 ```toml
 [tool.ruff]
@@ -83,8 +65,7 @@ extend = "path/to/ruff-base.toml"
 target-version = "py311"
 ```
 
-Override only repo-specific knobs (target version, per-file ignores) on
-top of the inherited baseline.
+Override only repo-specific knobs (target version, per-file ignores) on top of the inherited baseline.
 
 ## Development
 
