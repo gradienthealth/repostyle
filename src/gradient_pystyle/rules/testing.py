@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python, _posix
+from gradient_pystyle.rules._shared import _is_test_file, _parse_python, _posix
 from gradient_pystyle.rules._violation import (
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -19,7 +19,6 @@ from gradient_pystyle.rules._violation import (
 )
 
 TEST_NAME_PATTERN = re.compile(r"^test_[A-Z][A-Za-z0-9]*_[A-Z][A-Za-z0-9]*$")
-TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 FAKES_PATH_FRAGMENT = "tests/fakes/"
 UNIT_TEST_PATH_FRAGMENT = "tests/unit/"
 SLEEP_MODULES = frozenset({"time", "asyncio"})
@@ -89,11 +88,6 @@ def check_no_mock_patch(path: Path, source: str) -> Iterator[Violation]:
             RS_NO_MOCK_PATCH,
             f"`{offending}` rejected; use a port fake under tests/fakes/",
         )
-
-
-def _is_test_file(path: Path) -> bool:
-    posix = _posix(path)
-    return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
 
 
 def _test_functions(

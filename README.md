@@ -25,6 +25,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS015 | Excessive mocking (warning): a test building more than 3 mock objects is flagged as a density signal of where to look. |
 | RS016 | Behavior-verification-only (warning): a test asserting only call choreography (`mock.assert_called*`) and no observable state. |
 | RS017 | Banned import by path: a file may not import a source its layer forbids, per a config-driven path-glob-to-sources map (see below). |
+| RS018 | Documentation-value signal (warning): a non-trivial public function (by cognitive complexity or parameter count) that lacks a docstring; a documented many-parameter function with no structured `Args:` section; or a function returning a multi-element `tuple` with no `Returns:` section to name the elements. |
 
 ### Repo-agnostic vs repo-specific
 
@@ -35,7 +36,7 @@ Most rules are repo-agnostic and safe to enable anywhere. Two are tied to the fh
 
 RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011) are general style rules.
 
-The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, and RS016 are advisory: they emit a `warning` and do not fail the run, since their thresholds are heuristics that mark where to look rather than assert a defect. RS013 and RS014 are mechanical and hard-fail.
+The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, and RS018 are advisory: they emit a `warning` and do not fail the run, since their thresholds are heuristics that mark where to look rather than assert a defect. RS013 and RS014 are mechanical and hard-fail.
 
 ## Consume as a pre-commit remote hook
 
