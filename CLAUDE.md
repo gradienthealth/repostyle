@@ -17,14 +17,22 @@ presumes a `tests/fakes/` directory; a repo without those conventions should not
 select them. The rest are general.
 
 The `RSnnn` rules are the *subject matter* this package enforces on other repos.
-Their definitions, scope, and rationale live in the rule docstrings in
-`src/gradient_pystyle/rules.py`; read that file before changing rule behavior.
+Their definitions, scope, and rationale live in the rule docstrings in the
+themed modules under `src/gradient_pystyle/rules/`; read the relevant module
+before changing rule behavior.
 
 ## Repository layout
 
-- `src/gradient_pystyle/rules.py` — the rule functions, the `RULES` registry
-  (id to a tuple of check functions), and `run_rule`. Add a rule by writing a
-  `check_*` function, registering it in `RULES`, and adding a parametrized test.
+- `src/gradient_pystyle/rules/` — the rules package. Themed modules hold the
+  `check_*` functions (`naming`, `docstrings`, `doc_fill`, `testing`, `ports`,
+  `duration`, `logging_phi`); `_violation` holds the `Violation` record and the
+  `RSnnn` id constants; `_shared` holds helpers used by more than one module;
+  `_registry` holds the `RULES` mapping (id to a tuple of check functions),
+  `run_rule`, and `ALL_RULE_IDS`. The package `__init__` re-exports the whole
+  public surface, so `from gradient_pystyle.rules import <name>` is stable. Add
+  a rule by writing a `check_*` function in the module it belongs to,
+  registering it in `_registry.RULES`, re-exporting it from `__init__`, and
+  adding a parametrized test.
 - `src/gradient_pystyle/runner.py` — config resolution (`select` minus `ignore`),
   pyproject discovery, and linting a path with the enabled rule set.
 - `src/gradient_pystyle/cli.py` — the `gradient-pystyle` console script the hook
