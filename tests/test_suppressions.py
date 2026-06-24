@@ -20,8 +20,9 @@ class TestFilterSuppressed:
             ("# style: ignore[RS001]", [RS_DISCOURAGED_CLASS_SUFFIX]),
             ("# style: ignore", []),
             ("# style: ignore[RS001, RS011]", []),
+            ("# style: ignore[]", [RS_ACRONYM_CASING, RS_DISCOURAGED_CLASS_SUFFIX]),
         ],
-        ids=["one_rule", "all_rules", "rule_list"],
+        ids=["one_rule", "all_rules", "rule_list", "empty_brackets_suppress_none"],
     )
     def test_LineDirective_DropsMatchingRulesOnThatLine(
         self, directive: str, kept: list[str]

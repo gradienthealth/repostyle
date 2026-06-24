@@ -72,7 +72,9 @@ def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
     violations: list[Violation] = []
     for rule_id in enabled:
         violations.extend(run_rule(rule_id, path, source))
-    return sorted(set(filter_suppressed(violations, source)))
+    if path.suffix == ".py":
+        violations = filter_suppressed(violations, source)
+    return sorted(set(violations))
 
 
 def lint_paths(paths: Iterable[Path], enabled: set[str]) -> list[Violation]:

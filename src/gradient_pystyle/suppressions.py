@@ -17,7 +17,7 @@ from collections.abc import Iterable
 from gradient_pystyle.rules import Violation
 
 _FILE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore-file\b")
-_LINE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore\b(?!-file)(?:\[([\sA-Z0-9,]+)\])?")
+_LINE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore\b(?!-file)(?:\[([\sA-Z0-9,]*)\])?")
 
 
 class _LineSuppressions:
@@ -58,7 +58,9 @@ def _parse(source: str) -> tuple[bool, _LineSuppressions]:
             if listed is None:
                 lines.add_all(token.start[0])
             else:
-                lines.add_rules(token.start[0], set(listed.replace(" ", "").split(",")))
+                lines.add_rules(
+                    token.start[0], {r for r in listed.replace(" ", "").split(",") if r}
+                )
     except tokenize.TokenError:
         pass
     return file_suppressed, lines
