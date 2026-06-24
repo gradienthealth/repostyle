@@ -23,9 +23,11 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
 
-  # ruff format/lint, the standard pre-commit hygiene hooks, and mdformat run
-  # through pre-commit so the repo's own dev config (.pre-commit-config.yaml) is
-  # the single source of truth, the same mechanism fhir-ingestor uses in CI.
+  # ruff format/lint, the hygiene hooks, mdformat, and the gradient-pystyle
+  # checker itself (dogfooding its own RSnnn rules) all run through pre-commit,
+  # so .pre-commit-config.yaml is the single source of truth — the same
+  # mechanism fhir-ingestor uses in CI. Installing the package puts the
+  # gradient-pystyle console script on PATH for its local hook.
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -33,20 +35,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      # The gradient-pystyle local hook invokes the installed console script.
       - run: pip install -e .
       - run: pip install pre-commit
       - run: pre-commit run --all-files --show-diff-on-failure
-
-  # Dogfood: run the checker over this repo's own sources so it stays
-  # subject to the RSnnn rules it ships. 3.13 parses every construct,
-  # including the PEP 695 syntax the acronym rule inspects.
-  self-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install -e .
-      - run: gradient-pystyle $(git ls-files '*.py' '*.md')
