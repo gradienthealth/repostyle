@@ -13,8 +13,9 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
 - `src/gradient_pystyle/rules/` — the rules package. Themed modules hold the `check_*` functions (`naming`, `docstrings`, `doc_fill`, `testing`, `ports`, `duration`, `logging_phi`); `_violation` holds the `Violation` record and the `RSnnn` id constants; `_shared` holds helpers used by more than one module; `_registry` holds the `RULES` mapping (id to a tuple of check functions), `run_rule`, and `ALL_RULE_IDS`. The package `__init__` re-exports the whole public surface, so `from gradient_pystyle.rules import <name>` is stable. Add a rule by writing a `check_*` function in the module it belongs to, registering it in `_registry.RULES`, re-exporting it from `__init__`, and adding a parametrized test.
 - `src/gradient_pystyle/runner.py` — config resolution (`select` minus `ignore`), pyproject discovery, and linting a path with the enabled rule set.
 - `src/gradient_pystyle/suppressions.py` — the `# style: ignore[RSnnn]` line and `# style: ignore-file` whole-file directives the runner applies to drop findings.
-- `src/gradient_pystyle/cli.py` — the `gradient-pystyle` console script the hook invokes.
-- `tests/` — `test_rules.py` (per-rule behavior), `test_runner.py` (config and dispatch), `test_cli.py` (CLI output and exit status), and `test_suppressions.py` (suppression directives).
+- `src/gradient_pystyle/changed_lines.py` — the git-diff line set the CLI's `--diff` mode intersects findings against, so a finding is reported only on lines the change touched.
+- `src/gradient_pystyle/cli.py` — the `gradient-pystyle` console script the hook invokes; its `--diff` flag scopes findings to git-changed lines.
+- `tests/` — `test_rules.py` (per-rule behavior), `test_runner.py` (config and dispatch), `test_cli.py` (CLI output and exit status), `test_suppressions.py` (suppression directives), and `test_changed_lines.py` (the `--diff` line set, with a git repo from the `conftest.py` fixture).
 - `ruff-base.toml`, `.pre-commit-hooks.yaml` — the shared ruff baseline and the hook definition consumers reference.
 
 ## Style this repo holds itself to

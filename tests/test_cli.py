@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -40,6 +41,28 @@ class TestMain:
         out = capsys.readouterr().out
         assert exit_code == 0
         assert f"{target}:2:5: warning: RS001" in out
+
+    def test_DiffMode_ReportsOnlyChangedLineFindings(
+        self,
+        git_repo: Path,
+        git: Callable[..., None],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        (git_repo / "pyproject.toml").write_text(
+            '[tool.gradient-pystyle]\nselect = ["RS001"]\n', encoding="utf-8"
+        )
+        target = git_repo / "x.py"
+        target.write_text("class FhirClient: ...\n", encoding="utf-8")
+        git("add", "x.py", "pyproject.toml")
+        git("commit", "-m", "base")
+        target.write_text(
+            "class FhirClient: ...\nclass JsonThing: ...\n", encoding="utf-8"
+        )
+        exit_code = main(["--diff", str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert f"{target}:2:1: error: RS001" in out
+        assert f"{target}:1:1:" not in out
 
     def test_CleanPath_ReturnsZeroAndPrintsNothing(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]

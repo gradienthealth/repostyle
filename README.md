@@ -65,6 +65,18 @@ To waive a single finding without disabling the rule repo-wide, add an inline di
 
 The `style` token, rather than ruff's `noqa`, keeps these from colliding with ruff's own suppression handling.
 
+## Scope findings to changed lines
+
+Adopting a rule should not mean fixing the whole existing codebase first. Run with `--diff` to report only findings on lines the change touched:
+
+```bash
+gradient-pystyle --diff --diff-base origin/main $(git diff --name-only origin/main)
+```
+
+`--diff` intersects each finding's line with the lines that differ from `--diff-base` (default `HEAD`); a finding on an untracked file or one that cannot be diffed is reported in full, so nothing is hidden by accident. The intersection is on the finding's own line, so a whole-unit finding (a complexity rule reported at the `def`) re-arms only when that line itself changes.
+
+This scopes gradient-pystyle's own `RSnnn` rules. Ruff has no diff mode, so to scope the ruff rules to a PR's lines, filter ruff's output in CI with [reviewdog](https://github.com/reviewdog/reviewdog) (`-filter-mode=added`) or graylint locally.
+
 ## Extend the base ruff config
 
 `ruff-base.toml` is the shared baseline (line length 88, double-quote format, the `select`/`ignore` set, Google pydocstyle, banned relative imports, 88-column doc lines). Extend it from the consuming repo's `pyproject.toml`:
