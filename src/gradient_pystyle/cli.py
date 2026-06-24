@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from gradient_pystyle.rules import Severity, severity_of
 from gradient_pystyle.runner import lint_path, resolve_enabled_rules_for_paths
 
 
@@ -16,12 +17,13 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as error:
         print(f"gradient-pystyle: {error}", file=sys.stderr)
         return 2
-    found = False
+    failed = False
     for path in paths:
         for line, col, rule, message in lint_path(path, enabled):
-            print(f"{path}:{line}:{col}: {rule} {message}")
-            found = True
-    return 1 if found else 0
+            severity = severity_of(rule)
+            print(f"{path}:{line}:{col}: {severity.value}: {rule} {message}")
+            failed = failed or severity is Severity.ERROR
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

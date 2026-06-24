@@ -17,6 +17,7 @@ from gradient_pystyle.rules._violation import (
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_TEST_NAMING,
+    Severity,
     Violation,
 )
 from gradient_pystyle.rules.doc_fill import check_doc_fill
@@ -51,6 +52,17 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_BANNED_ABBREVIATION: (check_banned_abbreviation,),
     RS_DISCOURAGED_CLASS_SUFFIX: (check_discouraged_class_suffix,),
 }
+
+
+# Every rule hard-fails today. A threshold- or judgment-adjacent rule
+# registers Severity.WARNING here to emit an advisory, non-blocking
+# signal instead (see PROC-2302 for the first such rules).
+RULE_SEVERITY: dict[str, Severity] = {}
+
+
+def severity_of(rule_id: str) -> Severity:
+    """Return a rule's severity, defaulting to `ERROR`."""
+    return RULE_SEVERITY.get(rule_id, Severity.ERROR)
 
 
 def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:

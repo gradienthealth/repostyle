@@ -8,7 +8,13 @@ regardless of which module the name lives in.
 
 from __future__ import annotations
 
-from gradient_pystyle.rules._registry import ALL_RULE_IDS, RULES, run_rule
+from gradient_pystyle.rules._registry import (
+    ALL_RULE_IDS,
+    RULE_SEVERITY,
+    RULES,
+    run_rule,
+    severity_of,
+)
 from gradient_pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
@@ -21,6 +27,7 @@ from gradient_pystyle.rules._violation import (
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_TEST_NAMING,
+    Severity,
     Violation,
 )
 from gradient_pystyle.rules.doc_fill import check_doc_fill
@@ -42,6 +49,7 @@ from gradient_pystyle.rules.testing import check_no_mock_patch, check_test_namin
 __all__ = [
     "ALL_RULE_IDS",
     "RULES",
+    "RULE_SEVERITY",
     "RS_ACRONYM_CASING",
     "RS_BANNED_ABBREVIATION",
     "RS_DISCOURAGED_CLASS_SUFFIX",
@@ -53,6 +61,7 @@ __all__ = [
     "RS_NO_PHI_SAFE_EXC_INFO",
     "RS_PORT_NO_IMPLEMENTATION",
     "RS_TEST_NAMING",
+    "Severity",
     "Violation",
     "check_acronym_casing",
     "check_banned_abbreviation",
@@ -67,4 +76,5 @@ __all__ = [
     "check_port_no_implementation",
     "check_test_naming",
     "run_rule",
+    "severity_of",
 ]
