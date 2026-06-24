@@ -45,3 +45,7 @@ RS_SLEEPY_TEST = "RS014"
 RS_EXCESSIVE_MOCKING = "RS015"
 RS_BEHAVIOR_VERIFICATION_ONLY = "RS016"
 RS_BANNED_IMPORT_BY_PATH = "RS017"
+# RS018 is reserved for the documentation-value signal (PROC-2303), in
+# flight on its own branch; this rule takes the next free id to avoid a
+# collision on merge.
+RS_ELEMENT_ORDER = "RS019"
