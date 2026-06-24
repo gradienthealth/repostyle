@@ -33,11 +33,11 @@ _LABEL_LINE_PATTERN = re.compile(r"^[A-Z][A-Za-z]*([ -][A-Z][A-Za-z]*)*:(\s|$)")
 _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
 _BULLET_PATTERN = re.compile(r"^[-*+] ")
 _COMMENT_DIRECTIVE_PATTERN = re.compile(r"^#+\s*(!|noqa\b|type:|ruff:|pragma\b)")
-# A markdown table row (`|...|`) or a line made only of box-drawing
-# characters and spaces (`+----+`, `====`, a `---` rule) opens content
-# whose alignment is meaningful, so it is verbatim: never filled and
-# never reflowed. Requiring the whole line to be box characters keeps
-# flag-like prose (`--fix ...`) and bullets (`- `) from matching.
+# A markdown table row (`|...|`) or a line made only of pipe, dash,
+# plus, and equals characters (`+----+`, `====`, a `---` rule) opens
+# content whose alignment is meaningful, so it is verbatim: never filled
+# and never reflowed. Requiring the whole line to be those characters
+# keeps flag-like prose (`--fix ...`) and bullets (`- `) from matching.
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 
 
@@ -255,7 +255,7 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
 def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     """Return `unit` rewrapped to the column limit, or `None` to skip it.
 
-    A unit carrying a closing docstring quote on a text line is skipped:
+    A unit whose text contains a triple quote is skipped, since
     rewrapping would move the quote. The first line keeps the unit's
     leading whitespace and any marker; continuation lines wrap to the
     hanging indent.
@@ -284,8 +284,8 @@ def reflow_doc_fill(
     """Rewrap docstring and comment paragraphs in `source` to 72 columns.
 
     Each fillable unit is greedily refilled at its hanging indent; the
-    verbatim structures RS009 exempts (code fences, doctests, tables,
-    diagrams, section headers) are left untouched, as are units on a
+    verbatim structures RS009 exempts (code fences, doctests, table and
+    rule lines, section headers) are left untouched, as are units on a
     line in `skip_lines`. The source's line ending is preserved. Return
     the source unchanged when nothing reflows.
     """
