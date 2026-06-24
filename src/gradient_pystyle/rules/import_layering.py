@@ -1,8 +1,8 @@
 """Layering rule: a file may not import a source its layer forbids.
 
 The bans are config-driven, so each repo expresses its own layering
-boundaries instead of the rule hardcoding one; with no configured
-table the rule reports nothing.
+boundaries instead of the rule hardcoding one; with no configured table
+the rule reports nothing.
 """
 
 from __future__ import annotations
