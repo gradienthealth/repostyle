@@ -18,8 +18,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     found = False
     for path in paths:
-        for line, rule, message in lint_path(path, enabled):
-            print(f"{path}:{line}: {rule} {message}")
+        for line, col, rule, message in lint_path(path, enabled):
+            print(f"{path}:{line}:{col}: {rule} {message}")
             found = True
     return 1 if found else 0
 

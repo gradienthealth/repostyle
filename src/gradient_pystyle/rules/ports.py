@@ -39,6 +39,7 @@ def check_port_no_implementation(path: Path, source: str) -> Iterator[Violation]
             if pattern.search(node.value):
                 yield Violation(
                     node.lineno,
+                    node.col_offset + 1,
                     RS_PORT_NO_IMPLEMENTATION,
                     f"port file names '{token}'; describe contract, not implementation",
                 )

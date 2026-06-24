@@ -37,6 +37,7 @@ def check_test_naming(path: Path, source: str) -> Iterator[Violation]:
             continue
         yield Violation(
             node.lineno,
+            node.col_offset + 1,
             RS_TEST_NAMING,
             f"test '{node.name}' must match `test_StateUnderTest_ExpectedBehavior`",
         )
@@ -73,6 +74,7 @@ def check_no_mock_patch(path: Path, source: str) -> Iterator[Violation]:
             continue
         yield Violation(
             lineno,
+            node.col_offset + 1,
             RS_NO_MOCK_PATCH,
             f"`{offending}` rejected; use a port fake under tests/fakes/",
         )

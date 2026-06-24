@@ -167,6 +167,7 @@ def _fill_violations(lines: list[_FillLine]) -> Iterator[Violation]:
             if len(line.rendered) + 1 + len(first_word) <= DOC_FILL_COLUMNS:
                 yield Violation(
                     line.lineno,
+                    line.indent + 1,
                     RS_DOC_FILL,
                     f"under-wrapped line: '{first_word}' still fits within "
                     f"{DOC_FILL_COLUMNS} columns",
@@ -178,6 +179,7 @@ def _fill_violations(lines: list[_FillLine]) -> Iterator[Violation]:
                 continue
             yield Violation(
                 line.lineno,
+                line.indent + 1,
                 RS_DOC_FILL,
                 f"line exceeds {DOC_FILL_COLUMNS} columns; rewrap the paragraph",
             )

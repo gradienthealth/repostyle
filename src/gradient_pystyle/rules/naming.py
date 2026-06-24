@@ -105,13 +105,13 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     for node in ast.walk(tree):
-        names: list[tuple[str, int]] = []
+        names: list[tuple[str, int, int]] = []
         if isinstance(node, ast.ClassDef):
-            names.append((node.name, node.lineno))
+            names.append((node.name, node.lineno, node.col_offset))
         elif isinstance(node, _PEP695_TYPE_ALIAS):
-            names.append((node.name.id, node.lineno))
+            names.append((node.name.id, node.lineno, node.col_offset))
         elif isinstance(node, _PEP695_TYPE_PARAMS):
-            names.append((node.name, node.lineno))
+            names.append((node.name, node.lineno, node.col_offset))
         elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
             factory = _typevar_factory_name(node.value)
             if (
@@ -120,13 +120,14 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
                 and isinstance(node.value.args[0], ast.Constant)
                 and isinstance(node.value.args[0].value, str)
             ):
-                names.append((node.value.args[0].value, node.lineno))
-        for name, lineno in names:
+                names.append((node.value.args[0].value, node.lineno, node.col_offset))
+        for name, lineno, col_offset in names:
             if not name[:1].isupper():
                 continue
             for acronym in _capwords_acronym_violations(name):
                 yield Violation(
                     lineno,
+                    col_offset + 1,
                     RS_ACRONYM_CASING,
                     f"acronym '{acronym}' must stay uppercase in '{name}'",
                 )
@@ -149,20 +150,21 @@ def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     for node in ast.walk(tree):
-        named: list[tuple[str, int]] = []
+        named: list[tuple[str, int, int]] = []
         if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-            named.append((node.name, node.lineno))
+            named.append((node.name, node.lineno, node.col_offset))
         elif isinstance(node, ast.arg):
-            named.append((node.arg, node.lineno))
+            named.append((node.arg, node.lineno, node.col_offset))
         elif isinstance(node, ast.alias) and node.asname is not None:
-            named.append((node.asname, node.lineno))
+            named.append((node.asname, node.lineno, node.col_offset))
         elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-            named.append((node.id, node.lineno))
-        for name, lineno in named:
+            named.append((node.id, node.lineno, node.col_offset))
+        for name, lineno, col_offset in named:
             for word in _identifier_words(name):
                 if word in BANNED_ABBREVIATIONS:
                     yield Violation(
                         lineno,
+                        col_offset + 1,
                         RS_BANNED_ABBREVIATION,
                         f"'{name}' uses the abbreviation '{word}'; spell the word out",
                     )
@@ -188,6 +190,7 @@ def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violatio
             if node.name.endswith(suffix):
                 yield Violation(
                     node.lineno,
+                    node.col_offset + 1,
                     RS_DISCOURAGED_CLASS_SUFFIX,
                     f"class '{node.name}' ends in '{suffix}'; name the "
                     f"responsibility, not a vague agent role",

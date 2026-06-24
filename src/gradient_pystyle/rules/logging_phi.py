@@ -66,6 +66,7 @@ def check_no_phi_safe_with_exc_info(path: Path, source: str) -> Iterator[Violati
             continue
         yield Violation(
             node.lineno,
+            node.col_offset + 1,
             RS_NO_PHI_SAFE_EXC_INFO,
             "record carries `exc_info`; the rendered exception chain cannot be "
             "certain PHI-free, so it must not be marked `phi_safe`",
