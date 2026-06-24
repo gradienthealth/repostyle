@@ -54,10 +54,9 @@ class TestCheckModuleElementOrder:
         "source",
         [
             "def compute():\n    return 1\n\n\nRESULT = compute()\n",
-            "BASE = object\n\n\ndef other():\n    return 1\n\n\n"
-            "class Public(BASE):\n    pass\n",
+            "class Registry:\n    pass\n\n\nclass _Impl(Registry):\n    pass\n",
         ],
-        ids=["constant_reads_definition_above", "base_class_precedes_subclass"],
+        ids=["constant_reads_definition_above", "private_subclass_of_public_base"],
     )
     def test_DefinitionTimeDependencyForcesPosition_NoViolation(
         self, tmp_path: Path, source: str
@@ -155,6 +154,19 @@ class TestCheckClassMemberOrder:
             "        def __init__(self):\n            self.x = 1\n"
         )
         target = _target(tmp_path, source)
+        violations = list(check_class_member_order(target, source))
+        assert len(violations) == 1
+
+    def test_ConfiguredClassOrderOverridesDefault_FlagsAgainstConfig(
+        self, tmp_path: Path
+    ) -> None:
+        # Method-first config flags a constructor-first class.
+        config = '[tool.gradient-pystyle]\nclass-order = ["method", "init"]\n'
+        source = (
+            "class C:\n    def __init__(self):\n        self.x = 1\n\n"
+            "    def run(self):\n        return 1\n"
+        )
+        target = _target(tmp_path, source, config=config)
         violations = list(check_class_member_order(target, source))
         assert len(violations) == 1
 
