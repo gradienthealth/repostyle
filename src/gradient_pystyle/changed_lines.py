@@ -47,9 +47,9 @@ def changed_lines(path: Path, base: str) -> set[int] | None:
             lines.add(new_lineno)
             new_lineno += 1
     if not lines:
-        # An untracked file produces no diff, so an empty result is the
-        # only place it is mistakable for an unchanged tracked file; fail
-        # open when the file turns out to be untracked.
+        # An untracked file has no diff at all, so an empty result is
+        # the only case mistakable for an unchanged tracked file; fail
+        # open when the file proves untracked.
         tracked = _run_git(
             ["ls-files", "--error-unmatch", "--", path.name], path.parent
         )
