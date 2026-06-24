@@ -8,12 +8,21 @@ other.
 from __future__ import annotations
 
 import ast
+import re
 from functools import lru_cache
 from pathlib import Path
+
+TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 
 
 def _posix(path: Path) -> str:
     return str(path).replace("\\", "/")
+
+
+def _is_test_file(path: Path) -> bool:
+    """Report whether a path is a test module by location or filename."""
+    posix = _posix(path)
+    return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
 
 
 def find_pyproject(start: Path) -> Path | None:

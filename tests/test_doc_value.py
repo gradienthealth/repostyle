@@ -96,6 +96,14 @@ class TestCheckDocValueSignal:
         )
         assert _check(source) == []
 
+    def test_MultiTypeVariadicTupleReturn_NoReturnsViolation(self) -> None:
+        source = (
+            "def items(n) -> tuple[int, str, ...]:\n"
+            '    """Return the items."""\n'
+            "    return (n, str(n))\n"
+        )
+        assert _check(source) == []
+
     def test_PrivateFunction_NoViolation(self) -> None:
         assert _check("def _helper(a, b, c, d, e):\n    return a\n") == []
 
