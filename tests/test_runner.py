@@ -81,6 +81,14 @@ class TestLintPathWithEnabledRules:
         assert RS_DISCOURAGED_CLASS_SUFFIX not in rules
         assert RS_ACRONYM_CASING in rules
 
+    def test_SuppressionComment_DropsThatFinding(self, tmp_path: Path) -> None:
+        target = tmp_path / "x.py"
+        target.write_text(
+            "class FhirManager: ...  # style: ignore[RS001]\n", encoding="utf-8"
+        )
+        rules = {v.rule for v in lint_path(target, {RS_ACRONYM_CASING})}
+        assert rules == set()
+
     def test_RS005_CoversMarkdownAndDocstrings(self, tmp_path: Path) -> None:
         markdown = tmp_path / "doc.md"
         markdown.write_text("See ``X`` here.\n", encoding="utf-8")

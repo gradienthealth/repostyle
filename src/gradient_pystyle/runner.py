@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from gradient_pystyle.rules import ALL_RULE_IDS, Violation, run_rule
+from gradient_pystyle.suppressions import filter_suppressed
 
 
 def resolve_enabled_rules(config: dict | None) -> set[str]:
@@ -71,7 +72,7 @@ def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
     violations: list[Violation] = []
     for rule_id in enabled:
         violations.extend(run_rule(rule_id, path, source))
-    return sorted(set(violations))
+    return sorted(set(filter_suppressed(violations, source)))
 
 
 def lint_paths(paths: Iterable[Path], enabled: set[str]) -> list[Violation]:

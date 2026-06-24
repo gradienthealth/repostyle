@@ -55,6 +55,16 @@ ignore = []
 
 Enabled rules are `select` minus `ignore`. If the table is missing or empty, all rules are enabled. The nearest `pyproject.toml` is discovered by walking up from the first target path's directory.
 
+## Suppress a finding
+
+To waive a single finding without disabling the rule repo-wide, add an inline directive:
+
+- `# style: ignore[RS010]` — drop the named rule on that line (comma-separate to list several: `# style: ignore[RS001, RS011]`).
+- `# style: ignore` — drop every rule's findings on that line.
+- `# style: ignore-file` — drop every finding in the file; place it anywhere in the file.
+
+The `style` token, rather than ruff's `noqa`, keeps these from colliding with ruff's own suppression handling.
+
 ## Extend the base ruff config
 
 `ruff-base.toml` is the shared baseline (line length 88, double-quote format, the `select`/`ignore` set, Google pydocstyle, banned relative imports, 88-column doc lines). Extend it from the consuming repo's `pyproject.toml`:
