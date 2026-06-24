@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from gradient_pystyle.rules import RS_DOC_VALUE_SIGNAL, check_doc_value_signal
 
 _SRC = Path("src/x.py")
@@ -10,22 +12,22 @@ def _check(source: str, path: Path = _SRC) -> list:
 
 
 class TestCheckDocValueSignal:
-    def test_ComplexUndocumentedFunction_FlagsPresence(self) -> None:
-        source = (
+    @pytest.mark.parametrize(
+        "source",
+        [
             "def process(data):\n"
             "    for item in data:\n"
             "        if item:\n"
             "            if item.ok:\n"
-            "                return item\n"
-        )
+            "                return item\n",
+            "def render(a, b, c, d):\n    return a\n",
+        ],
+        ids=["complexity-floor", "param-floor"],
+    )
+    def test_NonTrivialUndocumentedFunction_FlagsPresence(self, source: str) -> None:
         violations = _check(source)
         assert len(violations) == 1
         assert violations[0].rule == RS_DOC_VALUE_SIGNAL
-        assert "no docstring" in violations[0].message
-
-    def test_ManyParameterUndocumentedFunction_FlagsPresence(self) -> None:
-        violations = _check("def render(a, b, c, d):\n    return a\n")
-        assert len(violations) == 1
         assert "no docstring" in violations[0].message
 
     def test_TrivialFunction_NoViolation(self) -> None:
@@ -88,32 +90,34 @@ class TestCheckDocValueSignal:
         )
         assert _check(source) == []
 
-    def test_VariadicTupleReturn_NoReturnsViolation(self) -> None:
+    @pytest.mark.parametrize(
+        "annotation",
+        ["tuple[int, ...]", "tuple[int, str, ...]"],
+        ids=["homogeneous", "multi-type"],
+    )
+    def test_VariadicTupleReturn_NoReturnsViolation(self, annotation: str) -> None:
         source = (
-            "def items(n) -> tuple[int, ...]:\n"
+            f"def items(n) -> {annotation}:\n"
             '    """Return the items."""\n'
             "    return (n,)\n"
         )
         assert _check(source) == []
 
-    def test_MultiTypeVariadicTupleReturn_NoReturnsViolation(self) -> None:
-        source = (
-            "def items(n) -> tuple[int, str, ...]:\n"
-            '    """Return the items."""\n'
-            "    return (n, str(n))\n"
-        )
-        assert _check(source) == []
-
-    def test_PrivateFunction_NoViolation(self) -> None:
-        assert _check("def _helper(a, b, c, d, e):\n    return a\n") == []
-
-    def test_TestFunctionByName_NoViolation(self) -> None:
-        assert _check("def test_it(a, b, c, d):\n    assert a\n") == []
-
-    def test_TestFile_NotChecked(self) -> None:
-        source = "def render(a, b, c, d):\n    return a\n"
-        assert _check(source, Path("tests/test_x.py")) == []
-
-    def test_NonPythonFile_NotChecked(self) -> None:
-        source = "def render(a, b, c, d):\n    return a\n"
-        assert _check(source, Path("README.md")) == []
+    @pytest.mark.parametrize(
+        ("source", "path"),
+        [
+            ("def _helper(a, b, c, d, e):\n    return a\n", _SRC),
+            ("def test_it(a, b, c, d):\n    assert a\n", _SRC),
+            ("def render(a, b, c, d):\n    return a\n", Path("tests/test_x.py")),
+            ("def render(a, b, c, d):\n    return a\n", Path("README.md")),
+            (
+                "from typing import overload\n"
+                "@overload\n"
+                "def render(a, b, c, d): ...\n",
+                _SRC,
+            ),
+        ],
+        ids=["private-name", "test-name", "test-file", "non-python", "overload"],
+    )
+    def test_ExcludedDefinition_NoViolation(self, source: str, path: Path) -> None:
+        assert _check(source, path) == []
