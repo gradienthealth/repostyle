@@ -69,11 +69,7 @@ Override only repo-specific knobs (target version, per-file ignores) on top of t
 
 ## Check docstrings against signatures
 
-The base config enforces docstring *style* (Google convention, via the
-ruff `D` rules) but not that a docstring's `Args`/`Returns`/`Raises`
-match the actual signature — ruff's `D` rules don't check that. Add
-[pydoclint](https://github.com/jsh9/pydoclint) as a pre-commit hook in
-the consuming repo to catch that drift:
+The base config enforces docstring *style* (Google convention, via the ruff `D` rules) but not that a docstring's `Args`/`Returns`/`Raises` match the actual signature — ruff's `D` rules don't check that. Add [pydoclint](https://github.com/jsh9/pydoclint) as a pre-commit hook in the consuming repo to catch that drift:
 
 ```yaml
   - repo: https://github.com/jsh9/pydoclint
