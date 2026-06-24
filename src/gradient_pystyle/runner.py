@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from gradient_pystyle.rules import ALL_RULE_IDS, Violation, run_rule
+from gradient_pystyle.rules._shared import find_pyproject
 from gradient_pystyle.suppressions import filter_suppressed
 
 
@@ -32,17 +33,6 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
         )
     selected = set(select) if select else known
     return selected - set(ignore)
-
-
-def find_pyproject(start: Path) -> Path | None:
-    """Walk up from `start` to find the nearest `pyproject.toml`."""
-    start = start.resolve()
-    directory = start if start.is_dir() else start.parent
-    for candidate in (directory, *directory.parents):
-        pyproject = candidate / "pyproject.toml"
-        if pyproject.is_file():
-            return pyproject
-    return None
 
 
 def load_config(pyproject: Path) -> dict | None:

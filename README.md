@@ -24,6 +24,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS014 | Sleepy test: a test may not call `time.sleep` or `asyncio.sleep`; wait on a condition or a fake clock. |
 | RS015 | Excessive mocking (warning): a test building more than 3 mock objects is flagged as a density signal of where to look. |
 | RS016 | Behavior-verification-only (warning): a test asserting only call choreography (`mock.assert_called*`) and no observable state. |
+| RS017 | Banned import by path: a file may not import a source its layer forbids, per a config-driven path-glob-to-sources map (see below). |
 
 ### Repo-agnostic vs repo-specific
 
@@ -61,6 +62,18 @@ ignore = []
 ```
 
 Enabled rules are `select` minus `ignore`. If the table is missing or empty, all rules are enabled. The nearest `pyproject.toml` is discovered by walking up from the first target path's directory.
+
+## Configure layering bans (RS017)
+
+RS017 takes its bans from config, so each repo expresses its own layering. Map a path glob (relative to the repo root, `fnmatch` semantics) to the import sources files under it may not import:
+
+```toml
+[tool.gradient-pystyle.banned-imports]
+"src/**" = ["tests"]
+"**/application/ports/**" = ["httpx", "sqlalchemy", "bigquery", "psycopg", "boto3"]
+```
+
+A file matching a glob that imports a banned source — or a submodule of it (`tests.fakes`) — is flagged. Relative imports are left to the no-relative-imports ruff rule. With no table, RS017 reports nothing, so selecting it is harmless until a layer is configured.
 
 ## Suppress a finding
 
