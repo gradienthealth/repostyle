@@ -187,6 +187,11 @@ class TestCheckNoAttributesBlock:
         assert len(violations) == 1
         assert violations[0].rule == RS_NO_ATTRIBUTES_BLOCK
 
+    def test_ModuleDocstring_ColumnFallsBackToOne(self) -> None:
+        source = '"""Attributes:\n    name: full name.\n"""\n'
+        violations = list(check_no_attributes_block(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (1, 1)
+
     @pytest.mark.parametrize(
         "source",
         [_ATTRIBUTES_NO_BLOCK, _ATTRIBUTES_INLINE_PROSE],
