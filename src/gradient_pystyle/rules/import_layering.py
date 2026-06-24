@@ -8,30 +8,25 @@ the rule reports nothing.
 from __future__ import annotations
 
 import ast
+import tomllib
 from collections.abc import Iterator
 from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import (
-    _parse_python,
-    _posix,
-    _tool_table,
-    find_pyproject,
-)
+from gradient_pystyle.rules._shared import _parse_python, _posix, find_pyproject
 from gradient_pystyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
 
 
 @lru_cache(maxsize=128)
 def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
     """Read the `banned-imports` glob-to-sources table from a pyproject file."""
-    table = _tool_table(pyproject).get("banned-imports", {})
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return ()
+    table = data.get("tool", {}).get("gradient-pystyle", {}).get("banned-imports", {})
     return tuple((glob, frozenset(sources)) for glob, sources in table.items())
-
-
-def _is_banned(name: str, banned: frozenset[str]) -> bool:
-    """Report whether dotted module `name` is a banned source or under one."""
-    return any(name == source or name.startswith(f"{source}.") for source in banned)
 
 
 def _imported_sources(node: ast.AST) -> Iterator[str]:
@@ -41,6 +36,11 @@ def _imported_sources(node: ast.AST) -> Iterator[str]:
             yield alias.name
     elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
         yield node.module
+
+
+def _is_banned(name: str, banned: frozenset[str]) -> bool:
+    """Report whether dotted module `name` is a banned source or under one."""
+    return any(name == source or name.startswith(f"{source}.") for source in banned)
 
 
 def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:

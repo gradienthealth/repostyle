@@ -1,325 +1,336 @@
-"""Element-ordering rule: warn when module and class members are out of order.
+"""Element-ordering rule: define before use, then order the free choices.
 
-This enforces a project *convention*, not a standard. PEP 8 and the
-Google style guide deliberately decline to mandate the order of
-constants, classes, and functions within a module, so the default order
-here is the one this package holds itself to — module-level helpers
-before the public callable they support, class members from constructor
-down to private methods — and each scope's order is overridable per repo
-through `[tool.gradient-pystyle]`.
+Two structural conventions, both derived from the code itself rather
+than from names. A module-level definition must appear before the
+definitions that reference it (define-before-use), so a reader meets a
+name's meaning before its use; mutual-recursion cycles are exempt
+because no such order exists. Where the dependency graph leaves the
+order free — adjacent private helpers or classes that do not reference
+each other — they go alphabetically, the one tie-break that stays stable
+as bodies change.
 
-The rule reports; it never reorders. It suppresses any finding whose
-only fix would move an element past a name it reads at definition time —
-a base class, decorator, or default argument — so it never reports an
-order that cannot be satisfied.
+Within a class, methods run dunders, then public, then private, with the
+public and private runs alphabetical; an enum whose members all carry
+explicit literal values orders them alphabetically too. Public functions
+and module constants are left to the author: a public surface often has
+a narrative order, and constants carry implicit orders (a numeric id
+sequence, say) that a name sort would destroy.
 """
 
 from __future__ import annotations
 
 import ast
-from collections.abc import Callable, Iterator
-from functools import lru_cache
+import symtable
+from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python, _tool_table, find_pyproject
+from gradient_pystyle.rules._shared import _parse_python
 from gradient_pystyle.rules._violation import RS_ELEMENT_ORDER, Violation
 
-# Default module order, helpers-first: private definitions sit above the
-# public surface they support, the layout this package itself follows.
-DEFAULT_MODULE_ORDER = (
-    "docstring",
-    "future_import",
-    "dunder",
-    "import",
-    "constant",
-    "private",
-    "public",
-    "main",
-)
-# Default class-body order, public surface before private, following the
-# flake8-class-attributes-order convention.
-DEFAULT_CLASS_ORDER = (
-    "docstring",
-    "field",
-    "init",
-    "dunder",
-    "property",
-    "staticmethod",
-    "classmethod",
-    "method",
-    "private_method",
-)
-
-_LABELS = {
-    "docstring": "docstring",
-    "future_import": "`__future__` import",
-    "dunder": "module dunder",
-    "import": "import",
-    "constant": "module constant",
-    "private": "private helper",
-    "public": "public class or function",
-    "main": "`__main__` block",
-    "field": "class field",
-    "init": "constructor",
-    "property": "property",
-    "staticmethod": "static method",
-    "classmethod": "class method",
-    "method": "method",
-    "private_method": "private method",
-}
-# Decorators that mark a method and its setter/deleter as a property.
-_PROPERTY_DECORATORS = frozenset({"property", "cached_property", "setter", "deleter"})
+_ENUM_BASES = frozenset({"Enum", "IntEnum", "StrEnum", "Flag", "IntFlag", "ReprEnum"})
+_DefNode = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 
 
-@lru_cache(maxsize=128)
-def _configured_order(
-    pyproject: Path, key: str, default: tuple[str, ...]
-) -> tuple[str, ...]:
-    """Read an ordered category list from a pyproject file, or the default.
+def _collect_global_refs(table: symtable.SymbolTable) -> set[str]:
+    """Return the module globals a symbol table and its nested scopes read.
 
-    An empty list disables ranking for that scope (every category
-    floats), so a repo turns one scope off without ignoring the whole
-    rule.
+    `symtable` resolves each name against its scope, so a parameter or
+    local that shadows a module name is not reported — only true global
+    references are, which keeps the dependency graph free of phantom
+    edges.
     """
-    value = _tool_table(pyproject).get(key)
-    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-        return default
-    return tuple(value)
+    names = {symbol.get_name() for symbol in table.get_symbols() if symbol.is_global()}
+    for child in table.get_children():
+        names |= _collect_global_refs(child)
+    return names
 
 
 def _is_dunder(name: str) -> bool:
     return name.startswith("__") and name.endswith("__")
 
 
-def _target_names(target: ast.expr) -> list[str]:
-    """Names an assignment target binds, descending into tuple unpacking."""
-    if isinstance(target, ast.Name):
-        return [target.id]
-    if isinstance(target, ast.Tuple | ast.List):
-        return [name for element in target.elts for name in _target_names(element)]
-    return []
+def _alpha_kind(stmt: ast.stmt) -> str | None:
+    """Return the alphabetised kind of a statement, or None to leave it free.
 
-
-def _assign_targets(stmt: ast.Assign | ast.AnnAssign) -> list[str]:
-    if isinstance(stmt, ast.AnnAssign):
-        return _target_names(stmt.target)
-    return [name for target in stmt.targets for name in _target_names(target)]
-
-
-def _is_main_guard(test: ast.expr) -> bool:
-    return (
-        isinstance(test, ast.Compare)
-        and isinstance(test.left, ast.Name)
-        and test.left.id == "__name__"
-        and len(test.ops) == 1
-        and isinstance(test.ops[0], ast.Eq)
-    )
-
-
-def _is_string_expr(stmt: ast.stmt) -> bool:
-    return (
-        isinstance(stmt, ast.Expr)
-        and isinstance(stmt.value, ast.Constant)
-        and isinstance(stmt.value.value, str)
-    )
-
-
-def _assignment_category(stmt: ast.Assign | ast.AnnAssign) -> str:
-    """Categorise a module-level assignment as a dunder or a constant."""
-    names = _assign_targets(stmt)
-    if names and all(_is_dunder(name) for name in names):
-        return "dunder"
-    return "constant"
-
-
-def _definition_category(
-    stmt: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
-) -> str:
-    """Categorise a top-level definition as private or public by its name."""
-    private = stmt.name.startswith("_") and not _is_dunder(stmt.name)
-    return "private" if private else "public"
-
-
-def _module_category(stmt: ast.stmt, first: bool) -> str | None:
-    """Return the ordering category for a top-level statement, or None.
-
-    A None category is opaque — a `TYPE_CHECKING`/`try` guard or
-    anything unrecognised — and never constrains the order around it.
+    Private helper functions and classes are alphabetised where the
+    dependency graph allows; public functions, constants, and pytest
+    test classes (ordered to mirror their subjects, not by name) are
+    not.
     """
-    if _is_string_expr(stmt):
-        return "docstring" if first else None
-    if isinstance(stmt, ast.ImportFrom) and stmt.module == "__future__":
-        return "future_import"
-    if isinstance(stmt, ast.Import | ast.ImportFrom):
-        return "import"
-    if isinstance(stmt, ast.If):
-        return "main" if _is_main_guard(stmt.test) else None
-    if isinstance(stmt, ast.Assign | ast.AnnAssign):
-        return _assignment_category(stmt)
-    if isinstance(stmt, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-        return _definition_category(stmt)
+    if isinstance(stmt, ast.ClassDef):
+        return None if stmt.name.startswith("Test") else "class"
+    if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
+        if stmt.name.startswith("_") and not _is_dunder(stmt.name):
+            return "private helper"
     return None
 
 
-def _decorator_names(stmt: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
-    """Names a method's decorators read — `setter`/`deleter` via attribute."""
-    names: set[str] = set()
-    for decorator in stmt.decorator_list:
-        node = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(node, ast.Name):
-            names.add(node.id)
-        elif isinstance(node, ast.Attribute):
-            names.add(node.attr)
+def _enum_member_names(node: ast.ClassDef) -> list[str] | None:
+    """Return an enum's member names if every value is an explicit literal.
+
+    Return None when the class is not an enum or any member takes a
+    computed value (`auto()`, an expression), since reordering would
+    then change the values it assigns.
+    """
+    bases = {base.id for base in node.bases if isinstance(base, ast.Name)}
+    bases |= {b.attr for b in node.bases if isinstance(b, ast.Attribute)}
+    if not bases & _ENUM_BASES:
+        return None
+    members: list[str] = []
+    for stmt in node.body:
+        if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+            target, value = stmt.target.id, stmt.value
+        elif (
+            isinstance(stmt, ast.Assign)
+            and len(stmt.targets) == 1
+            and isinstance(stmt.targets[0], ast.Name)
+        ):
+            target, value = stmt.targets[0].id, stmt.value
+        else:
+            continue
+        if _is_dunder(target):
+            continue
+        if not isinstance(value, ast.Constant):
+            return None
+        members.append(target)
+    return members
+
+
+def _enum_member_order(node: ast.ClassDef) -> Iterator[Violation]:
+    """Flag an enum with explicit values whose members are out of order."""
+    members = _enum_member_names(node)
+    if members is None:
+        return
+    for index, name in enumerate(members[1:], start=1):
+        if name < members[index - 1]:
+            yield Violation(
+                node.lineno,
+                node.col_offset + 1,
+                RS_ELEMENT_ORDER,
+                f"enum '{node.name}' member '{name}' is out of alphabetical "
+                f"order; members with explicit values sort by name",
+            )
+            return
+
+
+def _method_band(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+    """Rank a method: dunders first, then public, then private."""
+    if _is_dunder(node.name):
+        return 0
+    return 2 if node.name.startswith("_") else 1
+
+
+def _method_member_order(node: ast.ClassDef) -> Iterator[Violation]:
+    """Flag class methods out of band, or unsorted within a band.
+
+    A pytest test class is left alone: its methods follow the
+    happy-path, edge, error scenario order, not an alphabetical one.
+    """
+    if node.name.startswith("Test"):
+        return
+    methods = [
+        stmt
+        for stmt in node.body
+        if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef)
+    ]
+    highest = 0
+    for method in methods:
+        band = _method_band(method)
+        if band < highest:
+            yield Violation(
+                method.lineno,
+                method.col_offset + 1,
+                RS_ELEMENT_ORDER,
+                f"method '{method.name}' is out of order; methods run "
+                f"dunder, then public, then private",
+            )
+        highest = max(highest, band)
+    for band in (1, 2):
+        named = [m.name for m in methods if _method_band(m) == band]
+        for index, name in enumerate(named[1:], start=1):
+            if name < named[index - 1]:
+                stmt = next(m for m in methods if m.name == name)
+                yield Violation(
+                    stmt.lineno,
+                    stmt.col_offset + 1,
+                    RS_ELEMENT_ORDER,
+                    f"method '{name}' should be ordered before "
+                    f"'{named[index - 1]}'; methods sort by name in a band",
+                )
+                break
+
+
+def _reachability(deps: dict[str, frozenset[str]]) -> dict[str, set[str]]:
+    """Map each name to every name it depends on, directly or transitively."""
+    closure: dict[str, set[str]] = {}
+
+    def resolve(name: str, seen: set[str]) -> set[str]:
+        if name in closure:
+            return closure[name]
+        result: set[str] = set()
+        for target in deps.get(name, ()):
+            if target in seen:
+                continue
+            result.add(target)
+            result |= resolve(target, seen | {target})
+        closure[name] = result
+        return result
+
+    for name in deps:
+        resolve(name, {name})
+    return closure
+
+
+def _strongly_connected(deps: dict[str, frozenset[str]]) -> dict[str, int]:
+    """Map each name to a component id, grouping mutual-recursion cycles.
+
+    Names that share a component depend on each other transitively, so
+    define-before-use cannot order them and the check exempts edges
+    between them.
+    """
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    component: dict[str, int] = {}
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    counter = [0]
+
+    def visit(name: str) -> None:
+        index[name] = low[name] = counter[0]
+        counter[0] += 1
+        stack.append(name)
+        on_stack.add(name)
+        for target in deps.get(name, ()):
+            if target not in index:
+                visit(target)
+                low[name] = min(low[name], low[target])
+            elif target in on_stack:
+                low[name] = min(low[name], index[target])
+        if low[name] == index[name]:
+            while True:
+                member = stack.pop()
+                on_stack.discard(member)
+                component[member] = index[name]
+                if member == name:
+                    break
+
+    for name in deps:
+        if name not in index:
+            visit(name)
+    return component
+
+
+def _top_level_names(body: list[ast.stmt]) -> dict[str, ast.stmt]:
+    """Map each top-level binding name to the statement that defines it."""
+    names: dict[str, ast.stmt] = {}
+    for stmt in body:
+        if isinstance(stmt, _DefNode):
+            names[stmt.name] = stmt
+        elif isinstance(stmt, ast.Assign):
+            for target in stmt.targets:
+                if isinstance(target, ast.Name):
+                    names[target.id] = stmt
+        elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+            names[stmt.target.id] = stmt
     return names
 
 
-def _method_category(stmt: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
-    """Categorise a method by its decorator, then its name."""
-    decorators = _decorator_names(stmt)
-    if decorators & _PROPERTY_DECORATORS:
-        return "property"
-    if "staticmethod" in decorators:
-        return "staticmethod"
-    if "classmethod" in decorators:
-        return "classmethod"
-    if stmt.name in {"__new__", "__init__", "__post_init__"}:
-        return "init"
-    if _is_dunder(stmt.name):
-        return "dunder"
-    return "private_method" if stmt.name.startswith("_") else "method"
-
-
-def _class_category(stmt: ast.stmt, first: bool) -> str | None:
-    """Return the ordering category for a class-body statement, or None.
-
-    A property and its setter/deleter all land in `property`, so the
-    same-name cluster shares a rank and is never split by the order.
-    """
-    if _is_string_expr(stmt):
-        return "docstring" if first else None
-    if isinstance(stmt, ast.Assign | ast.AnnAssign):
-        return "field"
-    if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
-        return _method_category(stmt)
-    return None
-
-
-def _defined_names(stmt: ast.stmt) -> set[str]:
-    """Names a statement binds in its enclosing namespace."""
-    if isinstance(stmt, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-        return {stmt.name}
-    if isinstance(stmt, ast.Assign | ast.AnnAssign):
-        return set(_assign_targets(stmt))
-    if isinstance(stmt, ast.Import | ast.ImportFrom):
-        return {alias.asname or alias.name.split(".")[0] for alias in stmt.names}
-    return set()
-
-
-def _definition_time_refs(stmt: ast.stmt) -> set[str]:
-    """Names a statement reads when its definition executes, not when called.
-
-    A function or class body runs only on call or instantiation, so
-    names used there impose no order. Decorators, base classes, and
-    default arguments are evaluated when the `def`/`class` runs, so they
-    do.
-    """
-    nodes: list[ast.AST] = []
-    if isinstance(stmt, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-        nodes.extend(stmt.decorator_list)
-    if isinstance(stmt, ast.ClassDef):
-        nodes.extend(stmt.bases)
-        nodes.extend(keyword.value for keyword in stmt.keywords)
-    if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
-        defaults = (*stmt.args.defaults, *stmt.args.kw_defaults)
-        nodes.extend(default for default in defaults if default is not None)
-    if isinstance(stmt, ast.Assign):
-        nodes.append(stmt.value)
-    if isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
-        nodes.append(stmt.value)
-    refs: set[str] = set()
-    for node in nodes:
-        for child in ast.walk(node):
-            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load):
-                refs.add(child.id)
-    return refs
-
-
-def _order_violations(
-    body: list[ast.stmt],
-    categorize: Callable[[ast.stmt, bool], str | None],
-    order: tuple[str, ...],
+def _define_before_use(
+    tree: ast.Module, deps: dict[str, frozenset[str]]
 ) -> Iterator[Violation]:
-    """Yield a finding for each statement that sits below its category's rank.
+    """Flag a definition referenced by one that appears above it."""
+    names = _top_level_names(tree.body)
+    position = {name: index for index, name in enumerate(names)}
+    component = _strongly_connected(deps)
+    reported: set[str] = set()
+    for user in names:
+        for used in deps[user]:
+            same_cycle = component.get(user) == component.get(used)
+            if position[used] > position[user] and not same_cycle:
+                if used not in reported:
+                    reported.add(used)
+                    stmt = names[used]
+                    yield Violation(
+                        stmt.lineno,
+                        stmt.col_offset + 1,
+                        RS_ELEMENT_ORDER,
+                        f"'{used}' is used by '{user}' above it but defined "
+                        f"here; define it before its first use",
+                    )
 
-    A statement is reported only when it could move up to its rank
-    without breaking definition-before-use.
+
+def _dependency_map(
+    path: Path, source: str, tree: ast.Module
+) -> dict[str, frozenset[str]]:
+    """Map each top-level name to the other top-level names it references.
+
+    Function and class references resolve through `symtable`; a
+    constant's references are the names its value expression reads.
     """
-    rank = {name: index for index, name in enumerate(order)}
-    categories = [categorize(stmt, index == 0) for index, stmt in enumerate(body)]
-    defines = [_defined_names(stmt) for stmt in body]
-    refs = [_definition_time_refs(stmt) for stmt in body]
-
-    highest_rank = -1
-    highest_index = -1
-    for index, (stmt, category) in enumerate(zip(body, categories, strict=True)):
-        if category is None or category not in rank:
-            continue
-        if rank[category] >= highest_rank:
-            highest_rank, highest_index = rank[category], index
-            continue
-        span = range(highest_index, index)
-        blockers = set().union(*(defines[k] for k in span))
-        if refs[index] & blockers:
-            continue
-        if any(refs[k] & defines[index] for k in span):
-            continue
-        yield Violation(
-            stmt.lineno,
-            stmt.col_offset + 1,
-            RS_ELEMENT_ORDER,
-            f"{_LABELS.get(category, category)} appears after "
-            f"{_LABELS.get(categories[highest_index], categories[highest_index])} "
-            f"(line {body[highest_index].lineno}); group it with its kind earlier",
-        )
+    names = _top_level_names(tree.body)
+    children = {
+        child.get_name(): child
+        for child in symtable.symtable(source, str(path), "exec").get_children()
+    }
+    deps: dict[str, frozenset[str]] = {}
+    for name, stmt in names.items():
+        if isinstance(stmt, _DefNode) and name in children:
+            refs = _collect_global_refs(children[name])
+        else:
+            refs = {
+                node.id
+                for node in ast.walk(stmt)
+                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+            }
+        deps[name] = frozenset(refs & names.keys()) - {name}
+    return deps
 
 
-def check_module_element_order(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a top-level element that sits below its category's place.
-
-    Constants belong above the definitions that follow them, helpers
-    above the public surface, the `__main__` guard last. The order is
-    the configured `module-order`, defaulting to a helpers-first layout.
-    """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
-    pyproject = find_pyproject(path)
-    order = (
-        _configured_order(pyproject, "module-order", DEFAULT_MODULE_ORDER)
-        if pyproject is not None
-        else DEFAULT_MODULE_ORDER
-    )
-    yield from _order_violations(tree.body, _module_category, order)
+def _local_alphabetical(
+    tree: ast.Module, deps: dict[str, frozenset[str]]
+) -> Iterator[Violation]:
+    """Flag adjacent same-kind definitions left unordered yet out of order."""
+    nodes = _top_level_names(tree.body)
+    names = list(nodes)
+    reachable = _reachability(deps)
+    for earlier, later in zip(names, names[1:], strict=False):
+        kind = _alpha_kind(nodes[earlier])
+        if kind is None or kind != _alpha_kind(nodes[later]):
+            continue
+        if later in reachable[earlier] or earlier in reachable[later]:
+            continue
+        if later < earlier:
+            stmt = nodes[later]
+            yield Violation(
+                stmt.lineno,
+                stmt.col_offset + 1,
+                RS_ELEMENT_ORDER,
+                f"{kind} '{later}' should be ordered before '{earlier}'; "
+                f"independent {kind}s go alphabetically",
+            )
 
 
 def check_class_member_order(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a class member that sits below its category's place.
-
-    Each class body is checked against the configured `class-order`
-    (defaulting to fields, constructor, dunders, properties, then
-    static, class, public, and private methods); a property and its
-    setter stay one cluster. Required-before-default field order is
-    never touched.
-    """
+    """Flag class methods out of band order, or enum members out of order."""
     tree = _parse_python(path, source)
-    if tree is None:
+    if not isinstance(tree, ast.Module):
         return
-    pyproject = find_pyproject(path)
-    order = (
-        _configured_order(pyproject, "class-order", DEFAULT_CLASS_ORDER)
-        if pyproject is not None
-        else DEFAULT_CLASS_ORDER
-    )
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
-            yield from _order_violations(node.body, _class_category, order)
+            yield from _enum_member_order(node)
+            yield from _method_member_order(node)
+
+
+def check_module_element_order(path: Path, source: str) -> Iterator[Violation]:
+    """Flag a top-level definition out of define-before-use or alpha order.
+
+    A definition referenced by one above it is reported
+    (mutual-recursion cycles exempt); adjacent independent private
+    helpers or classes that are not alphabetical are reported too.
+    """
+    tree = _parse_python(path, source)
+    if not isinstance(tree, ast.Module):
+        return
+    deps = _dependency_map(path, source, tree)
+    yield from _define_before_use(tree, deps)
+    yield from _local_alphabetical(tree, deps)

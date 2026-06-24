@@ -35,15 +35,15 @@ class _LineSuppressions:
         """Suppress the named rules on `line`."""
         self._by_rule.setdefault(line, set()).update(rules)
 
-    def suppresses(self, line: int, rule: str) -> bool:
-        """Report whether `rule` on `line` is suppressed."""
-        return line in self._all or rule in self._by_rule.get(line, set())
-
     def lines_waiving(self, rule: str) -> set[int]:
         """Return every line on which `rule` is suppressed."""
         return self._all | {
             line for line, rules in self._by_rule.items() if rule in rules
         }
+
+    def suppresses(self, line: int, rule: str) -> bool:
+        """Report whether `rule` on `line` is suppressed."""
+        return line in self._all or rule in self._by_rule.get(line, set())
 
 
 def _parse(source: str) -> tuple[bool, _LineSuppressions]:

@@ -48,19 +48,6 @@ class _FillLine(NamedTuple):
     text: str
 
 
-def _docstring_fill_lines(
-    source_lines: list[str], start: int, end: int
-) -> list[_FillLine]:
-    lines: list[_FillLine] = []
-    for lineno in range(start + 1, end + 1):
-        rendered = source_lines[lineno - 1].rstrip()
-        text = rendered.strip()
-        if text in ('"""', "'''"):
-            continue
-        lines.append(_FillLine(lineno, rendered, len(rendered) - len(text), text))
-    return lines
-
-
 def _comment_blocks(source: str) -> Iterator[list[_FillLine]]:
     source_lines = source.splitlines()
     block: list[_FillLine] = []
@@ -90,6 +77,19 @@ def _comment_blocks(source: str) -> Iterator[list[_FillLine]]:
         previous = (lineno, column)
     if block:
         yield block
+
+
+def _docstring_fill_lines(
+    source_lines: list[str], start: int, end: int
+) -> list[_FillLine]:
+    lines: list[_FillLine] = []
+    for lineno in range(start + 1, end + 1):
+        rendered = source_lines[lineno - 1].rstrip()
+        text = rendered.strip()
+        if text in ('"""', "'''"):
+            continue
+        lines.append(_FillLine(lineno, rendered, len(rendered) - len(text), text))
+    return lines
 
 
 def _fill_units(lines: list[_FillLine]) -> Iterator[list[_FillLine]]:
@@ -163,6 +163,29 @@ def _fill_units(lines: list[_FillLine]) -> Iterator[list[_FillLine]]:
     yield from units
 
 
+def _fillable_units(source: str, tree: ast.AST) -> Iterator[list[_FillLine]]:
+    """Yield every fillable docstring and comment unit in `source`.
+
+    Both the check and the reflow consume this, so they agree on which
+    docstrings and comments are in scope.
+    """
+    source_lines = source.splitlines()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            end = node.value.end_lineno
+            if end is None or end == node.value.lineno:
+                continue
+            yield from _fill_units(
+                _docstring_fill_lines(source_lines, node.value.lineno, end)
+            )
+    for block in _comment_blocks(source):
+        yield from _fill_units(block)
+
+
 def _has_break_before_limit(line: _FillLine) -> bool:
     prefix_length = len(line.rendered) - len(line.text)
     break_at = line.rendered.rfind(" ", prefix_length + 1, DOC_FILL_COLUMNS + 1)
@@ -191,29 +214,6 @@ def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
             RS_DOC_FILL,
             f"line exceeds {DOC_FILL_COLUMNS} columns; rewrap the paragraph",
         )
-
-
-def _fillable_units(source: str, tree: ast.AST) -> Iterator[list[_FillLine]]:
-    """Yield every fillable docstring and comment unit in `source`.
-
-    Both the check and the reflow consume this, so they agree on which
-    docstrings and comments are in scope.
-    """
-    source_lines = source.splitlines()
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Constant)
-            and isinstance(node.value.value, str)
-        ):
-            end = node.value.end_lineno
-            if end is None or end == node.value.lineno:
-                continue
-            yield from _fill_units(
-                _docstring_fill_lines(source_lines, node.value.lineno, end)
-            )
-    for block in _comment_blocks(source):
-        yield from _fill_units(block)
 
 
 def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
