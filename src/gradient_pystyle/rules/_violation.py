@@ -7,8 +7,11 @@ from typing import NamedTuple
 
 class Violation(NamedTuple):
     line: int
+    """1-based line the violation points at."""
     rule: str
+    """The `RSnnn` id of the rule that produced it."""
     message: str
+    """Human-readable description of what to fix."""
 
 
 RS_ACRONYM_CASING = "RS001"

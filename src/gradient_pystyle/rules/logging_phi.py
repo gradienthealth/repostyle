@@ -1,4 +1,4 @@
-"""RS008: an `exc_info`-bearing log record may not be marked `phi_safe`."""
+"""PHI-safe logging rule: no `phi_safe` on an `exc_info` record."""
 
 from __future__ import annotations
 

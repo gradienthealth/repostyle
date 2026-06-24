@@ -16,8 +16,8 @@ def _posix(path: Path) -> str:
     return str(path).replace("\\", "/")
 
 
-# Cache on (path, source) so each file is parsed once and its tree is
-# shared across rules instead of re-parsed per rule.
+# Cache on (path, source) so each file is parsed once and its tree
+# shared across rules.
 @lru_cache(maxsize=128)
 def _parse_python(path: Path, source: str) -> ast.AST | None:
     if path.suffix != ".py":

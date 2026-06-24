@@ -1,18 +1,9 @@
 """Repo-style lint rules not covered by ruff or other off-the-shelf tools.
 
 Each rule is a function taking `(path, source)` and yielding `Violation`
-records. Rules are grouped into themed modules (`naming`, `docstrings`,
-`doc_fill`, `testing`, `ports`, `duration`, `logging_phi`); `_shared`
-holds helpers used by more than one of them and `_violation` holds the
-`Violation` record and the rule id constants. The `RULES` mapping in
-`_registry` keys each rule id to its check functions, and this package
-re-exports the whole public surface so `from gradient_pystyle.rules
-import <name>` keeps working regardless of which module a name lives in.
-
-Add a new rule by writing a `check_*` function in the themed module it
-belongs to (or a new module), registering it in `_registry.RULES`,
-re-exporting it here, and adding a parametrized test under
-`tests/test_rules.py`.
+records, defined in a themed module. This package re-exports the whole
+public surface, so `from gradient_pystyle.rules import <name>` resolves
+regardless of which module the name lives in.
 """
 
 from __future__ import annotations

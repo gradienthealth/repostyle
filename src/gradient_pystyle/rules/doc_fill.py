@@ -1,4 +1,4 @@
-"""RS009: the docstring and comment paragraph fill engine."""
+"""Paragraph-fill rule for docstrings and comments."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""RS007: module-level duration constants must be `timedelta`."""
+"""Duration rule: module-level durations use `timedelta`, not raw seconds."""
 
 from __future__ import annotations
 

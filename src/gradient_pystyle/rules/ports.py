@@ -1,4 +1,4 @@
-"""RS006: port files must describe a contract, not an implementation."""
+"""Port-purity rule: a port file may not name a concrete implementation."""
 
 from __future__ import annotations
 
