@@ -1,10 +1,8 @@
 """Layering rule: a file may not import a source its layer forbids.
 
-The bans are config-driven so each repo expresses its own layering: a
-`[tool.gradient-pystyle.banned-imports]` table maps a path glob to the
-sources files under it may not import, matched against the file's
-repo-relative path with `fnmatch` semantics. The README documents the
-table format. With no table the rule reports nothing.
+The bans are config-driven, so each repo expresses its own layering
+boundaries instead of the rule hardcoding one; with no configured
+table the rule reports nothing.
 """
 
 from __future__ import annotations

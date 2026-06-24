@@ -70,7 +70,7 @@ RS017 takes its bans from config, so each repo expresses its own layering. Map a
 ```toml
 [tool.gradient-pystyle.banned-imports]
 "src/**" = ["tests"]
-"**/application/ports/**" = ["httpx", "sqlalchemy", "bigquery", "psycopg", "boto3"]
+"**/application/ports/**" = ["httpx", "sqlalchemy", "psycopg", "boto3", "google.cloud.bigquery"]
 ```
 
 A file matching a glob that imports a banned source — or a submodule of it (`tests.fakes`) — is flagged. Relative imports are left to the no-relative-imports ruff rule. With no table, RS017 reports nothing, so selecting it is harmless until a layer is configured.

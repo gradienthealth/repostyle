@@ -22,8 +22,13 @@ def _target(
 class TestCheckBannedImportByPath:
     @pytest.mark.parametrize(
         "source",
-        ["import tests", "import tests.fakes", "from tests.unit import helpers"],
-        ids=["import", "import_submodule", "from_submodule"],
+        [
+            "import tests",
+            "import tests.fakes",
+            "from tests.unit import helpers",
+            "import httpx",
+        ],
+        ids=["import", "import_submodule", "from_submodule", "second_source"],
     )
     def test_BannedSourceUnderGlob_FlagsViolation(
         self, tmp_path: Path, source: str
@@ -32,6 +37,17 @@ class TestCheckBannedImportByPath:
         violations = list(check_banned_import_by_path(target, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_BANNED_IMPORT_BY_PATH
+
+    @pytest.mark.parametrize(
+        "source",
+        ["import teststuff", "from testkit import helpers"],
+        ids=["prefix_module", "prefix_from"],
+    )
+    def test_BannedPrefixButDistinctModule_NoViolation(
+        self, tmp_path: Path, source: str
+    ) -> None:
+        target = _target(tmp_path, "src/pkg/m.py", source)
+        assert list(check_banned_import_by_path(target, source)) == []
 
     def test_AllowedImportUnderGlob_NoViolation(self, tmp_path: Path) -> None:
         source = "import json\nfrom collections import OrderedDict\n"
