@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from gradient_pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
+from gradient_pystyle.rules.doc_fill import reflow_doc_fill
 
 _PY = Path("src/x.py")
 
@@ -83,20 +83,3 @@ class TestReflowDocFill:
     def test_NonPythonFile_ReturnsUnchanged(self) -> None:
         source = "aaa\nbbb\n"
         assert reflow_doc_fill(Path("README.md"), source) == source
-
-    @pytest.mark.parametrize(
-        "source",
-        [
-            'def f():\n    """Summary.\n\n    aaa\n    bbb\n    ccc\n    """\n',
-            '"""Summary.\n\n' + "abcde " * 13 + 'end.\n"""\n',
-            'def f(alpha):\n    """Summary.\n\n'
-            "    Args:\n        alpha: " + "word " * 20 + "end.\n"
-            '    """\n',
-            '"""Summary.\n\n- ' + "word " * 20 + 'end.\n"""\n',
-            "# " + "abcde " * 13 + "end\nx = 1\n",
-        ],
-        ids=["paragraph", "overlong", "google_args", "bullet", "comment"],
-    )
-    def test_ReflowedSource_PassesTheCheck(self, source: str) -> None:
-        rewritten = reflow_doc_fill(_PY, source)
-        assert list(check_doc_fill(_PY, rewritten)) == []

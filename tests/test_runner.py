@@ -165,29 +165,26 @@ class TestFixPath:
         assert fix_path(target, {RS_DOC_FILL}) is True
         assert "    aaa bbb\n" in target.read_text(encoding="utf-8")
 
-    def test_AlreadyFilled_LeavesFileAndReportsFalse(self, tmp_path: Path) -> None:
-        source = 'def f():\n    """Summary.\n\n    aaa bbb\n    """\n'
-        target = tmp_path / "x.py"
+    @pytest.mark.parametrize(
+        ("filename", "source", "enabled"),
+        [
+            (
+                "x.py",
+                'def f():\n    """Summary.\n\n    aaa bbb\n    """\n',
+                {RS_DOC_FILL},
+            ),
+            ("x.py", _UNDERWRAPPED_DOCSTRING, {RS_ACRONYM_CASING}),
+            ("doc.md", "aaa\nbbb\n", {RS_DOC_FILL}),
+            ("x.py", "# style: ignore-file\n" + _UNDERWRAPPED_DOCSTRING, {RS_DOC_FILL}),
+        ],
+        ids=["already_filled", "rule_off", "non_python", "file_suppressed"],
+    )
+    def test_NoFixableFinding_LeavesFileAndReportsFalse(
+        self, tmp_path: Path, filename: str, source: str, enabled: set[str]
+    ) -> None:
+        target = tmp_path / filename
         target.write_text(source, encoding="utf-8")
-        assert fix_path(target, {RS_DOC_FILL}) is False
-        assert target.read_text(encoding="utf-8") == source
-
-    def test_RuleNotEnabled_NoOp(self, tmp_path: Path) -> None:
-        target = tmp_path / "x.py"
-        target.write_text(_UNDERWRAPPED_DOCSTRING, encoding="utf-8")
-        assert fix_path(target, {RS_ACRONYM_CASING}) is False
-        assert target.read_text(encoding="utf-8") == _UNDERWRAPPED_DOCSTRING
-
-    def test_NonPythonFile_NoOp(self, tmp_path: Path) -> None:
-        target = tmp_path / "doc.md"
-        target.write_text("aaa\nbbb\n", encoding="utf-8")
-        assert fix_path(target, {RS_DOC_FILL}) is False
-
-    def test_FileSuppressed_LeavesFileUntouched(self, tmp_path: Path) -> None:
-        source = "# style: ignore-file\n" + _UNDERWRAPPED_DOCSTRING
-        target = tmp_path / "x.py"
-        target.write_text(source, encoding="utf-8")
-        assert fix_path(target, {RS_DOC_FILL}) is False
+        assert fix_path(target, enabled) is False
         assert target.read_text(encoding="utf-8") == source
 
     def test_LineSuppressed_LeavesUnitUntouched(self, tmp_path: Path) -> None:
