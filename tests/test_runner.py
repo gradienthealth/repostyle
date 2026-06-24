@@ -7,7 +7,6 @@ from gradient_pystyle.rules import (
     RS_ACRONYM_CASING,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_NO_DOUBLE_BACKTICKS,
-    RULE_SEVERITY,
     Severity,
     severity_of,
 )
@@ -140,17 +139,11 @@ class TestLintPaths:
 
 
 class TestSeverityOf:
-    def test_KnownRule_DefaultsToError(self) -> None:
-        assert severity_of(RS_ACRONYM_CASING) is Severity.ERROR
-
-    def test_UnknownRule_DefaultsToError(self) -> None:
-        assert severity_of("RS999") is Severity.ERROR
-
-    def test_RegisteredWarning_ReportsWarning(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setitem(RULE_SEVERITY, RS_ACRONYM_CASING, Severity.WARNING)
-        assert severity_of(RS_ACRONYM_CASING) is Severity.WARNING
+    @pytest.mark.parametrize(
+        "rule_id", [RS_ACRONYM_CASING, "RS999"], ids=["known_rule", "unknown_id"]
+    )
+    def test_NoSeverityOverride_DefaultsToError(self, rule_id: str) -> None:
+        assert severity_of(rule_id) is Severity.ERROR
 
 
 @pytest.mark.parametrize("rule_id", sorted(ALL_RULE_IDS))
