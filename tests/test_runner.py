@@ -6,18 +6,22 @@ from gradient_pystyle.rules import (
     ALL_RULE_IDS,
     RS_ACRONYM_CASING,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_DOC_FILL,
     RS_NO_DOUBLE_BACKTICKS,
     Severity,
     severity_of,
 )
 from gradient_pystyle.runner import (
     find_pyproject,
+    fix_path,
     lint_path,
     lint_paths,
     load_config,
     resolve_enabled_rules,
     resolve_enabled_rules_for_paths,
 )
+
+_UNDERWRAPPED_DOCSTRING = 'def f():\n    """Summary.\n\n    aaa\n    bbb\n    """\n'
 
 _ACRONYM_AND_SUFFIX_SOURCE = "class FhirManager: ...\n"
 
@@ -150,6 +154,45 @@ class TestLintPaths:
         rules = {v.rule for v in lint_paths([first, second], set(ALL_RULE_IDS))}
         assert RS_ACRONYM_CASING in rules
         assert RS_DISCOURAGED_CLASS_SUFFIX in rules
+
+
+class TestFixPath:
+    def test_UnderwrappedDocstring_RewritesFileAndReportsChange(
+        self, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "x.py"
+        target.write_text(_UNDERWRAPPED_DOCSTRING, encoding="utf-8")
+        assert fix_path(target, {RS_DOC_FILL}) is True
+        assert "    aaa bbb\n" in target.read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize(
+        ("filename", "source", "enabled"),
+        [
+            (
+                "x.py",
+                'def f():\n    """Summary.\n\n    aaa bbb\n    """\n',
+                {RS_DOC_FILL},
+            ),
+            ("x.py", _UNDERWRAPPED_DOCSTRING, {RS_ACRONYM_CASING}),
+            ("doc.md", "aaa\nbbb\n", {RS_DOC_FILL}),
+            ("x.py", "# style: ignore-file\n" + _UNDERWRAPPED_DOCSTRING, {RS_DOC_FILL}),
+        ],
+        ids=["already_filled", "rule_off", "non_python", "file_suppressed"],
+    )
+    def test_NoFixableFinding_LeavesFileAndReportsFalse(
+        self, tmp_path: Path, filename: str, source: str, enabled: set[str]
+    ) -> None:
+        target = tmp_path / filename
+        target.write_text(source, encoding="utf-8")
+        assert fix_path(target, enabled) is False
+        assert target.read_text(encoding="utf-8") == source
+
+    def test_LineSuppressed_LeavesUnitUntouched(self, tmp_path: Path) -> None:
+        source = "# aaa\n# bbb  # style: ignore[RS009]\nx = 1\n"
+        target = tmp_path / "x.py"
+        target.write_text(source, encoding="utf-8")
+        assert fix_path(target, {RS_DOC_FILL}) is False
+        assert target.read_text(encoding="utf-8") == source
 
 
 class TestSeverityOf:
