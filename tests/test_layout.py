@@ -96,6 +96,19 @@ class TestCheckModuleElementOrder:
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
+    def test_BranchingCycleAmongHelpers_NoViolation(self, tmp_path: Path) -> None:
+        # All four helpers belong to one dependency cycle, so none is
+        # independent of the others and alphabetical order does not
+        # apply.
+        source = (
+            "def _a():\n    return _b() + _c()\n\n\n"
+            "def _b():\n    return _d()\n\n\n"
+            "def _c():\n    return _d()\n\n\n"
+            "def _d():\n    return _a()\n"
+        )
+        target = _target(tmp_path, source)
+        assert list(check_module_element_order(target, source)) == []
+
     def test_SyntaxError_NoViolation(self, tmp_path: Path) -> None:
         source = "def broken(\n"
         target = _target(tmp_path, source)

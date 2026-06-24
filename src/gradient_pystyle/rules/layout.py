@@ -45,24 +45,16 @@ def _collect_global_refs(table: symtable.SymbolTable) -> set[str]:
     return names
 
 
+def _first_descending(names: list[str]) -> int | None:
+    """Return the index of the first name that precedes its predecessor."""
+    for index in range(1, len(names)):
+        if names[index] < names[index - 1]:
+            return index
+    return None
+
+
 def _is_dunder(name: str) -> bool:
     return name.startswith("__") and name.endswith("__")
-
-
-def _alpha_kind(stmt: ast.stmt) -> str | None:
-    """Return the alphabetised kind of a statement, or None to leave it free.
-
-    Private helper functions and classes are alphabetised where the
-    dependency graph allows; public functions, constants, and pytest
-    test classes (ordered to mirror their subjects, not by name) are
-    not.
-    """
-    if isinstance(stmt, ast.ClassDef):
-        return None if stmt.name.startswith("Test") else "class"
-    if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
-        if stmt.name.startswith("_") and not _is_dunder(stmt.name):
-            return "private helper"
-    return None
 
 
 def _enum_member_names(node: ast.ClassDef) -> list[str] | None:
@@ -101,16 +93,36 @@ def _enum_member_order(node: ast.ClassDef) -> Iterator[Violation]:
     members = _enum_member_names(node)
     if members is None:
         return
-    for index, name in enumerate(members[1:], start=1):
-        if name < members[index - 1]:
-            yield Violation(
-                node.lineno,
-                node.col_offset + 1,
-                RS_ELEMENT_ORDER,
-                f"enum '{node.name}' member '{name}' is out of alphabetical "
-                f"order; members with explicit values sort by name",
-            )
-            return
+    index = _first_descending(members)
+    if index is not None:
+        yield Violation(
+            node.lineno,
+            node.col_offset + 1,
+            RS_ELEMENT_ORDER,
+            f"enum '{node.name}' member '{members[index]}' is out of "
+            f"alphabetical order; members with explicit values sort by name",
+        )
+
+
+def _is_test_class(node: ast.ClassDef) -> bool:
+    """Report whether a class is a pytest test class, collected by name."""
+    return node.name.startswith("Test")
+
+
+def _alpha_kind(stmt: ast.stmt) -> str | None:
+    """Return the alphabetised kind of a statement, or None to leave it free.
+
+    Private helper functions and classes are alphabetised where the
+    dependency graph allows; public functions, constants, and pytest
+    test classes (ordered to mirror their subjects, not by name) are
+    not.
+    """
+    if isinstance(stmt, ast.ClassDef):
+        return None if _is_test_class(stmt) else "class"
+    if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
+        if stmt.name.startswith("_") and not _is_dunder(stmt.name):
+            return "private helper"
+    return None
 
 
 def _method_band(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
@@ -126,7 +138,7 @@ def _method_member_order(node: ast.ClassDef) -> Iterator[Violation]:
     A pytest test class is left alone: its methods follow the
     happy-path, edge, error scenario order, not an alphabetical one.
     """
-    if node.name.startswith("Test"):
+    if _is_test_class(node):
         return
     methods = [
         stmt
@@ -146,78 +158,36 @@ def _method_member_order(node: ast.ClassDef) -> Iterator[Violation]:
             )
         highest = max(highest, band)
     for band in (1, 2):
-        named = [m.name for m in methods if _method_band(m) == band]
-        for index, name in enumerate(named[1:], start=1):
-            if name < named[index - 1]:
-                stmt = next(m for m in methods if m.name == name)
-                yield Violation(
-                    stmt.lineno,
-                    stmt.col_offset + 1,
-                    RS_ELEMENT_ORDER,
-                    f"method '{name}' should be ordered before "
-                    f"'{named[index - 1]}'; methods sort by name in a band",
-                )
-                break
+        named = [method.name for method in methods if _method_band(method) == band]
+        index = _first_descending(named)
+        if index is not None:
+            stmt = next(method for method in methods if method.name == named[index])
+            yield Violation(
+                stmt.lineno,
+                stmt.col_offset + 1,
+                RS_ELEMENT_ORDER,
+                f"method '{named[index]}' should be ordered before "
+                f"'{named[index - 1]}'; methods sort by name in a band",
+            )
 
 
 def _reachability(deps: dict[str, frozenset[str]]) -> dict[str, set[str]]:
-    """Map each name to every name it depends on, directly or transitively."""
-    closure: dict[str, set[str]] = {}
+    """Map each name to every name reachable from it, transitively.
 
-    def resolve(name: str, seen: set[str]) -> set[str]:
-        if name in closure:
-            return closure[name]
-        result: set[str] = set()
-        for target in deps.get(name, ()):
-            if target in seen:
-                continue
-            result.add(target)
-            result |= resolve(target, seen | {target})
-        closure[name] = result
-        return result
-
-    for name in deps:
-        resolve(name, {name})
-    return closure
-
-
-def _strongly_connected(deps: dict[str, frozenset[str]]) -> dict[str, int]:
-    """Map each name to a component id, grouping mutual-recursion cycles.
-
-    Names that share a component depend on each other transitively, so
-    define-before-use cannot order them and the check exempts edges
-    between them.
+    A name in a dependency cycle reaches itself, so two names reach each
+    other exactly when they share a cycle — the test both the cycle
+    exemption and the independence check rely on.
     """
-    index: dict[str, int] = {}
-    low: dict[str, int] = {}
-    component: dict[str, int] = {}
-    stack: list[str] = []
-    on_stack: set[str] = set()
-    counter = [0]
-
-    def visit(name: str) -> None:
-        index[name] = low[name] = counter[0]
-        counter[0] += 1
-        stack.append(name)
-        on_stack.add(name)
-        for target in deps.get(name, ()):
-            if target not in index:
-                visit(target)
-                low[name] = min(low[name], low[target])
-            elif target in on_stack:
-                low[name] = min(low[name], index[target])
-        if low[name] == index[name]:
-            while True:
-                member = stack.pop()
-                on_stack.discard(member)
-                component[member] = index[name]
-                if member == name:
-                    break
-
-    for name in deps:
-        if name not in index:
-            visit(name)
-    return component
+    closure = {name: set(targets) for name, targets in deps.items()}
+    changed = True
+    while changed:
+        changed = False
+        for name, reached in closure.items():
+            expanded = reached.union(*(closure.get(target, ()) for target in reached))
+            if expanded != reached:
+                closure[name] = expanded
+                changed = True
+    return closure
 
 
 def _top_level_names(body: list[ast.stmt]) -> dict[str, ast.stmt]:
@@ -236,16 +206,17 @@ def _top_level_names(body: list[ast.stmt]) -> dict[str, ast.stmt]:
 
 
 def _define_before_use(
-    tree: ast.Module, deps: dict[str, frozenset[str]]
+    tree: ast.Module,
+    deps: dict[str, frozenset[str]],
+    reach: dict[str, set[str]],
 ) -> Iterator[Violation]:
     """Flag a definition referenced by one that appears above it."""
     names = _top_level_names(tree.body)
     position = {name: index for index, name in enumerate(names)}
-    component = _strongly_connected(deps)
     reported: set[str] = set()
     for user in names:
         for used in deps[user]:
-            same_cycle = component.get(user) == component.get(used)
+            same_cycle = user in reach[used]
             if position[used] > position[user] and not same_cycle:
                 if used not in reported:
                     reported.add(used)
@@ -287,17 +258,16 @@ def _dependency_map(
 
 
 def _local_alphabetical(
-    tree: ast.Module, deps: dict[str, frozenset[str]]
+    tree: ast.Module, reach: dict[str, set[str]]
 ) -> Iterator[Violation]:
     """Flag adjacent same-kind definitions left unordered yet out of order."""
     nodes = _top_level_names(tree.body)
     names = list(nodes)
-    reachable = _reachability(deps)
     for earlier, later in zip(names, names[1:], strict=False):
         kind = _alpha_kind(nodes[earlier])
         if kind is None or kind != _alpha_kind(nodes[later]):
             continue
-        if later in reachable[earlier] or earlier in reachable[later]:
+        if later in reach[earlier] or earlier in reach[later]:
             continue
         if later < earlier:
             stmt = nodes[later]
@@ -332,5 +302,6 @@ def check_module_element_order(path: Path, source: str) -> Iterator[Violation]:
     if not isinstance(tree, ast.Module):
         return
     deps = _dependency_map(path, source, tree)
-    yield from _define_before_use(tree, deps)
-    yield from _local_alphabetical(tree, deps)
+    reach = _reachability(deps)
+    yield from _define_before_use(tree, deps, reach)
+    yield from _local_alphabetical(tree, reach)
