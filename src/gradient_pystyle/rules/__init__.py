@@ -37,7 +37,7 @@ from gradient_pystyle.rules._violation import (
     Violation,
 )
 from gradient_pystyle.rules.complexity import check_cognitive_complexity
-from gradient_pystyle.rules.doc_fill import check_doc_fill
+from gradient_pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
 from gradient_pystyle.rules.docstrings import (
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
@@ -102,6 +102,7 @@ __all__ = [
     "check_port_no_implementation",
     "check_sleepy_test",
     "check_test_naming",
+    "reflow_doc_fill",
     "run_rule",
     "severity_of",
 ]

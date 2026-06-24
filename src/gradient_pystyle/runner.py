@@ -6,9 +6,15 @@ import tomllib
 from collections.abc import Iterable
 from pathlib import Path
 
-from gradient_pystyle.rules import ALL_RULE_IDS, Violation, run_rule
+from gradient_pystyle.rules import (
+    ALL_RULE_IDS,
+    RS_DOC_FILL,
+    Violation,
+    reflow_doc_fill,
+    run_rule,
+)
 from gradient_pystyle.rules._shared import find_pyproject
-from gradient_pystyle.suppressions import filter_suppressed
+from gradient_pystyle.suppressions import filter_suppressed, suppressed_lines
 
 
 def resolve_enabled_rules(config: dict | None) -> set[str]:
@@ -69,3 +75,26 @@ def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
 
 def lint_paths(paths: Iterable[Path], enabled: set[str]) -> list[Violation]:
     return [v for path in paths for v in lint_path(path, enabled)]
+
+
+def fix_path(path: Path, enabled: set[str]) -> bool:
+    """Reflow RS009 findings in `path` in place, reporting whether it changed.
+
+    A no-op unless RS009 is enabled and `path` is a Python file. A
+    whole-file ignore directive leaves the file untouched, and a
+    per-line suppression leaves its unit untouched.
+    """
+    if RS_DOC_FILL not in enabled or path.suffix != ".py":
+        return False
+    try:
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    file_suppressed, skip = suppressed_lines(source, RS_DOC_FILL)
+    if file_suppressed:
+        return False
+    rewritten = reflow_doc_fill(path, source, skip)
+    if rewritten == source:
+        return False
+    path.write_text(rewritten, encoding="utf-8")
+    return True

@@ -95,3 +95,38 @@ class TestMain:
         exit_code = main([str(target)])
         assert exit_code == 2
         assert "RS999" in capsys.readouterr().err
+
+
+_UNDERWRAPPED_DOCSTRING = 'def f():\n    """Summary.\n\n    aaa\n    bbb\n    """\n'
+
+
+class TestFix:
+    def test_Fix_RewrapsFileExitsNonzeroAndReportsToStderr(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _project(tmp_path, _UNDERWRAPPED_DOCSTRING, '["RS009"]')
+        exit_code = main(["--fix", str(target)])
+        captured = capsys.readouterr()
+        assert exit_code == 1
+        assert "    aaa bbb\n" in target.read_text(encoding="utf-8")
+        assert "reflowed" in captured.err and str(target) in captured.err
+
+    def test_FixOnFilledFile_ExitsZeroAndIsSilent(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        source = 'def f():\n    """Summary.\n\n    aaa bbb\n    """\n'
+        target = _project(tmp_path, source, '["RS009"]')
+        exit_code = main(["--fix", str(target)])
+        captured = capsys.readouterr()
+        assert exit_code == 0
+        assert target.read_text(encoding="utf-8") == source
+        assert captured.err == ""
+
+    def test_WithoutFix_ReportsButDoesNotRewrite(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _project(tmp_path, _UNDERWRAPPED_DOCSTRING, '["RS009"]')
+        exit_code = main([str(target)])
+        assert exit_code == 1
+        assert target.read_text(encoding="utf-8") == _UNDERWRAPPED_DOCSTRING
+        assert "under-wrapped" in capsys.readouterr().out

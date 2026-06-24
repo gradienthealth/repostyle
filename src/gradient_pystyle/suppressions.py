@@ -72,3 +72,18 @@ def filter_suppressed(violations: Iterable[Violation], source: str) -> list[Viol
     if file_suppressed:
         return []
     return [v for v in violations if not lines.suppresses(v.line, v.rule)]
+
+
+def suppressed_lines(source: str, rule: str) -> tuple[bool, frozenset[int]]:
+    """Report whole-file suppression and the lines waiving `rule`.
+
+    The first element is whether a `# style: ignore-file` directive
+    waives the entire file; the second is the set of lines on which
+    `rule` is suppressed, whether by an unscoped `# style: ignore` or
+    one naming `rule`. An autofixer consults this to leave waived lines
+    untouched.
+    """
+    file_suppressed, lines = _parse(source)
+    waived = set(lines._all)
+    waived.update(line for line, rules in lines._by_rule.items() if rule in rules)
+    return file_suppressed, frozenset(waived)
