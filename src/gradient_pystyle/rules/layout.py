@@ -8,23 +8,20 @@ before the public callable they support, class members from constructor
 down to private methods — and each scope's order is overridable per repo
 through `[tool.gradient-pystyle]`.
 
-The rule reports, it never reorders. A rewriter would have to honour
-definition-before-use (a base class, decorator, or default argument must
-precede the name that reads it at definition time); a checker sidesteps
-that, and additionally suppresses a finding whose only fix would move an
-element past a name it reads at definition time, so it never asks for an
-edit that would not run.
+The rule reports; it never reorders. It suppresses any finding whose
+only fix would move an element past a name it reads at definition time —
+a base class, decorator, or default argument — so it never reports an
+order that cannot be satisfied.
 """
 
 from __future__ import annotations
 
 import ast
-import tomllib
 from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python, find_pyproject
+from gradient_pystyle.rules._shared import _parse_python, _tool_table, find_pyproject
 from gradient_pystyle.rules._violation import RS_ELEMENT_ORDER, Violation
 
 # Default module order, helpers-first: private definitions sit above the
@@ -84,11 +81,7 @@ def _configured_order(
     floats), so a repo turns one scope off without ignoring the whole
     rule.
     """
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return default
-    value = data.get("tool", {}).get("gradient-pystyle", {}).get(key)
+    value = _tool_table(pyproject).get(key)
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         return default
     return tuple(value)
@@ -98,10 +91,19 @@ def _is_dunder(name: str) -> bool:
     return name.startswith("__") and name.endswith("__")
 
 
+def _target_names(target: ast.expr) -> list[str]:
+    """Names an assignment target binds, descending into tuple unpacking."""
+    if isinstance(target, ast.Name):
+        return [target.id]
+    if isinstance(target, ast.Tuple | ast.List):
+        return [name for element in target.elts for name in _target_names(element)]
+    return []
+
+
 def _assign_targets(stmt: ast.Assign | ast.AnnAssign) -> list[str]:
     if isinstance(stmt, ast.AnnAssign):
-        return [stmt.target.id] if isinstance(stmt.target, ast.Name) else []
-    return [t.id for t in stmt.targets if isinstance(t, ast.Name)]
+        return _target_names(stmt.target)
+    return [name for target in stmt.targets for name in _target_names(target)]
 
 
 def _is_main_guard(test: ast.expr) -> bool:
@@ -109,6 +111,8 @@ def _is_main_guard(test: ast.expr) -> bool:
         isinstance(test, ast.Compare)
         and isinstance(test.left, ast.Name)
         and test.left.id == "__name__"
+        and len(test.ops) == 1
+        and isinstance(test.ops[0], ast.Eq)
     )
 
 
@@ -247,10 +251,8 @@ def _order_violations(
 ) -> Iterator[Violation]:
     """Yield a finding for each statement that sits below its category's rank.
 
-    A statement is reported only when moving it up to its rank would
-    keep definition-before-use intact — it reads no name defined above
-    it in the span it would jump, and nothing in that span reads a name
-    it defines.
+    A statement is reported only when it could move up to its rank
+    without breaking definition-before-use.
     """
     rank = {name: index for index, name in enumerate(order)}
     categories = [categorize(stmt, index == 0) for index, stmt in enumerate(body)]

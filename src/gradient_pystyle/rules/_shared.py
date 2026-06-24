@@ -8,12 +8,28 @@ other.
 from __future__ import annotations
 
 import ast
+import tomllib
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 
 def _posix(path: Path) -> str:
     return str(path).replace("\\", "/")
+
+
+@lru_cache(maxsize=128)
+def _tool_table(pyproject: Path) -> dict[str, Any]:
+    """Read the `[tool.gradient-pystyle]` table from a pyproject file.
+
+    Return an empty mapping when the file is unreadable, malformed, or
+    carries no such table, so a caller treats those alike.
+    """
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+    return data.get("tool", {}).get("gradient-pystyle", {})
 
 
 def find_pyproject(start: Path) -> Path | None:
