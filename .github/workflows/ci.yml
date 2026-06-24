@@ -33,3 +33,16 @@ jobs:
       - run: pip install ruff
       - run: ruff format --check .
       - run: ruff check .
+
+  # Dogfood: run the checker over this repo's own sources so it stays
+  # subject to the RSnnn rules it ships. 3.13 parses every construct,
+  # including the PEP 695 syntax the acronym rule inspects.
+  self-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e .
+      - run: gradient-pystyle $(git ls-files '*.py' '*.md')
