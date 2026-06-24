@@ -19,6 +19,11 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS009 | Doc fill: docstring and comment paragraphs must fill to 72 columns. |
 | RS010 | No banned abbreviation: an introduced name may not use a known abbreviation (`cfg`, `ctx`, `req`, `resp`, `conn`, ...). |
 | RS011 | No discouraged class suffix: a class may not end in `Manager`, `Helper`, `Util`, or `Utils`. |
+| RS012 | Cognitive complexity (warning): a function whose nesting-weighted complexity exceeds 15 is flagged for a second look. |
+| RS013 | Conditional test logic: a test may not wrap an `assert` in an `if`/`for`/`while`/`try`; keep the asserted path straight-line. |
+| RS014 | Sleepy test: a test may not call `time.sleep` or `asyncio.sleep`; wait on a condition or a fake clock. |
+| RS015 | Excessive mocking (warning): a test building more than 3 mock objects is flagged as a density signal of where to look. |
+| RS016 | Behavior-verification-only (warning): a test asserting only call choreography (`mock.assert_called*`) and no observable state. |
 
 ### Repo-agnostic vs repo-specific
 
@@ -28,6 +33,8 @@ Most rules are repo-agnostic and safe to enable anywhere. Two are tied to the fh
 - **RS006** bans concrete implementation libraries inside a `src/fhir_ingestor/application/ports/` path. The path fragment and the hexagonal `ports` layering are fhir-ingestor-specific.
 
 RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011) are general style rules.
+
+The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, and RS016 are advisory: they emit a `warning` and do not fail the run, since their thresholds are heuristics that mark where to look rather than assert a defect. RS013 and RS014 are mechanical and hard-fail.
 
 ## Consume as a pre-commit remote hook
 
