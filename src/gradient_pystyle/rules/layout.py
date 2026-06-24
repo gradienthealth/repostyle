@@ -67,7 +67,7 @@ _LABELS = {
     "method": "method",
     "private_method": "private method",
 }
-# Decorator names that re-categorise a method, in priority order.
+# Decorators that mark a method and its setter/deleter as a property.
 _PROPERTY_DECORATORS = frozenset({"property", "cached_property", "setter", "deleter"})
 
 
