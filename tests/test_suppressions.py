@@ -36,6 +36,11 @@ class TestFilterSuppressed:
         findings = [Violation(2, 1, RS_ACRONYM_CASING, "acronym")]
         assert filter_suppressed(findings, source) == []
 
+    def test_IgnoreFileBeforeUntokenizableTail_StillSuppresses(self) -> None:
+        source = '# style: ignore-file\nx = "unterminated\n'
+        findings = [Violation(2, 1, RS_ACRONYM_CASING, "acronym")]
+        assert filter_suppressed(findings, source) == []
+
     def test_DirectiveOnAnotherLine_KeepsFinding(self) -> None:
         source = "x = 1  # style: ignore[RS001]\nclass FhirClient: ...\n"
         findings = [Violation(2, 1, RS_ACRONYM_CASING, "acronym")]
