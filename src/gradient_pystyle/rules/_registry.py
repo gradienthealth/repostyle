@@ -8,6 +8,7 @@ from pathlib import Path
 from gradient_pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
+    RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_COGNITIVE_COMPLEXITY,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -33,6 +34,7 @@ from gradient_pystyle.rules.docstrings import (
     check_no_double_backticks_in_md,
 )
 from gradient_pystyle.rules.duration import check_duration_as_timedelta
+from gradient_pystyle.rules.import_layering import check_banned_import_by_path
 from gradient_pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
 from gradient_pystyle.rules.naming import (
     check_acronym_casing,
@@ -69,6 +71,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_SLEEPY_TEST: (check_sleepy_test,),
     RS_EXCESSIVE_MOCKING: (check_excessive_mocking,),
     RS_BEHAVIOR_VERIFICATION_ONLY: (check_behavior_verification_only,),
+    RS_BANNED_IMPORT_BY_PATH: (check_banned_import_by_path,),
 }
 
 

@@ -16,6 +16,17 @@ def _posix(path: Path) -> str:
     return str(path).replace("\\", "/")
 
 
+def find_pyproject(start: Path) -> Path | None:
+    """Walk up from `start` to find the nearest `pyproject.toml`."""
+    start = start.resolve()
+    directory = start if start.is_dir() else start.parent
+    for candidate in (directory, *directory.parents):
+        pyproject = candidate / "pyproject.toml"
+        if pyproject.is_file():
+            return pyproject
+    return None
+
+
 # Cache on (path, source) so each file is parsed once and its tree
 # shared across rules.
 @lru_cache(maxsize=128)

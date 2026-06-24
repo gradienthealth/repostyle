@@ -18,6 +18,7 @@ from gradient_pystyle.rules._registry import (
 from gradient_pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
+    RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_COGNITIVE_COMPLEXITY,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -43,6 +44,7 @@ from gradient_pystyle.rules.docstrings import (
     check_no_double_backticks_in_md,
 )
 from gradient_pystyle.rules.duration import check_duration_as_timedelta
+from gradient_pystyle.rules.import_layering import check_banned_import_by_path
 from gradient_pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
 from gradient_pystyle.rules.naming import (
     check_acronym_casing,
@@ -65,6 +67,7 @@ __all__ = [
     "RULE_SEVERITY",
     "RS_ACRONYM_CASING",
     "RS_BANNED_ABBREVIATION",
+    "RS_BANNED_IMPORT_BY_PATH",
     "RS_BEHAVIOR_VERIFICATION_ONLY",
     "RS_COGNITIVE_COMPLEXITY",
     "RS_CONDITIONAL_TEST_LOGIC",
@@ -83,6 +86,7 @@ __all__ = [
     "Violation",
     "check_acronym_casing",
     "check_banned_abbreviation",
+    "check_banned_import_by_path",
     "check_behavior_verification_only",
     "check_cognitive_complexity",
     "check_conditional_test_logic",
