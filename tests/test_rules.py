@@ -6,26 +6,34 @@ import pytest
 from gradient_pystyle.rules import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
+    RS_BEHAVIOR_VERIFICATION_ONLY,
+    RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
     RS_DURATION_AS_TIMEDELTA,
+    RS_EXCESSIVE_MOCKING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MOCK_PATCH,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_SLEEPY_TEST,
     RS_TEST_NAMING,
     check_acronym_casing,
     check_banned_abbreviation,
+    check_behavior_verification_only,
+    check_conditional_test_logic,
     check_discouraged_class_suffix,
     check_doc_fill,
     check_duration_as_timedelta,
+    check_excessive_mocking,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
     check_no_mock_patch,
     check_no_phi_safe_with_exc_info,
     check_port_no_implementation,
+    check_sleepy_test,
     check_test_naming,
 )
 
@@ -594,3 +602,112 @@ class TestCheckDiscouragedClassSuffix:
     def test_NonPythonFile_NotChecked(self) -> None:
         source = "class FooManager: ..."
         assert list(check_discouraged_class_suffix(Path("README.md"), source)) == []
+
+
+_TEST_PATH = Path("tests/unit/test_x.py")
+
+
+class TestCheckConditionalTestLogic:
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "    if cond:\n        assert result\n",
+            "    for item in items:\n        assert item\n",
+            "    while pending:\n        assert pending\n",
+            "    try:\n        assert run()\n    except ValueError:\n        pass\n",
+        ],
+        ids=["if", "for", "while", "try"],
+    )
+    def test_AssertInsideControlFlow_FlagsViolation(self, body: str) -> None:
+        source = f"def test_Thing_Behaves():\n{body}"
+        violations = list(check_conditional_test_logic(_TEST_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_CONDITIONAL_TEST_LOGIC
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def test_Thing_Behaves():\n    assert compute() == 3\n",
+            (
+                "def test_Thing_Behaves():\n"
+                "    with pytest.raises(ValueError):\n        run()\n"
+            ),
+            "def helper():\n    if cond:\n        assert thing\n",
+        ],
+        ids=["straight_line", "raises_context", "non_test_function"],
+    )
+    def test_StraightLineOrNonTest_NoViolation(self, source: str) -> None:
+        assert list(check_conditional_test_logic(_TEST_PATH, source)) == []
+
+    def test_NonTestFile_NotChecked(self) -> None:
+        source = "def test_Thing_Behaves():\n    if cond:\n        assert thing\n"
+        assert list(check_conditional_test_logic(Path("src/x.py"), source)) == []
+
+
+class TestCheckSleepyTest:
+    @pytest.mark.parametrize(
+        "call",
+        ["time.sleep(1)", "asyncio.sleep(0.1)"],
+        ids=["time", "asyncio"],
+    )
+    def test_SleepCallInTest_FlagsViolation(self, call: str) -> None:
+        source = f"def test_Thing_Behaves():\n    {call}\n"
+        violations = list(check_sleepy_test(_TEST_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_SLEEPY_TEST
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def test_Thing_Behaves():\n    widget.sleep(1)\n",
+            "def test_Thing_Behaves():\n    assert awake()\n",
+        ],
+        ids=["unrelated_sleep_method", "no_sleep"],
+    )
+    def test_NoModuleSleep_NoViolation(self, source: str) -> None:
+        assert list(check_sleepy_test(_TEST_PATH, source)) == []
+
+
+class TestCheckExcessiveMocking:
+    def test_ManyMocks_FlagsViolation(self) -> None:
+        source = (
+            "def test_Thing_Behaves():\n"
+            "    a = Mock()\n"
+            "    b = MagicMock()\n"
+            "    c = AsyncMock()\n"
+            "    d = patch('x')\n"
+        )
+        violations = list(check_excessive_mocking(_TEST_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_EXCESSIVE_MOCKING
+        assert "4 mocks" in violations[0].message
+
+    def test_FewMocks_NoViolation(self) -> None:
+        source = "def test_Thing_Behaves():\n    a = Mock()\n    b = MagicMock()\n"
+        assert list(check_excessive_mocking(_TEST_PATH, source)) == []
+
+
+class TestCheckBehaviorVerificationOnly:
+    def test_OnlyChoreographyAsserts_FlagsViolation(self) -> None:
+        source = (
+            "def test_Thing_Behaves():\n"
+            "    run()\n"
+            "    sink.assert_called_once_with(3)\n"
+        )
+        violations = list(check_behavior_verification_only(_TEST_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_BEHAVIOR_VERIFICATION_ONLY
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            (
+                "def test_Thing_Behaves():\n    sink.assert_called_once()\n"
+                "    assert sink.total == 3\n"
+            ),
+            "def test_Thing_Behaves():\n    assert compute() == 3\n",
+        ],
+        ids=["choreography_plus_state", "state_only"],
+    )
+    def test_AnyStateAssert_NoViolation(self, source: str) -> None:
+        assert list(check_behavior_verification_only(_TEST_PATH, source)) == []
