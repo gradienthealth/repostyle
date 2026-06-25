@@ -81,6 +81,13 @@ class TestCheckModuleElementOrder:
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
+    def test_PytestClassesNotAlphabetised_NoViolation(self, tmp_path: Path) -> None:
+        # Test classes mirror the order of the callables they cover, not
+        # an alphabetical one, so two out of order do not flag.
+        source = "class TestB:\n    pass\n\n\nclass TestA:\n    pass\n"
+        target = _target(tmp_path, source)
+        assert list(check_module_element_order(target, source)) == []
+
     def test_LocalNameShadowingADefinition_NoViolation(self, tmp_path: Path) -> None:
         # The local '_helper' is not a reference to the helper below it,
         # so no dependency edge exists.
@@ -140,6 +147,17 @@ class TestCheckClassMemberOrder:
         violations = list(check_class_member_order(target, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_ELEMENT_ORDER
+
+    def test_PytestClassMethodsNotOrdered_NoViolation(self, tmp_path: Path) -> None:
+        # A pytest test class follows scenario order, not the method
+        # bands, so out-of-order test methods do not flag.
+        source = (
+            "class TestThing:\n"
+            "    def test_zebra(self):\n        assert True\n\n"
+            "    def test_alpha(self):\n        assert True\n"
+        )
+        target = _target(tmp_path, source)
+        assert list(check_class_member_order(target, source)) == []
 
     def test_ConventionalLayout_NoViolation(self, tmp_path: Path) -> None:
         source = (
