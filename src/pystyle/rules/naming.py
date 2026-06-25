@@ -265,8 +265,8 @@ def _boolean_prefix_violations(
 
     The accepted prefixes are `is`, `has`, `can`, and `should`.
     """
-    words = list(_identifier_words(name))
-    if words and words[0] not in BOOLEAN_PREFIXES:
+    first = next(_identifier_words(name), None)
+    if first is not None and first not in BOOLEAN_PREFIXES:
         yield Violation(
             lineno,
             col_offset + 1,
