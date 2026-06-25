@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from gradient_pystyle.changed_lines import changed_lines
+from pystyle.changed_lines import changed_lines
 
 
 class TestChangedLines:

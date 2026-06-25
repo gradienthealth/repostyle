@@ -32,9 +32,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: gradient-pystyle
-        name: gradient-pystyle
-        entry: gradient-pystyle
+      - id: pystyle
+        name: pystyle
+        entry: pystyle
         language: system
         types_or: [python, markdown]
         exclude: ^CHANGELOG\.md$

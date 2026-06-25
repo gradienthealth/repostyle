@@ -3,7 +3,7 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools>=61.0"]
 
 [project]
-name = "gradient-pystyle"
+name = "pystyle"
 description = "Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,7 +15,7 @@ dependencies = []
 dev = ["pytest"]
 
 [project.scripts]
-gradient-pystyle = "gradient_pystyle.cli:main"
+pystyle = "pystyle.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

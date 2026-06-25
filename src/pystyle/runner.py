@@ -6,19 +6,19 @@ import tomllib
 from collections.abc import Iterable
 from pathlib import Path
 
-from gradient_pystyle.rules import (
+from pystyle.rules import (
     ALL_RULE_IDS,
     RS_DOC_FILL,
     Violation,
     reflow_doc_fill,
     run_rule,
 )
-from gradient_pystyle.rules._shared import find_pyproject
-from gradient_pystyle.suppressions import filter_suppressed, suppressed_lines
+from pystyle.rules._shared import find_pyproject
+from pystyle.suppressions import filter_suppressed, suppressed_lines
 
 
 def resolve_enabled_rules(config: dict | None) -> set[str]:
-    """Resolve enabled rule ids from a `[tool.gradient-pystyle]` table.
+    """Resolve enabled rule ids from a `[tool.pystyle]` table.
 
     `select` defaults to every rule; `ignore` defaults to none. The
     enabled set is `select` minus `ignore`. A missing or empty table
@@ -34,7 +34,7 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
     unknown = (set(select or ()) | set(ignore)) - known
     if unknown:
         raise ValueError(
-            "unknown gradient-pystyle rule id(s): "
+            "unknown pystyle rule id(s): "
             f"{', '.join(sorted(unknown))}. Known ids: {', '.join(sorted(known))}."
         )
     selected = set(select) if select else known
@@ -42,12 +42,12 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
 
 
 def load_config(pyproject: Path) -> dict | None:
-    """Read the `[tool.gradient-pystyle]` table from a pyproject file."""
+    """Read the `[tool.pystyle]` table from a pyproject file."""
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return None
-    return data.get("tool", {}).get("gradient-pystyle")
+    return data.get("tool", {}).get("pystyle")
 
 
 def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:

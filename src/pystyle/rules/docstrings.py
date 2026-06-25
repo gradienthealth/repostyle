@@ -16,8 +16,8 @@ import tokenize
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python
-from gradient_pystyle.rules._violation import (
+from pystyle.rules._shared import _parse_python
+from pystyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
@@ -368,6 +368,5 @@ def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violatio
                 getattr(node, "lineno", 1),
                 getattr(node, "col_offset", 0) + 1,
                 RS_FILLER_DOCSTRING_OPENING,
-                "docstring opening restates the identifier; state the "
-                "contract instead",
+                "docstring opening restates the identifier; state the contract instead",
             )

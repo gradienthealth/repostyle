@@ -7,8 +7,8 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import TEST_CLASS_PATTERN, _parse_python
-from gradient_pystyle.rules._violation import (
+from pystyle.rules._shared import TEST_CLASS_PATTERN, _parse_python
+from pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_DISCOURAGED_CLASS_SUFFIX,

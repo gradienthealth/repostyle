@@ -13,8 +13,8 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python
-from gradient_pystyle.rules._violation import RS_COGNITIVE_COMPLEXITY, Violation
+from pystyle.rules._shared import _parse_python
+from pystyle.rules._violation import RS_COGNITIVE_COMPLEXITY, Violation
 
 COGNITIVE_COMPLEXITY_LIMIT = 15
 

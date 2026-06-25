@@ -14,8 +14,8 @@ from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python, _posix, find_pyproject
-from gradient_pystyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
+from pystyle.rules._shared import _parse_python, _posix, find_pyproject
+from pystyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
 
 
 @lru_cache(maxsize=128)
@@ -25,7 +25,7 @@ def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return ()
-    table = data.get("tool", {}).get("gradient-pystyle", {}).get("banned-imports", {})
+    table = data.get("tool", {}).get("pystyle", {}).get("banned-imports", {})
     return tuple((glob, frozenset(sources)) for glob, sources in table.items())
 
 

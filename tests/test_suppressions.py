@@ -1,11 +1,11 @@
 import pytest
 
-from gradient_pystyle.rules import (
+from pystyle.rules import (
     RS_ACRONYM_CASING,
     RS_DISCOURAGED_CLASS_SUFFIX,
     Violation,
 )
-from gradient_pystyle.suppressions import filter_suppressed
+from pystyle.suppressions import filter_suppressed
 
 _BOTH_RULES = [
     Violation(1, 1, RS_ACRONYM_CASING, "acronym"),

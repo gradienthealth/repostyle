@@ -22,9 +22,9 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _is_test_file, _parse_python
-from gradient_pystyle.rules._violation import RS_DOC_VALUE_SIGNAL, Violation
-from gradient_pystyle.rules.complexity import _score_block
+from pystyle.rules._shared import _is_test_file, _parse_python
+from pystyle.rules._violation import RS_DOC_VALUE_SIGNAL, Violation
+from pystyle.rules.complexity import _score_block
 
 # The presence check fires when a function scores at or above the
 # complexity floor (well below RS012's limit of 15, which marks

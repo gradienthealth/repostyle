@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from gradient_pystyle.rules import (
+from pystyle.rules import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_BEHAVIOR_VERIFICATION_ONLY,

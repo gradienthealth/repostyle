@@ -11,8 +11,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
 
-from gradient_pystyle.rules._shared import _parse_python
-from gradient_pystyle.rules._violation import RS_DOC_FILL, Violation
+from pystyle.rules._shared import _parse_python
+from pystyle.rules._violation import RS_DOC_FILL, Violation
 
 DOC_FILL_COLUMNS = 72
 

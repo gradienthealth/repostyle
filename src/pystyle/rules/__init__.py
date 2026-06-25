@@ -2,20 +2,20 @@
 
 Each rule is a function taking `(path, source)` and yielding `Violation`
 records, defined in a themed module. This package re-exports the whole
-public surface, so `from gradient_pystyle.rules import <name>` resolves
+public surface, so `from pystyle.rules import <name>` resolves
 regardless of which module the name lives in.
 """
 
 from __future__ import annotations
 
-from gradient_pystyle.rules._registry import (
+from pystyle.rules._registry import (
     ALL_RULE_IDS,
     RULE_SEVERITY,
     RULES,
     run_rule,
     severity_of,
 )
-from gradient_pystyle.rules._violation import (
+from pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
@@ -42,11 +42,11 @@ from gradient_pystyle.rules._violation import (
     Severity,
     Violation,
 )
-from gradient_pystyle.rules.comments import check_comment_tag_format
-from gradient_pystyle.rules.complexity import check_cognitive_complexity
-from gradient_pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
-from gradient_pystyle.rules.doc_value import check_doc_value_signal
-from gradient_pystyle.rules.docstrings import (
+from pystyle.rules.comments import check_comment_tag_format
+from pystyle.rules.complexity import check_cognitive_complexity
+from pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
+from pystyle.rules.doc_value import check_doc_value_signal
+from pystyle.rules.docstrings import (
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
     check_no_attributes_block,
@@ -54,20 +54,20 @@ from gradient_pystyle.rules.docstrings import (
     check_no_double_backticks_in_md,
     check_summary_comment_as_docstring,
 )
-from gradient_pystyle.rules.duration import check_duration_as_timedelta
-from gradient_pystyle.rules.import_layering import check_banned_import_by_path
-from gradient_pystyle.rules.layout import (
+from pystyle.rules.duration import check_duration_as_timedelta
+from pystyle.rules.import_layering import check_banned_import_by_path
+from pystyle.rules.layout import (
     check_class_member_order,
     check_module_element_order,
 )
-from gradient_pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
-from gradient_pystyle.rules.naming import (
+from pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
+from pystyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
     check_discouraged_class_suffix,
 )
-from gradient_pystyle.rules.ports import check_port_no_implementation
-from gradient_pystyle.rules.testing import (
+from pystyle.rules.ports import check_port_no_implementation
+from pystyle.rules.testing import (
     check_behavior_verification_only,
     check_conditional_test_logic,
     check_excessive_mocking,

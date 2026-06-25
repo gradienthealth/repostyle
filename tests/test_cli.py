@@ -3,13 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from gradient_pystyle.cli import main
-from gradient_pystyle.rules import RS_ACRONYM_CASING, RULE_SEVERITY, Severity
+from pystyle.cli import main
+from pystyle.rules import RS_ACRONYM_CASING, RULE_SEVERITY, Severity
 
 
 def _project(tmp_path: Path, source: str, select: str) -> Path:
     (tmp_path / "pyproject.toml").write_text(
-        f"[tool.gradient-pystyle]\nselect = {select}\n", encoding="utf-8"
+        f"[tool.pystyle]\nselect = {select}\n", encoding="utf-8"
     )
     target = tmp_path / "x.py"
     target.write_text(source, encoding="utf-8")
@@ -49,7 +49,7 @@ class TestMain:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         (git_repo / "pyproject.toml").write_text(
-            '[tool.gradient-pystyle]\nselect = ["RS001"]\n', encoding="utf-8"
+            '[tool.pystyle]\nselect = ["RS001"]\n', encoding="utf-8"
         )
         target = git_repo / "x.py"
         target.write_text("class FhirClient: ...\n", encoding="utf-8")
@@ -71,7 +71,7 @@ class TestMain:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         (git_repo / "pyproject.toml").write_text(
-            '[tool.gradient-pystyle]\nselect = ["RS001"]\n', encoding="utf-8"
+            '[tool.pystyle]\nselect = ["RS001"]\n', encoding="utf-8"
         )
         target = git_repo / "x.py"
         target.write_text("class FhirClient: ...\n", encoding="utf-8")

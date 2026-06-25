@@ -6,8 +6,8 @@
   "bump-patch-for-minor-pre-major": false,
   "packages": {
     ".": {
-      "package-name": "gradient-pystyle",
-      "component": "gradient-pystyle"
+      "package-name": "pystyle",
+      "component": "pystyle"
     }
   }
 }
