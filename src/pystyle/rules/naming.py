@@ -210,11 +210,10 @@ def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
     negative — `is_not_stale`, `has_no_results` — so every call site
     must double-negate it (`if not is_not_stale`). Name the positive
     (`is_fresh`, `has_results`) and negate where the value is read.
-    Scope: function and method names, parameters, and assignment or
-    annotation targets. The negation is matched only as a whole
+    Scope: function and method names, parameters, and names bound by
+    assignment or annotation. The negation is matched only as a whole
     snake_case or CapWords word, so `is_notable` and `is_north` (where
-    `not` or `no` is merely a leading substring) are left alone, as are
-    attribute names and imports.
+    `not` or `no` is merely a leading substring) are left alone.
     """
     tree = _parse_python(path, source)
     if tree is None:
