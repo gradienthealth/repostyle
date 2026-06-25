@@ -19,12 +19,15 @@ from gradient_pystyle.rules._violation import (
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
     RS_EXCESSIVE_MOCKING,
+    RS_FIELD_COMMENT_AS_DOCSTRING,
+    RS_FILLER_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MOCK_PATCH,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_SLEEPY_TEST,
+    RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TEST_NAMING,
     Severity,
     Violation,
@@ -34,9 +37,12 @@ from gradient_pystyle.rules.complexity import check_cognitive_complexity
 from gradient_pystyle.rules.doc_fill import check_doc_fill
 from gradient_pystyle.rules.doc_value import check_doc_value_signal
 from gradient_pystyle.rules.docstrings import (
+    check_field_comment_as_docstring,
+    check_filler_docstring_opening,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
+    check_summary_comment_as_docstring,
 )
 from gradient_pystyle.rules.duration import check_duration_as_timedelta
 from gradient_pystyle.rules.import_layering import check_banned_import_by_path
@@ -83,7 +89,10 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_BANNED_IMPORT_BY_PATH: (check_banned_import_by_path,),
     RS_DOC_VALUE_SIGNAL: (check_doc_value_signal,),
     RS_ELEMENT_ORDER: (check_module_element_order, check_class_member_order),
+    RS_SUMMARY_COMMENT_AS_DOCSTRING: (check_summary_comment_as_docstring,),
+    RS_FIELD_COMMENT_AS_DOCSTRING: (check_field_comment_as_docstring,),
     RS_COMMENT_TAG_FORMAT: (check_comment_tag_format,),
+    RS_FILLER_DOCSTRING_OPENING: (check_filler_docstring_opening,),
 }
 
 
@@ -96,6 +105,8 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_BEHAVIOR_VERIFICATION_ONLY: Severity.WARNING,
     RS_DOC_VALUE_SIGNAL: Severity.WARNING,
     RS_ELEMENT_ORDER: Severity.WARNING,
+    RS_SUMMARY_COMMENT_AS_DOCSTRING: Severity.WARNING,
+    RS_FIELD_COMMENT_AS_DOCSTRING: Severity.WARNING,
 }
 
 
