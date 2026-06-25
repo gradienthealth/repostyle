@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from gradient_pystyle.rules.doc_fill import reflow_doc_fill
+from pystyle.rules.doc_fill import reflow_doc_fill
 
 _PY = Path("src/x.py")
 

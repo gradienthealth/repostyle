@@ -25,8 +25,8 @@ jobs:
 
   # All checks run through pre-commit, so .pre-commit-config.yaml is the
   # single source of truth: ruff format/lint, the hygiene hooks, mdformat,
-  # and the gradient-pystyle checker itself (dogfooding its own RSnnn rules).
-  # Installing the package puts the gradient-pystyle console script on PATH
+  # and the pystyle checker itself (dogfooding its own RSnnn rules).
+  # Installing the package puts the pystyle console script on PATH
   # for its local hook.
   lint:
     runs-on: ubuntu-latest

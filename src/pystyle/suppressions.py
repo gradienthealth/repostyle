@@ -14,7 +14,7 @@ import re
 import tokenize
 from collections.abc import Iterable
 
-from gradient_pystyle.rules import Violation
+from pystyle.rules import Violation
 
 _FILE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore-file\b")
 _LINE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore\b(?!-file)(?:\[([\sA-Z0-9,]*)\])?")

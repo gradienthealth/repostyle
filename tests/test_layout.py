@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from gradient_pystyle.rules import (
+from pystyle.rules import (
     RS_ELEMENT_ORDER,
     check_class_member_order,
     check_module_element_order,

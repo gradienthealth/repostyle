@@ -13,8 +13,8 @@ a tag outside the allowed set (`XXX`, `BUG`), wrong casing (`# todo`),
 missing parentheses (`TODO PROC-1`), a missing ticket (`TODO: fix`), a
 name instead of a ticket (`TODO(sai)`), or a wrong separator after the
 parenthesized ticket. Both the allowed tag set and the ticket pattern
-are read from the `[tool.gradient-pystyle]` table, so a repo expresses
-its own ticket shape; with no config the defaults apply.
+are read from the `[tool.pystyle]` table, so a repo expresses its own
+ticket shape; with no config the defaults apply.
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import find_pyproject
-from gradient_pystyle.rules._violation import RS_COMMENT_TAG_FORMAT, Violation
+from pystyle.rules._shared import find_pyproject
+from pystyle.rules._violation import RS_COMMENT_TAG_FORMAT, Violation
 
 DEFAULT_TAGS = ("TODO", "FIXME", "NOTE", "HACK")
 DEFAULT_TICKET_PATTERN = r"[A-Z]+-\d+|NO-ISSUE"
@@ -132,7 +132,7 @@ def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
-    table = data.get("tool", {}).get("gradient-pystyle", {})
+    table = data.get("tool", {}).get("pystyle", {})
     tags = tuple(table.get("comment-tags", DEFAULT_TAGS))
     pattern = table.get("comment-ticket-pattern", DEFAULT_TICKET_PATTERN)
     return tags, pattern

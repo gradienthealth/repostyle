@@ -1,4 +1,4 @@
-# gradient-pystyle
+# pystyle
 
 Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config. The rules are a stdlib-only AST/token/line linter that catches conventions ruff does not cover; consuming repos select the subset they want and run it as a pre-commit remote hook.
 
@@ -49,20 +49,20 @@ Add to the consuming repo's `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
-  - repo: https://github.com/gradienthealth/gradient-pystyle
-    rev: gradient-pystyle-v0.1.0
+  - repo: https://github.com/gradienthealth/pystyle
+    rev: pystyle-vX.Y.Z  # pin to the latest pystyle-v release tag
     hooks:
-      - id: gradient-pystyle
+      - id: pystyle
 ```
 
-The hook runs the `gradient-pystyle` console script over the staged Python and markdown files.
+The hook runs the `pystyle` console script over the staged Python and markdown files.
 
 ## Select rules per repo
 
 The runner reads the consuming repo's `pyproject.toml`:
 
 ```toml
-[tool.gradient-pystyle]
+[tool.pystyle]
 select = ["RS001", "RS004", "RS005", "RS007", "RS008", "RS009", "RS010", "RS011"]
 ignore = []
 ```
@@ -74,7 +74,7 @@ Enabled rules are `select` minus `ignore`. If the table is missing or empty, all
 RS017 takes its bans from config, so each repo expresses its own layering. Map a path glob (relative to the repo root, `fnmatch` semantics) to the import sources files under it may not import:
 
 ```toml
-[tool.gradient-pystyle.banned-imports]
+[tool.pystyle.banned-imports]
 "src/**" = ["tests"]
 "**/application/ports/**" = ["httpx", "sqlalchemy", "psycopg", "boto3", "google.cloud.bigquery"]
 ```
@@ -86,7 +86,7 @@ A file matching a glob that imports a banned source — or a submodule of it (`t
 RS022 holds a special comment to `TAG(TICKET): message`. The allowed tag set and the ticket pattern are config-driven, so a repo expresses its own ticket shape; both fall back to a default when omitted:
 
 ```toml
-[tool.gradient-pystyle]
+[tool.pystyle]
 comment-tags = ["TODO", "FIXME", "NOTE", "HACK"]
 comment-ticket-pattern = "[A-Z]+-\\d+|NO-ISSUE"
 ```
@@ -108,19 +108,19 @@ The `style` token, rather than ruff's `noqa`, keeps these from colliding with ru
 Adopting a rule should not mean fixing the whole existing codebase first. Run with `--diff` to report only findings on lines the change touched:
 
 ```bash
-gradient-pystyle --diff --diff-base origin/main $(git diff --name-only origin/main)
+pystyle --diff --diff-base origin/main $(git diff --name-only origin/main)
 ```
 
 `--diff` intersects each finding's line with the lines that differ from `--diff-base` (default `HEAD`); a finding on an untracked file or one that cannot be diffed is reported in full, so nothing is hidden by accident. The intersection is on the finding's own line, so a whole-unit finding (a complexity rule reported at the `def`) re-arms only when that line itself changes.
 
-This scopes gradient-pystyle's own `RSnnn` rules. Ruff has no diff mode, so to scope the ruff rules to a PR's lines, filter ruff's output in CI with [reviewdog](https://github.com/reviewdog/reviewdog) (`-filter-mode=added`) or graylint locally.
+This scopes pystyle's own `RSnnn` rules. Ruff has no diff mode, so to scope the ruff rules to a PR's lines, filter ruff's output in CI with [reviewdog](https://github.com/reviewdog/reviewdog) (`-filter-mode=added`) or graylint locally.
 
 ## Rewrap docstrings and comments
 
 `RS009` flags docstring and comment paragraphs that are not filled to 72 columns. Run with `--fix` to rewrap them in place instead of only reporting:
 
 ```bash
-gradient-pystyle --fix $(git diff --name-only)
+pystyle --fix $(git diff --name-only)
 ```
 
 `--fix` greedily refills each paragraph at its hanging indent, leaving verbatim structures (code fences, doctests, tables, rules, section headers) untouched and respecting `# style: ignore` directives. It exits non-zero when it changed a file, so a pre-commit run stops and you re-stage the rewrapped files. `RS009` is the only fixable rule today.

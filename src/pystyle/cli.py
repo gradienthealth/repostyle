@@ -6,9 +6,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from gradient_pystyle.changed_lines import changed_lines
-from gradient_pystyle.rules import Severity, severity_of
-from gradient_pystyle.runner import (
+from pystyle.changed_lines import changed_lines
+from pystyle.rules import Severity, severity_of
+from pystyle.runner import (
     fix_path,
     lint_path,
     resolve_enabled_rules_for_paths,
@@ -16,7 +16,7 @@ from gradient_pystyle.runner import (
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="gradient-pystyle")
+    parser = argparse.ArgumentParser(prog="pystyle")
     parser.add_argument("paths", nargs="*", type=Path)
     parser.add_argument(
         "--diff",
@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         enabled = resolve_enabled_rules_for_paths(options.paths)
     except ValueError as error:
-        print(f"gradient-pystyle: {error}", file=sys.stderr)
+        print(f"pystyle: {error}", file=sys.stderr)
         return 2
     failed = False
     fixed: list[Path] = []
@@ -67,9 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         failed = _report_path(path, enabled, options) or failed
     if fixed:
         listed = ", ".join(str(path) for path in fixed)
-        print(
-            f"gradient-pystyle: reflowed {listed}; review and re-stage", file=sys.stderr
-        )
+        print(f"pystyle: reflowed {listed}; review and re-stage", file=sys.stderr)
     return 1 if failed or fixed else 0
 
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from gradient_pystyle.rules import RS_COMMENT_TAG_FORMAT, check_comment_tag_format
+from pystyle.rules import RS_COMMENT_TAG_FORMAT, check_comment_tag_format
 
 
 def _target(tmp_path: Path, source: str, table: str = "") -> Path:
@@ -101,15 +101,14 @@ class TestCheckCommentTagFormat:
         assert "XXX" not in violations[0].message
 
     def test_ConfiguredTicketPattern_AcceptsRepoShape(self, tmp_path: Path) -> None:
-        table = '[tool.gradient-pystyle]\ncomment-ticket-pattern = "#\\\\d+"\n'
+        table = '[tool.pystyle]\ncomment-ticket-pattern = "#\\\\d+"\n'
         source = "# TODO(#42): repo uses GitHub issue numbers\n"
         target = _target(tmp_path, source, table=table)
         assert list(check_comment_tag_format(target, source)) == []
 
     def test_ConfiguredAllowedTags_AcceptsExtraTag(self, tmp_path: Path) -> None:
         table = (
-            "[tool.gradient-pystyle]\n"
-            'comment-tags = ["TODO", "FIXME", "NOTE", "HACK", "PERF"]\n'
+            '[tool.pystyle]\ncomment-tags = ["TODO", "FIXME", "NOTE", "HACK", "PERF"]\n'
         )
         source = "# PERF(PROC-1): hot path, revisit\n"
         target = _target(tmp_path, source, table=table)

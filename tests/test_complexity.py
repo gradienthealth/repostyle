@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from gradient_pystyle.rules import RS_COGNITIVE_COMPLEXITY, check_cognitive_complexity
+from pystyle.rules import RS_COGNITIVE_COMPLEXITY, check_cognitive_complexity
 
 _COMPLEX_SOURCE = (
     "def handle(items):\n"
@@ -23,9 +23,7 @@ class TestCheckCognitiveComplexity:
 
     def test_FlatFunction_NoViolation(self) -> None:
         source = (
-            "def f(a, b):\n"
-            "    if a:\n        return 1\n"
-            "    if b:\n        return 2\n"
+            "def f(a, b):\n    if a:\n        return 1\n    if b:\n        return 2\n"
         )
         assert list(check_cognitive_complexity(Path("src/x.py"), source)) == []
 

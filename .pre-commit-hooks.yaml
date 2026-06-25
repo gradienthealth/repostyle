@@ -1,5 +1,5 @@
-- id: gradient-pystyle
-  name: gradient-pystyle
-  entry: gradient-pystyle
+- id: pystyle
+  name: pystyle
+  entry: pystyle
   language: python
   types_or: [python, markdown]

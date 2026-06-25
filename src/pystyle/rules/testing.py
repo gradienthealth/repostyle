@@ -7,8 +7,8 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _is_test_file, _parse_python, _posix
-from gradient_pystyle.rules._violation import (
+from pystyle.rules._shared import _is_test_file, _parse_python, _posix
+from pystyle.rules._violation import (
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_CONDITIONAL_TEST_LOGIC,
     RS_EXCESSIVE_MOCKING,

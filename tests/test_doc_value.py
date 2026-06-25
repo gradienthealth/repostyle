@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from gradient_pystyle.rules import RS_DOC_VALUE_SIGNAL, check_doc_value_signal
+from pystyle.rules import RS_DOC_VALUE_SIGNAL, check_doc_value_signal
 
 _SRC = Path("src/x.py")
 
@@ -111,9 +111,7 @@ class TestCheckDocValueSignal:
             ("def render(a, b, c, d):\n    return a\n", Path("tests/test_x.py")),
             ("def render(a, b, c, d):\n    return a\n", Path("README.md")),
             (
-                "from typing import overload\n"
-                "@overload\n"
-                "def render(a, b, c, d): ...\n",
+                "from typing import overload\n@overload\ndef render(a, b, c, d): ...\n",
                 _SRC,
             ),
         ],
