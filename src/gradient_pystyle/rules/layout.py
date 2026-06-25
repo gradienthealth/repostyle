@@ -129,7 +129,7 @@ def _method_member_order(node: ast.ClassDef) -> Iterator[Violation]:
 
 
 def _first_descending(names: list[str]) -> int | None:
-    """Return the index of the first name that precedes its predecessor."""
+    """Return the index of the first name that sorts before its predecessor."""
     for index in range(1, len(names)):
         if names[index] < names[index - 1]:
             return index
