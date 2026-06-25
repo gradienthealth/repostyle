@@ -214,7 +214,7 @@ def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
     annotation targets. The negation is matched only as a whole
     snake_case or CapWords word, so `is_notable` and `is_north` (where
     `not` or `no` is merely a leading substring) are left alone, as are
-    attribute names and un-aliased imports.
+    attribute names and imports.
     """
     tree = _parse_python(path, source)
     if tree is None:
