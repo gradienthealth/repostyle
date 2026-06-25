@@ -39,22 +39,28 @@ DEFAULT_TICKET_PATTERN = r"[A-Z]+-\d+|NO-ISSUE"
 # set nor the allowed set is ordinary prose and never flagged.
 _KNOWN_ALIASES = frozenset({"XXX", "BUG", "TBD", "OPTIMIZE", "REVIEW", "WIP"})
 
-# A comment's first token, captured case-insensitively up to a word
-# boundary. A tag-like token is letters only, so a word carrying digits
-# or punctuation stays prose; this token is what the rule judges.
-_LEADING_TOKEN_PATTERN = re.compile(r"^#+\s*([A-Za-z]+)\b")
+# A comment's first token, with the character that immediately follows
+# it captured separately. A tag is used tag-style — written in all caps
+# (`TODO fix`) or set off by a `(` or `:` separator (`todo: x`,
+# `Note(...)`); a title-case word trailed by prose (`Note that this
+# works`) is an ordinary sentence. The follower tells the two apart. The
+# token is letters only, so a word carrying digits or punctuation stays
+# prose.
+_LEADING_TOKEN_PATTERN = re.compile(r"^#+\s*([A-Za-z]+)([(:]?)")
 
 
 def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     """A special comment must read `TAG(TICKET): message`.
 
-    A comment whose leading token is an allowed tag or a known alias of
-    one is held to the canonical form: an allowed tag, the ticket in
-    parentheses matching the configured pattern, then `: ` and a
-    message. A deviation — an unknown tag, wrong casing, a missing or
-    malformed ticket, or a wrong separator — is flagged. A comment whose
-    leading token is neither a tag nor an alias is ordinary prose and is
-    left alone. The allowed tags and ticket pattern come from config.
+    A comment opening with a tag — a token that is an allowed tag or a
+    known alias of one, and is used tag-style: written in all caps or
+    set off by a `(` or `:` separator — is held to the canonical form:
+    an allowed tag, the ticket in parentheses matching the configured
+    pattern, then `: ` and a message. A deviation — an unknown tag,
+    wrong casing, a missing or malformed ticket, or a wrong separator —
+    is flagged. A title-case word trailed by prose is an ordinary
+    sentence and is left alone. The allowed tags and ticket pattern come
+    from config.
     """
     if path.suffix != ".py":
         return
@@ -65,7 +71,10 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
         leading = _LEADING_TOKEN_PATTERN.match(token.string)
         if leading is None:
             continue
-        word = leading.group(1).upper()
+        word, follower = leading.group(1), leading.group(2)
+        if not follower and not word.isupper():
+            continue
+        word = word.upper()
         if word not in allowed and word not in _KNOWN_ALIASES:
             continue
         if canonical.match(token.string):

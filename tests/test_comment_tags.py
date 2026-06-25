@@ -23,6 +23,9 @@ class TestCheckCommentTagFormat:
             "x = 1  # trailing prose, not a tag\n",
             "# This is an ordinary sentence about the code.\n",
             "# noqa: E501\n",
+            "# Note that this works for the common case.\n",
+            "# Hack around the broken upstream API here.\n",
+            "# Review the parser before shipping.\n",
         ],
         ids=[
             "canonical-todo",
@@ -31,6 +34,9 @@ class TestCheckCommentTagFormat:
             "trailing-prose",
             "ordinary-prose",
             "directive-prose",
+            "tag-word-opening-prose",
+            "tag-word-opening-prose-alias",
+            "alias-word-opening-prose",
         ],
     )
     def test_CanonicalOrNonTagComment_NoViolation(
