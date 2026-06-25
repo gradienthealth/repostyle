@@ -13,8 +13,8 @@ a tag outside the allowed set (`XXX`, `BUG`), wrong casing (`# todo`),
 missing parentheses (`TODO PROC-1`), a missing ticket (`TODO: fix`), a
 name instead of a ticket (`TODO(sai)`), or a wrong separator after the
 parenthesized ticket. Both the allowed tag set and the ticket pattern
-are read from the `[tool.pystyle]` table, so a repo expresses
-its own ticket shape; with no config the defaults apply.
+are read from the `[tool.pystyle]` table, so a repo expresses its own
+ticket shape; with no config the defaults apply.
 """
 
 from __future__ import annotations
