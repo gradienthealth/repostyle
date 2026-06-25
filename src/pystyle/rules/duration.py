@@ -54,8 +54,8 @@ def _assignment_targets_and_value(
 ) -> tuple[list[ast.expr], ast.expr | None]:
     """Return the targets and value of `stmt` if it is an assignment.
 
-    Return the assignment targets and value for an `Assign` or
-    `AnnAssign` statement, and `([], None)` for any other statement.
+    Resolve an `Assign` or `AnnAssign` to its targets and value, and
+    return `([], None)` for any other statement.
     """
     if isinstance(stmt, ast.Assign):
         return list(stmt.targets), stmt.value

@@ -240,7 +240,7 @@ class _UnitAccumulator:
         continuation indent; otherwise a line matching the established
         indent continues the unit. Any other line opens its own unit.
         """
-        if self._unit and self._joins_open_unit(line):
+        if self._unit and self._extend_open_unit(line):
             return
         self._unit = [line]
         self._first_indent = line.indent
@@ -273,7 +273,7 @@ class _UnitAccumulator:
             self._section_indent = None
             self._entry_indent = None
 
-    def _joins_open_unit(self, line: _FillLine) -> bool:
+    def _extend_open_unit(self, line: _FillLine) -> bool:
         """Append `line` to the open unit when its indent fits, else end it.
 
         Return whether `line` joined the open unit.
@@ -292,7 +292,11 @@ class _UnitAccumulator:
         return False
 
     def _starts_entry(self, line: _FillLine) -> bool:
-        """Report whether `line` begins an entry within the open section."""
+        """Report whether `line` begins an entry within the open section.
+
+        Latch the section's entry indent to the first line examined, so
+        later lines count as entries only when they align with it.
+        """
         if self._section_indent is None:
             return False
         if self._entry_indent is None:
