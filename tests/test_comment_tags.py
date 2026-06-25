@@ -26,6 +26,7 @@ class TestCheckCommentTagFormat:
             "# Note that this works for the common case.\n",
             "# Hack around the broken upstream API here.\n",
             "# Review the parser before shipping.\n",
+            "# HTTP GET is idempotent here.\n",
         ],
         ids=[
             "canonical-todo",
@@ -37,6 +38,7 @@ class TestCheckCommentTagFormat:
             "tag-word-opening-prose",
             "tag-word-opening-prose-alias",
             "alias-word-opening-prose",
+            "all-caps-non-tag-word",
         ],
     )
     def test_CanonicalOrNonTagComment_NoViolation(
@@ -95,7 +97,8 @@ class TestCheckCommentTagFormat:
         target = _target(tmp_path, source)
         violations = list(check_comment_tag_format(target, source))
         assert len(violations) == 1
-        assert "TODO(TICKET)" in violations[0].message
+        assert "TODO" in violations[0].message
+        assert "XXX" not in violations[0].message
 
     def test_ConfiguredTicketPattern_AcceptsRepoShape(self, tmp_path: Path) -> None:
         table = '[tool.gradient-pystyle]\ncomment-ticket-pattern = "#\\\\d+"\n'
