@@ -10,6 +10,7 @@ from pystyle.rules._violation import (
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
+    RS_BOOLEAN_PREFIX_REQUIRED,
     RS_COGNITIVE_COMPLEXITY,
     RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -55,6 +56,7 @@ from pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
 from pystyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
+    check_boolean_prefix_required,
     check_discouraged_class_suffix,
     check_no_negated_boolean,
 )
@@ -84,6 +86,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_BANNED_ABBREVIATION: (check_banned_abbreviation,),
     RS_DISCOURAGED_CLASS_SUFFIX: (check_discouraged_class_suffix,),
     RS_NO_NEGATED_BOOLEAN: (check_no_negated_boolean,),
+    RS_BOOLEAN_PREFIX_REQUIRED: (check_boolean_prefix_required,),
     RS_COGNITIVE_COMPLEXITY: (check_cognitive_complexity,),
     RS_CONDITIONAL_TEST_LOGIC: (check_conditional_test_logic,),
     RS_SLEEPY_TEST: (check_sleepy_test,),
@@ -110,6 +113,8 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_ELEMENT_ORDER: Severity.WARNING,
     RS_SUMMARY_COMMENT_AS_DOCSTRING: Severity.WARNING,
     RS_FIELD_COMMENT_AS_DOCSTRING: Severity.WARNING,
+    RS_NO_NEGATED_BOOLEAN: Severity.WARNING,
+    RS_BOOLEAN_PREFIX_REQUIRED: Severity.WARNING,
 }
 
 

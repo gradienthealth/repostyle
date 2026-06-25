@@ -31,7 +31,8 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS021 | Field comment as docstring (warning): a `@dataclass` field documented with a trailing prose comment and no following string-literal docstring should use the per-field docstring the house style prefers. |
 | RS022 | Comment-tag format: a special comment must read `TAG(TICKET): message` with an allowed tag (`TODO`, `FIXME`, `NOTE`, `HACK`) and a ticket matching a configured pattern (see below). |
 | RS023 | Filler docstring opening: a docstring whose summary opens with `This function`, `This method`, `This class`, `This module`, `Helper to`, `Helper for`, `Used to`, `Simply`, or `Just` restates the identifier instead of stating the contract. |
-| RS024 | No negated boolean: a boolean name (prefixed `is`, `has`, `can`, or `should`) may not embed `not` or `no` as a word; name the positive and negate at the call site (`is_fresh`, not `is_not_stale`). |
+| RS024 | No negated boolean (warning): a boolean name (prefixed `is`, `has`, `can`, or `should`) may not embed `not` or `no` as a word; name the positive and negate at the call site (`is_fresh`, not `is_not_stale`). |
+| RS026 | Boolean prefix required (warning): a `bool`-annotated parameter, variable, or attribute should read as a yes/no question — prefix it with `is`, `has`, `can`, or `should` (`is_valid`, not `valid`). A `-> bool` function is left alone, since a predicate verb is the idiomatic name for one. |
 
 ### Repo-agnostic vs repo-specific
 
@@ -40,9 +41,9 @@ Most rules are repo-agnostic and safe to enable anywhere. Two are tied to the fh
 - **RS002** assumes PascalCase test naming under `tests/unit/`. Repos with a different test-naming convention should not select it.
 - **RS006** bans concrete implementation libraries inside a `src/fhir_ingestor/application/ports/` path. The path fragment and the hexagonal `ports` layering are fhir-ingestor-specific.
 
-RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011, RS024) are general style rules.
+RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011, RS024, RS026) are general style rules.
 
-The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. RS013, RS014, RS022, RS023, and RS024 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
+The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. The boolean-naming rules RS024 and RS026 are advisory too, warning rather than failing until their false-positive rate on the existing repos is measured. RS013, RS014, RS022, and RS023 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
 
 ## Consume as a pre-commit remote hook
 

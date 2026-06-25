@@ -7,6 +7,7 @@ from pystyle.rules import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_BEHAVIOR_VERIFICATION_ONLY,
+    RS_BOOLEAN_PREFIX_REQUIRED,
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
@@ -23,6 +24,7 @@ from pystyle.rules import (
     check_acronym_casing,
     check_banned_abbreviation,
     check_behavior_verification_only,
+    check_boolean_prefix_required,
     check_conditional_test_logic,
     check_discouraged_class_suffix,
     check_doc_fill,
@@ -664,6 +666,59 @@ class TestCheckNoNegatedBoolean:
 
     def test_NonPythonFile_NotChecked(self) -> None:
         assert list(check_no_negated_boolean(Path("README.md"), "is_not_x = 1")) == []
+
+
+class TestCheckBooleanPrefixRequired:
+    @pytest.mark.parametrize(
+        ("source", "name"),
+        [
+            ("def handle(self, valid: bool): ...", "valid"),
+            ("enabled: bool = compute()", "enabled"),
+            ("self.ready: bool = False", "ready"),
+            ("def render(force: bool): ...", "force"),
+        ],
+        ids=[
+            "bool_parameter",
+            "annotated_variable",
+            "annotated_attribute",
+            "parameter_no_default",
+        ],
+    )
+    def test_UnprefixedBoolean_FlagsViolation(self, source: str, name: str) -> None:
+        violations = list(check_boolean_prefix_required(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_BOOLEAN_PREFIX_REQUIRED
+        assert name in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def handle(self, is_valid: bool): ...",
+            "has_results: bool = compute()",
+            "self.is_ready: bool = False",
+            "def render(should_force: bool): ...",
+            "count: int = 0",
+            "def starts_entry(self) -> bool: ...",
+            "enabled = True",
+            "ready: bool | None = None",
+        ],
+        ids=[
+            "prefixed_parameter",
+            "prefixed_variable",
+            "prefixed_attribute",
+            "should_prefix",
+            "non_bool_annotation",
+            "bool_returning_function",
+            "unannotated_assignment",
+            "optional_bool_not_bare",
+        ],
+    )
+    def test_PrefixedOrUnannotated_NoViolation(self, source: str) -> None:
+        assert list(check_boolean_prefix_required(Path("src/x.py"), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        path = Path("README.md")
+        assert list(check_boolean_prefix_required(path, "valid: bool = True")) == []
 
 
 _TEST_PATH = Path("tests/unit/test_x.py")

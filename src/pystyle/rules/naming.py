@@ -11,6 +11,7 @@ from pystyle.rules._shared import TEST_CLASS_PATTERN, _parse_python
 from pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
+    RS_BOOLEAN_PREFIX_REQUIRED,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_NO_NEGATED_BOOLEAN,
     Violation,
@@ -159,6 +160,27 @@ def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
             yield from _negated_boolean_violations(name, lineno, col_offset)
 
 
+def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation]:
+    """Flag a boolean name that does not read as a yes/no question.
+
+    A boolean should answer a yes/no question, so it opens with `is`,
+    `has`, `can`, or `should` (`is_finalized`, `has_results`); a bare
+    `valid` or `enabled` does not. Scope: `bool`-annotated parameters
+    and `bool`-annotated variable and attribute targets. Detection is by
+    annotation, so an unannotated local is left alone and the signal
+    stays free of guesses; a `-> bool` function is left alone too, since
+    a predicate verb (`startswith`, `suppresses`) is the idiomatic name
+    for one. Advisory: it marks names to reconsider rather than failing
+    the run.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        for name, lineno, col_offset in _boolean_prefix_targets(node):
+            yield from _boolean_prefix_violations(name, lineno, col_offset)
+
+
 def _abbreviation_violations(
     name: str, lineno: int, col_offset: int
 ) -> Iterator[Violation]:
@@ -223,6 +245,34 @@ def _banned_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
         yield (node.id, node.lineno, node.col_offset)
 
 
+def _boolean_prefix_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
+    """Yield the at-most-one annotated boolean name a node introduces.
+
+    Resolve a `bool`-annotated parameter or a `bool`-annotated variable
+    or attribute target to its (name, lineno, col_offset) triple; yield
+    nothing for any other node.
+    """
+    if isinstance(node, ast.arg) and _is_bool_annotation(node.annotation):
+        yield (node.arg, node.lineno, node.col_offset)
+    elif isinstance(node, ast.AnnAssign) and _is_bool_annotation(node.annotation):
+        yield from _name_and_position(node.target)
+
+
+def _boolean_prefix_violations(
+    name: str, lineno: int, col_offset: int
+) -> Iterator[Violation]:
+    """Yield a violation if a boolean name lacks an is/has/can/should prefix."""
+    words = list(_identifier_words(name))
+    if words and words[0] not in BOOLEAN_PREFIXES:
+        yield Violation(
+            lineno,
+            col_offset + 1,
+            RS_BOOLEAN_PREFIX_REQUIRED,
+            f"boolean '{name}' should read as a yes/no question; prefix it "
+            f"with is, has, can, or should",
+        )
+
+
 def _capwords_acronym_violations(name: str) -> Iterator[str]:
     for word in _CAPWORDS_WORD.findall(name):
         upper = word.upper()
@@ -269,6 +319,19 @@ def _identifier_words(name: str) -> Iterator[str]:
     for part in name.split("_"):
         for word in _CAPWORDS_WORD.findall(part):
             yield word.lower()
+
+
+def _is_bool_annotation(annotation: ast.expr | None) -> bool:
+    """Report whether an annotation is the bare `bool` type."""
+    return isinstance(annotation, ast.Name) and annotation.id == "bool"
+
+
+def _name_and_position(target: ast.expr) -> Iterator[tuple[str, int, int]]:
+    """Yield a name or attribute target's name with its position."""
+    if isinstance(target, ast.Name):
+        yield (target.id, target.lineno, target.col_offset)
+    elif isinstance(target, ast.Attribute):
+        yield (target.attr, target.lineno, target.col_offset)
 
 
 def _typevar_factory_targets(node: ast.Assign) -> Iterator[tuple[str, int, int]]:

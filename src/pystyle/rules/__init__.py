@@ -20,6 +20,7 @@ from pystyle.rules._violation import (
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
+    RS_BOOLEAN_PREFIX_REQUIRED,
     RS_COGNITIVE_COMPLEXITY,
     RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -65,6 +66,7 @@ from pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
 from pystyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
+    check_boolean_prefix_required,
     check_discouraged_class_suffix,
     check_no_negated_boolean,
 )
@@ -86,6 +88,7 @@ __all__ = [
     "RS_BANNED_ABBREVIATION",
     "RS_BANNED_IMPORT_BY_PATH",
     "RS_BEHAVIOR_VERIFICATION_ONLY",
+    "RS_BOOLEAN_PREFIX_REQUIRED",
     "RS_COGNITIVE_COMPLEXITY",
     "RS_COMMENT_TAG_FORMAT",
     "RS_CONDITIONAL_TEST_LOGIC",
@@ -112,6 +115,7 @@ __all__ = [
     "check_banned_abbreviation",
     "check_banned_import_by_path",
     "check_behavior_verification_only",
+    "check_boolean_prefix_required",
     "check_class_member_order",
     "check_cognitive_complexity",
     "check_comment_tag_format",
