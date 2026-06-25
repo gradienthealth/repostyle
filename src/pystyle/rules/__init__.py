@@ -20,6 +20,7 @@ from pystyle.rules._violation import (
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
+    RS_BOOLEAN_PREFIX_REQUIRED,
     RS_COGNITIVE_COMPLEXITY,
     RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -34,6 +35,7 @@ from pystyle.rules._violation import (
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MOCK_PATCH,
+    RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_SLEEPY_TEST,
@@ -64,7 +66,9 @@ from pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
 from pystyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
+    check_boolean_prefix_required,
     check_discouraged_class_suffix,
+    check_no_negated_boolean,
 )
 from pystyle.rules.ports import check_port_no_implementation
 from pystyle.rules.testing import (
@@ -84,6 +88,7 @@ __all__ = [
     "RS_BANNED_ABBREVIATION",
     "RS_BANNED_IMPORT_BY_PATH",
     "RS_BEHAVIOR_VERIFICATION_ONLY",
+    "RS_BOOLEAN_PREFIX_REQUIRED",
     "RS_COGNITIVE_COMPLEXITY",
     "RS_COMMENT_TAG_FORMAT",
     "RS_CONDITIONAL_TEST_LOGIC",
@@ -98,6 +103,7 @@ __all__ = [
     "RS_NO_ATTRIBUTES_BLOCK",
     "RS_NO_DOUBLE_BACKTICKS",
     "RS_NO_MOCK_PATCH",
+    "RS_NO_NEGATED_BOOLEAN",
     "RS_NO_PHI_SAFE_EXC_INFO",
     "RS_PORT_NO_IMPLEMENTATION",
     "RS_SLEEPY_TEST",
@@ -109,6 +115,7 @@ __all__ = [
     "check_banned_abbreviation",
     "check_banned_import_by_path",
     "check_behavior_verification_only",
+    "check_boolean_prefix_required",
     "check_class_member_order",
     "check_cognitive_complexity",
     "check_comment_tag_format",
@@ -125,6 +132,7 @@ __all__ = [
     "check_no_double_backticks_in_docstrings",
     "check_no_double_backticks_in_md",
     "check_no_mock_patch",
+    "check_no_negated_boolean",
     "check_no_phi_safe_with_exc_info",
     "check_port_no_implementation",
     "check_sleepy_test",
