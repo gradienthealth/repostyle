@@ -24,6 +24,7 @@ from pystyle.rules._violation import (
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MOCK_PATCH,
+    RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_SLEEPY_TEST,
@@ -55,6 +56,7 @@ from pystyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
     check_discouraged_class_suffix,
+    check_no_negated_boolean,
 )
 from pystyle.rules.ports import check_port_no_implementation
 from pystyle.rules.testing import (
@@ -81,6 +83,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_DOC_FILL: (check_doc_fill,),
     RS_BANNED_ABBREVIATION: (check_banned_abbreviation,),
     RS_DISCOURAGED_CLASS_SUFFIX: (check_discouraged_class_suffix,),
+    RS_NO_NEGATED_BOOLEAN: (check_no_negated_boolean,),
     RS_COGNITIVE_COMPLEXITY: (check_cognitive_complexity,),
     RS_CONDITIONAL_TEST_LOGIC: (check_conditional_test_logic,),
     RS_SLEEPY_TEST: (check_sleepy_test,),

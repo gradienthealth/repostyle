@@ -12,6 +12,7 @@ from pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_NO_NEGATED_BOOLEAN,
     Violation,
 )
 
@@ -66,6 +67,10 @@ BANNED_ABBREVIATIONS: frozenset[str] = frozenset(
 )
 
 DISCOURAGED_CLASS_SUFFIXES: tuple[str, ...] = ("Helper", "Manager", "Util", "Utils")
+
+BOOLEAN_PREFIXES: frozenset[str] = frozenset({"can", "has", "is", "should"})
+
+NEGATION_WORDS: frozenset[str] = frozenset({"no", "not"})
 
 
 def _capwords_acronym_violations(name: str) -> Iterator[str]:
@@ -195,3 +200,45 @@ def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violatio
                     f"responsibility, not a vague agent role",
                 )
                 break
+
+
+def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
+    """Flag a boolean name that embeds its own negation.
+
+    A name opening with a boolean prefix (`is`, `has`, `can`, `should`)
+    and carrying `not` or `no` as a later word reads as a standing
+    negative — `is_not_stale`, `has_no_results` — so every call site
+    must double-negate it (`if not is_not_stale`). Name the positive
+    (`is_fresh`, `has_results`) and negate where the value is read.
+    Scope: function and method names, parameters, and assignment or
+    annotation targets. The negation is matched only as a whole
+    snake_case or CapWords word, so `is_notable` and `is_north` (where
+    `not` or `no` is merely a leading substring) are left alone, as are
+    attribute names and un-aliased imports.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        named: list[tuple[str, int, int]] = []
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            named.append((node.name, node.lineno, node.col_offset))
+        elif isinstance(node, ast.arg):
+            named.append((node.arg, node.lineno, node.col_offset))
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            named.append((node.id, node.lineno, node.col_offset))
+        for name, lineno, col_offset in named:
+            words = list(_identifier_words(name))
+            if len(words) < 2 or words[0] not in BOOLEAN_PREFIXES:
+                continue
+            negation = next(
+                (word for word in words[1:] if word in NEGATION_WORDS), None
+            )
+            if negation is not None:
+                yield Violation(
+                    lineno,
+                    col_offset + 1,
+                    RS_NO_NEGATED_BOOLEAN,
+                    f"boolean '{name}' embeds '{negation}'; name the positive "
+                    f"and negate at the call site",
+                )

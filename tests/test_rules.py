@@ -15,6 +15,7 @@ from pystyle.rules import (
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MOCK_PATCH,
+    RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_SLEEPY_TEST,
@@ -31,6 +32,7 @@ from pystyle.rules import (
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
     check_no_mock_patch,
+    check_no_negated_boolean,
     check_no_phi_safe_with_exc_info,
     check_port_no_implementation,
     check_sleepy_test,
@@ -606,6 +608,62 @@ class TestCheckDiscouragedClassSuffix:
     def test_NonPythonFile_NotChecked(self) -> None:
         source = "class FooManager: ..."
         assert list(check_discouraged_class_suffix(Path("README.md"), source)) == []
+
+
+class TestCheckNoNegatedBoolean:
+    @pytest.mark.parametrize(
+        ("source", "negation"),
+        [
+            ("def is_not_stale(self): ...", "not"),
+            ("is_not_ready = check()", "not"),
+            ("def handle(self, should_not_retry): ...", "not"),
+            ("has_no_results = compute()", "no"),
+            ("async def can_not_connect(self): ...", "not"),
+            ("is_not_valid: bool = False", "not"),
+        ],
+        ids=[
+            "method_name",
+            "assignment_target",
+            "parameter",
+            "no_word",
+            "async_method",
+            "annotated_target",
+        ],
+    )
+    def test_NegatedBoolean_FlagsViolation(self, source: str, negation: str) -> None:
+        violations = list(check_no_negated_boolean(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_NO_NEGATED_BOOLEAN
+        assert negation in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def is_fresh(self): ...",
+            "has_results = compute()",
+            "is_notable = True",
+            "is_north = bearing()",
+            "def count_items(self): ...",
+            "result = compute()",
+            "cannot_connect = True",
+            "is_none = value is None",
+        ],
+        ids=[
+            "positive_predicate",
+            "positive_has",
+            "not_as_leading_substring",
+            "no_as_leading_substring",
+            "non_boolean_verb",
+            "single_word_name",
+            "cannot_is_one_word",
+            "none_is_not_negation",
+        ],
+    )
+    def test_PositiveOrNonBoolean_NoViolation(self, source: str) -> None:
+        assert list(check_no_negated_boolean(Path("src/x.py"), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        assert list(check_no_negated_boolean(Path("README.md"), "is_not_x = 1")) == []
 
 
 _TEST_PATH = Path("tests/unit/test_x.py")
