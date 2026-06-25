@@ -160,7 +160,7 @@ def _acronym_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
         yield (node.name.id, node.lineno, node.col_offset)
     elif isinstance(node, _PEP695_TYPE_PARAMS):
         yield (node.name, node.lineno, node.col_offset)
-    elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+    elif isinstance(node, ast.Assign):
         yield from _typevar_factory_targets(node)
 
 
@@ -219,7 +219,8 @@ def _typevar_factory_targets(node: ast.Assign) -> Iterator[tuple[str, int, int]]
     assignment's position, or nothing otherwise.
     """
     call = node.value
-    assert isinstance(call, ast.Call)
+    if not isinstance(call, ast.Call):
+        return
     factory = _typevar_factory_name(call)
     if (
         factory is not None
