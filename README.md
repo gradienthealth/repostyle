@@ -29,6 +29,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS019 | Element order (warning): a module-level definition above a definition that uses it, or independent private helpers and classes left out of alphabetical order; within a class, methods out of dunder-then-public-then-private band, or an explicit-value enum out of alphabetical order. |
 | RS020 | Summary comment as docstring (warning): a module, class, or function with no docstring whose first body position is a standalone prose comment should carry that summary as a docstring, where ruff D401's mood check can see it. |
 | RS021 | Field comment as docstring (warning): a `@dataclass` field documented with a trailing prose comment and no following string-literal docstring should use the per-field docstring the house style prefers. |
+| RS022 | Comment-tag format: a special comment must read `TAG(TICKET): message` with an allowed tag (`TODO`, `FIXME`, `NOTE`, `HACK`) and a ticket matching a configured pattern (see below). |
 | RS023 | Filler docstring opening: a docstring whose summary opens with `This function`, `This method`, `This class`, `This module`, `Helper to`, `Helper for`, `Used to`, `Simply`, or `Just` restates the identifier instead of stating the contract. |
 
 ### Repo-agnostic vs repo-specific
@@ -40,7 +41,7 @@ Most rules are repo-agnostic and safe to enable anywhere. Two are tied to the fh
 
 RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011) are general style rules.
 
-The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. RS013, RS014, and RS023 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
+The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. RS013, RS014, RS022, and RS023 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
 
 ## Consume as a pre-commit remote hook
 
@@ -79,6 +80,18 @@ RS017 takes its bans from config, so each repo expresses its own layering. Map a
 ```
 
 A file matching a glob that imports a banned source — or a submodule of it (`tests.fakes`) — is flagged. Relative imports are left to the no-relative-imports ruff rule. With no table, RS017 reports nothing, so selecting it is harmless until a layer is configured.
+
+## Configure comment tags (RS022)
+
+RS022 holds a special comment to `TAG(TICKET): message`. The allowed tag set and the ticket pattern are config-driven, so a repo expresses its own ticket shape; both fall back to a default when omitted:
+
+```toml
+[tool.gradient-pystyle]
+comment-tags = ["TODO", "FIXME", "NOTE", "HACK"]
+comment-ticket-pattern = "[A-Z]+-\\d+|NO-ISSUE"
+```
+
+A comment whose leading token is an allowed tag, or a known alias of one (`XXX`, `BUG`, `TBD`, ...), is held to the canonical form; the alias steers toward the first allowed tag. A deviation — an unknown tag, wrong casing, a missing or malformed ticket, or a wrong separator — is flagged. A comment whose leading token is neither a tag nor an alias is ordinary prose and is left alone. The default ticket pattern is the Linear-id shape plus the literal `NO-ISSUE`.
 
 ## Suppress a finding
 

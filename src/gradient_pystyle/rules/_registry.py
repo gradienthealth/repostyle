@@ -11,6 +11,7 @@ from gradient_pystyle.rules._violation import (
     RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_COGNITIVE_COMPLEXITY,
+    RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
@@ -31,6 +32,7 @@ from gradient_pystyle.rules._violation import (
     Severity,
     Violation,
 )
+from gradient_pystyle.rules.comments import check_comment_tag_format
 from gradient_pystyle.rules.complexity import check_cognitive_complexity
 from gradient_pystyle.rules.doc_fill import check_doc_fill
 from gradient_pystyle.rules.doc_value import check_doc_value_signal
@@ -89,6 +91,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_ELEMENT_ORDER: (check_module_element_order, check_class_member_order),
     RS_SUMMARY_COMMENT_AS_DOCSTRING: (check_summary_comment_as_docstring,),
     RS_FIELD_COMMENT_AS_DOCSTRING: (check_field_comment_as_docstring,),
+    RS_COMMENT_TAG_FORMAT: (check_comment_tag_format,),
     RS_FILLER_DOCSTRING_OPENING: (check_filler_docstring_opening,),
 }
 

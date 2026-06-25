@@ -21,6 +21,7 @@ from gradient_pystyle.rules._violation import (
     RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_COGNITIVE_COMPLEXITY,
+    RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
@@ -41,6 +42,7 @@ from gradient_pystyle.rules._violation import (
     Severity,
     Violation,
 )
+from gradient_pystyle.rules.comments import check_comment_tag_format
 from gradient_pystyle.rules.complexity import check_cognitive_complexity
 from gradient_pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
 from gradient_pystyle.rules.doc_value import check_doc_value_signal
@@ -83,6 +85,7 @@ __all__ = [
     "RS_BANNED_IMPORT_BY_PATH",
     "RS_BEHAVIOR_VERIFICATION_ONLY",
     "RS_COGNITIVE_COMPLEXITY",
+    "RS_COMMENT_TAG_FORMAT",
     "RS_CONDITIONAL_TEST_LOGIC",
     "RS_DISCOURAGED_CLASS_SUFFIX",
     "RS_DOC_FILL",
@@ -108,6 +111,7 @@ __all__ = [
     "check_behavior_verification_only",
     "check_class_member_order",
     "check_cognitive_complexity",
+    "check_comment_tag_format",
     "check_conditional_test_logic",
     "check_discouraged_class_suffix",
     "check_doc_fill",
