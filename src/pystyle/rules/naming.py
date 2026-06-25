@@ -68,30 +68,6 @@ BANNED_ABBREVIATIONS: frozenset[str] = frozenset(
 DISCOURAGED_CLASS_SUFFIXES: tuple[str, ...] = ("Helper", "Manager", "Util", "Utils")
 
 
-def _capwords_acronym_violations(name: str) -> Iterator[str]:
-    for word in _CAPWORDS_WORD.findall(name):
-        upper = word.upper()
-        if upper in _ACRONYM_SET and word != upper:
-            yield upper
-
-
-def _identifier_words(name: str) -> Iterator[str]:
-    """Yield the lowercased words composing a snake_case or CapWords name."""
-    for part in name.split("_"):
-        for word in _CAPWORDS_WORD.findall(part):
-            yield word.lower()
-
-
-def _typevar_factory_name(call: ast.Call) -> str | None:
-    """Return the unqualified name of a TypeVar-family factory call, if any."""
-    func = call.func
-    if isinstance(func, ast.Name):
-        return func.id if func.id in _TYPE_FACTORY_NAMES else None
-    if isinstance(func, ast.Attribute):
-        return func.attr if func.attr in _TYPE_FACTORY_NAMES else None
-    return None
-
-
 def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
     """Flag CapWords identifiers where a known acronym is not all uppercase.
 
@@ -104,32 +80,8 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     for node in ast.walk(tree):
-        names: list[tuple[str, int, int]] = []
-        if isinstance(node, ast.ClassDef):
-            names.append((node.name, node.lineno, node.col_offset))
-        elif isinstance(node, _PEP695_TYPE_ALIAS):
-            names.append((node.name.id, node.lineno, node.col_offset))
-        elif isinstance(node, _PEP695_TYPE_PARAMS):
-            names.append((node.name, node.lineno, node.col_offset))
-        elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
-            factory = _typevar_factory_name(node.value)
-            if (
-                factory is not None
-                and node.value.args
-                and isinstance(node.value.args[0], ast.Constant)
-                and isinstance(node.value.args[0].value, str)
-            ):
-                names.append((node.value.args[0].value, node.lineno, node.col_offset))
-        for name, lineno, col_offset in names:
-            if not name[:1].isupper():
-                continue
-            for acronym in _capwords_acronym_violations(name):
-                yield Violation(
-                    lineno,
-                    col_offset + 1,
-                    RS_ACRONYM_CASING,
-                    f"acronym '{acronym}' must stay uppercase in '{name}'",
-                )
+        for name, lineno, col_offset in _acronym_named_targets(node):
+            yield from _acronym_violations(name, lineno, col_offset)
 
 
 def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
@@ -149,24 +101,8 @@ def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     for node in ast.walk(tree):
-        named: list[tuple[str, int, int]] = []
-        if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-            named.append((node.name, node.lineno, node.col_offset))
-        elif isinstance(node, ast.arg):
-            named.append((node.arg, node.lineno, node.col_offset))
-        elif isinstance(node, ast.alias) and node.asname is not None:
-            named.append((node.asname, node.lineno, node.col_offset))
-        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-            named.append((node.id, node.lineno, node.col_offset))
-        for name, lineno, col_offset in named:
-            for word in _identifier_words(name):
-                if word in BANNED_ABBREVIATIONS:
-                    yield Violation(
-                        lineno,
-                        col_offset + 1,
-                        RS_BANNED_ABBREVIATION,
-                        f"'{name}' uses the abbreviation '{word}'; spell the word out",
-                    )
+        for name, lineno, col_offset in _banned_named_targets(node):
+            yield from _abbreviation_violations(name, lineno, col_offset)
 
 
 def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violation]:
@@ -195,3 +131,110 @@ def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violatio
                     f"responsibility, not a vague agent role",
                 )
                 break
+
+
+def _abbreviation_violations(
+    name: str, lineno: int, col_offset: int
+) -> Iterator[Violation]:
+    """Yield a violation for each banned abbreviation among a name's words."""
+    for word in _identifier_words(name):
+        if word in BANNED_ABBREVIATIONS:
+            yield Violation(
+                lineno,
+                col_offset + 1,
+                RS_BANNED_ABBREVIATION,
+                f"'{name}' uses the abbreviation '{word}'; spell the word out",
+            )
+
+
+def _acronym_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
+    """Yield the at-most-one casing-checked name a node introduces.
+
+    Resolve a class name, PEP 695 alias or type parameter, or a
+    TypeVar-family factory assignment to its (name, lineno, col_offset)
+    triple; yield nothing for any other node.
+    """
+    if isinstance(node, ast.ClassDef):
+        yield (node.name, node.lineno, node.col_offset)
+    elif isinstance(node, _PEP695_TYPE_ALIAS):
+        yield (node.name.id, node.lineno, node.col_offset)
+    elif isinstance(node, _PEP695_TYPE_PARAMS):
+        yield (node.name, node.lineno, node.col_offset)
+    elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+        yield from _typevar_factory_targets(node)
+
+
+def _acronym_violations(name: str, lineno: int, col_offset: int) -> Iterator[Violation]:
+    """Yield a casing violation for each miscased acronym in a CapWords name.
+
+    A name not starting with an uppercase letter is left alone.
+    """
+    if not name[:1].isupper():
+        return
+    for acronym in _capwords_acronym_violations(name):
+        yield Violation(
+            lineno,
+            col_offset + 1,
+            RS_ACRONYM_CASING,
+            f"acronym '{acronym}' must stay uppercase in '{name}'",
+        )
+
+
+def _banned_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
+    """Yield the at-most-one abbreviation-checked name a node introduces.
+
+    Resolve a class, function, or parameter name, an aliased import, or
+    a store-context `Name` target to its (name, lineno, col_offset)
+    triple; yield nothing for any other node.
+    """
+    if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+        yield (node.name, node.lineno, node.col_offset)
+    elif isinstance(node, ast.arg):
+        yield (node.arg, node.lineno, node.col_offset)
+    elif isinstance(node, ast.alias) and node.asname is not None:
+        yield (node.asname, node.lineno, node.col_offset)
+    elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+        yield (node.id, node.lineno, node.col_offset)
+
+
+def _capwords_acronym_violations(name: str) -> Iterator[str]:
+    for word in _CAPWORDS_WORD.findall(name):
+        upper = word.upper()
+        if upper in _ACRONYM_SET and word != upper:
+            yield upper
+
+
+def _identifier_words(name: str) -> Iterator[str]:
+    """Yield the lowercased words composing a snake_case or CapWords name."""
+    for part in name.split("_"):
+        for word in _CAPWORDS_WORD.findall(part):
+            yield word.lower()
+
+
+def _typevar_factory_targets(node: ast.Assign) -> Iterator[tuple[str, int, int]]:
+    """Yield the string-literal name of a TypeVar-family factory call.
+
+    Require the assigned value to be a recognized factory call whose
+    first argument is a string constant; yield that name with the
+    assignment's position, or nothing otherwise.
+    """
+    call = node.value
+    assert isinstance(call, ast.Call)
+    factory = _typevar_factory_name(call)
+    if (
+        factory is not None
+        and call.args
+        and isinstance(call.args[0], ast.Constant)
+        and isinstance(call.args[0].value, str)
+    ):
+        yield (call.args[0].value, node.lineno, node.col_offset)
+
+
+def _typevar_factory_name(call: ast.Call) -> str | None:
+    """Return the unqualified name of a TypeVar-family factory call, if any."""
+    func = call.func
+    if isinstance(func, ast.Name):
+        return func.id if func.id in _TYPE_FACTORY_NAMES else None
+    if isinstance(func, ast.Attribute):
+        return func.attr if func.attr in _TYPE_FACTORY_NAMES else None
+    return None

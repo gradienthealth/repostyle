@@ -17,6 +17,25 @@ from pystyle.rules._shared import find_pyproject
 from pystyle.suppressions import filter_suppressed, suppressed_lines
 
 
+def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
+    """Discover config from the first path's directory and resolve rules."""
+    paths = list(paths)
+    if not paths:
+        return set(ALL_RULE_IDS)
+    pyproject = find_pyproject(paths[0])
+    config = load_config(pyproject) if pyproject is not None else None
+    return resolve_enabled_rules(config)
+
+
+def load_config(pyproject: Path) -> dict | None:
+    """Read the `[tool.pystyle]` table from a pyproject file."""
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    return data.get("tool", {}).get("pystyle")
+
+
 def resolve_enabled_rules(config: dict | None) -> set[str]:
     """Resolve enabled rule ids from a `[tool.pystyle]` table.
 
@@ -41,23 +60,8 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
     return selected - set(ignore)
 
 
-def load_config(pyproject: Path) -> dict | None:
-    """Read the `[tool.pystyle]` table from a pyproject file."""
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return None
-    return data.get("tool", {}).get("pystyle")
-
-
-def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
-    """Discover config from the first path's directory and resolve rules."""
-    paths = list(paths)
-    if not paths:
-        return set(ALL_RULE_IDS)
-    pyproject = find_pyproject(paths[0])
-    config = load_config(pyproject) if pyproject is not None else None
-    return resolve_enabled_rules(config)
+def lint_paths(paths: Iterable[Path], enabled: set[str]) -> list[Violation]:
+    return [v for path in paths for v in lint_path(path, enabled)]
 
 
 def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
@@ -71,10 +75,6 @@ def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
     if path.suffix == ".py":
         violations = filter_suppressed(violations, source)
     return sorted(set(violations))
-
-
-def lint_paths(paths: Iterable[Path], enabled: set[str]) -> list[Violation]:
-    return [v for path in paths for v in lint_path(path, enabled)]
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:

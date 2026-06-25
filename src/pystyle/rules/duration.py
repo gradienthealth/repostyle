@@ -28,16 +28,7 @@ def check_duration_as_timedelta(path: Path, source: str) -> Iterator[Violation]:
     if not isinstance(tree, ast.Module):
         return
     for stmt in tree.body:
-        targets: list[ast.expr]
-        value: ast.expr | None
-        if isinstance(stmt, ast.Assign):
-            targets = list(stmt.targets)
-            value = stmt.value
-        elif isinstance(stmt, ast.AnnAssign):
-            targets = [stmt.target]
-            value = stmt.value
-        else:
-            continue
+        targets, value = _assignment_targets_and_value(stmt)
         if value is None:
             continue
         if not isinstance(value, ast.Constant) or not isinstance(
@@ -56,3 +47,18 @@ def check_duration_as_timedelta(path: Path, source: str) -> Iterator[Violation]:
                 f"'{target.id}' is a module-level duration; "
                 f"use `timedelta(seconds={value.value})` instead",
             )
+
+
+def _assignment_targets_and_value(
+    stmt: ast.stmt,
+) -> tuple[list[ast.expr], ast.expr | None]:
+    """Return the targets and value of `stmt` if it is an assignment.
+
+    Return the assignment targets and value for an `Assign` or
+    `AnnAssign` statement, and `([], None)` for any other statement.
+    """
+    if isinstance(stmt, ast.Assign):
+        return list(stmt.targets), stmt.value
+    if isinstance(stmt, ast.AnnAssign):
+        return [stmt.target], stmt.value
+    return [], None

@@ -14,31 +14,6 @@ _LOGGING_CALL_NAMES = frozenset(
 )
 
 
-def _extra_has_phi_safe(extra: ast.expr) -> bool:
-    if isinstance(extra, ast.Dict):
-        return any(
-            isinstance(key, ast.Constant) and key.value == "phi_safe"
-            for key in extra.keys
-        )
-    if (
-        isinstance(extra, ast.Call)
-        and isinstance(extra.func, ast.Name)
-        and extra.func.id == "dict"
-    ):
-        return any(kw.arg == "phi_safe" for kw in extra.keywords)
-    return False
-
-
-def _has_truthy_exc_info(call: ast.Call) -> bool:
-    for kw in call.keywords:
-        if kw.arg != "exc_info":
-            continue
-        return not (
-            isinstance(kw.value, ast.Constant) and kw.value.value in (False, None)
-        )
-    return False
-
-
 def check_no_phi_safe_with_exc_info(path: Path, source: str) -> Iterator[Violation]:
     """A log record carrying `exc_info` may not be marked `phi_safe`.
 
@@ -71,3 +46,28 @@ def check_no_phi_safe_with_exc_info(path: Path, source: str) -> Iterator[Violati
             "record carries `exc_info`; the rendered exception chain cannot be "
             "certain PHI-free, so it must not be marked `phi_safe`",
         )
+
+
+def _extra_has_phi_safe(extra: ast.expr) -> bool:
+    if isinstance(extra, ast.Dict):
+        return any(
+            isinstance(key, ast.Constant) and key.value == "phi_safe"
+            for key in extra.keys
+        )
+    if (
+        isinstance(extra, ast.Call)
+        and isinstance(extra.func, ast.Name)
+        and extra.func.id == "dict"
+    ):
+        return any(kw.arg == "phi_safe" for kw in extra.keywords)
+    return False
+
+
+def _has_truthy_exc_info(call: ast.Call) -> bool:
+    for kw in call.keywords:
+        if kw.arg != "exc_info":
+            continue
+        return not (
+            isinstance(kw.value, ast.Constant) and kw.value.value in (False, None)
+        )
+    return False

@@ -18,31 +18,6 @@ from pystyle.rules._shared import _parse_python, _posix, find_pyproject
 from pystyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
 
 
-@lru_cache(maxsize=128)
-def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
-    """Read the `banned-imports` glob-to-sources table from a pyproject file."""
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return ()
-    table = data.get("tool", {}).get("pystyle", {}).get("banned-imports", {})
-    return tuple((glob, frozenset(sources)) for glob, sources in table.items())
-
-
-def _is_banned(name: str, banned: frozenset[str]) -> bool:
-    """Report whether dotted module `name` is a banned source or under one."""
-    return any(name == source or name.startswith(f"{source}.") for source in banned)
-
-
-def _imported_sources(node: ast.AST) -> Iterator[str]:
-    """Yield the absolute module names an import statement names."""
-    if isinstance(node, ast.Import):
-        for alias in node.names:
-            yield alias.name
-    elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-        yield node.module
-
-
 def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
     """A file may not import a source its layer's config forbids.
 
@@ -76,3 +51,28 @@ def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
                     f"import of '{name}' is banned for this path; it crosses a "
                     f"layering boundary the repo's config forbids",
                 )
+
+
+@lru_cache(maxsize=128)
+def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
+    """Read the `banned-imports` glob-to-sources table from a pyproject file."""
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return ()
+    table = data.get("tool", {}).get("pystyle", {}).get("banned-imports", {})
+    return tuple((glob, frozenset(sources)) for glob, sources in table.items())
+
+
+def _imported_sources(node: ast.AST) -> Iterator[str]:
+    """Yield the absolute module names an import statement names."""
+    if isinstance(node, ast.Import):
+        for alias in node.names:
+            yield alias.name
+    elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+        yield node.module
+
+
+def _is_banned(name: str, banned: frozenset[str]) -> bool:
+    """Report whether dotted module `name` is a banned source or under one."""
+    return any(name == source or name.startswith(f"{source}.") for source in banned)

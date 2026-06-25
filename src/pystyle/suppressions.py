@@ -20,30 +20,28 @@ _FILE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore-file\b")
 _LINE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore\b(?!-file)(?:\[([\sA-Z0-9,]*)\])?")
 
 
-class _LineSuppressions:
-    """The per-line suppressions parsed from one source's comments."""
+def filter_suppressed(violations: Iterable[Violation], source: str) -> list[Violation]:
+    """Drop violations waived by a `# style: ignore` directive in `source`."""
+    file_suppressed, lines = _parse(source)
+    if file_suppressed:
+        return []
+    return [v for v in violations if not lines.suppresses(v.line, v.rule)]
 
-    def __init__(self) -> None:
-        self._all: set[int] = set()
-        self._by_rule: dict[int, set[str]] = {}
 
-    def add_all(self, line: int) -> None:
-        """Suppress every rule on `line`."""
-        self._all.add(line)
+def suppressed_lines(source: str, rule: str) -> tuple[bool, frozenset[int]]:
+    """Report whole-file suppression and the lines waiving `rule`.
 
-    def add_rules(self, line: int, rules: set[str]) -> None:
-        """Suppress the named rules on `line`."""
-        self._by_rule.setdefault(line, set()).update(rules)
+    An autofixer consults this to leave waived lines untouched.
 
-    def suppresses(self, line: int, rule: str) -> bool:
-        """Report whether `rule` on `line` is suppressed."""
-        return line in self._all or rule in self._by_rule.get(line, set())
-
-    def lines_waiving(self, rule: str) -> set[int]:
-        """Return every line on which `rule` is suppressed."""
-        return self._all | {
-            line for line, rules in self._by_rule.items() if rule in rules
-        }
+    Returns:
+        A tuple `(file_suppressed, waived_lines)`. `file_suppressed` is
+        whether a `# style: ignore-file` directive waives the entire
+        file. `waived_lines` is the set of lines on which `rule` is
+        suppressed, whether by an unscoped `# style: ignore` or one
+        naming `rule`.
+    """
+    file_suppressed, lines = _parse(source)
+    return file_suppressed, frozenset(lines.lines_waiving(rule))
 
 
 def _parse(source: str) -> tuple[bool, _LineSuppressions]:
@@ -72,22 +70,27 @@ def _parse(source: str) -> tuple[bool, _LineSuppressions]:
     return file_suppressed, lines
 
 
-def filter_suppressed(violations: Iterable[Violation], source: str) -> list[Violation]:
-    """Drop violations waived by a `# style: ignore` directive in `source`."""
-    file_suppressed, lines = _parse(source)
-    if file_suppressed:
-        return []
-    return [v for v in violations if not lines.suppresses(v.line, v.rule)]
+class _LineSuppressions:
+    """The per-line suppressions parsed from one source's comments."""
 
+    def __init__(self) -> None:
+        self._all: set[int] = set()
+        self._by_rule: dict[int, set[str]] = {}
 
-def suppressed_lines(source: str, rule: str) -> tuple[bool, frozenset[int]]:
-    """Report whole-file suppression and the lines waiving `rule`.
+    def add_all(self, line: int) -> None:
+        """Suppress every rule on `line`."""
+        self._all.add(line)
 
-    The first element is whether a `# style: ignore-file` directive
-    waives the entire file; the second is the set of lines on which
-    `rule` is suppressed, whether by an unscoped `# style: ignore` or
-    one naming `rule`. An autofixer consults this to leave waived lines
-    untouched.
-    """
-    file_suppressed, lines = _parse(source)
-    return file_suppressed, frozenset(lines.lines_waiving(rule))
+    def add_rules(self, line: int, rules: set[str]) -> None:
+        """Suppress the named rules on `line`."""
+        self._by_rule.setdefault(line, set()).update(rules)
+
+    def lines_waiving(self, rule: str) -> set[int]:
+        """Return every line on which `rule` is suppressed."""
+        return self._all | {
+            line for line, rules in self._by_rule.items() if rule in rules
+        }
+
+    def suppresses(self, line: int, rule: str) -> bool:
+        """Report whether `rule` on `line` is suppressed."""
+        return line in self._all or rule in self._by_rule.get(line, set())

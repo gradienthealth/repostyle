@@ -6,16 +6,6 @@ import pytest
 from pystyle.cli import main
 from pystyle.rules import RS_ACRONYM_CASING, RULE_SEVERITY, Severity
 
-
-def _project(tmp_path: Path, source: str, select: str) -> Path:
-    (tmp_path / "pyproject.toml").write_text(
-        f"[tool.pystyle]\nselect = {select}\n", encoding="utf-8"
-    )
-    target = tmp_path / "x.py"
-    target.write_text(source, encoding="utf-8")
-    return target
-
-
 _ACRONYM_SOURCE = "if True:\n    class FhirClient: ...\n"
 
 
@@ -128,3 +118,12 @@ class TestFix:
         assert exit_code == 1
         assert target.read_text(encoding="utf-8") == _UNDERWRAPPED_DOCSTRING
         assert "under-wrapped" in capsys.readouterr().out
+
+
+def _project(tmp_path: Path, source: str, select: str) -> Path:
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.pystyle]\nselect = {select}\n", encoding="utf-8"
+    )
+    target = tmp_path / "x.py"
+    target.write_text(source, encoding="utf-8")
+    return target
