@@ -9,22 +9,16 @@ from gradient_pystyle.rules import (
 )
 
 
-def _target(tmp_path: Path, source: str, name: str = "m.py") -> Path:
-    target = tmp_path / name
-    target.write_text(source, encoding="utf-8")
-    return target
-
-
 class TestCheckModuleElementOrder:
     @pytest.mark.parametrize(
         "source",
         [
-            "def public():\n    return _helper()\n\n\ndef _helper():\n    return 1\n",
-            "def public():\n    return CONST\n\n\nCONST = 1\n",
+            "def _helper():\n    return 1\n\n\ndef public():\n    return _helper()\n",
+            "def _early():\n    return 1\n\n\ndef _late():\n    return _early()\n",
         ],
-        ids=["helper_used_above", "constant_used_above"],
+        ids=["helper_above_public_caller", "helper_above_helper_caller"],
     )
-    def test_DefinitionUsedAboveItsDefinition_FlagsViolation(
+    def test_CalleeAboveItsCaller_FlagsViolation(
         self, tmp_path: Path, source: str
     ) -> None:
         target = _target(tmp_path, source)
@@ -48,9 +42,9 @@ class TestCheckModuleElementOrder:
         assert len(violations) == 1
         assert violations[0].rule == RS_ELEMENT_ORDER
 
-    def test_DefineBeforeUseSatisfied_NoViolation(self, tmp_path: Path) -> None:
+    def test_CalleeBelowItsCaller_NoViolation(self, tmp_path: Path) -> None:
         source = (
-            "def _helper():\n    return 1\n\n\ndef public():\n    return _helper()\n"
+            "def public():\n    return _helper()\n\n\ndef _helper():\n    return 1\n"
         )
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
@@ -72,18 +66,24 @@ class TestCheckModuleElementOrder:
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
-    def test_DependentHelpersKeepDependencyOrder_NoViolation(
-        self, tmp_path: Path
-    ) -> None:
-        # '_a' sorts before '_base' but reads it, so the dependency
-        # order holds and alphabetical does not apply.
-        source = "def _base():\n    return 1\n\n\ndef _a():\n    return _base()\n"
+    def test_BaseClassAboveSubclass_NoViolation(self, tmp_path: Path) -> None:
+        # A base class must precede its subclass at definition time, so
+        # the top-down order leaves it above and does not flag it.
+        source = "class _Base:\n    pass\n\n\nclass Sub(_Base):\n    pass\n"
+        target = _target(tmp_path, source)
+        assert list(check_module_element_order(target, source)) == []
+
+    def test_ConstantConsumedByFunctionBelow_NoViolation(self, tmp_path: Path) -> None:
+        # Constants stay at the head of the file regardless of what
+        # reads them, so a function using one from below is not a
+        # violation.
+        source = "CONST = 1\n\n\ndef public():\n    return CONST\n"
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
     def test_LocalNameShadowingADefinition_NoViolation(self, tmp_path: Path) -> None:
         # The local '_helper' is not a reference to the helper below it,
-        # so no forward-reference edge exists.
+        # so no dependency edge exists.
         source = (
             "def public():\n    _helper = 1\n    return _helper\n\n\n"
             "def _helper():\n    return 2\n"
@@ -166,3 +166,9 @@ class TestCheckClassMemberOrder:
         )
         target = _target(tmp_path, source)
         assert list(check_class_member_order(target, source)) == []
+
+
+def _target(tmp_path: Path, source: str, name: str = "m.py") -> Path:
+    target = tmp_path / name
+    target.write_text(source, encoding="utf-8")
+    return target

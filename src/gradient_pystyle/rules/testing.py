@@ -91,29 +91,28 @@ def check_no_mock_patch(path: Path, source: str) -> Iterator[Violation]:
         )
 
 
+def _is_test_file(path: Path) -> bool:
+    posix = _posix(path)
+    return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
+
+
+def _test_functions(
+    tree: ast.AST,
+) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:
+    """Yield the `test`-prefixed functions pytest would collect."""
+    for node in ast.walk(tree):
+        if isinstance(
+            node, ast.FunctionDef | ast.AsyncFunctionDef
+        ) and node.name.startswith("test"):
+            yield node
+
+
 def _branch_asserts_directly(node: ast.stmt) -> bool:
     bodies: list[list[ast.stmt]] = [node.body, getattr(node, "orelse", [])]
     if isinstance(node, ast.Try):
         bodies.append(node.finalbody)
         bodies.extend(handler.body for handler in node.handlers)
     return any(isinstance(stmt, ast.Assert) for body in bodies for stmt in body)
-
-
-def _is_choreography_call(node: ast.AST) -> bool:
-    return (
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and (
-            node.func.attr.startswith("assert_called")
-            or node.func.attr
-            in {"assert_has_calls", "assert_not_called", "assert_any_call"}
-        )
-    )
-
-
-def _is_test_file(path: Path) -> bool:
-    posix = _posix(path)
-    return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
 
 
 def _mock_construct_name(func: ast.expr) -> str | None:
@@ -132,15 +131,16 @@ def _is_mock_decorator(decorator: ast.expr) -> bool:
     return _mock_construct_name(target) is not None
 
 
-def _test_functions(
-    tree: ast.AST,
-) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:
-    """Yield the `test`-prefixed functions pytest would collect."""
-    for node in ast.walk(tree):
-        if isinstance(
-            node, ast.FunctionDef | ast.AsyncFunctionDef
-        ) and node.name.startswith("test"):
-            yield node
+def _is_choreography_call(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and (
+            node.func.attr.startswith("assert_called")
+            or node.func.attr
+            in {"assert_has_calls", "assert_not_called", "assert_any_call"}
+        )
+    )
 
 
 def check_conditional_test_logic(path: Path, source: str) -> Iterator[Violation]:

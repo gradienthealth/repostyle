@@ -29,6 +29,11 @@ def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
     return tuple((glob, frozenset(sources)) for glob, sources in table.items())
 
 
+def _is_banned(name: str, banned: frozenset[str]) -> bool:
+    """Report whether dotted module `name` is a banned source or under one."""
+    return any(name == source or name.startswith(f"{source}.") for source in banned)
+
+
 def _imported_sources(node: ast.AST) -> Iterator[str]:
     """Yield the absolute module names an import statement names."""
     if isinstance(node, ast.Import):
@@ -36,11 +41,6 @@ def _imported_sources(node: ast.AST) -> Iterator[str]:
             yield alias.name
     elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
         yield node.module
-
-
-def _is_banned(name: str, banned: frozenset[str]) -> bool:
-    """Report whether dotted module `name` is a banned source or under one."""
-    return any(name == source or name.startswith(f"{source}.") for source in banned)
 
 
 def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
