@@ -16,16 +16,6 @@ from pathlib import Path
 _HUNK_HEADER = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 
 
-def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
 def changed_lines(path: Path, base: str) -> set[int] | None:
     """Return the new-file line numbers `path` adds or modifies versus `base`.
 
@@ -56,3 +46,13 @@ def changed_lines(path: Path, base: str) -> set[int] | None:
         if tracked.returncode != 0:
             return None
     return lines
+
+
+def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )

@@ -25,6 +25,7 @@ SLEEP_MODULES = frozenset({"time", "asyncio"})
 MOCK_CONSTRUCTORS = frozenset(
     {"Mock", "MagicMock", "AsyncMock", "NonCallableMock", "patch"}
 )
+FORBIDDEN_MOCK_MODULES = frozenset({"unittest.mock", "mock"})
 EXCESSIVE_MOCK_LIMIT = 3
 _BRANCH_STATEMENTS = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.Try)
 
@@ -60,81 +61,16 @@ def check_no_mock_patch(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    forbidden_modules = {"unittest.mock", "mock"}
     for node in ast.walk(tree):
-        offending: str | None = None
-        lineno = 0
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                root = alias.name.split(".", 1)[0]
-                if alias.name in forbidden_modules or root == "mock":
-                    offending = f"import {alias.name}"
-                    lineno = node.lineno
-                    break
-        elif isinstance(node, ast.ImportFrom):
-            if node.module in forbidden_modules:
-                offending = f"from {node.module} import ..."
-                lineno = node.lineno
-            elif node.module == "unittest" and any(
-                alias.name == "mock" for alias in node.names
-            ):
-                offending = "from unittest import mock"
-                lineno = node.lineno
+        offending = _offending_mock_import(node)
         if offending is None:
             continue
         yield Violation(
-            lineno,
+            node.lineno,
             node.col_offset + 1,
             RS_NO_MOCK_PATCH,
             f"`{offending}` rejected; use a port fake under tests/fakes/",
         )
-
-
-def _test_functions(
-    tree: ast.AST,
-) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:
-    """Yield the `test`-prefixed functions pytest would collect."""
-    for node in ast.walk(tree):
-        if isinstance(
-            node, ast.FunctionDef | ast.AsyncFunctionDef
-        ) and node.name.startswith("test"):
-            yield node
-
-
-def _branch_asserts_directly(node: ast.stmt) -> bool:
-    bodies: list[list[ast.stmt]] = [node.body, getattr(node, "orelse", [])]
-    if isinstance(node, ast.Try):
-        bodies.append(node.finalbody)
-        bodies.extend(handler.body for handler in node.handlers)
-    return any(isinstance(stmt, ast.Assert) for body in bodies for stmt in body)
-
-
-def _mock_construct_name(func: ast.expr) -> str | None:
-    if isinstance(func, ast.Name):
-        return func.id if func.id in MOCK_CONSTRUCTORS else None
-    if isinstance(func, ast.Attribute):
-        if func.attr in MOCK_CONSTRUCTORS:
-            return func.attr
-        if isinstance(func.value, ast.Name) and func.value.id in MOCK_CONSTRUCTORS:
-            return func.value.id
-    return None
-
-
-def _is_mock_decorator(decorator: ast.expr) -> bool:
-    target = decorator.func if isinstance(decorator, ast.Call) else decorator
-    return _mock_construct_name(target) is not None
-
-
-def _is_choreography_call(node: ast.AST) -> bool:
-    return (
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and (
-            node.func.attr.startswith("assert_called")
-            or node.func.attr
-            in {"assert_has_calls", "assert_not_called", "assert_any_call"}
-        )
-    )
 
 
 def check_conditional_test_logic(path: Path, source: str) -> Iterator[Violation]:
@@ -249,3 +185,81 @@ def check_behavior_verification_only(path: Path, source: str) -> Iterator[Violat
                 f"test '{function.name}' asserts only call choreography, not "
                 f"observable state",
             )
+
+
+def _branch_asserts_directly(node: ast.stmt) -> bool:
+    """Report whether a branch or loop statement asserts in its own body."""
+    bodies: list[list[ast.stmt]] = [node.body, getattr(node, "orelse", [])]
+    if isinstance(node, ast.Try):
+        bodies.append(node.finalbody)
+        bodies.extend(handler.body for handler in node.handlers)
+    return any(isinstance(stmt, ast.Assert) for body in bodies for stmt in body)
+
+
+def _is_choreography_call(node: ast.AST) -> bool:
+    """Report whether a node is a `mock.assert_called*`-style call."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and (
+            node.func.attr.startswith("assert_called")
+            or node.func.attr
+            in {"assert_has_calls", "assert_not_called", "assert_any_call"}
+        )
+    )
+
+
+def _is_mock_decorator(decorator: ast.expr) -> bool:
+    """Report whether a decorator constructs or patches with a mock."""
+    target = decorator.func if isinstance(decorator, ast.Call) else decorator
+    return _mock_construct_name(target) is not None
+
+
+def _mock_construct_name(func: ast.expr) -> str | None:
+    """Return the mock constructor a call target names, or None."""
+    if isinstance(func, ast.Name):
+        return func.id if func.id in MOCK_CONSTRUCTORS else None
+    if isinstance(func, ast.Attribute):
+        if func.attr in MOCK_CONSTRUCTORS:
+            return func.attr
+        if isinstance(func.value, ast.Name) and func.value.id in MOCK_CONSTRUCTORS:
+            return func.value.id
+    return None
+
+
+def _offending_mock_import(node: ast.AST) -> str | None:
+    """Return the rendered forbidden mock import a node makes, or None."""
+    if isinstance(node, ast.Import):
+        return _offending_plain_import(node)
+    if isinstance(node, ast.ImportFrom):
+        return _offending_from_import(node)
+    return None
+
+
+def _offending_from_import(node: ast.ImportFrom) -> str | None:
+    """Return the rendered forbidden `from` import a node makes, or None."""
+    if node.module in FORBIDDEN_MOCK_MODULES:
+        return f"from {node.module} import ..."
+    if node.module == "unittest" and any(alias.name == "mock" for alias in node.names):
+        return "from unittest import mock"
+    return None
+
+
+def _offending_plain_import(node: ast.Import) -> str | None:
+    """Return the rendered forbidden plain import a node makes, or None."""
+    for alias in node.names:
+        root = alias.name.split(".", 1)[0]
+        if alias.name in FORBIDDEN_MOCK_MODULES or root == "mock":
+            return f"import {alias.name}"
+    return None
+
+
+def _test_functions(
+    tree: ast.AST,
+) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:
+    """Yield the `test`-prefixed functions pytest would collect."""
+    for node in ast.walk(tree):
+        if isinstance(
+            node, ast.FunctionDef | ast.AsyncFunctionDef
+        ) and node.name.startswith("test"):
+            yield node

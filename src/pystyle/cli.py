@@ -15,6 +15,33 @@ from pystyle.runner import (
 )
 
 
+def main(argv: list[str] | None = None) -> int:
+    """Lint the given paths and return the process exit code.
+
+    Parse the arguments, resolve the enabled rule set, optionally reflow
+    RS009 findings in place under `--fix`, and print each path's
+    findings. Return 2 when the rule set cannot be resolved, 1 when an
+    error-severity finding remains or a file was reflowed, and 0
+    otherwise.
+    """
+    options = _parse_args(sys.argv[1:] if argv is None else argv)
+    try:
+        enabled = resolve_enabled_rules_for_paths(options.paths)
+    except ValueError as error:
+        print(f"pystyle: {error}", file=sys.stderr)
+        return 2
+    failed = False
+    fixed: list[Path] = []
+    for path in options.paths:
+        if options.fix and fix_path(path, enabled):
+            fixed.append(path)
+        failed = _report_path(path, enabled, options) or failed
+    if fixed:
+        listed = ", ".join(str(path) for path in fixed)
+        print(f"pystyle: reflowed {listed}; review and re-stage", file=sys.stderr)
+    return 1 if failed or fixed else 0
+
+
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="pystyle")
     parser.add_argument("paths", nargs="*", type=Path)
@@ -50,25 +77,6 @@ def _report_path(path: Path, enabled: set[str], options: argparse.Namespace) -> 
         print(f"{path}:{line}:{col}: {severity.value}: {rule} {message}")
         failed = failed or severity is Severity.ERROR
     return failed
-
-
-def main(argv: list[str] | None = None) -> int:
-    options = _parse_args(sys.argv[1:] if argv is None else argv)
-    try:
-        enabled = resolve_enabled_rules_for_paths(options.paths)
-    except ValueError as error:
-        print(f"pystyle: {error}", file=sys.stderr)
-        return 2
-    failed = False
-    fixed: list[Path] = []
-    for path in options.paths:
-        if options.fix and fix_path(path, enabled):
-            fixed.append(path)
-        failed = _report_path(path, enabled, options) or failed
-    if fixed:
-        listed = ", ".join(str(path) for path in fixed)
-        print(f"pystyle: reflowed {listed}; review and re-stage", file=sys.stderr)
-    return 1 if failed or fixed else 0
 
 
 if __name__ == "__main__":

@@ -38,6 +38,76 @@ _ARGS_SECTION_PATTERN = re.compile(r"^[ \t]*(Args|Arguments):\s*$", re.MULTILINE
 _RETURNS_SECTION_PATTERN = re.compile(r"^[ \t]*(Returns|Yields):\s*$", re.MULTILINE)
 
 
+def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
+    """Warn when a non-trivial public function is under-documented.
+
+    A public function with no docstring earns a warning when it is
+    complex or many-argumented; a documented public function earns one
+    when it has many parameters but no `Args:` section, or returns a
+    multi-element `tuple` but no `Returns:` section. Trivial,
+    non-public, test, and `@overload` definitions never fire.
+    """
+    if _is_test_file(path):
+        return
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        if node.name.startswith(("_", "test_")):
+            continue
+        if _has_decorator(node, {"overload"}):
+            continue
+        yield from _check_function(node)
+
+
+def _check_function(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> Iterator[Violation]:
+    docstring = ast.get_docstring(node, clean=False)
+    params = _param_count(node)
+    if docstring is None:
+        score = _score_block(node.body, 0)
+        if score >= DOC_VALUE_COMPLEXITY_FLOOR or params >= DOC_VALUE_PARAM_FLOOR:
+            plural = "" if params == 1 else "s"
+            yield _violation(
+                node,
+                f"function '{node.name}' is non-trivial (cognitive complexity "
+                f"{score}, {params} parameter{plural}) but has no docstring; "
+                "document it",
+            )
+        return
+    if params >= DOC_VALUE_ARGS_PARAM_FLOOR and not _ARGS_SECTION_PATTERN.search(
+        docstring
+    ):
+        yield _violation(
+            node,
+            f"function '{node.name}' has {params} parameters but its docstring "
+            "has no `Args:` section; document them in one rather than in prose",
+        )
+    if _returns_multi_element_tuple(node) and not _RETURNS_SECTION_PATTERN.search(
+        docstring
+    ):
+        yield _violation(
+            node,
+            f"function '{node.name}' returns a multi-element tuple but its "
+            "docstring has no `Returns:` section; name the elements",
+        )
+
+
+def _has_decorator(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, names: set[str]
+) -> bool:
+    for decorator in node.decorator_list:
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        if isinstance(target, ast.Name) and target.id in names:
+            return True
+        if isinstance(target, ast.Attribute) and target.attr in names:
+            return True
+    return False
+
+
 def _param_count(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
     """Count a function's parameters, excluding a leading `self`/`cls`."""
     args = node.args
@@ -76,75 +146,5 @@ def _returns_multi_element_tuple(node: ast.FunctionDef | ast.AsyncFunctionDef) -
     return len(elements) >= 2
 
 
-def _has_decorator(
-    node: ast.FunctionDef | ast.AsyncFunctionDef, names: set[str]
-) -> bool:
-    for decorator in node.decorator_list:
-        target = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(target, ast.Name) and target.id in names:
-            return True
-        if isinstance(target, ast.Attribute) and target.attr in names:
-            return True
-    return False
-
-
 def _violation(node: ast.FunctionDef | ast.AsyncFunctionDef, message: str) -> Violation:
     return Violation(node.lineno, node.col_offset + 1, RS_DOC_VALUE_SIGNAL, message)
-
-
-def _check_function(
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> Iterator[Violation]:
-    docstring = ast.get_docstring(node, clean=False)
-    params = _param_count(node)
-    if docstring is None:
-        score = _score_block(node.body, 0)
-        if score >= DOC_VALUE_COMPLEXITY_FLOOR or params >= DOC_VALUE_PARAM_FLOOR:
-            plural = "" if params == 1 else "s"
-            yield _violation(
-                node,
-                f"function '{node.name}' is non-trivial (cognitive complexity "
-                f"{score}, {params} parameter{plural}) but has no docstring; "
-                "document it",
-            )
-        return
-    if params >= DOC_VALUE_ARGS_PARAM_FLOOR and not _ARGS_SECTION_PATTERN.search(
-        docstring
-    ):
-        yield _violation(
-            node,
-            f"function '{node.name}' has {params} parameters but its docstring "
-            "has no `Args:` section; document them in one rather than in prose",
-        )
-    if _returns_multi_element_tuple(node) and not _RETURNS_SECTION_PATTERN.search(
-        docstring
-    ):
-        yield _violation(
-            node,
-            f"function '{node.name}' returns a multi-element tuple but its "
-            "docstring has no `Returns:` section; name the elements",
-        )
-
-
-def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
-    """Warn when a non-trivial public function is under-documented.
-
-    A public function with no docstring earns a warning when it is
-    complex or many-argumented; a documented public function earns one
-    when it has many parameters but no `Args:` section, or returns a
-    multi-element `tuple` but no `Returns:` section. Trivial,
-    non-public, test, and `@overload` definitions never fire.
-    """
-    if _is_test_file(path):
-        return
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            continue
-        if node.name.startswith(("_", "test_")):
-            continue
-        if _has_decorator(node, {"overload"}):
-            continue
-        yield from _check_function(node)
