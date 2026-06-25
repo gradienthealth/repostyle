@@ -261,7 +261,10 @@ def _boolean_prefix_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
 def _boolean_prefix_violations(
     name: str, lineno: int, col_offset: int
 ) -> Iterator[Violation]:
-    """Yield a violation if a boolean name lacks an is/has/can/should prefix."""
+    """Yield a violation when a boolean name's first word is not a prefix.
+
+    The accepted prefixes are `is`, `has`, `can`, and `should`.
+    """
     words = list(_identifier_words(name))
     if words and words[0] not in BOOLEAN_PREFIXES:
         yield Violation(
@@ -327,7 +330,10 @@ def _is_bool_annotation(annotation: ast.expr | None) -> bool:
 
 
 def _name_and_position(target: ast.expr) -> Iterator[tuple[str, int, int]]:
-    """Yield a name or attribute target's name with its position."""
+    """Yield a name or attribute target's name with its position.
+
+    Yield nothing for any other target, such as a tuple or subscript.
+    """
     if isinstance(target, ast.Name):
         yield (target.id, target.lineno, target.col_offset)
     elif isinstance(target, ast.Attribute):

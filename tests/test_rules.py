@@ -675,13 +675,11 @@ class TestCheckBooleanPrefixRequired:
             ("def handle(self, valid: bool): ...", "valid"),
             ("enabled: bool = compute()", "enabled"),
             ("self.ready: bool = False", "ready"),
-            ("def render(force: bool): ...", "force"),
         ],
         ids=[
             "bool_parameter",
             "annotated_variable",
             "annotated_attribute",
-            "parameter_no_default",
         ],
     )
     def test_UnprefixedBoolean_FlagsViolation(self, source: str, name: str) -> None:
@@ -697,6 +695,7 @@ class TestCheckBooleanPrefixRequired:
             "has_results: bool = compute()",
             "self.is_ready: bool = False",
             "def render(should_force: bool): ...",
+            "def handle(self, can_retry: bool): ...",
             "count: int = 0",
             "def starts_entry(self) -> bool: ...",
             "enabled = True",
@@ -707,6 +706,7 @@ class TestCheckBooleanPrefixRequired:
             "prefixed_variable",
             "prefixed_attribute",
             "should_prefix",
+            "can_prefix",
             "non_bool_annotation",
             "bool_returning_function",
             "unannotated_assignment",
