@@ -59,6 +59,7 @@ class TestCheckSummaryCommentAsDocstring:
             "def note():\n    # quick note here\n    return 1\n",
             "def low():\n    # two words\n    return 1\n",
             "def directive():\n    # type: ignore the thing\n    return 1\n",
+            "def build():  # Build the client now\n    return 1\n",
         ],
         ids=[
             "has-docstring",
@@ -68,6 +69,7 @@ class TestCheckSummaryCommentAsDocstring:
             "lowercase-start",
             "too-few-words",
             "directive",
+            "trailing-signature-comment",
         ],
     )
     def test_NonLeadingOrNonProseComment_NoViolation(self, source: str) -> None:
@@ -76,6 +78,10 @@ class TestCheckSummaryCommentAsDocstring:
     def test_NonPythonPath_NoViolation(self) -> None:
         source = "# Build the FHIR client from settings\nimport os\n"
         assert list(check_summary_comment_as_docstring(Path("README.md"), source)) == []
+
+    def test_UnparseableSource_NoViolation(self) -> None:
+        source = "# Build the client from settings\ndef (:\n"
+        assert list(check_summary_comment_as_docstring(_SRC, source)) == []
 
 
 class TestCheckFieldCommentAsDocstring:
@@ -104,10 +110,21 @@ class TestCheckFieldCommentAsDocstring:
         assert len(violations) == 1
         assert violations[0].line == 4
 
-    def test_QualifiedDataclassDecorator_FlagsViolation(self) -> None:
+    @pytest.mark.parametrize(
+        "decorator",
+        [
+            "@dataclass",
+            "@dataclass()",
+            "@dataclasses.dataclass",
+            "@dataclasses.dataclass()",
+        ],
+        ids=["bare", "call", "qualified", "qualified-call"],
+    )
+    def test_DataclassDecoratorForm_FlagsViolation(self, decorator: str) -> None:
         source = (
             "import dataclasses\n"
-            "@dataclasses.dataclass\n"
+            "from dataclasses import dataclass\n"
+            f"{decorator}\n"
             "class Patient:\n"
             "    name: str  # The full patient name\n"
         )
@@ -135,6 +152,10 @@ class TestCheckFieldCommentAsDocstring:
         ids=["has-docstring", "not-dataclass", "directive-comment", "not-annassign"],
     )
     def test_NonFiringField_NoViolation(self, source: str) -> None:
+        assert list(check_field_comment_as_docstring(_SRC, source)) == []
+
+    def test_UnparseableSource_NoViolation(self) -> None:
+        source = "@dataclass\nclass (:\n    name: str  # The full patient name\n"
         assert list(check_field_comment_as_docstring(_SRC, source)) == []
 
 
@@ -169,6 +190,26 @@ class TestCheckFillerDocstringOpening:
         violations = list(check_filler_docstring_opening(_SRC, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_FILLER_DOCSTRING_OPENING
+        assert violations[0].line == 1
+
+    @pytest.mark.parametrize(
+        ("source", "expected_line"),
+        [
+            ('"""This module holds rules."""\nx = 1\n', 1),
+            ('class C:\n    """This class holds state."""\n    x = 1\n', 1),
+        ],
+        ids=["module", "class"],
+    )
+    def test_FillerOpeningOnNonFunctionOwner_FlagsViolation(
+        self, source: str, expected_line: int
+    ) -> None:
+        violations = list(check_filler_docstring_opening(_SRC, source))
+        assert len(violations) == 1
+        assert violations[0].line == expected_line
+
+    def test_FillerOpeningOnLaterSummaryLine_FlagsViolation(self) -> None:
+        source = 'def f():\n    """\n    This function does X.\n    """\n    return 1\n'
+        assert len(list(check_filler_docstring_opening(_SRC, source))) == 1
 
     def test_FillerOpeningIsCaseInsensitive_FlagsViolation(self) -> None:
         source = 'def f():\n    """this function does X."""\n    return 1\n'
@@ -185,4 +226,8 @@ class TestCheckFillerDocstringOpening:
 
     def test_NoDocstring_NoViolation(self) -> None:
         source = "def f():\n    return 1\n"
+        assert list(check_filler_docstring_opening(_SRC, source)) == []
+
+    def test_UnparseableSource_NoViolation(self) -> None:
+        source = 'def (:\n    """This function does X."""\n'
         assert list(check_filler_docstring_opening(_SRC, source)) == []

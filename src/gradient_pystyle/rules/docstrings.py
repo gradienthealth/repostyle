@@ -31,8 +31,7 @@ DOUBLE_BACKTICK_PATTERN = re.compile(r"(?<!`)``(?!`)")
 
 # A comment whose first token after the hash marks it as machinery, not
 # prose. The shebang `#!` leads a module; the rest are tool directives a
-# docstring must not swallow. Named distinctly from doc_fill's own
-# directive pattern, whose membership it deliberately does not share.
+# docstring must not swallow.
 _DIRECTIVE_COMMENT_PATTERN = re.compile(
     r"^[ \t]*(!|type:|style:|noqa|pragma|pylint:|mypy:|ruff:|isort:|fmt:)",
 )
@@ -140,15 +139,14 @@ def _is_directive_comment(text: str) -> bool:
 def _is_code_fragment(text: str) -> bool:
     """Report whether a comment's text parses as commented-out Python.
 
-    A fragment that parses to anything other than a bare expression of a
-    name, attribute, comparison, or boolean operation is code: an
-    assignment, import, call, or keyword statement. The excluded
-    expression shapes are the ones an English sentence parses into —
-    `Cache is empty` is a comparison, not a statement worth preserving —
-    so prose phrased around `is`, `in`, `and`, or `or` is not mistaken
-    for code. The boundary is conservative by design: text that does not
-    parse at all is prose, and the rare sentence parsing to another
-    shape falls to code, so the rule under-fires rather than over-fires.
+    A fragment that parses to anything other than a bare name,
+    attribute, comparison, or boolean expression is code: an assignment,
+    import, call, or keyword statement. Those four expression shapes are
+    the ones an English sentence parses into, so prose phrased around
+    `is`, `in`, `and`, or `or` (`Cache is empty`) is not mistaken for
+    code. The boundary is conservative: text that does not parse is
+    prose, and a sentence parsing to another shape falls to code, so the
+    rule under-fires rather than over-fires.
     """
     try:
         parsed = ast.parse(text)
@@ -324,8 +322,7 @@ def check_field_comment_as_docstring(path: Path, source: str) -> Iterator[Violat
 
     A field documented with a trailing prose comment and no following
     string-literal field docstring should carry that text as the
-    per-field docstring the house style prefers — the positive form of
-    RS004's `Attributes:`-block ban.
+    per-field docstring the house style prefers.
     """
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
