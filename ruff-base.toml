@@ -40,6 +40,11 @@ ignore = [
 ]
 # Complexity and size guardrails: C90 (cyclomatic, threshold in
 # [lint.mccabe]) and the PLR caps on returns/branches/statements.
+# PLC0415 (import-outside-top-level) bans in-function imports: an import
+# inside a function body hides a dependency from the module header and is
+# usually reflexive rather than a deliberate guard. A genuinely guarded
+# import (heavy/optional/platform-specific) keeps its if/try guard at
+# module top level.
 # PLR0913 (too-many-arguments) is deliberately left out — it fires on
 # many legitimate wide signatures, and is better adopted once
 # enforcement is scoped to a PR's changed lines, not the whole tree.
@@ -51,6 +56,7 @@ select = [
     "E",       # pycodestyle errors
     "F",       # pyflakes
     "I",       # isort
+    "PLC0415", # import outside top-level (ban in-function imports)
     "PLR0911", # too many return statements
     "PLR0912", # too many branches
     "PLR0915", # too many statements
