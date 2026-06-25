@@ -49,4 +49,6 @@ RS_DOC_VALUE_SIGNAL = "RS018"
 RS_ELEMENT_ORDER = "RS019"
 RS_SUMMARY_COMMENT_AS_DOCSTRING = "RS020"
 RS_FIELD_COMMENT_AS_DOCSTRING = "RS021"
-RS_FILLER_DOCSTRING_OPENING = "RS022"
+# RS022 is reserved for the in-flight comment-tag rule; this rule takes
+# the next free id so the two land without a collision.
+RS_FILLER_DOCSTRING_OPENING = "RS023"
