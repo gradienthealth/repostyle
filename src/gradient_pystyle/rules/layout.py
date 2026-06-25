@@ -24,7 +24,7 @@ import symtable
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python
+from gradient_pystyle.rules._shared import TEST_CLASS_PATTERN, _parse_python
 from gradient_pystyle.rules._violation import RS_ELEMENT_ORDER, Violation
 
 _ENUM_BASES = frozenset({"Enum", "IntEnum", "StrEnum", "Flag", "IntFlag", "ReprEnum"})
@@ -313,7 +313,7 @@ def _is_dunder(name: str) -> bool:
 
 def _is_test_class(node: ast.ClassDef) -> bool:
     """Report whether a class is a pytest test class, collected by name."""
-    return node.name.startswith("Test")
+    return TEST_CLASS_PATTERN.match(node.name) is not None
 
 
 def _reachability(deps: dict[str, frozenset[str]]) -> dict[str, set[str]]:

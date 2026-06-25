@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from gradient_pystyle.rules._shared import _parse_python
+from gradient_pystyle.rules._shared import TEST_CLASS_PATTERN, _parse_python
 from gradient_pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
@@ -66,7 +66,6 @@ BANNED_ABBREVIATIONS: frozenset[str] = frozenset(
 )
 
 DISCOURAGED_CLASS_SUFFIXES: tuple[str, ...] = ("Helper", "Manager", "Util", "Utils")
-TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
 
 
 def _capwords_acronym_violations(name: str) -> Iterator[str]:

@@ -8,8 +8,13 @@ other.
 from __future__ import annotations
 
 import ast
+import re
 from functools import lru_cache
 from pathlib import Path
+
+# A pytest-collected test class: `Test` followed by an uppercase letter
+# or the end of the name, so `Testimony` and `Tester` are not matched.
+TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
 
 
 def _posix(path: Path) -> str:
