@@ -144,7 +144,7 @@ def _method_band(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
 
 
 def check_module_element_order(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a top-level definition out of define-before-use or alpha order.
+    """Flag a top-level definition out of top-down or alphabetical order.
 
     A definition that sits above a definition using it is reported (a
     callee should follow its callers; mutual-recursion cycles exempt);
