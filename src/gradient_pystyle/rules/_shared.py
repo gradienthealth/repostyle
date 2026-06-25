@@ -12,6 +12,9 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+# A pytest-collected test class: `Test` followed by an uppercase letter
+# or the end of the name, so `Testimony` and `Tester` are not matched.
+TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
 TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 
 

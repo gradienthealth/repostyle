@@ -16,6 +16,7 @@ from gradient_pystyle.rules._violation import (
     RS_DOC_FILL,
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
+    RS_ELEMENT_ORDER,
     RS_EXCESSIVE_MOCKING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -37,6 +38,10 @@ from gradient_pystyle.rules.docstrings import (
 )
 from gradient_pystyle.rules.duration import check_duration_as_timedelta
 from gradient_pystyle.rules.import_layering import check_banned_import_by_path
+from gradient_pystyle.rules.layout import (
+    check_class_member_order,
+    check_module_element_order,
+)
 from gradient_pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
 from gradient_pystyle.rules.naming import (
     check_acronym_casing,
@@ -75,6 +80,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_BEHAVIOR_VERIFICATION_ONLY: (check_behavior_verification_only,),
     RS_BANNED_IMPORT_BY_PATH: (check_banned_import_by_path,),
     RS_DOC_VALUE_SIGNAL: (check_doc_value_signal,),
+    RS_ELEMENT_ORDER: (check_module_element_order, check_class_member_order),
 }
 
 
@@ -86,6 +92,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_EXCESSIVE_MOCKING: Severity.WARNING,
     RS_BEHAVIOR_VERIFICATION_ONLY: Severity.WARNING,
     RS_DOC_VALUE_SIGNAL: Severity.WARNING,
+    RS_ELEMENT_ORDER: Severity.WARNING,
 }
 
 

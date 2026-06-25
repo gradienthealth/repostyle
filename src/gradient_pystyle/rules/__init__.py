@@ -26,6 +26,7 @@ from gradient_pystyle.rules._violation import (
     RS_DOC_FILL,
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
+    RS_ELEMENT_ORDER,
     RS_EXCESSIVE_MOCKING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -47,6 +48,10 @@ from gradient_pystyle.rules.docstrings import (
 )
 from gradient_pystyle.rules.duration import check_duration_as_timedelta
 from gradient_pystyle.rules.import_layering import check_banned_import_by_path
+from gradient_pystyle.rules.layout import (
+    check_class_member_order,
+    check_module_element_order,
+)
 from gradient_pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
 from gradient_pystyle.rules.naming import (
     check_acronym_casing,
@@ -77,6 +82,7 @@ __all__ = [
     "RS_DOC_FILL",
     "RS_DOC_VALUE_SIGNAL",
     "RS_DURATION_AS_TIMEDELTA",
+    "RS_ELEMENT_ORDER",
     "RS_EXCESSIVE_MOCKING",
     "RS_NO_ATTRIBUTES_BLOCK",
     "RS_NO_DOUBLE_BACKTICKS",
@@ -91,6 +97,7 @@ __all__ = [
     "check_banned_abbreviation",
     "check_banned_import_by_path",
     "check_behavior_verification_only",
+    "check_class_member_order",
     "check_cognitive_complexity",
     "check_conditional_test_logic",
     "check_discouraged_class_suffix",
@@ -98,6 +105,7 @@ __all__ = [
     "check_doc_value_signal",
     "check_duration_as_timedelta",
     "check_excessive_mocking",
+    "check_module_element_order",
     "check_no_attributes_block",
     "check_no_double_backticks_in_docstrings",
     "check_no_double_backticks_in_md",
