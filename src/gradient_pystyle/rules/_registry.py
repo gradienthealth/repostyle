@@ -14,6 +14,7 @@ from gradient_pystyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
+    RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
     RS_EXCESSIVE_MOCKING,
@@ -29,6 +30,7 @@ from gradient_pystyle.rules._violation import (
 )
 from gradient_pystyle.rules.complexity import check_cognitive_complexity
 from gradient_pystyle.rules.doc_fill import check_doc_fill
+from gradient_pystyle.rules.doc_value import check_doc_value_signal
 from gradient_pystyle.rules.docstrings import (
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
@@ -77,6 +79,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_EXCESSIVE_MOCKING: (check_excessive_mocking,),
     RS_BEHAVIOR_VERIFICATION_ONLY: (check_behavior_verification_only,),
     RS_BANNED_IMPORT_BY_PATH: (check_banned_import_by_path,),
+    RS_DOC_VALUE_SIGNAL: (check_doc_value_signal,),
     RS_ELEMENT_ORDER: (check_module_element_order, check_class_member_order),
 }
 
@@ -88,6 +91,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_COGNITIVE_COMPLEXITY: Severity.WARNING,
     RS_EXCESSIVE_MOCKING: Severity.WARNING,
     RS_BEHAVIOR_VERIFICATION_ONLY: Severity.WARNING,
+    RS_DOC_VALUE_SIGNAL: Severity.WARNING,
     RS_ELEMENT_ORDER: Severity.WARNING,
 }
 

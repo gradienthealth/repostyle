@@ -24,6 +24,7 @@ from gradient_pystyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
+    RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
     RS_EXCESSIVE_MOCKING,
@@ -39,6 +40,7 @@ from gradient_pystyle.rules._violation import (
 )
 from gradient_pystyle.rules.complexity import check_cognitive_complexity
 from gradient_pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
+from gradient_pystyle.rules.doc_value import check_doc_value_signal
 from gradient_pystyle.rules.docstrings import (
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
@@ -78,6 +80,7 @@ __all__ = [
     "RS_CONDITIONAL_TEST_LOGIC",
     "RS_DISCOURAGED_CLASS_SUFFIX",
     "RS_DOC_FILL",
+    "RS_DOC_VALUE_SIGNAL",
     "RS_DURATION_AS_TIMEDELTA",
     "RS_ELEMENT_ORDER",
     "RS_EXCESSIVE_MOCKING",
@@ -99,6 +102,7 @@ __all__ = [
     "check_conditional_test_logic",
     "check_discouraged_class_suffix",
     "check_doc_fill",
+    "check_doc_value_signal",
     "check_duration_as_timedelta",
     "check_excessive_mocking",
     "check_module_element_order",
