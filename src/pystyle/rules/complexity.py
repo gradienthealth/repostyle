@@ -22,43 +22,6 @@ _NESTING_STRUCTURES = (ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler, ast.
 _NESTING_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
 
 
-def _score_block(body: list[ast.stmt], nesting: int) -> int:
-    return sum(_score_node(node, nesting) for node in body)
-
-
-def _score_node(node: ast.AST, nesting: int) -> int:
-    """Return the nesting-weighted cost of one node and its descendants."""
-    if isinstance(node, ast.If):
-        return _score_if(node, nesting)
-    if isinstance(node, _NESTING_STRUCTURES):
-        return 1 + nesting + _score_children(node, nesting + 1)
-    if isinstance(node, ast.BoolOp):
-        return 1 + _score_children(node, nesting)
-    if isinstance(node, _NESTING_SCOPES):
-        return _score_children(node, nesting + 1)
-    return _score_children(node, nesting)
-
-
-def _score_children(node: ast.AST, nesting: int) -> int:
-    return sum(_score_node(child, nesting) for child in ast.iter_child_nodes(node))
-
-
-def _score_if(node: ast.If, nesting: int) -> int:
-    """Score an `if`, treating an `elif` as a flat continuation, not deeper nesting.
-
-    An `elif` is a lone `If` in the `orelse`; scoring it at the same
-    nesting keeps a dispatch chain of branches from reading as deeply
-    nested code, matching how cognitive complexity treats `else if`.
-    """
-    score = 1 + nesting + _score_node(node.test, nesting)
-    score += _score_block(node.body, nesting + 1)
-    if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
-        score += _score_if(node.orelse[0], nesting)
-    else:
-        score += _score_block(node.orelse, nesting + 1)
-    return score
-
-
 def check_cognitive_complexity(path: Path, source: str) -> Iterator[Violation]:
     """Flag a function whose cognitive complexity exceeds the limit.
 
@@ -82,3 +45,40 @@ def check_cognitive_complexity(path: Path, source: str) -> Iterator[Violation]:
                 f"function '{node.name}' has cognitive complexity {score}; over "
                 f"the limit of {COGNITIVE_COMPLEXITY_LIMIT}, consider simplifying",
             )
+
+
+def _score_block(body: list[ast.stmt], nesting: int) -> int:
+    return sum(_score_node(node, nesting) for node in body)
+
+
+def _score_children(node: ast.AST, nesting: int) -> int:
+    return sum(_score_node(child, nesting) for child in ast.iter_child_nodes(node))
+
+
+def _score_if(node: ast.If, nesting: int) -> int:
+    """Score an `if`, treating an `elif` as a flat continuation, not deeper nesting.
+
+    An `elif` is a lone `If` in the `orelse`; scoring it at the same
+    nesting keeps a dispatch chain of branches from reading as deeply
+    nested code, matching how cognitive complexity treats `else if`.
+    """
+    score = 1 + nesting + _score_node(node.test, nesting)
+    score += _score_block(node.body, nesting + 1)
+    if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
+        score += _score_if(node.orelse[0], nesting)
+    else:
+        score += _score_block(node.orelse, nesting + 1)
+    return score
+
+
+def _score_node(node: ast.AST, nesting: int) -> int:
+    """Return the nesting-weighted cost of one node and its descendants."""
+    if isinstance(node, ast.If):
+        return _score_if(node, nesting)
+    if isinstance(node, _NESTING_STRUCTURES):
+        return 1 + nesting + _score_children(node, nesting + 1)
+    if isinstance(node, ast.BoolOp):
+        return 1 + _score_children(node, nesting)
+    if isinstance(node, _NESTING_SCOPES):
+        return _score_children(node, nesting + 1)
+    return _score_children(node, nesting)

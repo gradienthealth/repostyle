@@ -7,16 +7,6 @@ from pystyle.rules import RS_BANNED_IMPORT_BY_PATH, check_banned_import_by_path
 _BANNED_TABLE = '[tool.pystyle.banned-imports]\n"src/**" = ["tests", "httpx"]\n'
 
 
-def _target(
-    tmp_path: Path, relative: str, source: str, table: str = _BANNED_TABLE
-) -> Path:
-    (tmp_path / "pyproject.toml").write_text(table, encoding="utf-8")
-    target = tmp_path / relative
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(source, encoding="utf-8")
-    return target
-
-
 class TestCheckBannedImportByPath:
     @pytest.mark.parametrize(
         "source",
@@ -68,3 +58,13 @@ class TestCheckBannedImportByPath:
             tmp_path, "src/pkg/m.py", source, table="[tool.other]\nx = 1\n"
         )
         assert list(check_banned_import_by_path(target, source)) == []
+
+
+def _target(
+    tmp_path: Path, relative: str, source: str, table: str = _BANNED_TABLE
+) -> Path:
+    (tmp_path / "pyproject.toml").write_text(table, encoding="utf-8")
+    target = tmp_path / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(source, encoding="utf-8")
+    return target

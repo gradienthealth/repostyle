@@ -5,14 +5,6 @@ import pytest
 from pystyle.rules import RS_COMMENT_TAG_FORMAT, check_comment_tag_format
 
 
-def _target(tmp_path: Path, source: str, table: str = "") -> Path:
-    if table:
-        (tmp_path / "pyproject.toml").write_text(table, encoding="utf-8")
-    target = tmp_path / "m.py"
-    target.write_text(source, encoding="utf-8")
-    return target
-
-
 class TestCheckCommentTagFormat:
     @pytest.mark.parametrize(
         "source",
@@ -124,3 +116,11 @@ class TestCheckCommentTagFormat:
         source = "x = (  # todo: unbalanced paren\n"
         target = _target(tmp_path, source)
         assert list(check_comment_tag_format(target, source)) == []
+
+
+def _target(tmp_path: Path, source: str, table: str = "") -> Path:
+    if table:
+        (tmp_path / "pyproject.toml").write_text(table, encoding="utf-8")
+    target = tmp_path / "m.py"
+    target.write_text(source, encoding="utf-8")
+    return target

@@ -7,10 +7,6 @@ from pystyle.rules import RS_DOC_VALUE_SIGNAL, check_doc_value_signal
 _SRC = Path("src/x.py")
 
 
-def _check(source: str, path: Path = _SRC) -> list:
-    return list(check_doc_value_signal(path, source))
-
-
 class TestCheckDocValueSignal:
     @pytest.mark.parametrize(
         "source",
@@ -119,3 +115,7 @@ class TestCheckDocValueSignal:
     )
     def test_ExcludedDefinition_NoViolation(self, source: str, path: Path) -> None:
         assert _check(source, path) == []
+
+
+def _check(source: str, path: Path = _SRC) -> list:
+    return list(check_doc_value_signal(path, source))
