@@ -31,8 +31,9 @@ DOUBLE_BACKTICK_PATTERN = re.compile(r"(?<!`)``(?!`)")
 
 # A comment whose first token after the hash marks it as machinery, not
 # prose. The shebang `#!` leads a module; the rest are tool directives a
-# docstring must not swallow.
-_COMMENT_DIRECTIVE_PATTERN = re.compile(
+# docstring must not swallow. Named distinctly from doc_fill's own
+# directive pattern, whose membership it deliberately does not share.
+_DIRECTIVE_COMMENT_PATTERN = re.compile(
     r"^[ \t]*(!|type:|style:|noqa|pragma|pylint:|mypy:|ruff:|isort:|fmt:)",
 )
 # A PEP 263 encoding declaration, in either the plain `coding:` form or
@@ -128,6 +129,14 @@ def _comment_text(comment: str) -> str:
     return comment.lstrip("#").strip()
 
 
+def _is_directive_comment(text: str) -> bool:
+    """Report whether a comment's text is a tool directive or coding line."""
+    return bool(
+        _DIRECTIVE_COMMENT_PATTERN.match(text)
+        or _CODING_DECLARATION_PATTERN.search(text)
+    )
+
+
 def _is_code_fragment(text: str) -> bool:
     """Report whether a comment's text parses as commented-out Python.
 
@@ -137,7 +146,9 @@ def _is_code_fragment(text: str) -> bool:
     expression shapes are the ones an English sentence parses into —
     `Cache is empty` is a comparison, not a statement worth preserving —
     so prose phrased around `is`, `in`, `and`, or `or` is not mistaken
-    for code.
+    for code. The boundary is conservative by design: text that does not
+    parse at all is prose, and the rare sentence parsing to another
+    shape falls to code, so the rule under-fires rather than over-fires.
     """
     try:
         parsed = ast.parse(text)
@@ -158,28 +169,11 @@ def _is_prose_comment(text: str) -> bool:
     excluded, so the check fires only on a sentence a docstring should
     carry.
     """
-    if _COMMENT_DIRECTIVE_PATTERN.match(text) or _CODING_DECLARATION_PATTERN.search(
-        text
-    ):
+    if _is_directive_comment(text):
         return False
     if not text[:1].isupper() or len(text.split()) < 3:
         return False
     return not _is_code_fragment(text)
-
-
-def _standalone_comments(source: str) -> dict[int, tuple[int, str]]:
-    """Map each whole-line comment's line to its column and text.
-
-    A comment trailing code on its line is excluded, so only a comment
-    occupying its own line — a candidate to become a docstring — is
-    returned, keyed by line to its 0-based column and text.
-    """
-    return _comment_lines(source)[0]
-
-
-def _trailing_comments(source: str) -> dict[int, str]:
-    """Map each line holding a comment trailing code to that comment's text."""
-    return _comment_lines(source)[1]
 
 
 def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, str]]:
@@ -249,7 +243,7 @@ def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Viol
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
         return
-    comments = _standalone_comments(source)
+    comments, _ = _comment_lines(source)
     source_lines = source.splitlines()
     yield from _module_summary_comment(tree, comments)
     for node in _summary_comment_owners(tree):
@@ -286,9 +280,7 @@ def _module_summary_comment(
         if first_code is not None and line >= first_code:
             return
         text = _comment_text(comments[line][1])
-        if _COMMENT_DIRECTIVE_PATTERN.match(text) or _CODING_DECLARATION_PATTERN.search(
-            text
-        ):
+        if _is_directive_comment(text):
             continue
         if _is_prose_comment(text):
             yield Violation(
@@ -338,7 +330,7 @@ def check_field_comment_as_docstring(path: Path, source: str) -> Iterator[Violat
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
         return
-    trailing = _trailing_comments(source)
+    _, trailing = _comment_lines(source)
     for node in _dataclass_classes(tree):
         for index, stmt in enumerate(node.body):
             if not isinstance(stmt, ast.AnnAssign):
