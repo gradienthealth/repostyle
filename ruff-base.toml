@@ -47,7 +47,7 @@ ignore = [
 # inside a function body hides a dependency from the module header and is
 # usually reflexive rather than a deliberate guard. A genuinely guarded
 # import (heavy/optional/platform-specific) keeps its if/try guard at
-# module top level. Pylint rules are selected individually, not by group.
+# module top level.
 select = [
     "B",       # flake8-bugbear
     "C4",      # flake8-comprehensions
