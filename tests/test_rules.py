@@ -16,6 +16,7 @@ from pystyle.rules import (
     RS_EXCESSIVE_MOCKING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
+    RS_NO_MAKE_IN_PRODUCTION,
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
@@ -35,6 +36,7 @@ from pystyle.rules import (
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
+    check_no_make_in_production,
     check_no_mock_patch,
     check_no_negated_boolean,
     check_no_phi_safe_with_exc_info,
@@ -763,6 +765,50 @@ class TestCheckExceptionAlias:
     def test_NonPythonFile_NotChecked(self) -> None:
         source = "try:\n    f()\nexcept Exception as e:\n    g()"
         assert list(check_exception_alias(Path("README.md"), source)) == []
+
+
+class TestCheckNoMakeInProduction:
+    @pytest.mark.parametrize(
+        ("source", "path"),
+        [
+            ("def make_bundle(): ...", "src/x.py"),
+            ("async def make_patient(): ...", "src/app.py"),
+            ("class Builder:\n    def make_thing(self): ...", "src/x.py"),
+        ],
+        ids=["function", "async_function", "method"],
+    )
+    def test_MakeInProduction_FlagsViolation(self, source: str, path: str) -> None:
+        violations = list(check_no_make_in_production(Path(path), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_NO_MAKE_IN_PRODUCTION
+
+    @pytest.mark.parametrize(
+        ("source", "path"),
+        [
+            ("def make_bundle(): ...", "tests/unit/test_x.py"),
+            ("def make_bundle(): ...", "src/factory_test.py"),
+            ("def make_bundle(): ...", "conftest.py"),
+            ("def build_bundle(): ...", "src/x.py"),
+            ("def make(): ...", "src/x.py"),
+            ("def makedirs(): ...", "src/x.py"),
+        ],
+        ids=[
+            "test_file",
+            "test_suffix_file",
+            "conftest",
+            "build_verb",
+            "bare_make",
+            "make_prefix_of_word",
+        ],
+    )
+    def test_FixtureLocationOrOtherVerb_NoViolation(
+        self, source: str, path: str
+    ) -> None:
+        assert list(check_no_make_in_production(Path(path), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        source = "def make_x(): ..."
+        assert list(check_no_make_in_production(Path("notes.md"), source)) == []
 
 
 _TEST_PATH = Path("tests/unit/test_x.py")

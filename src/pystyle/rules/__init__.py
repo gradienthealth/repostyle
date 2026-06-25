@@ -35,6 +35,7 @@ from pystyle.rules._violation import (
     RS_FILLER_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
+    RS_NO_MAKE_IN_PRODUCTION,
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
@@ -71,6 +72,7 @@ from pystyle.rules.naming import (
     check_boolean_prefix_required,
     check_discouraged_class_suffix,
     check_exception_alias,
+    check_no_make_in_production,
     check_no_negated_boolean,
 )
 from pystyle.rules.ports import check_port_no_implementation
@@ -107,6 +109,7 @@ __all__ = [
     "RS_FILLER_DOCSTRING_OPENING",
     "RS_NO_ATTRIBUTES_BLOCK",
     "RS_NO_DOUBLE_BACKTICKS",
+    "RS_NO_MAKE_IN_PRODUCTION",
     "RS_NO_MOCK_PATCH",
     "RS_NO_NEGATED_BOOLEAN",
     "RS_NO_PHI_SAFE_EXC_INFO",
@@ -138,6 +141,7 @@ __all__ = [
     "check_no_attributes_block",
     "check_no_double_backticks_in_docstrings",
     "check_no_double_backticks_in_md",
+    "check_no_make_in_production",
     "check_no_mock_patch",
     "check_no_negated_boolean",
     "check_no_phi_safe_with_exc_info",

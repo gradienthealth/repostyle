@@ -7,13 +7,14 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import TEST_CLASS_PATTERN, _parse_python
+from pystyle.rules._shared import TEST_CLASS_PATTERN, _is_test_file, _parse_python
 from pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_BOOLEAN_PREFIX_REQUIRED,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_EXCEPTION_ALIAS,
+    RS_NO_MAKE_IN_PRODUCTION,
     RS_NO_NEGATED_BOOLEAN,
     Violation,
 )
@@ -218,6 +219,37 @@ def check_exception_alias(path: Path, source: str) -> Iterator[Violation]:
             f"exception alias '{name}' is non-descriptive; use 'exc', "
             f"'exc2' for a nested handler, or a descriptive name",
         )
+
+
+def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
+    """Flag a `make_` function defined outside a test module.
+
+    `make_` is reserved for test fixtures (`make_bundle`,
+    `make_patient`). In production it hides whether the call assembles
+    in memory or changes the world; use `build_` for pure in-memory
+    assembly or `create_` for construction with a side effect. A
+    function under a `tests/` path, a `test_*` / `*_test` module, or a
+    `conftest.py` is a fixture and left alone. The `make_` prefix must
+    be a whole word, so `makedirs` and a bare `make` (a builder's
+    terminal method) are not flagged.
+    """
+    if _is_test_file(path) or path.name == "conftest.py":
+        return
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        if isinstance(
+            node, ast.FunctionDef | ast.AsyncFunctionDef
+        ) and node.name.startswith("make_"):
+            yield Violation(
+                node.lineno,
+                node.col_offset + 1,
+                RS_NO_MAKE_IN_PRODUCTION,
+                f"'{node.name}' uses the fixture-only verb 'make_' in "
+                f"production; use 'build_' (in-memory) or 'create_' "
+                f"(side-effecting)",
+            )
 
 
 def _abbreviation_violations(
