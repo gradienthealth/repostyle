@@ -21,8 +21,9 @@ class TestCheckSummaryCommentAsDocstring:
             ("# Build the FHIR client from settings\nimport os\nx = os\n", 1),
             ("def build():\n    # Build the client from settings\n    return 1\n", 2),
             ("class Registry:\n    # Hold the resolved settings\n    x = 1\n", 2),
+            ("def check():\n    # Cache is empty here\n    return 1\n", 2),
         ],
-        ids=["module", "function", "class"],
+        ids=["module", "function", "class", "english-operator-prose"],
     )
     def test_LeadingProseComment_FlagsViolation(
         self, source: str, expected_line: int
@@ -31,6 +32,11 @@ class TestCheckSummaryCommentAsDocstring:
         assert len(violations) == 1
         assert violations[0].rule == RS_SUMMARY_COMMENT_AS_DOCSTRING
         assert violations[0].line == expected_line
+
+    def test_IndentedLeadingComment_ReportsItsColumn(self) -> None:
+        source = "def build():\n    # Build the client now\n    return 1\n"
+        violations = list(check_summary_comment_as_docstring(_SRC, source))
+        assert violations[0].col == 5
 
     def test_ProseCommentBelowShebangAndCoding_FlagsViolation(self) -> None:
         source = (
@@ -49,6 +55,7 @@ class TestCheckSummaryCommentAsDocstring:
             'def build():\n    """Build the client."""\n    # Build it\n    return 1\n',
             "def build():\n    x = 1\n    # Build the client now\n    return x\n",
             "def skip():\n    # return None\n    return 1\n",
+            "def assign():\n    # Total = compute(value)\n    return 1\n",
             "def note():\n    # quick note here\n    return 1\n",
             "def low():\n    # two words\n    return 1\n",
             "def directive():\n    # type: ignore the thing\n    return 1\n",
@@ -56,7 +63,8 @@ class TestCheckSummaryCommentAsDocstring:
         ids=[
             "has-docstring",
             "deeper-comment",
-            "commented-out-code",
+            "commented-out-statement",
+            "commented-out-assignment",
             "lowercase-start",
             "too-few-words",
             "directive",
@@ -81,6 +89,19 @@ class TestCheckFieldCommentAsDocstring:
         violations = list(check_field_comment_as_docstring(_SRC, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_FIELD_COMMENT_AS_DOCSTRING
+        assert violations[0].line == 4
+
+    def test_MultiLineFieldValueWithTrailingComment_FlagsViolation(self) -> None:
+        source = (
+            "from dataclasses import dataclass, field\n"
+            "@dataclass\n"
+            "class Patient:\n"
+            "    tags: list = field(\n"
+            "        default_factory=list,\n"
+            "    )  # The accumulated patient tags\n"
+        )
+        violations = list(check_field_comment_as_docstring(_SRC, source))
+        assert len(violations) == 1
         assert violations[0].line == 4
 
     def test_QualifiedDataclassDecorator_FlagsViolation(self) -> None:

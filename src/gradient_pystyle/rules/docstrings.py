@@ -128,13 +128,35 @@ def _comment_text(comment: str) -> str:
     return comment.lstrip("#").strip()
 
 
+def _is_code_fragment(text: str) -> bool:
+    """Report whether a comment's text parses as commented-out Python.
+
+    A fragment that parses to anything other than a bare expression of a
+    name, attribute, comparison, or boolean operation is code: an
+    assignment, import, call, or keyword statement. The excluded
+    expression shapes are the ones an English sentence parses into —
+    `Cache is empty` is a comparison, not a statement worth preserving —
+    so prose phrased around `is`, `in`, `and`, or `or` is not mistaken
+    for code.
+    """
+    try:
+        parsed = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return False
+    if len(parsed.body) != 1 or not isinstance(parsed.body[0], ast.Expr):
+        return True
+    return not isinstance(
+        parsed.body[0].value, ast.Name | ast.Attribute | ast.Compare | ast.BoolOp
+    )
+
+
 def _is_prose_comment(text: str) -> bool:
     """Report whether a comment's text reads as a documenting sentence.
 
     Prose is capitalised and at least three words. A tool directive, a
-    shebang, a coding line, and a fragment that parses as Python — a
-    commented-out statement — are all excluded, so the check fires only
-    on a sentence a docstring should carry.
+    shebang, a coding line, and a commented-out statement are all
+    excluded, so the check fires only on a sentence a docstring should
+    carry.
     """
     if _COMMENT_DIRECTIVE_PATTERN.match(text) or _CODING_DECLARATION_PATTERN.search(
         text
@@ -142,39 +164,47 @@ def _is_prose_comment(text: str) -> bool:
         return False
     if not text[:1].isupper() or len(text.split()) < 3:
         return False
-    try:
-        ast.parse(text)
-    except SyntaxError:
-        return True
-    return False
+    return not _is_code_fragment(text)
 
 
-def _standalone_comments(source: str) -> dict[int, str]:
-    """Map each line holding a whole-line comment to that comment's text.
+def _standalone_comments(source: str) -> dict[int, tuple[int, str]]:
+    """Map each whole-line comment's line to its column and text.
 
     A comment trailing code on its line is excluded, so only a comment
     occupying its own line — a candidate to become a docstring — is
-    returned.
+    returned, keyed by line to its 0-based column and text.
+    """
+    return _comment_lines(source)[0]
+
+
+def _trailing_comments(source: str) -> dict[int, str]:
+    """Map each line holding a comment trailing code to that comment's text."""
+    return _comment_lines(source)[1]
+
+
+def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, str]]:
+    """Split a source's comments into the standalone and trailing maps.
+
+    The first map keys each whole-line comment's line to its column and
+    text; the second keys each line whose comment trails code to that
+    comment's text. A comment is standalone when nothing but whitespace
+    precedes it on its line.
     """
     source_lines = source.splitlines()
-    comments: dict[int, str] = {}
+    standalone: dict[int, tuple[int, str]] = {}
+    trailing: dict[int, str] = {}
     try:
-        tokens = tokenize.generate_tokens(io.StringIO(source).readline)
-        for token in tokens:
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
             if token.type != tokenize.COMMENT:
                 continue
             lineno, column = token.start
             if source_lines[lineno - 1][:column].strip():
-                continue
-            comments[lineno] = token.string
+                trailing[lineno] = token.string
+            else:
+                standalone[lineno] = (column, token.string)
     except tokenize.TokenError:
-        return comments
-    return comments
-
-
-def _module_first_code_line(tree: ast.Module) -> int | None:
-    """Return the line of the module's first statement, or None if empty."""
-    return tree.body[0].lineno if tree.body else None
+        pass
+    return standalone, trailing
 
 
 def _summary_comment_owners(
@@ -188,7 +218,7 @@ def _summary_comment_owners(
 
 def _leading_comment_line(
     node: ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef,
-    comments: dict[int, str],
+    comments: dict[int, tuple[int, str]],
     source_lines: list[str],
 ) -> int | None:
     """Return the line of `node`'s first-body-position standalone comment.
@@ -226,27 +256,36 @@ def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Viol
         if ast.get_docstring(node, clean=False) is not None or not node.body:
             continue
         line = _leading_comment_line(node, comments, source_lines)
-        if line is None or not _is_prose_comment(_comment_text(comments[line])):
+        if line is None:
+            continue
+        column, text = comments[line]
+        if not _is_prose_comment(_comment_text(text)):
             continue
         yield Violation(
             line,
-            len(comments[line]) - len(comments[line].lstrip()) + 1,
+            column + 1,
             RS_SUMMARY_COMMENT_AS_DOCSTRING,
             "leading summary comment should be a docstring",
         )
 
 
 def _module_summary_comment(
-    tree: ast.Module, comments: dict[int, str]
+    tree: ast.Module, comments: dict[int, tuple[int, str]]
 ) -> Iterator[Violation]:
-    """Flag a module whose first prose line is a comment, not a docstring."""
+    """Flag a module whose first prose line is a comment, not a docstring.
+
+    A leading shebang, coding, or tool-directive line is skipped, so the
+    summary comment beneath it is still reached; the first non-directive
+    standalone comment then decides, since only the leading position is
+    in scope.
+    """
     if ast.get_docstring(tree, clean=False) is not None:
         return
-    first_code = _module_first_code_line(tree)
+    first_code = tree.body[0].lineno if tree.body else None
     for line in sorted(comments):
         if first_code is not None and line >= first_code:
             return
-        text = _comment_text(comments[line])
+        text = _comment_text(comments[line][1])
         if _COMMENT_DIRECTIVE_PATTERN.match(text) or _CODING_DECLARATION_PATTERN.search(
             text
         ):
@@ -254,7 +293,7 @@ def _module_summary_comment(
         if _is_prose_comment(text):
             yield Violation(
                 line,
-                1,
+                comments[line][0] + 1,
                 RS_SUMMARY_COMMENT_AS_DOCSTRING,
                 "leading summary comment should be a module docstring",
             )
@@ -276,23 +315,6 @@ def _has_dataclass_decorator(node: ast.ClassDef) -> bool:
         if isinstance(target, ast.Attribute) and target.attr == "dataclass":
             return True
     return False
-
-
-def _trailing_comments(source: str) -> dict[int, str]:
-    """Map each line holding a comment trailing code to that comment's text."""
-    source_lines = source.splitlines()
-    comments: dict[int, str] = {}
-    try:
-        tokens = tokenize.generate_tokens(io.StringIO(source).readline)
-        for token in tokens:
-            if token.type != tokenize.COMMENT:
-                continue
-            lineno, column = token.start
-            if source_lines[lineno - 1][:column].strip():
-                comments[lineno] = token.string
-    except tokenize.TokenError:
-        return comments
-    return comments
 
 
 def _field_has_docstring(body: list[ast.stmt], index: int) -> bool:
@@ -321,7 +343,7 @@ def check_field_comment_as_docstring(path: Path, source: str) -> Iterator[Violat
         for index, stmt in enumerate(node.body):
             if not isinstance(stmt, ast.AnnAssign):
                 continue
-            comment = trailing.get(stmt.lineno)
+            comment = trailing.get(stmt.end_lineno or stmt.lineno)
             if comment is None or not _is_prose_comment(_comment_text(comment)):
                 continue
             if _field_has_docstring(node.body, index):
