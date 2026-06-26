@@ -26,7 +26,7 @@ These are the general conventions from fhir-ingestor's `docs/code-style.md` and 
 - Line length 88; docstring and comment paragraphs fill to 72 columns (RS009).
 - Single backticks in docstrings and prose, never double (RS005).
 - Acronyms stay uppercase in CapWords identifiers (RS001): `FHIRClient`, not `FhirClient`.
-- Spell names out; the banned abbreviations in RS010 (`cfg`, `ctx`, `req`, `resp`, `conn`, ...) are rejected. Name a class for its responsibility, not a vague `Manager`/`Helper`/`Util` role (RS011). Booleans read as a positive yes/no question: a `bool`-annotated name carries an `is`/`has`/`can`/`should` prefix (RS026) and never embeds `not` or `no` (RS024); both warn rather than fail.
+- Spell names out; the banned abbreviations in RS010 (`cfg`, `ctx`, `req`, `resp`, `conn`, ...) are rejected. Name a class for its responsibility, not a vague `Manager`/`Helper`/`Util` role (RS011). Booleans read as a positive yes/no question: a `bool`-annotated name carries an `is`/`has`/`can`/`should` prefix (RS026) and never embeds `not` or `no` (RS024); both warn rather than fail. An `except ... as` alias is `exc` (`exc2` when nested) or a descriptive name, never `e`/`ex`/`err` (RS028).
 - Per-field attribute docstrings on dataclasses, not a Google `Attributes:` block (RS004). Module-level duration constants are `timedelta`, not raw `*_SECONDS` numbers (RS007).
 - No relative imports; strict type hints.
 

@@ -29,6 +29,7 @@ from pystyle.rules._violation import (
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
+    RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
@@ -69,6 +70,7 @@ from pystyle.rules.naming import (
     check_banned_abbreviation,
     check_boolean_prefix_required,
     check_discouraged_class_suffix,
+    check_exception_alias,
     check_no_negated_boolean,
 )
 from pystyle.rules.ports import check_port_no_implementation
@@ -99,6 +101,7 @@ __all__ = [
     "RS_DOC_VALUE_SIGNAL",
     "RS_DURATION_AS_TIMEDELTA",
     "RS_ELEMENT_ORDER",
+    "RS_EXCEPTION_ALIAS",
     "RS_EXCESSIVE_MOCKING",
     "RS_FIELD_COMMENT_AS_DOCSTRING",
     "RS_FILLER_DOCSTRING_OPENING",
@@ -127,6 +130,7 @@ __all__ = [
     "check_doc_fill",
     "check_doc_value_signal",
     "check_duration_as_timedelta",
+    "check_exception_alias",
     "check_excessive_mocking",
     "check_field_comment_as_docstring",
     "check_filler_docstring_opening",

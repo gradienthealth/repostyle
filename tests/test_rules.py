@@ -12,6 +12,7 @@ from pystyle.rules import (
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
     RS_DURATION_AS_TIMEDELTA,
+    RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -29,6 +30,7 @@ from pystyle.rules import (
     check_discouraged_class_suffix,
     check_doc_fill,
     check_duration_as_timedelta,
+    check_exception_alias,
     check_excessive_mocking,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
@@ -719,6 +721,48 @@ class TestCheckBooleanPrefixRequired:
     def test_NonPythonFile_NotChecked(self) -> None:
         path = Path("README.md")
         assert list(check_boolean_prefix_required(path, "valid: bool = True")) == []
+
+
+class TestCheckExceptionAlias:
+    @pytest.mark.parametrize(
+        ("source", "alias"),
+        [
+            ("try:\n    f()\nexcept Exception as e:\n    g()", "e"),
+            ("try:\n    f()\nexcept Exception as ex:\n    g()", "ex"),
+            ("try:\n    f()\nexcept Exception as err:\n    g()", "err"),
+            ("try:\n    f()\nexcept Exception as x:\n    g()", "x"),
+        ],
+        ids=["single_letter", "ex", "err", "other_single_letter"],
+    )
+    def test_NonDescriptiveAlias_FlagsViolation(self, source: str, alias: str) -> None:
+        violations = list(check_exception_alias(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_EXCEPTION_ALIAS
+        assert alias in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "try:\n    f()\nexcept Exception as exc:\n    g()",
+            "try:\n    f()\nexcept Exception as exc2:\n    g()",
+            "try:\n    f()\nexcept Exception as validation_error:\n    g()",
+            "try:\n    f()\nexcept Exception as _exc:\n    g()",
+            "try:\n    f()\nexcept Exception:\n    g()",
+        ],
+        ids=[
+            "blessed_exc",
+            "nested_exc2",
+            "descriptive_name",
+            "four_char_name",
+            "no_alias",
+        ],
+    )
+    def test_BlessedDescriptiveOrAbsent_NoViolation(self, source: str) -> None:
+        assert list(check_exception_alias(Path("src/x.py"), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        source = "try:\n    f()\nexcept Exception as e:\n    g()"
+        assert list(check_exception_alias(Path("README.md"), source)) == []
 
 
 _TEST_PATH = Path("tests/unit/test_x.py")

@@ -19,6 +19,7 @@ from pystyle.rules._violation import (
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
+    RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
@@ -59,6 +60,7 @@ from pystyle.rules.naming import (
     check_banned_abbreviation,
     check_boolean_prefix_required,
     check_discouraged_class_suffix,
+    check_exception_alias,
     check_no_negated_boolean,
 )
 from pystyle.rules.ports import check_port_no_implementation
@@ -102,6 +104,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_COMMENT_TAG_FORMAT: (check_comment_tag_format,),
     RS_FILLER_DOCSTRING_OPENING: (check_filler_docstring_opening,),
     RS_TOO_MANY_POSITIONAL_ARGS: (check_too_many_positional_args,),
+    RS_EXCEPTION_ALIAS: (check_exception_alias,),
 }
 
 
