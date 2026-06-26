@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
 from pystyle.rules._violation import (
@@ -30,6 +30,7 @@ from pystyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TEST_NAMING,
@@ -75,6 +76,12 @@ from pystyle.rules.testing import (
     check_sleepy_test,
     check_test_naming,
 )
+from pystyle.rules.visibility import check_should_be_private
+
+# A package rule sees every first-party file at once and yields its
+# findings keyed by path, rather than the single-file `(path, source)`
+# contract of the rules above.
+PackageCheck = Callable[[Sequence[tuple[Path, str]]], Iterator[tuple[Path, Violation]]]
 
 RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_ACRONYM_CASING: (check_acronym_casing,),
@@ -111,6 +118,14 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
 }
 
 
+# Whole-package rules, run once over every first-party file rather than
+# per file. Kept separate from RULES so the single-file contract is
+# unchanged; the runner dispatches each through `run_package_rule`.
+PACKAGE_RULES: dict[str, tuple[PackageCheck, ...]] = {
+    RS_SHOULD_BE_PRIVATE: (check_should_be_private,),
+}
+
+
 # A threshold- or judgment-adjacent rule registers Severity.WARNING here
 # to emit an advisory, non-blocking signal; the mechanical, low-false-
 # positive rules stay at the default ERROR and fail the run.
@@ -125,6 +140,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_NO_NEGATED_BOOLEAN: Severity.WARNING,
     RS_BOOLEAN_PREFIX_REQUIRED: Severity.WARNING,
     RS_TOO_MANY_POSITIONAL_ARGS: Severity.WARNING,
+    RS_SHOULD_BE_PRIVATE: Severity.WARNING,
 }
 
 
@@ -143,4 +159,12 @@ def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
         yield from check(path, source)
 
 
-ALL_RULE_IDS: frozenset[str] = frozenset(RULES)
+def run_package_rule(
+    rule_id: str, files: Sequence[tuple[Path, str]]
+) -> Iterator[tuple[Path, Violation]]:
+    """Run a whole-package rule by id over every first-party file."""
+    for check in PACKAGE_RULES.get(rule_id, ()):
+        yield from check(files)
+
+
+ALL_RULE_IDS: frozenset[str] = frozenset(RULES) | frozenset(PACKAGE_RULES)
