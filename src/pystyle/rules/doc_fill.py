@@ -333,32 +333,21 @@ def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
 
 
 def _has_break_before_limit(line: _FillLine) -> bool:
-    in_span = _backtick_span_mask(line.rendered)
-    prefix_length = len(line.rendered) - len(line.text)
-    upper = min(len(line.rendered), DOC_FILL_COLUMNS + 1)
-    return any(
-        line.rendered[index] == " " and not in_span[index]
-        for index in range(prefix_length + 1, upper)
-    )
+    """Report whether a legal wrap break falls within the column limit.
 
-
-def _backtick_span_mask(text: str) -> list[bool]:
-    """Mark which characters of `text` sit inside a backtick `...` span.
-
-    A space carrying a true mask is not a legal wrap break, so an
-    over-long line whose only break falls inside a span is exempt, as a
-    URL line is. Backticks that do not pair up mark nothing, leaving
-    every space a legal break.
+    A space inside a backtick `...` span is not a legal break, as with a
+    URL, so a line may pass the limit without one. Backticks that do not
+    pair up cannot delimit a span, so every space then counts.
     """
-    if text.count("`") % 2:
-        return [False] * len(text)
-    mask = [False] * len(text)
+    prefix_length = len(line.rendered) - len(line.text)
+    paired = line.rendered.count("`") % 2 == 0
     in_span = False
-    for index, char in enumerate(text):
-        mask[index] = in_span
-        if char == "`":
+    for index, char in enumerate(line.rendered[: DOC_FILL_COLUMNS + 1]):
+        if char == "`" and paired:
             in_span = not in_span
-    return mask
+        elif char == " " and not in_span and index > prefix_length:
+            return True
+    return False
 
 
 def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
