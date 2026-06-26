@@ -27,6 +27,12 @@ class TestCheckOneVerbPerConcept:
         assert len(violations) == 1
         assert violations[0].rule == RS_ONE_VERB_PER_CONCEPT
 
+    def test_SeveralSynonyms_FlagsEach(self, tmp_path: Path) -> None:
+        source = "def retrieve_a():\n    pass\n\n\ndef load_b():\n    pass\n"
+        target = _target(tmp_path, "src/pkg/m.py", source)
+        violations = list(check_one_verb_per_concept(target, source))
+        assert [violation.line for violation in violations] == [1, 5]
+
     @pytest.mark.parametrize(
         "source",
         [
@@ -62,9 +68,14 @@ class TestCheckOneVerbPerConcept:
         )
         assert list(check_one_verb_per_concept(target, source)) == []
 
-    def test_SynonymInTestFile_NoViolation(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "relative",
+        ["tests/m.py", "conftest.py"],
+        ids=["test_dir", "conftest"],
+    )
+    def test_SkippedFile_NoViolation(self, tmp_path: Path, relative: str) -> None:
         source = "def retrieve_patient():\n    pass\n"
-        target = _target(tmp_path, "tests/m.py", source)
+        target = _target(tmp_path, relative, source)
         assert list(check_one_verb_per_concept(target, source)) == []
 
 
