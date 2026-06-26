@@ -57,9 +57,10 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     for unit in _fillable_units(source, tree):
-        # `reflow` cannot rejoin a hard-wrapped span, so flagging it
-        # here would report what `--fix` then declines to fix; the check
-        # skips it in lockstep.
+        # A span broken across source lines lost the whitespace at the
+        # break, so `_reflow_unit` cannot rejoin it and skips it. The
+        # check must exempt the same units, or it would flag what
+        # `--fix` will not repair.
         if _span_crosses_line(unit):
             continue
         yield from _unit_violations(unit)
@@ -435,9 +436,7 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
 
 
 def _span_crosses_line(unit: list[_FillLine]) -> bool:
-    """Report whether a backtick span opens on one line of `unit` and
-    closes on a later one.
-    """
+    """Report whether a backtick span in `unit` opens and closes on different lines."""
     open_span = False
     for line in unit[:-1]:
         open_span ^= line.text.count("`") % 2 == 1
