@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0](https://github.com/gradienthealth/pystyle/compare/pystyle-v0.3.0...pystyle-v0.4.0) (2026-06-26)
+
+
+### Features
+
+* **NO-ISSUE:** add RS025 rejecting make_ outside test modules ([#30](https://github.com/gradienthealth/pystyle/issues/30)) ([7707a30](https://github.com/gradienthealth/pystyle/commit/7707a30f37f79e4e726932cf52109cc95bf5080c))
+* **PROC-2318:** ban in-function imports in the shared ruff baseline ([#35](https://github.com/gradienthealth/pystyle/issues/35)) ([4bde651](https://github.com/gradienthealth/pystyle/commit/4bde65136b1d2fe281263f925fcce1befcc3047f))
+* **PROC-2319:** add the RS027 too-many-positional-arguments rule ([#36](https://github.com/gradienthealth/pystyle/issues/36)) ([e3232e6](https://github.com/gradienthealth/pystyle/commit/e3232e6f1b29381b9ba74400eba23daa6b03a5ac))
+* **PROC-2340:** add boolean-naming rules for prefix and embedded negation ([#29](https://github.com/gradienthealth/pystyle/issues/29)) ([87a3b19](https://github.com/gradienthealth/pystyle/commit/87a3b190aac2a082e06d6c6464504a36fc6aacb1))
+* **PROC-2352:** add the RS028 exception-alias naming rule ([#33](https://github.com/gradienthealth/pystyle/issues/33)) ([aaab33a](https://github.com/gradienthealth/pystyle/commit/aaab33aac4fc72f4db58de9e707dbe33e7411f9e))
+* **PROC-2356:** treat backticked references as atomic tokens when reflowing docstrings ([#37](https://github.com/gradienthealth/pystyle/issues/37)) ([42b42ad](https://github.com/gradienthealth/pystyle/commit/42b42ad4c496c6615af73d0dc1f8eb4bc92b9cc3))
+
+
+### Documentation
+
+* **NO-ISSUE:** add the judgment-conventions canon ([#31](https://github.com/gradienthealth/pystyle/issues/31)) ([fa99759](https://github.com/gradienthealth/pystyle/commit/fa99759b5f599a75bcce56a58a97b22e2a8d092b))
+
 ## [0.3.0](https://github.com/gradienthealth/pystyle/compare/pystyle-v0.2.0...pystyle-v0.3.0) (2026-06-25)
 
 
