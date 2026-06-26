@@ -1,11 +1,11 @@
 name: sync judgment conventions
 
 # docs/judgment-conventions.md is the org-wide judgment canon. Consumer repos
-# vendor a read-only copy and import it from their CLAUDE.md. When the canon
-# changes on main, mint a short-lived gradienthealth-bot installation token and
-# open a pull request in each consumer repo updating its vendored copy. Editing
-# the file in a consumer repo is pointless — the next sync overwrites it; the
-# canon changes here.
+# vendor a read-only copy and import it from their CLAUDE.md so the conventions
+# sit in a coding agent's context while it writes, not only at review. When the
+# canon changes on main, mint a short-lived gradienthealth-bot token, copy the
+# file into each consumer repo, and open a pull request. Edit the canon here,
+# never the vendored copy — the next sync overwrites it.
 
 on:
   push:
@@ -21,8 +21,18 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Consumer repos that vendor the canon. Add a repo here once it vendors
+        # docs/judgment-conventions.md and imports it from its CLAUDE.md.
+        repo:
+          - fhir-ingestor
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the canon source
+        uses: actions/checkout@v4
+        with:
+          path: source
 
       - name: Mint a gradienthealth-bot token
         id: app-token
@@ -31,17 +41,27 @@ jobs:
           app-id: "4149742" # gradienthealth-bot
           private-key: ${{ secrets.GH_BOT_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: fhir-ingestor
+          repositories: ${{ matrix.repo }}
 
-      - name: Open file-sync pull requests
-        # The upstream original, not the step-security fork: that fork gates
-        # private-repo use behind a paid subscription, and pystyle is private.
-        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619 # v1.21.1
+      - name: Check out ${{ matrix.repo }}
+        uses: actions/checkout@v4
         with:
-          GH_INSTALLATION_TOKEN: ${{ steps.app-token.outputs.token }}
-          CONFIG_PATH: .github/sync.yml
-          COMMIT_PREFIX: "docs:"
-          PR_LABELS: false
-          PR_BODY: |
+          repository: ${{ github.repository_owner }}/${{ matrix.repo }}
+          token: ${{ steps.app-token.outputs.token }}
+          path: target
+
+      - name: Copy the canon into ${{ matrix.repo }}
+        run: cp source/docs/judgment-conventions.md target/docs/judgment-conventions.md
+
+      - name: Open a sync pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          path: target
+          branch: sync/judgment-conventions
+          commit-message: "docs: sync judgment-conventions.md from pystyle"
+          title: "docs: sync judgment-conventions.md from pystyle"
+          body: |
             Automated sync of the judgment-conventions canon from gradienthealth/pystyle.
             This file is a read-only mirror — change it upstream in pystyle, not here.
+          delete-branch: true
