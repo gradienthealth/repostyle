@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from pystyle.rules._registry import (
     ALL_RULE_IDS,
+    PACKAGE_RULES,
     RULE_SEVERITY,
     RULES,
+    run_package_rule,
     run_rule,
     severity_of,
 )
@@ -40,6 +42,7 @@ from pystyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TEST_NAMING,
@@ -85,9 +88,11 @@ from pystyle.rules.testing import (
     check_sleepy_test,
     check_test_naming,
 )
+from pystyle.rules.visibility import check_should_be_private
 
 __all__ = [
     "ALL_RULE_IDS",
+    "PACKAGE_RULES",
     "RULES",
     "RULE_SEVERITY",
     "RS_ACRONYM_CASING",
@@ -114,6 +119,7 @@ __all__ = [
     "RS_NO_NEGATED_BOOLEAN",
     "RS_NO_PHI_SAFE_EXC_INFO",
     "RS_PORT_NO_IMPLEMENTATION",
+    "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
     "RS_SUMMARY_COMMENT_AS_DOCSTRING",
     "RS_TEST_NAMING",
@@ -146,11 +152,13 @@ __all__ = [
     "check_no_negated_boolean",
     "check_no_phi_safe_with_exc_info",
     "check_port_no_implementation",
+    "check_should_be_private",
     "check_sleepy_test",
     "check_summary_comment_as_docstring",
     "check_test_naming",
     "check_too_many_positional_args",
     "reflow_doc_fill",
+    "run_package_rule",
     "run_rule",
     "severity_of",
 ]

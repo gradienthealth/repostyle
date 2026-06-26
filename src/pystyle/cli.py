@@ -7,9 +7,10 @@ import sys
 from pathlib import Path
 
 from pystyle.changed_lines import changed_lines
-from pystyle.rules import Severity, severity_of
+from pystyle.rules import Severity, Violation, severity_of
 from pystyle.runner import (
     fix_path,
+    lint_package,
     lint_path,
     resolve_enabled_rules_for_paths,
 )
@@ -30,12 +31,14 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as error:
         print(f"pystyle: {error}", file=sys.stderr)
         return 2
+    package = lint_package(options.paths, enabled)
     failed = False
     fixed: list[Path] = []
     for path in options.paths:
         if options.fix and fix_path(path, enabled):
             fixed.append(path)
-        failed = _report_path(path, enabled, options) or failed
+        extra = package.get(path.resolve(), [])
+        failed = _report_path(path, enabled, options, extra) or failed
     if fixed:
         listed = ", ".join(str(path) for path in fixed)
         print(f"pystyle: reflowed {listed}; review and re-stage", file=sys.stderr)
@@ -64,9 +67,19 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _report_path(path: Path, enabled: set[str], options: argparse.Namespace) -> bool:
-    """Print a path's findings and report whether any is error-severity."""
-    violations = lint_path(path, enabled)
+def _report_path(
+    path: Path,
+    enabled: set[str],
+    options: argparse.Namespace,
+    extra: list[Violation],
+) -> bool:
+    """Print a path's findings and report whether any is error-severity.
+
+    `extra` carries whole-package findings already scoped to this path,
+    merged with the per-file findings before diff-filtering and
+    printing.
+    """
+    violations = sorted(set(lint_path(path, enabled)) | set(extra))
     if options.diff:
         touched = changed_lines(path, options.diff_base)
         if touched is not None:

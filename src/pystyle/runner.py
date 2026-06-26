@@ -8,13 +8,19 @@ from pathlib import Path
 
 from pystyle.rules import (
     ALL_RULE_IDS,
+    PACKAGE_RULES,
     RS_DOC_FILL,
     Violation,
     reflow_doc_fill,
+    run_package_rule,
     run_rule,
 )
 from pystyle.rules._shared import find_pyproject
 from pystyle.suppressions import filter_suppressed, suppressed_lines
+
+# Directories never holding first-party source, skipped when building
+# the whole-package index a package rule scans.
+_SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules"})
 
 
 def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
@@ -75,6 +81,52 @@ def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
     if path.suffix == ".py":
         violations = filter_suppressed(violations, source)
     return sorted(set(violations))
+
+
+def lint_package(
+    paths: Iterable[Path], enabled: set[str]
+) -> dict[Path, list[Violation]]:
+    """Run the enabled whole-package rules, scoped to the given paths.
+
+    A package rule sees every first-party file under the repo root so
+    its cross-module view is whole, but findings are reported only on
+    the paths passed in — keeping it sound under pre-commit's per-file
+    batching. Returns findings keyed by each path's resolved location.
+    """
+    paths = list(paths)
+    package_rules = enabled & set(PACKAGE_RULES)
+    if not package_rules or not paths:
+        return {}
+    root = find_pyproject(paths[0])
+    files = _package_files(root.parent if root is not None else paths[0])
+    sources = {path.resolve(): source for path, source in files}
+    scope = {path.resolve() for path in paths}
+    findings: dict[Path, list[Violation]] = {}
+    for rule_id in package_rules:
+        for path, violation in run_package_rule(rule_id, files):
+            resolved = path.resolve()
+            if resolved in scope:
+                findings.setdefault(resolved, []).append(violation)
+    kept = {
+        path: sorted(set(filter_suppressed(violations, sources.get(path, ""))))
+        for path, violations in findings.items()
+    }
+    return {path: violations for path, violations in kept.items() if violations}
+
+
+def _package_files(root: Path) -> list[tuple[Path, str]]:
+    """Read every first-party Python file under `root`."""
+    root = root.resolve()
+    base = root if root.is_dir() else root.parent
+    files: list[tuple[Path, str]] = []
+    for path in sorted(base.rglob("*.py")):
+        if any(part.startswith(".") or part in _SKIPPED_DIRS for part in path.parts):
+            continue
+        try:
+            files.append((path, path.read_text(encoding="utf-8")))
+        except (OSError, UnicodeDecodeError):
+            continue
+    return files
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:
