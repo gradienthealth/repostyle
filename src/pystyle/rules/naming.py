@@ -13,6 +13,7 @@ from pystyle.rules._violation import (
     RS_BANNED_ABBREVIATION,
     RS_BOOLEAN_PREFIX_REQUIRED,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_EXCEPTION_ALIAS,
     RS_NO_NEGATED_BOOLEAN,
     Violation,
 )
@@ -72,6 +73,14 @@ DISCOURAGED_CLASS_SUFFIXES: tuple[str, ...] = ("Helper", "Manager", "Util", "Uti
 BOOLEAN_PREFIXES: frozenset[str] = frozenset({"can", "has", "is", "should"})
 
 NEGATION_WORDS: frozenset[str] = frozenset({"no", "not"})
+
+# `exc` optionally followed by digits: the blessed `exc`, plus `exc2`,
+# `exc3` for a nested handler that must not shadow an outer alias. `exc`
+# is the one abbreviation exempt from RS010, since it is the universal
+# Python idiom for the exception in hand.
+_BLESSED_EXCEPTION_ALIAS = re.compile(r"exc\d*")
+
+_MIN_DESCRIPTIVE_ALIAS_LENGTH = 4
 
 
 def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
@@ -179,6 +188,36 @@ def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation
     for node in ast.walk(tree):
         for name, lineno, col_offset in _boolean_prefix_targets(node):
             yield from _boolean_prefix_violations(name, lineno, col_offset)
+
+
+def check_exception_alias(path: Path, source: str) -> Iterator[Violation]:
+    """Flag a non-descriptive `except ... as` alias.
+
+    A caught exception's bound name must be `exc`, `exc` followed by
+    digits (`exc2`) for a nested handler, or a descriptive name of at
+    least four characters (`validation_error`, `original_exc`); the
+    noise aliases `e`, `ex`, and `err` are rejected. A bare `except X:`
+    binding no name is left alone.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ExceptHandler) or node.name is None:
+            continue
+        name = node.name
+        if (
+            _BLESSED_EXCEPTION_ALIAS.fullmatch(name)
+            or len(name) >= _MIN_DESCRIPTIVE_ALIAS_LENGTH
+        ):
+            continue
+        yield Violation(
+            node.lineno,
+            node.col_offset + 1,
+            RS_EXCEPTION_ALIAS,
+            f"exception alias '{name}' is non-descriptive; use 'exc', "
+            f"'exc2' for a nested handler, or a descriptive name",
+        )
 
 
 def _abbreviation_violations(
