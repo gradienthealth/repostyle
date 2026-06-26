@@ -2,6 +2,8 @@
 
 Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config. The rules are a stdlib-only AST/token/line linter that catches conventions ruff does not cover; consuming repos select the subset they want and run it as a pre-commit remote hook.
 
+These rules are the *mechanical* half of the house style. The *judgment* half — conventions a linter cannot decide — lives in [`docs/judgment-conventions.md`](docs/judgment-conventions.md), the canonical source each repo references and the `python-style-review` skill distills.
+
 ## Rules
 
 Each rule is identified by an `RSnnn` id and can be selected or ignored per repo.
@@ -155,6 +157,10 @@ The base config enforces docstring *style* (Google convention, via the ruff `D` 
       - id: pydoclint
         args: [--style=google]
 ```
+
+## The judgment layer
+
+`RSnnn` rules and `ruff` own what a tool can decide. The conventions that need a reader — whether a docstring is about the right subject, whether a verb means what the tree uses it to mean, whether a test pins contract or implementation — live in [`docs/judgment-conventions.md`](docs/judgment-conventions.md). That doc is the Gradient-wide canon: each repo's `CLAUDE.md` references it, and the `python-style-review` skill distills it into its review lenses. A judgment convention that becomes mechanically decidable graduates to an `RSnnn` rule and leaves the doc (as `make_` did to `RS025`); the doc only shrinks as the linter grows.
 
 ## Development
 
