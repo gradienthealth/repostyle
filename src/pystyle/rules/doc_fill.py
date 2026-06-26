@@ -50,12 +50,19 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     space inside it is not an available break, as with a URL. Summary
     lines, single-line docstrings, section headers, label lines, code
     fences, doctest lines, comment directives, and lines carrying URLs
-    are exempt; bullets and section entries wrap as hanging paragraphs.
+    are exempt, as is a unit with a backtick span hard-wrapped across
+    lines; bullets and section entries wrap as hanging paragraphs.
     """
     tree = _parse_python(path, source)
     if tree is None:
         return
     for unit in _fillable_units(source, tree):
+        # A span the author hard-wrapped across lines cannot be reflowed
+        # without inventing the whitespace the break elided, so `reflow`
+        # leaves it alone; flagging it here would report what `--fix`
+        # then declines to fix, so the check skips it in lockstep.
+        if _span_crosses_line(unit):
+            continue
         yield from _unit_violations(unit)
 
 
@@ -355,11 +362,9 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     """Return `unit` rewrapped to the column limit, or `None` to skip it.
 
     A unit whose text contains a triple quote is skipped, since
-    rewrapping would move the quote. A unit with a backtick span the
-    author hard-wrapped across source lines is skipped too: rejoining it
-    would collapse the line break to a space and could corrupt the span
-    (`too-many-positional-` then `arguments` would gain a stray space),
-    and the check side already permits the manual wrap. The first line
+    rewrapping would move the quote. A unit with a backtick span
+    hard-wrapped across source lines is skipped too, since rejoining it
+    would have to invent the whitespace the break elided. The first line
     keeps the unit's leading whitespace and any marker; continuation
     lines wrap to the hanging indent.
     """
@@ -431,14 +436,8 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
 
 
 def _span_crosses_line(unit: list[_FillLine]) -> bool:
-    """Report whether a backtick span in `unit` straddles a line break.
-
-    Backtick parity is tracked across the unit's lines; a span left open
-    at the end of any line but the last crosses a source line break. The
-    reflow joins lines with a space, so it cannot rebuild such a span
-    without inventing the whitespace the break stood for. The check side
-    counts backticks per line, leaving the span's halves unpaired and
-    the manual wrap legal, so skipping keeps the two in lockstep.
+    """Report whether a backtick span opens on one line of `unit` and
+    closes on a later one.
     """
     open_span = False
     for line in unit[:-1]:
