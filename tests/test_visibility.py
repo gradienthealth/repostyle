@@ -102,6 +102,15 @@ class TestLintPackage:
         assert set(findings) == {alpha.resolve()}
         assert findings[alpha.resolve()][0].rule == RS_SHOULD_BE_PRIVATE
 
+    def test_PackageUnderDotDirectoryAncestor_StillScanned(
+        self, tmp_path: Path
+    ) -> None:
+        root = tmp_path / ".worktrees" / "repo"
+        root.mkdir(parents=True)
+        files = _pkg(root, {"mod.py": _LEAKED})
+        mod = next(path for path, _ in files if path.name == "mod.py")
+        assert mod.resolve() in lint_package([mod], {RS_SHOULD_BE_PRIVATE})
+
     def test_SuppressionDirectiveDropsFinding(self, tmp_path: Path) -> None:
         suppressed = _LEAKED.replace(
             "def helper():", "def helper():  # style: ignore[RS029]"

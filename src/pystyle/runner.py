@@ -120,7 +120,12 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
     base = root if root.is_dir() else root.parent
     files: list[tuple[Path, str]] = []
     for path in sorted(base.rglob("*.py")):
-        if any(part.startswith(".") or part in _SKIPPED_DIRS for part in path.parts):
+        # Test the parts below `base`, not the absolute ancestors: a
+        # repo checked out under a dot-directory
+        # (`.claude/worktrees/...`) must not have its whole tree
+        # skipped.
+        within = path.relative_to(base).parts
+        if any(part.startswith(".") or part in _SKIPPED_DIRS for part in within):
             continue
         try:
             files.append((path, path.read_text(encoding="utf-8")))
