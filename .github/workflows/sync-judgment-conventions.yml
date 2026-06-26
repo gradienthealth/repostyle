@@ -1,0 +1,45 @@
+name: sync judgment conventions
+
+# docs/judgment-conventions.md is the org-wide judgment canon. Consumer repos
+# vendor a read-only copy and import it from their CLAUDE.md. When the canon
+# changes on main, mint a short-lived gradienthealth-bot installation token and
+# open a pull request in each consumer repo updating its vendored copy. Editing
+# the file in a consumer repo is pointless — the next sync overwrites it; the
+# canon changes here.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docs/judgment-conventions.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mint a gradienthealth-bot token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: "4149742" # gradienthealth-bot
+          private-key: ${{ secrets.GH_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: fhir-ingestor
+
+      - name: Open file-sync pull requests
+        uses: step-security/repo-file-sync-action@25ed98101e502f84b885ff5883bb0b0c14a7b87f # v1.21.3
+        with:
+          GH_INSTALLATION_TOKEN: ${{ steps.app-token.outputs.token }}
+          CONFIG_PATH: .github/sync.yml
+          COMMIT_PREFIX: "docs:"
+          PR_LABELS: false
+          PR_BODY: |
+            Automated sync of the judgment-conventions canon from gradienthealth/pystyle.
+            This file is a read-only mirror — change it upstream in pystyle, not here.
