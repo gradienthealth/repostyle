@@ -2,9 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules.doc_fill import reflow_doc_fill
+from pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
 
 _PY = Path("src/x.py")
+_MOVES_WHOLE = '"""Summary.\n\n' + "aaaaa " * 11 + "`dict[str, int]` done.\n" + '"""\n'
+_OVERFLOWS = '"""Summary.\n\n`' + "word " * 16 + 'x`\n"""\n'
 
 
 class TestReflowDocFill:
@@ -45,6 +47,26 @@ class TestReflowDocFill:
     def test_FlagLikeProseLine_IsFilledNotTreatedAsVerbatim(self) -> None:
         source = '"""Summary.\n\naaa\n--fix bbb\n"""\n'
         assert reflow_doc_fill(_PY, source) == '"""Summary.\n\naaa --fix bbb\n"""\n'
+
+    @pytest.mark.parametrize(
+        ("source", "span"),
+        [
+            (_MOVES_WHOLE, "`dict[str, int]`"),
+            (_OVERFLOWS, "`" + "word " * 16 + "x`"),
+        ],
+        ids=["moves_whole_to_next_line", "overflows_intact"],
+    )
+    def test_BacktickSpanWithSpaces_StaysOneToken(self, source: str, span: str) -> None:
+        body = reflow_doc_fill(_PY, source).splitlines()[2:-1]
+        assert span in "\n".join(body)
+        assert any(line.startswith(span) for line in body)
+
+    def test_UnclosedBacktick_DegradesWithoutCrashing(self) -> None:
+        source = '"""Summary.\n\naaa `dict[str, int and more text here\n"""\n'
+        assert "`dict[str, int and more text here" in reflow_doc_fill(_PY, source)
+
+    def test_ReflowedBacktickSpan_LeavesNoCheckViolation(self) -> None:
+        assert list(check_doc_fill(_PY, reflow_doc_fill(_PY, _MOVES_WHOLE))) == []
 
     def test_CarriageReturnNewlines_ArePreserved(self) -> None:
         source = 'def f():\r\n    """Summary.\r\n\r\n    aaa\r\n    bbb\r\n    """\r\n'
