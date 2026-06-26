@@ -18,6 +18,24 @@ TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
 TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 
 
+def _has_decorator(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, names: frozenset[str] | set[str]
+) -> bool:
+    """Report whether the definition carries a decorator named in `names`.
+
+    Match both the bare (`@override`) and dotted (`@typing.override`)
+    forms, comparing only the final attribute name, and see through a
+    decorator call (`@cache()`) to the name it applies.
+    """
+    for decorator in node.decorator_list:
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        if isinstance(target, ast.Name) and target.id in names:
+            return True
+        if isinstance(target, ast.Attribute) and target.attr in names:
+            return True
+    return False
+
+
 def _is_test_file(path: Path) -> bool:
     """Report whether a path is a test module by location or filename."""
     posix = _posix(path)

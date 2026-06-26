@@ -22,7 +22,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import _is_test_file, _parse_python
+from pystyle.rules._shared import _has_decorator, _is_test_file, _parse_python
 from pystyle.rules._violation import RS_DOC_VALUE_SIGNAL, Violation
 from pystyle.rules.complexity import _score_block
 
@@ -94,18 +94,6 @@ def _check_function(
             f"function '{node.name}' returns a multi-element tuple but its "
             "docstring has no `Returns:` section; name the elements",
         )
-
-
-def _has_decorator(
-    node: ast.FunctionDef | ast.AsyncFunctionDef, names: set[str]
-) -> bool:
-    for decorator in node.decorator_list:
-        target = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(target, ast.Name) and target.id in names:
-            return True
-        if isinstance(target, ast.Attribute) and target.attr in names:
-            return True
-    return False
 
 
 def _param_count(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:

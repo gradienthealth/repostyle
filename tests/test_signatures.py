@@ -12,12 +12,19 @@ class TestCheckTooManyPositionalArgs:
         "source",
         [
             "def free(a, b, c, d, e, f):\n    return a\n",
+            "async def free(a, b, c, d, e, f):\n    return a\n",
             "def free(a, b, c, d, e, f, /):\n    return a\n",
             "class C:\n    @staticmethod\n"
             "    def m(a, b, c, d, e, f):\n        return a\n",
             "class C:\n    def m(self, a, b, c, d, e, f):\n        return a\n",
         ],
-        ids=["free", "positional-only", "staticmethod", "method-excludes-self"],
+        ids=[
+            "free",
+            "async",
+            "positional-only",
+            "staticmethod",
+            "method-excludes-self",
+        ],
     )
     def test_DefinitionOverThePositionalLimit_FlagsViolation(self, source: str) -> None:
         violations = _check(source)

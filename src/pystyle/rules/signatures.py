@@ -24,7 +24,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import _parse_python
+from pystyle.rules._shared import _has_decorator, _parse_python
 from pystyle.rules._violation import RS_TOO_MANY_POSITIONAL_ARGS, Violation
 
 # Matches ruff PLR0917's default `max-positional-args`. A definition
@@ -76,32 +76,14 @@ def _check_function(
     is_method = is_within_class and not _has_decorator(node, {"staticmethod"})
     count = _positional_count(node, is_method)
     if count > MAX_POSITIONAL_ARGS:
-        plural = "" if count == 1 else "s"
         yield Violation(
             node.lineno,
             node.col_offset + 1,
             RS_TOO_MANY_POSITIONAL_ARGS,
-            f"function '{node.name}' has {count} positional parameter{plural}; "
-            f"over the limit of {MAX_POSITIONAL_ARGS}, make the extra ones "
+            f"function '{node.name}' has {count} positional parameters; over "
+            f"the limit of {MAX_POSITIONAL_ARGS}, make the extra ones "
             "keyword-only after a `*`",
         )
-
-
-def _has_decorator(
-    node: ast.FunctionDef | ast.AsyncFunctionDef, names: set[str] | frozenset[str]
-) -> bool:
-    """Report whether the definition carries a decorator from `names`.
-
-    Match both the bare (`@override`) and dotted (`@typing.override`)
-    forms, comparing only the final attribute name.
-    """
-    for decorator in node.decorator_list:
-        target = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(target, ast.Name) and target.id in names:
-            return True
-        if isinstance(target, ast.Attribute) and target.attr in names:
-            return True
-    return False
 
 
 def _positional_count(
