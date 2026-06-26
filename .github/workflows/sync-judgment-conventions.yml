@@ -34,7 +34,9 @@ jobs:
           repositories: fhir-ingestor
 
       - name: Open file-sync pull requests
-        uses: step-security/repo-file-sync-action@25ed98101e502f84b885ff5883bb0b0c14a7b87f # v1.21.3
+        # The upstream original, not the step-security fork: that fork gates
+        # private-repo use behind a paid subscription, and pystyle is private.
+        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619 # v1.21.1
         with:
           GH_INSTALLATION_TOKEN: ${{ steps.app-token.outputs.token }}
           CONFIG_PATH: .github/sync.yml
