@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import ast
 import re
+import tomllib
 from collections.abc import Iterator
+from functools import lru_cache
 from pathlib import Path
 
-from pystyle.rules._shared import TEST_CLASS_PATTERN, _is_test_file, _parse_python
+from pystyle.rules._shared import (
+    TEST_CLASS_PATTERN,
+    _is_test_file,
+    _parse_python,
+    find_pyproject,
+)
 from pystyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
@@ -16,6 +23,7 @@ from pystyle.rules._violation import (
     RS_EXCEPTION_ALIAS,
     RS_NO_MAKE_IN_PRODUCTION,
     RS_NO_NEGATED_BOOLEAN,
+    RS_ONE_VERB_PER_CONCEPT,
     Violation,
 )
 
@@ -252,6 +260,51 @@ def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
             )
 
 
+def check_one_verb_per_concept(path: Path, source: str) -> Iterator[Violation]:
+    """Flag a function whose leading verb is a banned synonym of a canonical one.
+
+    The house style keeps one verb per concept: a repo settles on
+    `fetch_` for remote retrieval and does not also reach for
+    `retrieve_` or `load_` for the same act. Since which verb is
+    canonical is the repo's own choice, the canonical-to-synonyms map is
+    declared per repo in a `[tool.pystyle.verb-synonyms]` table, mapping
+    each canonical verb to the synonyms it supplants. A function or
+    method whose leading verb token (the text before the first
+    underscore) equals a declared synonym is flagged in favor of the
+    canonical verb. With no configured table the rule reports nothing.
+
+    Scope is deliberately lexical: it does not judge whether a verb fits
+    a function's behavior — whether a `get_` quietly does I/O, or a
+    `build_` should have been `create_` — which needs reading the body
+    and stays with style review. A test module and `conftest.py` are
+    left alone, matching the make-in-production rule.
+    """
+    if _is_test_file(path) or path.name == "conftest.py":
+        return
+    pyproject = find_pyproject(path)
+    if pyproject is None:
+        return
+    canonical_for = dict(_verb_synonyms(pyproject))
+    if not canonical_for:
+        return
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        verb = node.name.split("_", 1)[0]
+        canonical = canonical_for.get(verb)
+        if canonical is not None:
+            yield Violation(
+                node.lineno,
+                node.col_offset + 1,
+                RS_ONE_VERB_PER_CONCEPT,
+                f"'{node.name}' uses the verb '{verb}'; this repo uses "
+                f"'{canonical}' for that concept (one verb per concept)",
+            )
+
+
 def _abbreviation_violations(
     name: str, lineno: int, col_offset: int
 ) -> Iterator[Violation]:
@@ -439,3 +492,24 @@ def _typevar_factory_name(call: ast.Call) -> str | None:
     if isinstance(func, ast.Attribute):
         return func.attr if func.attr in _TYPE_FACTORY_NAMES else None
     return None
+
+
+@lru_cache(maxsize=128)
+def _verb_synonyms(pyproject: Path) -> tuple[tuple[str, str], ...]:
+    """Read the `verb-synonyms` table as (synonym, canonical) pairs.
+
+    Each `canonical = [synonyms...]` entry under
+    `[tool.pystyle.verb-synonyms]` is flattened into one pair per
+    synonym, so a leading verb can be looked up against its canonical
+    replacement.
+    """
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return ()
+    table = data.get("tool", {}).get("pystyle", {}).get("verb-synonyms", {})
+    return tuple(
+        (synonym, canonical)
+        for canonical, synonyms in table.items()
+        for synonym in synonyms
+    )

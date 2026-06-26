@@ -29,6 +29,7 @@ from pystyle.rules._violation import (
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
+    RS_ONE_VERB_PER_CONCEPT,
     RS_PORT_NO_IMPLEMENTATION,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -65,6 +66,7 @@ from pystyle.rules.naming import (
     check_exception_alias,
     check_no_make_in_production,
     check_no_negated_boolean,
+    check_one_verb_per_concept,
 )
 from pystyle.rules.ports import check_port_no_implementation
 from pystyle.rules.signatures import check_too_many_positional_args
@@ -115,6 +117,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_FILLER_DOCSTRING_OPENING: (check_filler_docstring_opening,),
     RS_TOO_MANY_POSITIONAL_ARGS: (check_too_many_positional_args,),
     RS_EXCEPTION_ALIAS: (check_exception_alias,),
+    RS_ONE_VERB_PER_CONCEPT: (check_one_verb_per_concept,),
 }
 
 
@@ -141,6 +144,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_BOOLEAN_PREFIX_REQUIRED: Severity.WARNING,
     RS_TOO_MANY_POSITIONAL_ARGS: Severity.WARNING,
     RS_SHOULD_BE_PRIVATE: Severity.WARNING,
+    RS_ONE_VERB_PER_CONCEPT: Severity.WARNING,
 }
 
 

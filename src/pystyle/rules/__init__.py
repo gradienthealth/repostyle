@@ -41,6 +41,7 @@ from pystyle.rules._violation import (
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
+    RS_ONE_VERB_PER_CONCEPT,
     RS_PORT_NO_IMPLEMENTATION,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -77,6 +78,7 @@ from pystyle.rules.naming import (
     check_exception_alias,
     check_no_make_in_production,
     check_no_negated_boolean,
+    check_one_verb_per_concept,
 )
 from pystyle.rules.ports import check_port_no_implementation
 from pystyle.rules.signatures import check_too_many_positional_args
@@ -118,6 +120,7 @@ __all__ = [
     "RS_NO_MOCK_PATCH",
     "RS_NO_NEGATED_BOOLEAN",
     "RS_NO_PHI_SAFE_EXC_INFO",
+    "RS_ONE_VERB_PER_CONCEPT",
     "RS_PORT_NO_IMPLEMENTATION",
     "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
@@ -151,6 +154,7 @@ __all__ = [
     "check_no_mock_patch",
     "check_no_negated_boolean",
     "check_no_phi_safe_with_exc_info",
+    "check_one_verb_per_concept",
     "check_port_no_implementation",
     "check_should_be_private",
     "check_sleepy_test",
