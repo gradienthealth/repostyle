@@ -61,12 +61,15 @@ class TestReflowDocFill:
         assert span in "\n".join(body)
         assert any(line.startswith(span) for line in body)
 
-    def test_UnclosedBacktick_DegradesWithoutCrashing(self) -> None:
+    def test_UnclosedBacktick_SplitsOnWhitespaceAlone(self) -> None:
         source = '"""Summary.\n\naaa `dict[str, int and more text here\n"""\n'
-        assert "`dict[str, int and more text here" in reflow_doc_fill(_PY, source)
+        assert reflow_doc_fill(_PY, source) == source
 
-    def test_ReflowedBacktickSpan_LeavesNoCheckViolation(self) -> None:
-        assert list(check_doc_fill(_PY, reflow_doc_fill(_PY, _MOVES_WHOLE))) == []
+    @pytest.mark.parametrize(
+        "source", [_MOVES_WHOLE, _OVERFLOWS], ids=["moves_whole", "overflows"]
+    )
+    def test_ReflowedBacktickSpan_LeavesNoCheckViolation(self, source: str) -> None:
+        assert list(check_doc_fill(_PY, reflow_doc_fill(_PY, source))) == []
 
     def test_CarriageReturnNewlines_ArePreserved(self) -> None:
         source = 'def f():\r\n    """Summary.\r\n\r\n    aaa\r\n    bbb\r\n    """\r\n'
