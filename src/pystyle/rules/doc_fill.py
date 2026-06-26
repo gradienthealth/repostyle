@@ -46,10 +46,11 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
 
     A paragraph line may not end while the next line's first word still
     fits within the limit, and may not run past the limit while a break
-    is available. Summary lines, single-line docstrings, section
-    headers, label lines, code fences, doctest lines, comment
-    directives, and lines carrying URLs are exempt; bullets and section
-    entries wrap as hanging paragraphs.
+    is available. A backtick `...` span is one unbreakable token, so a
+    space inside it is not an available break, as with a URL. Summary
+    lines, single-line docstrings, section headers, label lines, code
+    fences, doctest lines, comment directives, and lines carrying URLs
+    are exempt; bullets and section entries wrap as hanging paragraphs.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -309,7 +310,7 @@ class _UnitAccumulator:
 
 def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
     for line, following in itertools.pairwise(unit):
-        first_word = following.text.split()[0]
+        first_word = _atomic_tokens(following.text)[0]
         if len(line.rendered) + 1 + len(first_word) <= DOC_FILL_COLUMNS:
             yield Violation(
                 line.lineno,
@@ -332,9 +333,21 @@ def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
 
 
 def _has_break_before_limit(line: _FillLine) -> bool:
+    """Report whether a legal wrap break falls within the column limit.
+
+    A space inside a backtick `...` span is not a legal break, as with a
+    URL, so a line may pass the limit without one. Backticks that do not
+    pair up cannot delimit a span, so every space then counts.
+    """
     prefix_length = len(line.rendered) - len(line.text)
-    break_at = line.rendered.rfind(" ", prefix_length + 1, DOC_FILL_COLUMNS + 1)
-    return break_at != -1
+    backticks_paired = line.rendered.count("`") % 2 == 0
+    in_span = False
+    for index, char in enumerate(line.rendered[: DOC_FILL_COLUMNS + 1]):
+        if char == "`" and backticks_paired:
+            in_span = not in_span
+        elif char == " " and not in_span and index > prefix_length:
+            return True
+    return False
 
 
 def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
@@ -350,7 +363,7 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     first_indent = unit[0].indent
     lead = unit[0].rendered[:first_indent]
     cont = lead + " " * (_hanging_indent(unit) - first_indent)
-    words = " ".join(line.text for line in unit).split()
+    words = _atomic_tokens(" ".join(line.text for line in unit))
     lines: list[str] = []
     current = lead + words[0]
     for word in words[1:]:
@@ -361,6 +374,34 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
             current = cont + word
     lines.append(current)
     return lines
+
+
+def _atomic_tokens(text: str) -> list[str]:
+    """Split `text` into fill tokens, keeping each backtick span whole.
+
+    Whitespace splits `text` into tokens, except inside a backtick `...`
+    span, where spaces are kept so the span stays one unbreakable token
+    the way a URL does. Backticks that do not pair up cannot delimit a
+    span, so `text` then splits on whitespace alone.
+    """
+    if text.count("`") % 2:
+        return text.split()
+    tokens: list[str] = []
+    current = ""
+    in_span = False
+    for char in text:
+        if char == "`":
+            in_span = not in_span
+            current += char
+        elif char.isspace() and not in_span:
+            if current:
+                tokens.append(current)
+                current = ""
+        else:
+            current += char
+    if current:
+        tokens.append(current)
+    return tokens
 
 
 def _hanging_indent(unit: list[_FillLine]) -> int:

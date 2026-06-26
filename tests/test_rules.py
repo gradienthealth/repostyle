@@ -411,6 +411,10 @@ class TestCheckDocFill:
                 "exceeds",
             ),
             (
+                '"""Summary.\n\n`' + "word " * 16 + 'x\n"""',
+                "exceeds",
+            ),
+            (
                 'def f():\n    """Summary.\n\n'
                 "    Args:\n        alpha: Word\n            more text.\n"
                 '    """',
@@ -439,6 +443,7 @@ class TestCheckDocFill:
         ids=[
             "underwrapped_docstring",
             "overlong_docstring",
+            "overlong_unbalanced_backtick",
             "underwrapped_args_continuation",
             "underwrapped_paragraph_after_args_block",
             "underwrapped_comment",
@@ -472,6 +477,7 @@ class TestCheckDocFill:
             '"""Summary.\n\n- aaa\n- bbb\n"""',
             '"""Slug.\n\nRevision ID: abc\nRevises: def\n"""',
             '"""Summary.\n\nSee https://example.com/' + "a" * 60 + '\n"""',
+            '"""Summary.\n\n`' + "word " * 16 + 'x`\n"""',
             '"""Summary.\n\n' + "a" * 80 + '\n"""',
             '"""Summary.\n\n```\naaa\nbbb\n```\n"""',
             '"""Summary.\n\n>>> compute(\n...     1)\n"""',
@@ -490,6 +496,7 @@ class TestCheckDocFill:
             "bullet_items",
             "label_lines",
             "url_line",
+            "backtick_span_only_break",
             "unbreakable_token",
             "fenced_code",
             "doctest_lines",
