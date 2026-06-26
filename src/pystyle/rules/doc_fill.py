@@ -50,12 +50,19 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     space inside it is not an available break, as with a URL. Summary
     lines, single-line docstrings, section headers, label lines, code
     fences, doctest lines, comment directives, and lines carrying URLs
-    are exempt; bullets and section entries wrap as hanging paragraphs.
+    are exempt, as is a unit with a backtick span hard-wrapped across
+    lines; bullets and section entries wrap as hanging paragraphs.
     """
     tree = _parse_python(path, source)
     if tree is None:
         return
     for unit in _fillable_units(source, tree):
+        # A span broken across source lines lost the whitespace at the
+        # break, so `_reflow_unit` cannot rejoin it and skips it. The
+        # check must exempt the same units, or it would flag what
+        # `--fix` will not repair.
+        if _span_crosses_line(unit):
+            continue
         yield from _unit_violations(unit)
 
 
@@ -67,7 +74,8 @@ def reflow_doc_fill(
     Each fillable unit is greedily refilled at its hanging indent; the
     verbatim structures RS009 exempts (code fences, doctests, table and
     rule lines, section headers) are left untouched, as are units on a
-    line in `skip_lines`. The source's line ending is preserved. Return
+    line in `skip_lines` and units with a backtick span hard-wrapped
+    across source lines. The source's line ending is preserved. Return
     the source unchanged when nothing reflows.
     """
     tree = _parse_python(path, source)
@@ -354,11 +362,15 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     """Return `unit` rewrapped to the column limit, or `None` to skip it.
 
     A unit whose text contains a triple quote is skipped, since
-    rewrapping would move the quote. The first line keeps the unit's
-    leading whitespace and any marker; continuation lines wrap to the
-    hanging indent.
+    rewrapping would move the quote. A unit with a backtick span
+    hard-wrapped across source lines is skipped too, since rejoining it
+    would have to invent the whitespace the break elided. The first line
+    keeps the unit's leading whitespace and any marker; continuation
+    lines wrap to the hanging indent.
     """
     if any('"""' in line.text or "'''" in line.text for line in unit):
+        return None
+    if _span_crosses_line(unit):
         return None
     first_indent = unit[0].indent
     lead = unit[0].rendered[:first_indent]
@@ -421,3 +433,13 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
     if _SECTION_ENTRY_PATTERN.match(text) or _LABEL_LINE_PATTERN.match(text):
         return first_indent + 4
     return first_indent
+
+
+def _span_crosses_line(unit: list[_FillLine]) -> bool:
+    """Report whether a backtick span in `unit` opens and closes on different lines."""
+    open_span = False
+    for line in unit[:-1]:
+        open_span ^= line.text.count("`") % 2 == 1
+        if open_span:
+            return True
+    return False

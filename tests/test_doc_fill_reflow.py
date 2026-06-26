@@ -65,6 +65,14 @@ class TestReflowDocFill:
         source = '"""Summary.\n\naaa `dict[str, int and more text here\n"""\n'
         assert reflow_doc_fill(_PY, source) == source
 
+    def test_SpanHardWrappedAcrossLines_LeavesUnitUntouched(self) -> None:
+        source = (
+            '"""Summary.\n\n'
+            "It mirrors ruff's `too-many-positional-\n"
+            'arguments` semantics here.\n"""\n'
+        )
+        assert reflow_doc_fill(_PY, source) == source
+
     @pytest.mark.parametrize(
         "source", [_MOVES_WHOLE, _OVERFLOWS], ids=["moves_whole", "overflows"]
     )
