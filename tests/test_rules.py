@@ -863,8 +863,8 @@ class TestCheckConditionalTestLogic:
 class TestCheckSleepyTest:
     @pytest.mark.parametrize(
         "call",
-        ["time.sleep(1)", "asyncio.sleep(0.1)"],
-        ids=["time", "asyncio"],
+        ["time.sleep(1)", "asyncio.sleep(0.1)", "asyncio.sleep(delay)"],
+        ids=["time", "asyncio", "non_literal_delay"],
     )
     def test_SleepCallInTest_FlagsViolation(self, call: str) -> None:
         source = f"def test_Thing_Behaves():\n    {call}\n"
@@ -881,6 +881,15 @@ class TestCheckSleepyTest:
         ids=["unrelated_sleep_method", "no_sleep"],
     )
     def test_NoModuleSleep_NoViolation(self, source: str) -> None:
+        assert list(check_sleepy_test(_TEST_PATH, source)) == []
+
+    @pytest.mark.parametrize(
+        "call",
+        ["asyncio.sleep(0)", "time.sleep(0)", "asyncio.sleep(0.0)"],
+        ids=["asyncio_zero", "time_zero", "asyncio_zero_float"],
+    )
+    def test_ZeroSleepCall_NoViolation(self, call: str) -> None:
+        source = f"def test_Thing_Behaves():\n    {call}\n"
         assert list(check_sleepy_test(_TEST_PATH, source)) == []
 
 

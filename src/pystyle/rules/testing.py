@@ -103,7 +103,9 @@ def check_sleepy_test(path: Path, source: str) -> Iterator[Violation]:
 
     A real sleep makes the suite slow and couples it to wall-clock
     timing, the usual source of flakes; wait on the observable condition
-    or drive a fake clock instead.
+    or drive a fake clock instead. A literal `sleep(0)` is exempt: it is
+    the idiomatic single-turn yield to the event loop, neither slow nor
+    flaky.
     """
     if not _is_test_file(path):
         return
@@ -118,6 +120,7 @@ def check_sleepy_test(path: Path, source: str) -> Iterator[Violation]:
                 and node.func.attr == "sleep"
                 and isinstance(node.func.value, ast.Name)
                 and node.func.value.id in SLEEP_MODULES
+                and not _is_zero_sleep(node)
             ):
                 yield Violation(
                     node.lineno,
@@ -213,6 +216,19 @@ def _is_mock_decorator(decorator: ast.expr) -> bool:
     """Report whether a decorator constructs or patches with a mock."""
     target = decorator.func if isinstance(decorator, ast.Call) else decorator
     return _mock_construct_name(target) is not None
+
+
+def _is_zero_sleep(node: ast.Call) -> bool:
+    """Report whether a sleep call's delay is a literal zero."""
+    if not node.args:
+        return False
+    delay = node.args[0]
+    return (
+        isinstance(delay, ast.Constant)
+        and isinstance(delay.value, (int, float))
+        and not isinstance(delay.value, bool)
+        and delay.value == 0
+    )
 
 
 def _mock_construct_name(func: ast.expr) -> str | None:
