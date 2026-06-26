@@ -41,6 +41,7 @@ from pystyle.rules._violation import (
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TEST_NAMING,
+    RS_TOO_MANY_POSITIONAL_ARGS,
     Severity,
     Violation,
 )
@@ -71,6 +72,7 @@ from pystyle.rules.naming import (
     check_no_negated_boolean,
 )
 from pystyle.rules.ports import check_port_no_implementation
+from pystyle.rules.signatures import check_too_many_positional_args
 from pystyle.rules.testing import (
     check_behavior_verification_only,
     check_conditional_test_logic,
@@ -109,6 +111,7 @@ __all__ = [
     "RS_SLEEPY_TEST",
     "RS_SUMMARY_COMMENT_AS_DOCSTRING",
     "RS_TEST_NAMING",
+    "RS_TOO_MANY_POSITIONAL_ARGS",
     "Severity",
     "Violation",
     "check_acronym_casing",
@@ -138,6 +141,7 @@ __all__ = [
     "check_sleepy_test",
     "check_summary_comment_as_docstring",
     "check_test_naming",
+    "check_too_many_positional_args",
     "reflow_doc_fill",
     "run_rule",
     "severity_of",

@@ -31,6 +31,7 @@ from pystyle.rules._violation import (
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TEST_NAMING,
+    RS_TOO_MANY_POSITIONAL_ARGS,
     Severity,
     Violation,
 )
@@ -61,6 +62,7 @@ from pystyle.rules.naming import (
     check_no_negated_boolean,
 )
 from pystyle.rules.ports import check_port_no_implementation
+from pystyle.rules.signatures import check_too_many_positional_args
 from pystyle.rules.testing import (
     check_behavior_verification_only,
     check_conditional_test_logic,
@@ -99,6 +101,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_FIELD_COMMENT_AS_DOCSTRING: (check_field_comment_as_docstring,),
     RS_COMMENT_TAG_FORMAT: (check_comment_tag_format,),
     RS_FILLER_DOCSTRING_OPENING: (check_filler_docstring_opening,),
+    RS_TOO_MANY_POSITIONAL_ARGS: (check_too_many_positional_args,),
 }
 
 
@@ -115,6 +118,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_FIELD_COMMENT_AS_DOCSTRING: Severity.WARNING,
     RS_NO_NEGATED_BOOLEAN: Severity.WARNING,
     RS_BOOLEAN_PREFIX_REQUIRED: Severity.WARNING,
+    RS_TOO_MANY_POSITIONAL_ARGS: Severity.WARNING,
 }
 
 
