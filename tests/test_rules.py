@@ -407,6 +407,10 @@ class TestCheckDocFill:
                 "exceeds",
             ),
             (
+                '"""Summary.\n\n`' + "word " * 16 + 'x\n"""',
+                "exceeds",
+            ),
+            (
                 'def f():\n    """Summary.\n\n'
                 "    Args:\n        alpha: Word\n            more text.\n"
                 '    """',
@@ -435,6 +439,7 @@ class TestCheckDocFill:
         ids=[
             "underwrapped_docstring",
             "overlong_docstring",
+            "overlong_unbalanced_backtick",
             "underwrapped_args_continuation",
             "underwrapped_paragraph_after_args_block",
             "underwrapped_comment",

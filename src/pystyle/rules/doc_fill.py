@@ -347,8 +347,11 @@ def _backtick_span_mask(text: str) -> list[bool]:
 
     A space carrying a true mask is not a legal wrap break, so an
     over-long line whose only break falls inside a span is exempt, as a
-    URL line is. An unclosed backtick marks the rest of `text`.
+    URL line is. Backticks that do not pair up mark nothing, leaving
+    every space a legal break.
     """
+    if text.count("`") % 2:
+        return [False] * len(text)
     mask = [False] * len(text)
     in_span = False
     for index, char in enumerate(text):
@@ -389,8 +392,11 @@ def _atomic_tokens(text: str) -> list[str]:
 
     Whitespace splits `text` into tokens, except inside a backtick `...`
     span, where spaces are kept so the span stays one unbreakable token
-    the way a URL does. An unclosed backtick runs to the end of `text`.
+    the way a URL does. Backticks that do not pair up cannot delimit a
+    span, so `text` then splits on whitespace alone.
     """
+    if text.count("`") % 2:
+        return text.split()
     tokens: list[str] = []
     current = ""
     in_span = False
