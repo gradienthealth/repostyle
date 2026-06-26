@@ -57,10 +57,9 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     for unit in _fillable_units(source, tree):
-        # A span the author hard-wrapped across lines cannot be reflowed
-        # without inventing the whitespace the break elided, so `reflow`
-        # leaves it alone; flagging it here would report what `--fix`
-        # then declines to fix, so the check skips it in lockstep.
+        # `reflow` cannot rejoin a hard-wrapped span, so flagging it
+        # here would report what `--fix` then declines to fix; the check
+        # skips it in lockstep.
         if _span_crosses_line(unit):
             continue
         yield from _unit_violations(unit)
