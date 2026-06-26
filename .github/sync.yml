@@ -1,0 +1,10 @@
+# Consumer repos that vendor the judgment-conventions canon. Add a repo here
+# once it vendors docs/judgment-conventions.md and imports it from CLAUDE.md,
+# and grant the gradienthealth-bot token access to it in the sync workflow's
+# create-github-app-token step; the sync then keeps its copy current by PR.
+group:
+  repos: |
+    gradienthealth/fhir-ingestor
+  files:
+    - source: docs/judgment-conventions.md
+      dest: docs/judgment-conventions.md
