@@ -340,10 +340,10 @@ def _has_break_before_limit(line: _FillLine) -> bool:
     pair up cannot delimit a span, so every space then counts.
     """
     prefix_length = len(line.rendered) - len(line.text)
-    paired = line.rendered.count("`") % 2 == 0
+    backticks_paired = line.rendered.count("`") % 2 == 0
     in_span = False
     for index, char in enumerate(line.rendered[: DOC_FILL_COLUMNS + 1]):
-        if char == "`" and paired:
+        if char == "`" and backticks_paired:
             in_span = not in_span
         elif char == " " and not in_span and index > prefix_length:
             return True
