@@ -273,11 +273,11 @@ def check_one_verb_per_concept(path: Path, source: str) -> Iterator[Violation]:
     underscore) equals a declared synonym is flagged in favor of the
     canonical verb. With no configured table the rule reports nothing.
 
-    Scope is deliberately lexical: it does not judge whether a verb fits
-    a function's behavior — whether a `get_` quietly does I/O, or a
-    `build_` should have been `create_` — which needs reading the body
-    and stays with style review. A test module and `conftest.py` are
-    left alone, matching the make-in-production rule.
+    Scope is deliberately lexical: it matches the leading verb token
+    only and does not judge whether a verb fits a function's behavior —
+    a `get_` that quietly does I/O, or a `build_` that should have been
+    `create_`, is out of scope. A test module and `conftest.py` are left
+    alone.
     """
     if _is_test_file(path) or path.name == "conftest.py":
         return
