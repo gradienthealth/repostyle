@@ -17,37 +17,39 @@ class TestRuleDocs:
 
 
 class TestExplainRule:
-    def test_RuleWithExamples_RendersEverySection(self) -> None:
-        card = explain_rule("RS010")
+    @pytest.mark.parametrize(
+        "rule_id, present, absent",
+        [
+            (
+                "RS010",
+                [
+                    "RS010  banned-abbreviation  (error)",
+                    "Why:",
+                    "Examples:",
+                    "bad:",
+                    "good:",
+                    "Reference:",
+                    "cfg -> configuration",
+                ],
+                [],
+            ),
+            ("RS012", ["Likely causes and remedies:", "(warning)"], ["Examples:"]),
+            ("RS001", ["Fixable: no."], ["Why:", "Examples:", "Reference:"]),
+        ],
+        ids=["rich-with-reference", "heuristic-warning", "summary-only"],
+    )
+    def test_RuleCard_RendersOnlyItsApplicableSections(
+        self, rule_id: str, present: list[str], absent: list[str]
+    ) -> None:
+        card = explain_rule(rule_id)
         assert card is not None
-        assert "RS010  banned-abbreviation  (error)" in card
-        assert "Why:" in card
-        assert "Examples:" in card and "bad:" in card and "good:" in card
-        assert "Reference:" in card and "cfg -> configuration" in card
+        assert not [marker for marker in present if marker not in card]
+        assert not [marker for marker in absent if marker in card]
 
     def test_FixableRule_StatesTheFixCommand(self) -> None:
         card = explain_rule("RS009")
         assert card is not None
         assert "Fixable: yes — rerun with `pystyle --fix`." in card
-
-    def test_HeuristicRule_RendersTheCausesSection(self) -> None:
-        card = explain_rule("RS012")
-        assert card is not None
-        assert "Likely causes and remedies:" in card
-        assert "Examples:" not in card
-
-    def test_WarningRule_LabelsItsSeverity(self) -> None:
-        card = explain_rule("RS012")
-        assert card is not None
-        assert "(warning)" in card
-
-    def test_SummaryOnlyRule_OmitsRichSections(self) -> None:
-        card = explain_rule("RS001")
-        assert card is not None
-        assert "Fixable: no." in card
-        assert "Why:" not in card
-        assert "Examples:" not in card
-        assert "Reference:" not in card
 
     def test_UnknownRule_ReturnsNone(self) -> None:
         assert explain_rule("RS999") is None
