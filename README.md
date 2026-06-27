@@ -134,6 +134,17 @@ pystyle --fix $(git diff --name-only)
 
 `--fix` greedily refills each paragraph at its hanging indent, leaving verbatim structures (code fences, doctests, tables, rules, section headers) untouched and respecting `# style: ignore` directives. It exits non-zero when it changed a file, so a pre-commit run stops and you re-stage the rewrapped files. `RS009` is the only fixable rule today.
 
+## Explain a rule
+
+The one-line finding says what tripped; the `explain` subcommand says how to fix it and how to generalize the fix to lines the linter did not flag — a card with the rule's contract, rationale, before/after examples, and any reference table:
+
+```bash
+pystyle explain RS010      # one rule
+pystyle explain --all      # every rule's card
+```
+
+A finding from a rule that carries such a card prints a one-line pointer to stderr (`→ run 'pystyle explain RS010' for guidance and examples`), so an agent reading the failure stream pulls the detail on demand at no token cost until it asks. Pass `--no-explain-hint` to suppress the pointer. The card is the same data for every rule; the rules whose one-line message already implies the fix are left at their summary, so the cards stay worth reading.
+
 ## Extend the base ruff config
 
 `ruff-base.toml` is the shared baseline (line length 88, double-quote format, the `select`/`ignore` set, Google pydocstyle, banned relative imports, 88-column doc lines). Extend it from the consuming repo's `pyproject.toml`:

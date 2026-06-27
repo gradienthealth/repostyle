@@ -8,6 +8,7 @@ from pathlib import Path
 
 from pystyle.rules import (
     ALL_RULE_IDS,
+    FIXABLE_RULES,
     PACKAGE_RULES,
     RS_DOC_FILL,
     Violation,
@@ -137,11 +138,11 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
 def fix_path(path: Path, enabled: set[str]) -> bool:
     """Reflow RS009 findings in `path` in place, reporting whether it changed.
 
-    A no-op unless RS009 is enabled and `path` is a Python file. A
-    whole-file ignore directive leaves the file untouched, and a
+    A no-op unless a fixable rule is enabled and `path` is a Python
+    file. A whole-file ignore directive leaves the file untouched, and a
     per-line suppression leaves its unit untouched.
     """
-    if RS_DOC_FILL not in enabled or path.suffix != ".py":
+    if not enabled & FIXABLE_RULES or path.suffix != ".py":
         return False
     try:
         source = path.read_text(encoding="utf-8")

@@ -8,8 +8,17 @@ regardless of which module the name lives in.
 
 from __future__ import annotations
 
+from pystyle.rules._catalog import (
+    ABBREVIATION_EXPANSIONS,
+    RULE_DOCS,
+    Example,
+    RuleDoc,
+    has_guidance,
+    rule_doc,
+)
 from pystyle.rules._registry import (
     ALL_RULE_IDS,
+    FIXABLE_RULES,
     PACKAGE_RULES,
     RULE_SEVERITY,
     RULES,
@@ -57,7 +66,7 @@ from pystyle.rules.comments import (
     check_comment_terminal_punctuation,
 )
 from pystyle.rules.complexity import check_cognitive_complexity
-from pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
+from pystyle.rules.doc_fill import DOC_FILL_COLUMNS, check_doc_fill, reflow_doc_fill
 from pystyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
@@ -100,9 +109,13 @@ from pystyle.rules.testing import (
 from pystyle.rules.visibility import check_should_be_private
 
 __all__ = [
+    "ABBREVIATION_EXPANSIONS",
     "ALL_RULE_IDS",
+    "DOC_FILL_COLUMNS",
+    "FIXABLE_RULES",
     "PACKAGE_RULES",
     "RULES",
+    "RULE_DOCS",
     "RULE_SEVERITY",
     "RS_ACRONYM_CASING",
     "RS_ARG_DESCRIBED_IN_PROSE",
@@ -135,6 +148,8 @@ __all__ = [
     "RS_TERMINAL_PUNCTUATION",
     "RS_TEST_NAMING",
     "RS_TOO_MANY_POSITIONAL_ARGS",
+    "Example",
+    "RuleDoc",
     "Severity",
     "Violation",
     "check_acronym_casing",
@@ -171,7 +186,9 @@ __all__ = [
     "check_summary_comment_as_docstring",
     "check_test_naming",
     "check_too_many_positional_args",
+    "has_guidance",
     "reflow_doc_fill",
+    "rule_doc",
     "run_package_rule",
     "run_rule",
     "severity_of",
