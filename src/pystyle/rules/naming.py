@@ -1,4 +1,4 @@
-"""Identifier-naming rules: acronym casing, abbreviations, suffixes, booleans."""
+"""Identifier-naming rules: acronym casing, abbreviations, suffixes, booleans"""
 
 from __future__ import annotations
 
@@ -85,7 +85,7 @@ _MIN_DESCRIPTIVE_ALIAS_LENGTH = 4
 
 
 def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
-    """Flag CapWords identifiers where a known acronym is not all uppercase.
+    """Flag CapWords identifiers where a known acronym is not all uppercase
 
     Scope: class names, PEP 695 `type` aliases, PEP 695 type parameters
     (`class C[T]`, `def f[T]`), and `TypeVar`/`NewType`/`ParamSpec`/
@@ -101,7 +101,7 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
 
 
 def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
-    """Flag an introduced name that drops letters from a known word.
+    """Flag an introduced name that drops letters from a known word
 
     Scope: class, function, and parameter names, an `as` alias on an
     import, and any assignment, loop, with-as, comprehension, or walrus
@@ -122,7 +122,7 @@ def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
 
 
 def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a class name ending in a vague agent suffix.
+    """Flag a class name ending in a vague agent suffix
 
     `Manager`, `Helper`, `Util`, and `Utils` name what a class loosely
     does rather than what it is, and tend to accrete unrelated
@@ -150,7 +150,7 @@ def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violatio
 
 
 def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a boolean name that embeds its own negation.
+    """Flag a boolean name that embeds its own negation
 
     A name opening with a boolean prefix (`is`, `has`, `can`, `should`)
     and carrying `not` or `no` as a later word reads as a standing
@@ -171,7 +171,7 @@ def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
 
 
 def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a boolean name that does not read as a yes/no question.
+    """Flag a boolean name that does not read as a yes/no question
 
     A boolean should answer a yes/no question, so it opens with `is`,
     `has`, `can`, or `should` (`is_finalized`, `has_results`); a bare
@@ -192,7 +192,7 @@ def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation
 
 
 def check_exception_alias(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a non-descriptive `except ... as` alias.
+    """Flag a non-descriptive `except ... as` alias
 
     A caught exception's bound name must be `exc`, `exc` followed by
     digits (`exc2`) for a nested handler, or a descriptive name of at
@@ -222,7 +222,7 @@ def check_exception_alias(path: Path, source: str) -> Iterator[Violation]:
 
 
 def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a `make_` function defined outside a test module.
+    """Flag a `make_` function defined outside a test module
 
     `make_` is reserved for test fixtures (`make_bundle`,
     `make_patient`). In production it hides whether the call assembles
@@ -255,7 +255,7 @@ def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
 def _abbreviation_violations(
     name: str, lineno: int, col_offset: int
 ) -> Iterator[Violation]:
-    """Yield a violation for each banned abbreviation among a name's words."""
+    """Yield a violation for each banned abbreviation among a name's words"""
     for word in _identifier_words(name):
         if word in BANNED_ABBREVIATIONS:
             yield Violation(
@@ -267,7 +267,7 @@ def _abbreviation_violations(
 
 
 def _acronym_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
-    """Yield the at-most-one casing-checked name a node introduces.
+    """Yield the at-most-one casing-checked name a node introduces
 
     Resolve a class name, PEP 695 alias or type parameter, or a
     TypeVar-family factory assignment to its (name, lineno, col_offset)
@@ -284,7 +284,7 @@ def _acronym_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
 
 
 def _acronym_violations(name: str, lineno: int, col_offset: int) -> Iterator[Violation]:
-    """Yield a casing violation for each miscased acronym in a CapWords name.
+    """Yield a casing violation for each miscased acronym in a CapWords name
 
     A name not starting with an uppercase letter is left alone.
     """
@@ -300,7 +300,7 @@ def _acronym_violations(name: str, lineno: int, col_offset: int) -> Iterator[Vio
 
 
 def _banned_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
-    """Yield the at-most-one abbreviation-checked name a node introduces.
+    """Yield the at-most-one abbreviation-checked name a node introduces
 
     Resolve a class, function, or parameter name, an aliased import, or
     a store-context `Name` target to its (name, lineno, col_offset)
@@ -317,7 +317,7 @@ def _banned_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
 
 
 def _boolean_prefix_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
-    """Yield the at-most-one annotated boolean name a node introduces.
+    """Yield the at-most-one annotated boolean name a node introduces
 
     Resolve a `bool`-annotated parameter or a `bool`-annotated variable
     or attribute target to its (name, lineno, col_offset) triple; yield
@@ -332,7 +332,7 @@ def _boolean_prefix_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
 def _boolean_prefix_violations(
     name: str, lineno: int, col_offset: int
 ) -> Iterator[Violation]:
-    """Yield a violation when a boolean name's first word is not a prefix.
+    """Yield a violation when a boolean name's first word is not a prefix
 
     The accepted prefixes are `is`, `has`, `can`, and `should`.
     """
@@ -355,7 +355,7 @@ def _capwords_acronym_violations(name: str) -> Iterator[str]:
 
 
 def _negated_boolean_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
-    """Yield the at-most-one boolean-checked name a node introduces.
+    """Yield the at-most-one boolean-checked name a node introduces
 
     Resolve a function or method name, a parameter, or a store-context
     `Name` target to its (name, lineno, col_offset) triple; yield
@@ -373,7 +373,7 @@ def _negated_boolean_named_targets(node: ast.AST) -> Iterator[tuple[str, int, in
 def _negated_boolean_violations(
     name: str, lineno: int, col_offset: int
 ) -> Iterator[Violation]:
-    """Yield a violation if a boolean-prefixed name embeds a negation word."""
+    """Yield a violation if a boolean-prefixed name embeds a negation word"""
     words = list(_identifier_words(name))
     if len(words) < 2 or words[0] not in BOOLEAN_PREFIXES:
         return
@@ -389,19 +389,19 @@ def _negated_boolean_violations(
 
 
 def _identifier_words(name: str) -> Iterator[str]:
-    """Yield the lowercased words composing a snake_case or CapWords name."""
+    """Yield the lowercased words composing a snake_case or CapWords name"""
     for part in name.split("_"):
         for word in _CAPWORDS_WORD.findall(part):
             yield word.lower()
 
 
 def _is_bool_annotation(annotation: ast.expr | None) -> bool:
-    """Report whether an annotation is the bare `bool` type."""
+    """Report whether an annotation is the bare `bool` type"""
     return isinstance(annotation, ast.Name) and annotation.id == "bool"
 
 
 def _name_and_position(target: ast.expr) -> Iterator[tuple[str, int, int]]:
-    """Yield a name or attribute target's name with its position.
+    """Yield a name or attribute target's name with its position
 
     Yield nothing for any other target, such as a tuple or subscript.
     """
@@ -412,7 +412,7 @@ def _name_and_position(target: ast.expr) -> Iterator[tuple[str, int, int]]:
 
 
 def _typevar_factory_targets(node: ast.Assign) -> Iterator[tuple[str, int, int]]:
-    """Yield the string-literal name of a TypeVar-family factory call.
+    """Yield the string-literal name of a TypeVar-family factory call
 
     Require the assigned value to be a recognized factory call whose
     first argument is a string constant; yield that name with the
@@ -432,7 +432,7 @@ def _typevar_factory_targets(node: ast.Assign) -> Iterator[tuple[str, int, int]]
 
 
 def _typevar_factory_name(call: ast.Call) -> str | None:
-    """Return the unqualified name of a TypeVar-family factory call, if any."""
+    """Return the unqualified name of a TypeVar-family factory call, if any"""
     func = call.func
     if isinstance(func, ast.Name):
         return func.id if func.id in _TYPE_FACTORY_NAMES else None

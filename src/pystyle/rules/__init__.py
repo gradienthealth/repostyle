@@ -1,4 +1,4 @@
-"""Repo-style lint rules not covered by ruff or other off-the-shelf tools.
+"""Repo-style lint rules not covered by ruff or other off-the-shelf tools
 
 Each rule is a function taking `(path, source)` and yielding `Violation`
 records, defined in a themed module. This package re-exports the whole
@@ -45,16 +45,21 @@ from pystyle.rules._violation import (
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
+    RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
     Severity,
     Violation,
 )
-from pystyle.rules.comments import check_comment_tag_format
+from pystyle.rules.comments import (
+    check_comment_tag_format,
+    check_comment_terminal_punctuation,
+)
 from pystyle.rules.complexity import check_cognitive_complexity
 from pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
 from pystyle.rules.doc_value import check_doc_value_signal
 from pystyle.rules.docstrings import (
+    check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
     check_no_attributes_block,
@@ -122,6 +127,7 @@ __all__ = [
     "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
     "RS_SUMMARY_COMMENT_AS_DOCSTRING",
+    "RS_TERMINAL_PUNCTUATION",
     "RS_TEST_NAMING",
     "RS_TOO_MANY_POSITIONAL_ARGS",
     "Severity",
@@ -134,10 +140,12 @@ __all__ = [
     "check_class_member_order",
     "check_cognitive_complexity",
     "check_comment_tag_format",
+    "check_comment_terminal_punctuation",
     "check_conditional_test_logic",
     "check_discouraged_class_suffix",
     "check_doc_fill",
     "check_doc_value_signal",
+    "check_docstring_terminal_punctuation",
     "check_duration_as_timedelta",
     "check_exception_alias",
     "check_excessive_mocking",

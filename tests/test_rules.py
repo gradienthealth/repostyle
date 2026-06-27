@@ -22,14 +22,17 @@ from pystyle.rules import (
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_SLEEPY_TEST,
+    RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     check_acronym_casing,
     check_banned_abbreviation,
     check_behavior_verification_only,
     check_boolean_prefix_required,
+    check_comment_terminal_punctuation,
     check_conditional_test_logic,
     check_discouraged_class_suffix,
     check_doc_fill,
+    check_docstring_terminal_punctuation,
     check_duration_as_timedelta,
     check_exception_alias,
     check_excessive_mocking,
@@ -927,3 +930,126 @@ class TestCheckBehaviorVerificationOnly:
     )
     def test_AnyStateAssert_NoViolation(self, source: str) -> None:
         assert list(check_behavior_verification_only(_TEST_PATH, source)) == []
+
+
+_DOC_PATH = Path("src/x.py")
+
+_DOC_SINGLE_LINE_ENTRY = (
+    'def f(foo):\n    """Do the thing\n\n    Args:\n'
+    '        foo: the widget to process\n    """\n'
+)
+_DOC_MULTI_LINE_ENTRY = (
+    'def f(bar):\n    """Do the thing\n\n    Args:\n'
+    "        bar: the widget that wraps across\n"
+    '            two lines of description.\n    """\n'
+)
+_DOC_COLON_INTRO = (
+    'def f():\n    """Do the thing\n\n    The steps are as follows:\n    """\n'
+)
+_DOC_EXAMPLE_SECTION = (
+    'def f():\n    """Do the thing\n\n    Example:\n'
+    '        >>> f()\n        result\n    """\n'
+)
+
+
+class TestCheckDocstringTerminalPunctuation:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f():\n    """Resolve the lease"""\n',
+            'def f():\n    """Ready to go?"""\n',
+            'def f():\n    """Do it\n\n    The body states the contract.\n    """\n',
+            _DOC_SINGLE_LINE_ENTRY,
+            _DOC_MULTI_LINE_ENTRY,
+            _DOC_COLON_INTRO,
+            _DOC_EXAMPLE_SECTION,
+        ],
+        ids=[
+            "summary-no-period",
+            "summary-question-mark",
+            "body-with-period",
+            "single-line-entry-no-period",
+            "multi-line-entry-with-period",
+            "colon-list-intro",
+            "example-section-code",
+        ],
+    )
+    def test_ConformingDocstring_NoViolation(self, source: str) -> None:
+        assert list(check_docstring_terminal_punctuation(_DOC_PATH, source)) == []
+
+    def test_SingleLineSummaryWithPeriod_FlagsFragmentAtSummary(self) -> None:
+        source = 'def f():\n    """Resolve the lease."""\n'
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_TERMINAL_PUNCTUATION
+        assert violations[0].line == 2
+        assert "fragment" in violations[0].message
+
+    def test_BodyParagraphWithoutTerminal_FlagsProse(self) -> None:
+        source = (
+            'def f():\n    """Do it\n\n    The body has no terminal mark\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 4)]
+        assert "prose" in violations[0].message
+
+    def test_SingleLineEntryWithPeriod_FlagsFragmentAtEntry(self) -> None:
+        source = (
+            'def f(foo):\n    """Do the thing\n\n    Args:\n'
+            '        foo: the widget.\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 5)]
+
+    def test_MultiSentenceSummaryWithoutTerminal_FlagsProse(self) -> None:
+        source = 'def f():\n    """Parse the lease. Then archive it"""\n'
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 2)]
+
+
+class TestCheckCommentTerminalPunctuation:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "# Does a foo\nx = 1\n",
+            "x = 1  # Does a foo\n",
+            "# This comment wraps across two lines and ends\n# with a period.\nx = 1\n",
+            "x = 1  # noqa: E501\n",
+            "# def helper():\n#     return 1\nx = 1\n",
+        ],
+        ids=[
+            "standalone-fragment",
+            "trailing-fragment",
+            "multiline-prose-with-period",
+            "trailing-directive",
+            "commented-out-code",
+        ],
+    )
+    def test_ConformingComment_NoViolation(self, source: str) -> None:
+        assert list(check_comment_terminal_punctuation(_DOC_PATH, source)) == []
+
+    def test_StandaloneFragmentWithPeriod_FlagsFragment(self) -> None:
+        violations = list(
+            check_comment_terminal_punctuation(_DOC_PATH, "# Does a foo.\nx = 1\n")
+        )
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 1)]
+        assert "fragment" in violations[0].message
+
+    def test_TrailingProseWithPeriod_FlagsFragmentAtColumn(self) -> None:
+        source = "x = 1  # Returns the widget.\n"
+        violations = list(check_comment_terminal_punctuation(_DOC_PATH, source))
+        assert (violations[0].line, violations[0].col) == (1, 8)
+
+    def test_MultilineProseWithoutTerminal_FlagsProseAtLastLine(self) -> None:
+        source = (
+            "# This comment wraps across two lines and ends\n"
+            "# without any terminal mark\nx = 1\n"
+        )
+        violations = list(check_comment_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 2)]
+        assert "prose" in violations[0].message
+
+    def test_MultiSentenceSingleLineWithoutTerminal_FlagsProse(self) -> None:
+        source = "# I like pie. I like cake\nx = 1\n"
+        violations = list(check_comment_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 1)]

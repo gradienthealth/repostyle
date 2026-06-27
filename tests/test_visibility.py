@@ -128,7 +128,7 @@ class TestLintPackage:
 def _pkg(
     tmp_path: Path, modules: dict[str, str], pyproject: str = ""
 ) -> list[tuple[Path, str]]:
-    """Write a `pkg` package under `tmp_path/src` and return its files list."""
+    """Write a `pkg` package under `tmp_path/src` and return its files list"""
     (tmp_path / "pyproject.toml").write_text(pyproject, encoding="utf-8")
     package = tmp_path / "src" / "pkg"
     package.mkdir(parents=True)

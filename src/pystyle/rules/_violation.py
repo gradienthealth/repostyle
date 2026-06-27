@@ -1,4 +1,4 @@
-"""The `Violation` record, rule severities, and the `RSnnn` rule id constants."""
+"""The `Violation` record, rule severities, and the `RSnnn` rule id constants"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 
 class Severity(enum.Enum):
-    """How a rule's findings affect the exit status.
+    """How a rule's findings affect the exit status
 
     An error-severity finding fails the run; a warning-severity finding
     is advisory and printed but does not fail it.
@@ -57,3 +57,4 @@ RS_BOOLEAN_PREFIX_REQUIRED = "RS026"
 RS_TOO_MANY_POSITIONAL_ARGS = "RS027"
 RS_EXCEPTION_ALIAS = "RS028"
 RS_SHOULD_BE_PRIVATE = "RS029"
+RS_TERMINAL_PUNCTUATION = "RS030"

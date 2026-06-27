@@ -1,4 +1,4 @@
-"""The rule registry mapping ids to check functions, plus `run_rule`."""
+"""The rule registry mapping ids to check functions, plus `run_rule`"""
 
 from __future__ import annotations
 
@@ -33,16 +33,21 @@ from pystyle.rules._violation import (
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
+    RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
     Severity,
     Violation,
 )
-from pystyle.rules.comments import check_comment_tag_format
+from pystyle.rules.comments import (
+    check_comment_tag_format,
+    check_comment_terminal_punctuation,
+)
 from pystyle.rules.complexity import check_cognitive_complexity
 from pystyle.rules.doc_fill import check_doc_fill
 from pystyle.rules.doc_value import check_doc_value_signal
 from pystyle.rules.docstrings import (
+    check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
     check_no_attributes_block,
@@ -115,6 +120,10 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_FILLER_DOCSTRING_OPENING: (check_filler_docstring_opening,),
     RS_TOO_MANY_POSITIONAL_ARGS: (check_too_many_positional_args,),
     RS_EXCEPTION_ALIAS: (check_exception_alias,),
+    RS_TERMINAL_PUNCTUATION: (
+        check_docstring_terminal_punctuation,
+        check_comment_terminal_punctuation,
+    ),
 }
 
 
@@ -141,16 +150,17 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_BOOLEAN_PREFIX_REQUIRED: Severity.WARNING,
     RS_TOO_MANY_POSITIONAL_ARGS: Severity.WARNING,
     RS_SHOULD_BE_PRIVATE: Severity.WARNING,
+    RS_TERMINAL_PUNCTUATION: Severity.WARNING,
 }
 
 
 def severity_of(rule_id: str) -> Severity:
-    """Return a rule's severity, defaulting to `ERROR`."""
+    """Return a rule's severity, defaulting to `ERROR`"""
     return RULE_SEVERITY.get(rule_id, Severity.ERROR)
 
 
 def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
-    """Run a single rule by id over one source, yielding its violations.
+    """Run a single rule by id over one source, yielding its violations
 
     A rule id maps to one or more check functions; e.g. RS005 runs both
     the markdown and the Python-docstring backtick checks.
@@ -162,7 +172,7 @@ def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
 def run_package_rule(
     rule_id: str, files: Sequence[tuple[Path, str]]
 ) -> Iterator[tuple[Path, Violation]]:
-    """Run a whole-package rule by id over every first-party file."""
+    """Run a whole-package rule by id over every first-party file"""
     for check in PACKAGE_RULES.get(rule_id, ()):
         yield from check(files)
 
