@@ -19,6 +19,7 @@ from pystyle.rules._registry import (
 )
 from pystyle.rules._violation import (
     RS_ACRONYM_CASING,
+    RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
@@ -57,7 +58,10 @@ from pystyle.rules.comments import (
 )
 from pystyle.rules.complexity import check_cognitive_complexity
 from pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
-from pystyle.rules.doc_value import check_doc_value_signal
+from pystyle.rules.doc_value import (
+    check_arg_described_in_prose,
+    check_doc_value_signal,
+)
 from pystyle.rules.docstrings import (
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
@@ -101,6 +105,7 @@ __all__ = [
     "RULES",
     "RULE_SEVERITY",
     "RS_ACRONYM_CASING",
+    "RS_ARG_DESCRIBED_IN_PROSE",
     "RS_BANNED_ABBREVIATION",
     "RS_BANNED_IMPORT_BY_PATH",
     "RS_BEHAVIOR_VERIFICATION_ONLY",
@@ -133,6 +138,7 @@ __all__ = [
     "Severity",
     "Violation",
     "check_acronym_casing",
+    "check_arg_described_in_prose",
     "check_banned_abbreviation",
     "check_banned_import_by_path",
     "check_behavior_verification_only",

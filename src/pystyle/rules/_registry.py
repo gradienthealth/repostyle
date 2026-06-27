@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pystyle.rules._violation import (
     RS_ACRONYM_CASING,
+    RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
     RS_BEHAVIOR_VERIFICATION_ONLY,
@@ -45,7 +46,10 @@ from pystyle.rules.comments import (
 )
 from pystyle.rules.complexity import check_cognitive_complexity
 from pystyle.rules.doc_fill import check_doc_fill
-from pystyle.rules.doc_value import check_doc_value_signal
+from pystyle.rules.doc_value import (
+    check_arg_described_in_prose,
+    check_doc_value_signal,
+)
 from pystyle.rules.docstrings import (
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
@@ -124,6 +128,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
         check_docstring_terminal_punctuation,
         check_comment_terminal_punctuation,
     ),
+    RS_ARG_DESCRIBED_IN_PROSE: (check_arg_described_in_prose,),
 }
 
 
@@ -151,6 +156,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_TOO_MANY_POSITIONAL_ARGS: Severity.WARNING,
     RS_SHOULD_BE_PRIVATE: Severity.WARNING,
     RS_TERMINAL_PUNCTUATION: Severity.WARNING,
+    RS_ARG_DESCRIBED_IN_PROSE: Severity.WARNING,
 }
 
 

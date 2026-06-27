@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules import RS_DOC_VALUE_SIGNAL, check_doc_value_signal
+from pystyle.rules import (
+    RS_ARG_DESCRIBED_IN_PROSE,
+    RS_DOC_VALUE_SIGNAL,
+    check_arg_described_in_prose,
+    check_doc_value_signal,
+)
 
 _SRC = Path("src/x.py")
 
@@ -29,33 +34,12 @@ class TestCheckDocValueSignal:
     def test_TrivialFunction_NoViolation(self) -> None:
         assert _check("def add(a, b):\n    return a + b\n") == []
 
-    def test_DocumentedManyParameterFunction_FlagsArgs(self) -> None:
+    def test_DocumentedManyParameterFunctionWithoutArgs_NoViolation(self) -> None:
         source = (
             "def configure(a, b, c, d) -> None:\n"
             '    """Set up the thing."""\n'
             "    return\n"
         )
-        violations = _check(source)
-        assert len(violations) == 1
-        assert "`Args:`" in violations[0].message
-
-    def test_DocstringWithArgsSection_NoViolation(self) -> None:
-        source = (
-            "def configure(a, b, c, d) -> int:\n"
-            '    """Set up the thing.\n'
-            "\n"
-            "    Args:\n"
-            "        a: first.\n"
-            "        b: second.\n"
-            "        c: third.\n"
-            "        d: fourth.\n"
-            '    """\n'
-            "    return a\n"
-        )
-        assert _check(source) == []
-
-    def test_DocumentedFewParameterFunction_NoArgsViolation(self) -> None:
-        source = 'def fetch(a, b) -> int:\n    """Get the count."""\n    return a + b\n'
         assert _check(source) == []
 
     def test_DocumentedScalarReturn_NoReturnsViolation(self) -> None:
@@ -117,5 +101,140 @@ class TestCheckDocValueSignal:
         assert _check(source, path) == []
 
 
+class TestCheckArgDescribedInProse:
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            (
+                "def fetch(handle):\n"
+                '    """Open a connection.\n'
+                "\n"
+                "    The `handle` selects which pool to draw from.\n"
+                '    """\n'
+                "    return handle\n",
+                {"handle"},
+            ),
+            (
+                "def fetch(handle, pool):\n"
+                '    """Open a connection.\n'
+                "\n"
+                "    The `pool` is chosen lazily.\n"
+                "\n"
+                "    Args:\n"
+                "        handle: the connection handle.\n"
+                '    """\n'
+                "    return handle\n",
+                {"pool"},
+            ),
+            (
+                "def merge(left, right):\n"
+                '    """Combine two sequences.\n'
+                "\n"
+                "    The `left` wins ties; the `right` fills gaps.\n"
+                '    """\n'
+                "    return left\n",
+                {"left", "right"},
+            ),
+        ],
+        ids=["single", "args-section-omits-it", "several"],
+    )
+    def test_ParamDescribedInBodyProse_FlagsEach(
+        self, source: str, expected: set[str]
+    ) -> None:
+        violations = _check_arg(source)
+        assert len(violations) == len(expected)
+        assert all(
+            v.rule == RS_ARG_DESCRIBED_IN_PROSE and "`Args:`" in v.message
+            for v in violations
+        )
+        assert all(
+            any(f"parameter '{name}'" in v.message for v in violations)
+            for name in expected
+        )
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def fetch(handle):\n    """Open the `handle` connection."""\n'
+            "    return handle\n",
+            "def fetch(handle):\n"
+            '    """Open a connection.\n'
+            "\n"
+            "    The handle selects which pool to draw from.\n"
+            '    """\n'
+            "    return handle\n",
+            "def fetch(handle):\n"
+            '    """Open a connection.\n'
+            "\n"
+            "    Args:\n"
+            "        handle: which pool to draw from.\n"
+            '    """\n'
+            "    return handle\n",
+            'def fetch(handle):\n    """Open a connection."""\n    return handle\n',
+            "def run(path):\n"
+            '    """Reflow the findings in `path`.\n'
+            "\n"
+            "    A no-op unless `path` is a Python file.\n"
+            '    """\n'
+            "    return path\n",
+            "def changed(path, base):\n"
+            '    """Return the lines `path` adds versus `base`.\n'
+            "\n"
+            "    Return nothing when `base` is unknown or `path` is untracked.\n"
+            '    """\n'
+            "    return base\n",
+        ],
+        ids=[
+            "only-in-summary",
+            "not-backticked",
+            "documented-in-args",
+            "no-body",
+            "object-not-subject",
+            "listed-mid-clause",
+        ],
+    )
+    def test_ParamNotDescribedInBodyProse_NoViolation(self, source: str) -> None:
+        assert _check_arg(source) == []
+
+    @pytest.mark.parametrize(
+        ("source", "path"),
+        [
+            (
+                "def _fetch(handle):\n"
+                '    """Open a connection.\n\n    The `handle` picks a pool.\n'
+                '    """\n    return handle\n',
+                _SRC,
+            ),
+            (
+                "def test_fetch(handle):\n"
+                '    """Open a connection.\n\n    The `handle` picks a pool.\n'
+                '    """\n    return handle\n',
+                _SRC,
+            ),
+            (
+                "def fetch(handle):\n"
+                '    """Open a connection.\n\n    The `handle` picks a pool.\n'
+                '    """\n    return handle\n',
+                Path("tests/test_x.py"),
+            ),
+            (
+                "from typing import overload\n"
+                "@overload\n"
+                "def fetch(handle):\n"
+                '    """Open a connection.\n\n    The `handle` picks a pool.\n'
+                '    """\n',
+                _SRC,
+            ),
+        ],
+        ids=["private-name", "test-name", "test-file", "overload"],
+    )
+    def test_ExcludedDefinition_NoViolation(self, source: str, path: Path) -> None:
+        assert _check_arg(source, path) == []
+
+
 def _check(source: str, path: Path = _SRC) -> list:
     return list(check_doc_value_signal(path, source))
+
+
+def _check_arg(source: str, path: Path = _SRC) -> list:
+    return list(check_arg_described_in_prose(path, source))
