@@ -34,12 +34,16 @@ from pystyle.rules._violation import (
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
+    RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
     Severity,
     Violation,
 )
-from pystyle.rules.comments import check_comment_tag_format
+from pystyle.rules.comments import (
+    check_comment_tag_format,
+    check_comment_terminal_punctuation,
+)
 from pystyle.rules.complexity import check_cognitive_complexity
 from pystyle.rules.doc_fill import check_doc_fill
 from pystyle.rules.doc_value import (
@@ -47,6 +51,7 @@ from pystyle.rules.doc_value import (
     check_doc_value_signal,
 )
 from pystyle.rules.docstrings import (
+    check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
     check_no_attributes_block,
@@ -119,6 +124,10 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_FILLER_DOCSTRING_OPENING: (check_filler_docstring_opening,),
     RS_TOO_MANY_POSITIONAL_ARGS: (check_too_many_positional_args,),
     RS_EXCEPTION_ALIAS: (check_exception_alias,),
+    RS_TERMINAL_PUNCTUATION: (
+        check_docstring_terminal_punctuation,
+        check_comment_terminal_punctuation,
+    ),
     RS_ARG_DESCRIBED_IN_PROSE: (check_arg_described_in_prose,),
 }
 
@@ -146,6 +155,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_BOOLEAN_PREFIX_REQUIRED: Severity.WARNING,
     RS_TOO_MANY_POSITIONAL_ARGS: Severity.WARNING,
     RS_SHOULD_BE_PRIVATE: Severity.WARNING,
+    RS_TERMINAL_PUNCTUATION: Severity.WARNING,
     RS_ARG_DESCRIBED_IN_PROSE: Severity.WARNING,
 }
 
