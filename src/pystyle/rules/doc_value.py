@@ -75,10 +75,9 @@ def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]
     `Args:` entry documents it. Per-argument detail belongs in a
     structured `Args:` section, where readers and tools look for it, not
     narrated in the body prose meant to state the unit's own contract. A
-    parameter merely referenced inside that contract prose, rather than
-    described as a sentence's subject, does not fire; nor does an
-    undocumented one, so the rule relocates explanation a writer already
-    gave rather than demanding new prose.
+    parameter merely referenced inside the contract prose, not opening a
+    sentence as its subject, does not fire, and neither does an
+    undocumented parameter.
     """
     for node in _public_functions(path, source):
         docstring = ast.get_docstring(node, clean=True)
@@ -110,7 +109,7 @@ def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
 
 
 def _body_and_documented_args(docstring: str) -> tuple[str, set[str]]:
-    """Split a cleaned docstring into its body prose and documented args.
+    """Split a cleaned docstring into body prose and documented args.
 
     The body is the prose between the summary and the first Google-style
     section header; the documented args are the names entered under an
