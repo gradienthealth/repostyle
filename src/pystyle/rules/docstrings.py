@@ -68,6 +68,10 @@ _SECTION_HEADERS = (
     _ENTRY_SECTION_HEADERS | _PROSE_SECTION_HEADERS | _CODE_SECTION_HEADERS
 )
 _BULLET_PATTERN = re.compile(r"^[-*+] ")
+# A section entry's caption: a non-space run then a colon (`name:`,
+# `name (type):`, `ValueError:`), which opens a fresh entry. A line
+# without one continues the entry it follows.
+_SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
 # A markdown table row or a line made only of rule characters opens
 # verbatim content whose terminal character is not prose punctuation.
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
@@ -436,21 +440,25 @@ class _ProseUnit(NamedTuple):
 def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
     """Split a docstring literal into structure-tagged source lines
 
-    The first line carries no indentation because it abuts the opening
-    quote, so the body margin is taken from the first following
-    non-blank line and every later line's indent is measured relative to
-    it.
+    The first line abuts the opening quote, so it anchors its column at
+    the literal and the body margin is taken from the first following
+    non-blank line, with every later line's indent measured relative to
+    it. The source line is clamped to the literal's physical span, so a
+    docstring carrying escaped newlines or built by implicit
+    concatenation still points within itself rather than past it.
     """
     lines = constant.value.splitlines()
+    last = constant.end_lineno or constant.lineno
     margin = next(
         (len(line) - len(line.lstrip()) for line in lines[1:] if line.strip()),
         0,
     )
     result: list[_DocLine] = []
     for index, line in enumerate(lines):
-        column = 0 if index == 0 else len(line) - len(line.lstrip())
+        lineno = min(constant.lineno + index, last)
+        column = constant.col_offset if index == 0 else len(line) - len(line.lstrip())
         relative = 0 if index == 0 else max(0, column - margin)
-        result.append(_DocLine(constant.lineno + index, column, relative, line.strip()))
+        result.append(_DocLine(lineno, column, relative, line.strip()))
     return result
 
 
@@ -551,10 +559,21 @@ class _DocstringSegmenter:
             self._section = "prose"
 
     def _consume_entry(self, line: _DocLine) -> None:
-        """Start a new entry at the entry margin, or extend the open one"""
+        """Start a new entry on a caption line, or extend the open one
+
+        An entry opens on a `name:`-style caption at the entry margin; a
+        line that carries no caption continues the open entry, whether
+        it wraps at a deeper indent or at the entry margin, so a
+        `Returns:` description wrapped at one indent stays a single
+        multi-line entry.
+        """
         if self._entry_indent is None:
             self._entry_indent = line.relative_indent
-        if line.relative_indent <= self._entry_indent or not self._open:
+        starts_entry = (
+            line.relative_indent <= self._entry_indent
+            and _SECTION_ENTRY_PATTERN.match(line.text) is not None
+        )
+        if not self._open or starts_entry:
             self.close()
             self._open = [line]
             self._open_kind = "entry"

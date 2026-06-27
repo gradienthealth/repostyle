@@ -78,8 +78,8 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     tags, ticket_pattern = _resolve_config(path)
     allowed = {tag.upper() for tag in tags}
     canonical = _canonical_pattern(tags, ticket_pattern)
-    for token in _own_line_comments(source):
-        leading = _LEADING_TOKEN_PATTERN.match(token.string)
+    for lineno, column, string in _own_line_comments(source):
+        leading = _LEADING_TOKEN_PATTERN.match(string)
         if leading is None:
             continue
         word, follower = leading.group(1), leading.group(2)
@@ -88,12 +88,11 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
         word = word.upper()
         if word not in allowed and word not in _KNOWN_ALIASES:
             continue
-        if canonical.match(token.string):
+        if canonical.match(string):
             continue
-        line, column = token.start
         canonical_tag = next(iter(tags)) if word in _KNOWN_ALIASES else word
         yield Violation(
-            line,
+            lineno,
             column + 1,
             RS_COMMENT_TAG_FORMAT,
             f"comment tag is not canonical; write '{canonical_tag}(TICKET): "
@@ -209,20 +208,11 @@ def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern
     return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
 
 
-def _own_line_comments(source: str) -> Iterator[tokenize.TokenInfo]:
-    """Yield comment tokens, skipping those trailing code on their line"""
-    source_lines = source.splitlines()
-    try:
-        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
-    except tokenize.TokenError:
-        return
-    for token in tokens:
-        if token.type != tokenize.COMMENT:
-            continue
-        line, column = token.start
-        if source_lines[line - 1][:column].strip():
-            continue
-        yield token
+def _own_line_comments(source: str) -> Iterator[tuple[int, int, str]]:
+    """Yield `(line, column, string)` for each comment that owns its line"""
+    for lineno, column, string, is_trailing in _comment_tokens(source):
+        if not is_trailing:
+            yield lineno, column, string
 
 
 def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:

@@ -38,7 +38,7 @@ def suppressed_lines(source: str, rule: str) -> tuple[bool, frozenset[int]]:
         whether a `# style: ignore-file` directive waives the entire
         file. `waived_lines` is the set of lines on which `rule` is
         suppressed, whether by an unscoped `# style: ignore` or one
-        naming `rule`
+        naming `rule`.
     """
     file_suppressed, lines = _parse(source)
     return file_suppressed, frozenset(lines.lines_waiving(rule))

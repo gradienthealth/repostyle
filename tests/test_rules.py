@@ -950,6 +950,13 @@ _DOC_EXAMPLE_SECTION = (
     'def f():\n    """Do the thing\n\n    Example:\n'
     '        >>> f()\n        result\n    """\n'
 )
+# A Returns description that wraps at the entry margin (no hanging
+# indent) is one multi-line entry, not two single-line labels.
+_DOC_SAME_INDENT_RETURNS = (
+    'def f():\n    """Do the thing\n\n    Returns:\n'
+    "        A tuple of the parsed bundle and the\n"
+    '        count of records.\n    """\n'
+)
 
 
 class TestCheckDocstringTerminalPunctuation:
@@ -963,6 +970,7 @@ class TestCheckDocstringTerminalPunctuation:
             _DOC_MULTI_LINE_ENTRY,
             _DOC_COLON_INTRO,
             _DOC_EXAMPLE_SECTION,
+            _DOC_SAME_INDENT_RETURNS,
             'def f():\n    """Do it\n\n    See the spec at\n'
             '    https://example.com/spec\n    """\n',
         ],
@@ -974,6 +982,7 @@ class TestCheckDocstringTerminalPunctuation:
             "multi-line-entry-with-period",
             "colon-list-intro",
             "example-section-code",
+            "same-indent-returns-with-period",
             "body-url-tail",
         ],
     )
@@ -985,8 +994,18 @@ class TestCheckDocstringTerminalPunctuation:
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_TERMINAL_PUNCTUATION
-        assert violations[0].line == 2
+        assert (violations[0].line, violations[0].col) == (2, 5)
         assert "fragment" in violations[0].message
+
+    def test_SameIndentReturnsWithoutTerminal_FlagsProse(self) -> None:
+        source = (
+            'def f():\n    """Do the thing\n\n    Returns:\n'
+            "        A tuple of the parsed bundle and the\n"
+            '        count of records\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 6)]
+        assert "prose" in violations[0].message
 
     def test_BodyParagraphWithoutTerminal_FlagsProse(self) -> None:
         source = (
