@@ -42,6 +42,22 @@ _SENTENCE_ABBREVIATIONS = frozenset(
 )
 
 
+def find_pyproject(start: Path) -> Path | None:
+    """Walk up from `start` to find the nearest `pyproject.toml`."""
+    start = start.resolve()
+    directory = start if start.is_dir() else start.parent
+    for candidate in (directory, *directory.parents):
+        pyproject = candidate / "pyproject.toml"
+        if pyproject.is_file():
+            return pyproject
+    return None
+
+
+def _comment_text(comment: str) -> str:
+    """Return a comment's prose, stripped of its leading hashes and space."""
+    return comment.lstrip("#").strip()
+
+
 def _has_decorator(
     node: ast.FunctionDef | ast.AsyncFunctionDef, names: frozenset[str] | set[str]
 ) -> bool:
@@ -60,50 +76,37 @@ def _has_decorator(
     return False
 
 
-def _is_test_file(path: Path) -> bool:
-    """Report whether a path is a test module by location or filename."""
-    posix = _posix(path)
-    return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
+def _has_sentence_boundary(text: str) -> bool:
+    """Report whether `text` runs more than one sentence.
+
+    A terminal mark followed by whitespace and a capital opens a second
+    sentence, unless the token ending in the mark is an initialism, a
+    decimal, or a known abbreviation, which carry an internal period
+    without closing a sentence.
+    """
+    for match in _SENTENCE_BOUNDARY_PATTERN.finditer(text):
+        token = text[: match.start() + 1].split()[-1]
+        if token.lower() in _SENTENCE_ABBREVIATIONS:
+            continue
+        if _INITIALISM_PATTERN.fullmatch(token):
+            continue
+        return True
+    return False
 
 
-def _posix(path: Path) -> str:
-    return str(path).replace("\\", "/")
+def _is_prose_comment(text: str) -> bool:
+    """Report whether a comment's text reads as a documenting sentence.
 
-
-def find_pyproject(start: Path) -> Path | None:
-    """Walk up from `start` to find the nearest `pyproject.toml`."""
-    start = start.resolve()
-    directory = start if start.is_dir() else start.parent
-    for candidate in (directory, *directory.parents):
-        pyproject = candidate / "pyproject.toml"
-        if pyproject.is_file():
-            return pyproject
-    return None
-
-
-# Cache on (path, source) so each file is parsed once and its tree
-# shared across rules.
-@lru_cache(maxsize=128)
-def _parse_python(path: Path, source: str) -> ast.AST | None:
-    if path.suffix != ".py":
-        return None
-    try:
-        return ast.parse(source)
-    except SyntaxError:
-        return None
-
-
-def _comment_text(comment: str) -> str:
-    """Return a comment's prose, stripped of its leading hashes and space."""
-    return comment.lstrip("#").strip()
-
-
-def _is_directive_comment(text: str) -> bool:
-    """Report whether a comment's text is a tool directive or coding line."""
-    return bool(
-        _DIRECTIVE_COMMENT_PATTERN.match(text)
-        or _CODING_DECLARATION_PATTERN.search(text)
-    )
+    Prose is capitalised and at least three words. A tool directive, a
+    shebang, a coding line, and a commented-out statement are all
+    excluded, so the check fires only on a sentence a docstring should
+    carry.
+    """
+    if _is_directive_comment(text):
+        return False
+    if not text[:1].isupper() or len(text.split()) < 3:
+        return False
+    return not _is_code_fragment(text)
 
 
 def _is_code_fragment(text: str) -> bool:
@@ -129,42 +132,34 @@ def _is_code_fragment(text: str) -> bool:
     )
 
 
-def _is_prose_comment(text: str) -> bool:
-    """Report whether a comment's text reads as a documenting sentence.
-
-    Prose is capitalised and at least three words. A tool directive, a
-    shebang, a coding line, and a commented-out statement are all
-    excluded, so the check fires only on a sentence a docstring should
-    carry.
-    """
-    if _is_directive_comment(text):
-        return False
-    if not text[:1].isupper() or len(text.split()) < 3:
-        return False
-    return not _is_code_fragment(text)
+def _is_directive_comment(text: str) -> bool:
+    """Report whether a comment's text is a tool directive or coding line."""
+    return bool(
+        _DIRECTIVE_COMMENT_PATTERN.match(text)
+        or _CODING_DECLARATION_PATTERN.search(text)
+    )
 
 
-def _strip_trailing_closers(text: str) -> str:
-    """Return `text` without trailing whitespace or sentence-closing marks."""
-    return text.rstrip().rstrip(_TRAILING_CLOSERS)
+def _is_test_file(path: Path) -> bool:
+    """Report whether a path is a test module by location or filename."""
+    posix = _posix(path)
+    return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
 
 
-def _has_sentence_boundary(text: str) -> bool:
-    """Report whether `text` runs more than one sentence.
+# Cache on (path, source) so each file is parsed once and its tree
+# shared across rules.
+@lru_cache(maxsize=128)
+def _parse_python(path: Path, source: str) -> ast.AST | None:
+    if path.suffix != ".py":
+        return None
+    try:
+        return ast.parse(source)
+    except SyntaxError:
+        return None
 
-    A terminal mark followed by whitespace and a capital opens a second
-    sentence, unless the token ending in the mark is an initialism, a
-    decimal, or a known abbreviation, which carry an internal period
-    without closing a sentence.
-    """
-    for match in _SENTENCE_BOUNDARY_PATTERN.finditer(text):
-        token = text[: match.start() + 1].split()[-1]
-        if token.lower() in _SENTENCE_ABBREVIATIONS:
-            continue
-        if _INITIALISM_PATTERN.fullmatch(token):
-            continue
-        return True
-    return False
+
+def _posix(path: Path) -> str:
+    return str(path).replace("\\", "/")
 
 
 def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
@@ -186,3 +181,8 @@ def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
     if is_prose:
         return None if stripped[-1] in ".!?" else "missing"
     return "extra" if stripped[-1] == "." else None
+
+
+def _strip_trailing_closers(text: str) -> str:
+    """Return `text` without trailing whitespace or sentence-closing marks."""
+    return text.rstrip().rstrip(_TRAILING_CLOSERS)
