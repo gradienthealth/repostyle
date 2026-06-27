@@ -973,6 +973,9 @@ class TestCheckDocstringTerminalPunctuation:
             _DOC_SAME_INDENT_RETURNS,
             'def f():\n    """Do it\n\n    See the spec at\n'
             '    https://example.com/spec\n    """\n',
+            'def f():\n    """Do it\n\n    - first point\n    - second\n    """\n',
+            'def f():\n    """Do it\n\n    ```\n    code here\n    ```\n    """\n',
+            'def f():\n    """Parse the value, e.g. a date"""\n',
         ],
         ids=[
             "summary-no-period",
@@ -984,6 +987,9 @@ class TestCheckDocstringTerminalPunctuation:
             "example-section-code",
             "same-indent-returns-with-period",
             "body-url-tail",
+            "bullet-list",
+            "fenced-code",
+            "summary-with-abbreviation",
         ],
     )
     def test_ConformingDocstring_NoViolation(self, source: str) -> None:
@@ -1028,6 +1034,41 @@ class TestCheckDocstringTerminalPunctuation:
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 2)]
 
+    def test_ModuleDocstringWithPeriod_FlagsFragmentAtColumnOne(self) -> None:
+        violations = list(
+            check_docstring_terminal_punctuation(
+                _DOC_PATH, '"""Resolve the lease."""\n'
+            )
+        )
+        assert [(v.rule, v.line, v.col) for v in violations] == [
+            (RS_TERMINAL_PUNCTUATION, 1, 1)
+        ]
+
+    def test_MultiLineSummaryWithoutTerminal_FlagsProse(self) -> None:
+        source = (
+            'def f():\n    """Resolve the lease for the tenant named in the\n'
+            '    request payload\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 3)]
+
+    def test_MultiEntrySection_FlagsOnlyOffendingEntry(self) -> None:
+        source = (
+            'def f(foo, bar):\n    """Do the thing\n\n    Args:\n'
+            "        foo: the first widget.\n"
+            '        bar: the second widget\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 5)]
+
+    def test_RaisesSingleLineEntryWithPeriod_FlagsFragment(self) -> None:
+        source = (
+            'def f():\n    """Do the thing\n\n    Raises:\n'
+            '        ValueError: when the input is bad.\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 5)]
+
 
 class TestCheckCommentTerminalPunctuation:
     @pytest.mark.parametrize(
@@ -1039,6 +1080,9 @@ class TestCheckCommentTerminalPunctuation:
             "x = 1  # noqa: E501\n",
             "# def helper():\n#     return 1\nx = 1\n",
             "# The spec lives at\n# https://example.com/spec\nx = 1\n",
+            "# -*- coding: utf-8 -*-\nx = 1\n",
+            "# handles the retry path.\nx = 1\n",
+            "# First standalone note\n\n# Second standalone note\nx = 1\n",
         ],
         ids=[
             "standalone-fragment",
@@ -1047,6 +1091,9 @@ class TestCheckCommentTerminalPunctuation:
             "trailing-directive",
             "commented-out-code",
             "url-tail",
+            "coding-declaration",
+            "lowercase-not-prose",
+            "blank-gap-separate-blocks",
         ],
     )
     def test_ConformingComment_NoViolation(self, source: str) -> None:
@@ -1077,3 +1124,11 @@ class TestCheckCommentTerminalPunctuation:
         source = "# I like pie. I like cake\nx = 1\n"
         violations = list(check_comment_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 1)]
+
+    def test_NonPythonFile_NoViolation(self) -> None:
+        source = "# A prose comment with a trailing period.\n"
+        assert list(check_comment_terminal_punctuation(Path("notes.txt"), source)) == []
+
+    def test_DirectiveSplitsBlockFromProse_NoViolation(self) -> None:
+        source = "# A standalone prose comment line\n# type: ignore\nx = 1\n"
+        assert list(check_comment_terminal_punctuation(_DOC_PATH, source)) == []

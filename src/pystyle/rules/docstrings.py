@@ -47,9 +47,9 @@ _FILLER_OPENING_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Google section headers whose entries are `name: description` items
-# held to the per-entry terminal-punctuation rule, those whose body is
-# prose, and those whose body is code and exempt.
+# Google section headers, grouped by how their bodies are graded. An
+# entry section holds `name: description` items checked per entry; a
+# prose section's body is graded as prose; a code section is exempt.
 _ENTRY_SECTION_HEADERS = frozenset(
     {
         "Args:",

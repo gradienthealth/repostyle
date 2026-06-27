@@ -18,8 +18,8 @@ TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
 TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 
 # A comment whose first token after the hash marks it as machinery, not
-# prose. The shebang `#!` leads a module; the rest are tool directives a
-# docstring must not swallow.
+# prose. The shebang `#!` leads a module; the rest are tool directives
+# that a prose check must skip.
 _DIRECTIVE_COMMENT_PATTERN = re.compile(
     r"^[ \t]*(!|type:|style:|noqa|pragma|pylint:|mypy:|ruff:|isort:|fmt:)",
 )
@@ -32,8 +32,9 @@ _CODING_DECLARATION_PATTERN = re.compile(r"coding[:=]\s*[-\w.]+")
 _TRAILING_CLOSERS = ')"'
 # A sentence break: a terminal mark, any closing quotes or brackets,
 # whitespace, then a capital. The token ending in the mark decides
-# whether the break is real; an initialism, decimal, or known
-# abbreviation carries an internal period without ending a sentence.
+# whether the break is real; an initialism, a numbered ordinal, or a
+# known abbreviation carries an internal period without ending a
+# sentence.
 _SENTENCE_BOUNDARY_PATTERN = re.compile(r"[.!?][)\"']*\s+[A-Z]")
 _INITIALISM_PATTERN = re.compile(r"(?:[A-Za-z]\.)+|\d+\.")
 _SENTENCE_ABBREVIATIONS = frozenset(
