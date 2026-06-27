@@ -1,4 +1,4 @@
-"""PHI-safe logging rule: no `phi_safe` on an `exc_info` record"""
+"""PHI-safe logging rule: no `phi_safe` on an `exc_info` record."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ _LOGGING_CALL_NAMES = frozenset(
 
 
 def check_no_phi_safe_with_exc_info(path: Path, source: str) -> Iterator[Violation]:
-    """A log record carrying `exc_info` may not be marked `phi_safe`
+    """A log record carrying `exc_info` may not be marked `phi_safe`.
 
     The formatter renders the record's full exception chain, and
     third-party exception messages in the chain can embed identifiers

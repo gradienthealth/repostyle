@@ -1,4 +1,4 @@
-"""Comment-tag format rule (RS022): standardize special comments
+"""Comment-tag format rule (RS022): standardize special comments.
 
 A special comment carries one of a small set of tags and points at a
 tracking ticket, so an agent reading the finding learns the canonical
@@ -61,7 +61,7 @@ _LEADING_TOKEN_PATTERN = re.compile(r"^#+\s*([A-Za-z]+)([(:]?)")
 
 
 def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
-    """A special comment must read `TAG(TICKET): message`
+    """A special comment must read `TAG(TICKET): message`.
 
     A comment opening with a tag — a token that is an allowed tag or a
     known alias of one, and is used tag-style: written in all caps or
@@ -102,7 +102,7 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
 
 
 def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Violation]:
-    """A prose comment's terminal punctuation must match its shape
+    """A prose comment's terminal punctuation must match its shape.
 
     A single-line comment that is one fragment reads as a label and must
     not end with a period; a comment spanning lines or running more than
@@ -117,14 +117,14 @@ def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Viol
 
 
 def _comment_terminal_message(fault: str) -> str:
-    """Return the fix message for a comment terminal-punctuation `fault`"""
+    """Return the fix message for a comment terminal-punctuation `fault`."""
     if fault == "missing":
         return "comment reads as prose; end it with terminal punctuation"
     return "comment reads as a fragment; drop the trailing period"
 
 
 def _trailing_comment_faults(source: str) -> Iterator[Violation]:
-    """Flag a prose comment trailing code whose punctuation is wrong"""
+    """Flag a prose comment trailing code whose punctuation is wrong."""
     for lineno, column, string, is_trailing in _comment_tokens(source):
         if not is_trailing:
             continue
@@ -143,7 +143,7 @@ def _trailing_comment_faults(source: str) -> Iterator[Violation]:
 
 
 def _standalone_comment_block_faults(source: str) -> Iterator[Violation]:
-    """Flag a standalone prose comment block whose punctuation is wrong"""
+    """Flag a standalone prose comment block whose punctuation is wrong."""
     for block in _standalone_comment_blocks(source):
         text = " ".join(_comment_text(string) for _, _, string in block)
         if not _is_prose_comment(text):
@@ -164,7 +164,7 @@ def _standalone_comment_block_faults(source: str) -> Iterator[Violation]:
 def _standalone_comment_blocks(
     source: str,
 ) -> Iterator[list[tuple[int, int, str]]]:
-    """Group own-line comments into adjacent same-column blocks
+    """Group own-line comments into adjacent same-column blocks.
 
     A directive line, a trailing comment, a blank gap, or a column shift
     closes the open block, so each yielded block is one contiguous prose
@@ -188,7 +188,7 @@ def _standalone_comment_blocks(
 
 
 def _comment_tokens(source: str) -> Iterator[tuple[int, int, str, bool]]:
-    """Yield each comment as `(line, column, string, trails-code)`"""
+    """Yield each comment as `(line, column, string, trails-code)`."""
     source_lines = source.splitlines()
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
@@ -203,20 +203,20 @@ def _comment_tokens(source: str) -> Iterator[tuple[int, int, str, bool]]:
 
 
 def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern[str]:
-    """Build the regex a canonical `TAG(TICKET): message` comment matches"""
+    """Build the regex a canonical `TAG(TICKET): message` comment matches."""
     tag_group = "|".join(re.escape(tag) for tag in tags)
     return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
 
 
 def _own_line_comments(source: str) -> Iterator[tuple[int, int, str]]:
-    """Yield `(line, column, string)` for each comment that owns its line"""
+    """Yield `(line, column, string)` for each comment that owns its line."""
     for lineno, column, string, is_trailing in _comment_tokens(source):
         if not is_trailing:
             yield lineno, column, string
 
 
 def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
-    """Return the allowed tags and ticket pattern for `path`'s repo"""
+    """Return the allowed tags and ticket pattern for `path`'s repo."""
     pyproject = find_pyproject(path)
     if pyproject is None:
         return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
@@ -225,7 +225,7 @@ def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
 
 @lru_cache(maxsize=128)
 def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
-    """Read the allowed tags and ticket pattern from a pyproject file
+    """Read the allowed tags and ticket pattern from a pyproject file.
 
     Return the configured allowed tag tuple and ticket-pattern regex,
     each falling back to its default when the table omits it.

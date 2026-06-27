@@ -1,4 +1,4 @@
-"""Port-purity rule: a port file may not name a concrete implementation"""
+"""Port-purity rule: a port file may not name a concrete implementation."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ PORT_PATH_FRAGMENT = "src/fhir_ingestor/application/ports/"
 
 
 def check_port_no_implementation(path: Path, source: str) -> Iterator[Violation]:
-    """Port files must not name specific implementation libraries"""
+    """Port files must not name specific implementation libraries."""
     if PORT_PATH_FRAGMENT not in _posix(path):
         return
     tree = _parse_python(path, source)

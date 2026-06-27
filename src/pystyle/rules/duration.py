@@ -1,4 +1,4 @@
-"""Duration rule: module-level durations use `timedelta`, not raw seconds"""
+"""Duration rule: module-level durations use `timedelta`, not raw seconds."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ SECONDS_CONSTANT_PATTERN = re.compile(r"^_?[A-Z][A-Z0-9_]*_SECONDS$")
 
 
 def check_duration_as_timedelta(path: Path, source: str) -> Iterator[Violation]:
-    """Module-level duration constants must be `timedelta`, not raw seconds
+    """Module-level duration constants must be `timedelta`, not raw seconds.
 
     Flag module-level assignments whose name matches `*_SECONDS` (with
     an optional leading underscore) and whose value is a numeric
@@ -52,7 +52,7 @@ def check_duration_as_timedelta(path: Path, source: str) -> Iterator[Violation]:
 def _assignment_targets_and_value(
     stmt: ast.stmt,
 ) -> tuple[list[ast.expr], ast.expr | None]:
-    """Return the targets and value of `stmt` if it is an assignment
+    """Return the targets and value of `stmt` if it is an assignment.
 
     Resolve an `Assign` or `AnnAssign` to its targets and value, and
     return `([], None)` for any other statement.

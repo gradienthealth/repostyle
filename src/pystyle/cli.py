@@ -1,4 +1,4 @@
-"""Console-script entry point invoked by the pre-commit hook"""
+"""Console-script entry point invoked by the pre-commit hook."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from pystyle.runner import (
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Lint the given paths and return the process exit code
+    """Lint the given paths and return the process exit code.
 
     Parse the arguments, resolve the enabled rule set, optionally reflow
     RS009 findings in place under `--fix`, and print each path's
@@ -73,7 +73,7 @@ def _report_path(
     options: argparse.Namespace,
     extra: list[Violation],
 ) -> bool:
-    """Print a path's findings and report whether any is error-severity
+    """Print a path's findings and report whether any is error-severity.
 
     `extra` carries whole-package findings already scoped to this path,
     merged with the per-file findings before diff-filtering and

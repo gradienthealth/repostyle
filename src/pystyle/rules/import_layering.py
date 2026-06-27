@@ -1,4 +1,4 @@
-"""Layering rule: a file may not import a source its layer forbids
+"""Layering rule: a file may not import a source its layer forbids.
 
 The bans are config-driven, so each repo expresses its own layering
 boundaries instead of the rule hardcoding one; with no configured table
@@ -19,7 +19,7 @@ from pystyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
 
 
 def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
-    """A file may not import a source its layer's config forbids
+    """A file may not import a source its layer's config forbids.
 
     A relative import is left to the no-relative-imports rule; only
     absolute imports are matched against the banned sources configured
@@ -55,7 +55,7 @@ def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
 
 @lru_cache(maxsize=128)
 def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
-    """Read the `banned-imports` glob-to-sources table from a pyproject file"""
+    """Read the `banned-imports` glob-to-sources table from a pyproject file."""
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
@@ -65,7 +65,7 @@ def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
 
 
 def _imported_sources(node: ast.AST) -> Iterator[str]:
-    """Yield the absolute module names an import statement names"""
+    """Yield the absolute module names an import statement names."""
     if isinstance(node, ast.Import):
         for alias in node.names:
             yield alias.name
@@ -74,5 +74,5 @@ def _imported_sources(node: ast.AST) -> Iterator[str]:
 
 
 def _is_banned(name: str, banned: frozenset[str]) -> bool:
-    """Report whether dotted module `name` is a banned source or under one"""
+    """Report whether dotted module `name` is a banned source or under one."""
     return any(name == source or name.startswith(f"{source}.") for source in banned)

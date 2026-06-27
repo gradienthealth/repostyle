@@ -1,4 +1,4 @@
-"""The rule registry mapping ids to check functions, plus `run_rule`"""
+"""The rule registry mapping ids to check functions, plus `run_rule`."""
 
 from __future__ import annotations
 
@@ -155,12 +155,12 @@ RULE_SEVERITY: dict[str, Severity] = {
 
 
 def severity_of(rule_id: str) -> Severity:
-    """Return a rule's severity, defaulting to `ERROR`"""
+    """Return a rule's severity, defaulting to `ERROR`."""
     return RULE_SEVERITY.get(rule_id, Severity.ERROR)
 
 
 def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
-    """Run a single rule by id over one source, yielding its violations
+    """Run a single rule by id over one source, yielding its violations.
 
     A rule id maps to one or more check functions; e.g. RS005 runs both
     the markdown and the Python-docstring backtick checks.
@@ -172,7 +172,7 @@ def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
 def run_package_rule(
     rule_id: str, files: Sequence[tuple[Path, str]]
 ) -> Iterator[tuple[Path, Violation]]:
-    """Run a whole-package rule by id over every first-party file"""
+    """Run a whole-package rule by id over every first-party file."""
     for check in PACKAGE_RULES.get(rule_id, ()):
         yield from check(files)
 

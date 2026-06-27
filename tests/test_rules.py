@@ -935,25 +935,25 @@ class TestCheckBehaviorVerificationOnly:
 _DOC_PATH = Path("src/x.py")
 
 _DOC_SINGLE_LINE_ENTRY = (
-    'def f(foo):\n    """Do the thing\n\n    Args:\n'
-    '        foo: the widget to process\n    """\n'
+    'def f(foo):\n    """Do the thing.\n\n    Args:\n'
+    '        foo: the widget to process.\n    """\n'
 )
 _DOC_MULTI_LINE_ENTRY = (
-    'def f(bar):\n    """Do the thing\n\n    Args:\n'
+    'def f(bar):\n    """Do the thing.\n\n    Args:\n'
     "        bar: the widget that wraps across\n"
     '            two lines of description.\n    """\n'
 )
 _DOC_COLON_INTRO = (
-    'def f():\n    """Do the thing\n\n    The steps are as follows:\n    """\n'
+    'def f():\n    """Do the thing.\n\n    The steps are as follows:\n    """\n'
 )
 _DOC_EXAMPLE_SECTION = (
-    'def f():\n    """Do the thing\n\n    Example:\n'
+    'def f():\n    """Do the thing.\n\n    Example:\n'
     '        >>> f()\n        result\n    """\n'
 )
 # A Returns description that wraps at the entry margin (no hanging
 # indent) is one multi-line entry, not two single-line labels.
 _DOC_SAME_INDENT_RETURNS = (
-    'def f():\n    """Do the thing\n\n    Returns:\n'
+    'def f():\n    """Do the thing.\n\n    Returns:\n'
     "        A tuple of the parsed bundle and the\n"
     '        count of records.\n    """\n'
 )
@@ -963,25 +963,24 @@ class TestCheckDocstringTerminalPunctuation:
     @pytest.mark.parametrize(
         "source",
         [
-            'def f():\n    """Resolve the lease"""\n',
+            'def f():\n    """Resolve the lease."""\n',
             'def f():\n    """Ready to go?"""\n',
-            'def f():\n    """Do it\n\n    The body states the contract.\n    """\n',
+            'def f():\n    """Do it.\n\n    The body states the contract.\n    """\n',
             _DOC_SINGLE_LINE_ENTRY,
             _DOC_MULTI_LINE_ENTRY,
             _DOC_COLON_INTRO,
             _DOC_EXAMPLE_SECTION,
             _DOC_SAME_INDENT_RETURNS,
-            'def f():\n    """Do it\n\n    See the spec at\n'
+            'def f():\n    """Do it.\n\n    See the spec at\n'
             '    https://example.com/spec\n    """\n',
-            'def f():\n    """Do it\n\n    - first point\n    - second\n    """\n',
-            'def f():\n    """Do it\n\n    ```\n    code here\n    ```\n    """\n',
-            'def f():\n    """Parse the value, e.g. a date"""\n',
+            'def f():\n    """Do it.\n\n    - first point\n    - second\n    """\n',
+            'def f():\n    """Do it.\n\n    ```\n    code here\n    ```\n    """\n',
         ],
         ids=[
-            "summary-no-period",
+            "summary-with-period",
             "summary-question-mark",
             "body-with-period",
-            "single-line-entry-no-period",
+            "single-line-entry-with-period",
             "multi-line-entry-with-period",
             "colon-list-intro",
             "example-section-code",
@@ -989,62 +988,35 @@ class TestCheckDocstringTerminalPunctuation:
             "body-url-tail",
             "bullet-list",
             "fenced-code",
-            "summary-with-abbreviation",
         ],
     )
     def test_ConformingDocstring_NoViolation(self, source: str) -> None:
         assert list(check_docstring_terminal_punctuation(_DOC_PATH, source)) == []
 
-    def test_SingleLineSummaryWithPeriod_FlagsFragmentAtSummary(self) -> None:
-        source = 'def f():\n    """Resolve the lease."""\n'
+    def test_SingleLineSummaryWithoutTerminal_FlagsAtSummary(self) -> None:
+        source = 'def f():\n    """Resolve the lease"""\n'
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_TERMINAL_PUNCTUATION
         assert (violations[0].line, violations[0].col) == (2, 5)
-        assert "fragment" in violations[0].message
+        assert "terminal punctuation" in violations[0].message
 
-    def test_SameIndentReturnsWithoutTerminal_FlagsProse(self) -> None:
-        source = (
-            'def f():\n    """Do the thing\n\n    Returns:\n'
-            "        A tuple of the parsed bundle and the\n"
-            '        count of records\n    """\n'
-        )
-        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
-        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 6)]
-        assert "prose" in violations[0].message
-
-    def test_BodyParagraphWithoutTerminal_FlagsProse(self) -> None:
-        source = (
-            'def f():\n    """Do it\n\n    The body has no terminal mark\n    """\n'
-        )
-        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
-        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 4)]
-        assert "prose" in violations[0].message
-
-    def test_SingleLineEntryWithPeriod_FlagsFragmentAtEntry(self) -> None:
-        source = (
-            'def f(foo):\n    """Do the thing\n\n    Args:\n'
-            '        foo: the widget.\n    """\n'
-        )
-        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
-        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 5)]
-
-    def test_MultiSentenceSummaryWithoutTerminal_FlagsProse(self) -> None:
-        source = 'def f():\n    """Parse the lease. Then archive it"""\n'
-        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
-        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 2)]
-
-    def test_ModuleDocstringWithPeriod_FlagsFragmentAtColumnOne(self) -> None:
+    def test_ModuleDocstringWithoutTerminal_FlagsAtColumnOne(self) -> None:
         violations = list(
-            check_docstring_terminal_punctuation(
-                _DOC_PATH, '"""Resolve the lease."""\n'
-            )
+            check_docstring_terminal_punctuation(_DOC_PATH, '"""Resolve the lease"""\n')
         )
         assert [(v.rule, v.line, v.col) for v in violations] == [
             (RS_TERMINAL_PUNCTUATION, 1, 1)
         ]
 
-    def test_MultiLineSummaryWithoutTerminal_FlagsProse(self) -> None:
+    def test_BodyParagraphWithoutTerminal_FlagsAtBody(self) -> None:
+        source = (
+            'def f():\n    """Do it.\n\n    The body has no terminal mark\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 4)]
+
+    def test_MultiLineSummaryWithoutTerminal_FlagsAtLastLine(self) -> None:
         source = (
             'def f():\n    """Resolve the lease for the tenant named in the\n'
             '    request payload\n    """\n'
@@ -1052,22 +1024,39 @@ class TestCheckDocstringTerminalPunctuation:
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 3)]
 
-    def test_MultiEntrySection_FlagsOnlyOffendingEntry(self) -> None:
+    def test_SingleLineEntryWithoutTerminal_FlagsAtEntry(self) -> None:
         source = (
-            'def f(foo, bar):\n    """Do the thing\n\n    Args:\n'
-            "        foo: the first widget.\n"
-            '        bar: the second widget\n    """\n'
+            'def f(foo):\n    """Do the thing.\n\n    Args:\n'
+            '        foo: the widget\n    """\n'
         )
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 5)]
 
-    def test_RaisesSingleLineEntryWithPeriod_FlagsFragment(self) -> None:
+    def test_RaisesEntryWithoutTerminal_FlagsAtEntry(self) -> None:
         source = (
-            'def f():\n    """Do the thing\n\n    Raises:\n'
-            '        ValueError: when the input is bad.\n    """\n'
+            'def f():\n    """Do the thing.\n\n    Raises:\n'
+            '        ValueError: when the input is bad\n    """\n'
         )
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 5)]
+
+    def test_MultiLineEntryWithoutTerminal_FlagsAtLastLine(self) -> None:
+        source = (
+            'def f():\n    """Do the thing.\n\n    Returns:\n'
+            "        A tuple of the parsed bundle and the\n"
+            '        count of records\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 6)]
+
+    def test_MultiEntrySection_FlagsOnlyOffendingEntry(self) -> None:
+        source = (
+            'def f(foo, bar):\n    """Do the thing.\n\n    Args:\n'
+            "        foo: the first widget.\n"
+            '        bar: the second widget\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 6)]
 
 
 class TestCheckCommentTerminalPunctuation:

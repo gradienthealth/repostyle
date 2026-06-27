@@ -1,4 +1,4 @@
-"""Shared repo-style lint rules for gradienthealth Python repos"""
+"""Shared repo-style lint rules for gradienthealth Python repos."""
 
 from pystyle.rules import ALL_RULE_IDS, RULES, Violation
 

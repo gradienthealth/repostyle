@@ -1,4 +1,4 @@
-"""Element-ordering rule: top-down by dependency, then order free choices
+"""Element-ordering rule: top-down by dependency, then order free choices.
 
 Two structural conventions, both derived from the code itself rather
 than from names. A module-level definition appears above the definitions
@@ -32,7 +32,7 @@ _DefNode = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 
 
 def check_class_member_order(path: Path, source: str) -> Iterator[Violation]:
-    """Flag class methods out of band order, or enum members out of order"""
+    """Flag class methods out of band order, or enum members out of order."""
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
         return
@@ -43,7 +43,7 @@ def check_class_member_order(path: Path, source: str) -> Iterator[Violation]:
 
 
 def _enum_member_order(node: ast.ClassDef) -> Iterator[Violation]:
-    """Flag an enum with explicit values whose members are out of order"""
+    """Flag an enum with explicit values whose members are out of order."""
     members = _enum_member_names(node)
     if members is None:
         return
@@ -59,7 +59,7 @@ def _enum_member_order(node: ast.ClassDef) -> Iterator[Violation]:
 
 
 def _enum_member_names(node: ast.ClassDef) -> list[str] | None:
-    """Return an enum's member names if every value is an explicit literal
+    """Return an enum's member names if every value is an explicit literal.
 
     Return None when the class is not an enum or any member takes a
     computed value (`auto()`, an expression), since reordering would
@@ -90,7 +90,7 @@ def _enum_member_names(node: ast.ClassDef) -> list[str] | None:
 
 
 def _method_member_order(node: ast.ClassDef) -> Iterator[Violation]:
-    """Flag class methods out of band, or unsorted within a band
+    """Flag class methods out of band, or unsorted within a band.
 
     A pytest test class is left alone: its methods follow the
     happy-path, edge, error scenario order, not an alphabetical one.
@@ -129,7 +129,7 @@ def _method_member_order(node: ast.ClassDef) -> Iterator[Violation]:
 
 
 def _first_descending(names: list[str]) -> int | None:
-    """Return the index of the first name that sorts before its predecessor"""
+    """Return the index of the first name that sorts before its predecessor."""
     for index in range(1, len(names)):
         if names[index] < names[index - 1]:
             return index
@@ -137,14 +137,14 @@ def _first_descending(names: list[str]) -> int | None:
 
 
 def _method_band(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
-    """Rank a method: dunders first, then public, then private"""
+    """Rank a method: dunders first, then public, then private."""
     if _is_dunder(node.name):
         return 0
     return 2 if node.name.startswith("_") else 1
 
 
 def check_module_element_order(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a top-level definition out of top-down or alphabetical order
+    """Flag a top-level definition out of top-down or alphabetical order.
 
     A definition that sits above a definition using it is reported (a
     callee should follow its callers; mutual-recursion cycles exempt);
@@ -164,7 +164,7 @@ def check_module_element_order(path: Path, source: str) -> Iterator[Violation]:
 def _body_references(
     path: Path, source: str, tree: ast.Module
 ) -> dict[str, frozenset[str]]:
-    """Map each function or class to the module names its body reads
+    """Map each function or class to the module names its body reads.
 
     `symtable` resolves names against their scope, so a deferred body
     call is captured while a local that shadows a module name is not. A
@@ -188,7 +188,7 @@ def _caller_precedes_callee(
     forced: dict[str, frozenset[str]],
     reach: dict[str, set[str]],
 ) -> Iterator[Violation]:
-    """Flag a function or class that a later definition calls from its body
+    """Flag a function or class that a later definition calls from its body.
 
     Only body calls order top-down: a module constant stays at the head
     of the file whatever reads it, and a base class, decorator, or
@@ -217,7 +217,7 @@ def _caller_precedes_callee(
 
 
 def _collect_global_refs(table: symtable.SymbolTable) -> set[str]:
-    """Return the module globals a symbol table and its nested scopes read
+    """Return the module globals a symbol table and its nested scopes read.
 
     `symtable` resolves each name against its scope, so a parameter or
     local that shadows a module name is not reported — only true global
@@ -231,7 +231,7 @@ def _collect_global_refs(table: symtable.SymbolTable) -> set[str]:
 
 
 def _forced_references(tree: ast.Module) -> dict[str, frozenset[str]]:
-    """Map each top-level name to the names it reads at definition time
+    """Map each top-level name to the names it reads at definition time.
 
     A class's bases, a function's decorators and default arguments, and
     a constant's value are all evaluated where the statement is written,
@@ -251,7 +251,7 @@ def _forced_references(tree: ast.Module) -> dict[str, frozenset[str]]:
 
 
 def _definition_time_nodes(stmt: ast.stmt) -> list[ast.AST]:
-    """Return the parts of a statement evaluated when the statement runs"""
+    """Return the parts of a statement evaluated when the statement runs."""
     nodes: list[ast.AST] = []
     if isinstance(stmt, _DefNode):
         nodes.extend(stmt.decorator_list)
@@ -271,7 +271,7 @@ def _definition_time_nodes(stmt: ast.stmt) -> list[ast.AST]:
 def _local_alphabetical(
     tree: ast.Module, reach: dict[str, set[str]]
 ) -> Iterator[Violation]:
-    """Flag adjacent same-kind definitions left unordered yet out of order"""
+    """Flag adjacent same-kind definitions left unordered yet out of order."""
     nodes = _top_level_names(tree.body)
     names = list(nodes)
     for earlier, later in zip(names, names[1:], strict=False):
@@ -292,7 +292,7 @@ def _local_alphabetical(
 
 
 def _alpha_kind(stmt: ast.stmt) -> str | None:
-    """Return the alphabetised kind of a statement, or None to leave it free
+    """Return the alphabetised kind of a statement, or None to leave it free.
 
     Private helper functions and classes are alphabetised where the
     dependency graph allows; public functions, constants, and pytest
@@ -312,12 +312,12 @@ def _is_dunder(name: str) -> bool:
 
 
 def _is_test_class(node: ast.ClassDef) -> bool:
-    """Report whether a class is a pytest test class, collected by name"""
+    """Report whether a class is a pytest test class, collected by name."""
     return TEST_CLASS_PATTERN.match(node.name) is not None
 
 
 def _reachability(deps: dict[str, frozenset[str]]) -> dict[str, set[str]]:
-    """Map each name to every name reachable from it, transitively
+    """Map each name to every name reachable from it, transitively.
 
     A name in a dependency cycle reaches itself, so two names reach each
     other exactly when they share a cycle — the test both the cycle
@@ -336,7 +336,7 @@ def _reachability(deps: dict[str, frozenset[str]]) -> dict[str, set[str]]:
 
 
 def _top_level_names(body: list[ast.stmt]) -> dict[str, ast.stmt]:
-    """Map each top-level binding name to the statement that defines it"""
+    """Map each top-level binding name to the statement that defines it."""
     names: dict[str, ast.stmt] = {}
     for stmt in body:
         if isinstance(stmt, _DefNode):

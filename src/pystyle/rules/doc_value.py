@@ -1,4 +1,4 @@
-"""Documentation-value signal (RS018): warn where a docstring earns its keep
+"""Documentation-value signal (RS018): warn where a docstring earns its keep.
 
 Score a function's documentation value from its cognitive complexity and
 signature, and warn only when a non-trivial public function is
@@ -39,7 +39,7 @@ _RETURNS_SECTION_PATTERN = re.compile(r"^[ \t]*(Returns|Yields):\s*$", re.MULTIL
 
 
 def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
-    """Warn when a non-trivial public function is under-documented
+    """Warn when a non-trivial public function is under-documented.
 
     A public function with no docstring earns a warning when it is
     complex or many-argumented; a documented public function earns one
@@ -97,7 +97,7 @@ def _check_function(
 
 
 def _param_count(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
-    """Count a function's parameters, excluding a leading `self`/`cls`"""
+    """Count a function's parameters, excluding a leading `self`/`cls`."""
     args = node.args
     positional = args.posonlyargs + args.args
     count = len(positional) + len(args.kwonlyargs)
@@ -111,7 +111,7 @@ def _param_count(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
 
 
 def _returns_multi_element_tuple(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Report whether the return annotation is a multi-element `tuple`
+    """Report whether the return annotation is a multi-element `tuple`.
 
     A multi-element `tuple` is an anonymous composite whose parts a
     single summary line cannot enumerate, so it warrants a `Returns:`

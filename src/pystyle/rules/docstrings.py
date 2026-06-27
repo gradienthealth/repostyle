@@ -1,4 +1,4 @@
-"""Docstring and markdown prose rules
+"""Docstring and markdown prose rules.
 
 The placement rules move a summary that documents a unit into the
 docstring slot ruff D401 grades, and reject docstring openings that
@@ -19,7 +19,6 @@ from typing import NamedTuple
 
 from pystyle.rules._shared import (
     _comment_text,
-    _has_sentence_boundary,
     _is_directive_comment,
     _is_prose_comment,
     _parse_python,
@@ -78,7 +77,7 @@ _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 
 
 def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
-    """Docstrings must not use a Google `Attributes:` block"""
+    """Docstrings must not use a Google `Attributes:` block."""
     tree = _parse_python(path, source)
     if tree is None:
         return
@@ -97,7 +96,7 @@ def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
 
 
 def check_no_double_backticks_in_md(path: Path, source: str) -> Iterator[Violation]:
-    """Markdown prose may not use double backticks"""
+    """Markdown prose may not use double backticks."""
     if path.suffix != ".md":
         return
     yield from _check_double_backticks_in_lines(source)
@@ -106,7 +105,7 @@ def check_no_double_backticks_in_md(path: Path, source: str) -> Iterator[Violati
 def check_no_double_backticks_in_docstrings(
     path: Path, source: str
 ) -> Iterator[Violation]:
-    """Python docstring prose may not use double backticks"""
+    """Python docstring prose may not use double backticks."""
     tree = _parse_python(path, source)
     if tree is None:
         return
@@ -124,7 +123,7 @@ def check_no_double_backticks_in_docstrings(
 
 
 def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Violation]:
-    """A leading summary comment should be a docstring
+    """A leading summary comment should be a docstring.
 
     A module, class, or function with no docstring whose first body
     position is a standalone prose comment carries a summary that ruff
@@ -154,7 +153,7 @@ def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Viol
 
 
 def check_field_comment_as_docstring(path: Path, source: str) -> Iterator[Violation]:
-    """A dataclass field comment should be a field docstring
+    """A dataclass field comment should be a field docstring.
 
     A field documented with a trailing prose comment and no following
     string-literal field docstring should carry that text as the
@@ -183,7 +182,7 @@ def check_field_comment_as_docstring(path: Path, source: str) -> Iterator[Violat
 
 
 def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violation]:
-    """A docstring may not open with a filler phrase
+    """A docstring may not open with a filler phrase.
 
     An opening like `This function`, `Helper to`, `Used to`, `Simply`,
     or `Just` restates the identifier or hedges rather than stating the
@@ -211,14 +210,13 @@ def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violatio
 def check_docstring_terminal_punctuation(
     path: Path, source: str
 ) -> Iterator[Violation]:
-    """A docstring's prose must end with the right terminal punctuation
+    """Every docstring prose unit must end with terminal punctuation.
 
-    A single-line summary and a single-line `Args:`, `Returns:`,
-    `Raises:`, or `Yields:` entry read as labels and must not end with a
-    period. A body paragraph, a unit spanning lines, a multi-line entry,
-    and a single-line unit running more than one sentence read as prose
-    and must end with `.`, `!`, or `?`. Code, doctests, `Example:`
-    sections, bullet items, and list-introducing colons are exempt.
+    A summary, a body paragraph, and an `Args:`, `Returns:`, `Raises:`,
+    or `Yields:` entry each close with `.`, `!`, or `?`, as PEP 257
+    prescribes for the summary and the house style extends to the rest.
+    Code (doctests, `Example:` sections, fenced blocks), bullet items, a
+    list-introducing colon, and a unit ending in a URL are exempt.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -228,19 +226,13 @@ def check_docstring_terminal_punctuation(
         if constant is None:
             continue
         for unit in _docstring_prose_units(constant):
-            is_prose = (
-                unit.kind == "body"
-                or unit.is_multiline
-                or _has_sentence_boundary(unit.text)
-            )
-            fault = _terminal_punctuation_fault(unit.text, is_prose=is_prose)
-            if fault is None:
+            if _terminal_punctuation_fault(unit.text, is_prose=True) is None:
                 continue
             yield Violation(
                 unit.lineno,
                 unit.col,
                 RS_TERMINAL_PUNCTUATION,
-                _terminal_punctuation_message(unit.kind, fault),
+                _terminal_punctuation_message(unit.kind),
             )
 
 
@@ -264,7 +256,7 @@ def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
 
 
 def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, str]]:
-    """Split a source's comments into the standalone and trailing maps
+    """Split a source's comments into the standalone and trailing maps.
 
     The first map keys each whole-line comment's line to its column and
     text; the second keys each line whose comment trails code to that
@@ -289,14 +281,14 @@ def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, s
 
 
 def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
-    """Yield every `@dataclass`-decorated class in `tree`"""
+    """Yield every `@dataclass`-decorated class in `tree`."""
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and _has_dataclass_decorator(node):
             yield node
 
 
 def _field_has_docstring(body: list[ast.stmt], index: int) -> bool:
-    """Report whether the statement after a field is a string-literal docstring"""
+    """Report whether the statement after a field is a string-literal docstring."""
     following = body[index + 1] if index + 1 < len(body) else None
     return (
         isinstance(following, ast.Expr)
@@ -320,7 +312,7 @@ def _leading_comment_line(
     comments: dict[int, tuple[int, str]],
     source_lines: list[str],
 ) -> int | None:
-    """Return the line of `node`'s first-body-position standalone comment
+    """Return the line of `node`'s first-body-position standalone comment.
 
     The comment sits directly above the first body statement, with only
     blank lines between, below the definition header. A comment deeper
@@ -341,7 +333,7 @@ def _leading_comment_line(
 def _module_summary_comment(
     tree: ast.Module, comments: dict[int, tuple[int, str]]
 ) -> Iterator[Violation]:
-    """Flag a module whose first prose line is a comment, not a docstring
+    """Flag a module whose first prose line is a comment, not a docstring.
 
     A leading shebang, coding, or tool-directive line is skipped, so the
     summary comment beneath it is still reached; the first non-directive
@@ -370,7 +362,7 @@ def _module_summary_comment(
 def _summary_comment_owners(
     tree: ast.Module,
 ) -> Iterator[ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef]:
-    """Yield every class and function definition in `tree`"""
+    """Yield every class and function definition in `tree`."""
     for node in ast.walk(tree):
         if isinstance(node, ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef):
             yield node
@@ -387,7 +379,7 @@ def _walk_docstring_owners(
 
 
 def _docstring_constant(node: ast.AST) -> ast.Constant | None:
-    """Return `node`'s docstring string-literal node, or `None`"""
+    """Return `node`'s docstring string-literal node, or `None`."""
     body = getattr(node, "body", None)
     if not body:
         return None
@@ -401,16 +393,14 @@ def _docstring_constant(node: ast.AST) -> ast.Constant | None:
     return None
 
 
-def _terminal_punctuation_message(kind: str, fault: str) -> str:
-    """Return the fix message for a terminal-punctuation `fault` on `kind`"""
+def _terminal_punctuation_message(kind: str) -> str:
+    """Return the fix message for a missing terminal mark on `kind`."""
     subject = {
         "summary": "docstring summary",
         "body": "docstring body paragraph",
         "entry": "section entry",
     }[kind]
-    if fault == "missing":
-        return f"{subject} reads as prose; end it with terminal punctuation"
-    return f"{subject} reads as a fragment; drop the trailing period"
+    return f"{subject} should end with terminal punctuation (`.`, `!`, or `?`)"
 
 
 class _DocLine(NamedTuple):
@@ -433,12 +423,10 @@ class _ProseUnit(NamedTuple):
     """1-based column the violation points at."""
     text: str
     """The unit's lines joined into one string."""
-    is_multiline: bool
-    """Whether the unit spans more than one source line."""
 
 
 def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
-    """Split a docstring literal into structure-tagged source lines
+    """Split a docstring literal into structure-tagged source lines.
 
     The first line abuts the opening quote, so it anchors its column at
     the literal and the body margin is taken from the first following
@@ -463,7 +451,7 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
 
 
 def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
-    """Group a docstring's lines into summary, body, and entry units"""
+    """Group a docstring's lines into summary, body, and entry units."""
     segmenter = _DocstringSegmenter()
     for line in _doc_lines(constant):
         segmenter.consume(line)
@@ -472,7 +460,7 @@ def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
 
 
 class _DocstringSegmenter:
-    """Group docstring lines into the prose units the rule grades
+    """Group docstring lines into the prose units the rule grades.
 
     Feed lines in order with `consume`, call `close` after the last,
     then read `units`. The first paragraph is the summary; later margin
@@ -491,7 +479,7 @@ class _DocstringSegmenter:
         self._summary_done = False
 
     def close(self) -> None:
-        """Finish the open unit, appending it to `units` if non-empty"""
+        """Finish the open unit, appending it to `units` if non-empty."""
         if not self._open:
             return
         if self._open_kind == "summary":
@@ -499,14 +487,12 @@ class _DocstringSegmenter:
         last = self._open[-1]
         text = " ".join(line.text for line in self._open)
         self.units.append(
-            _ProseUnit(
-                self._open_kind, last.lineno, last.column + 1, text, len(self._open) > 1
-            )
+            _ProseUnit(self._open_kind, last.lineno, last.column + 1, text)
         )
         self._open = []
 
     def consume(self, line: _DocLine) -> None:
-        """Route `line` to its unit, ending the open unit as needed"""
+        """Route `line` to its unit, ending the open unit as needed."""
         if self._consume_structural(line):
             return
         if self._section == "code":
@@ -520,7 +506,7 @@ class _DocstringSegmenter:
             self._consume_paragraph(line)
 
     def _consume_structural(self, line: _DocLine) -> bool:
-        """Handle a blank, fence, doctest, header, or section-exit line
+        """Handle a blank, fence, doctest, header, or section-exit line.
 
         Return whether `line` was structural and yields no prose unit.
         """
@@ -547,7 +533,7 @@ class _DocstringSegmenter:
         return False
 
     def _enter_section(self, header: str) -> None:
-        """Open the section a header introduces, closing the open unit"""
+        """Open the section a header introduces, closing the open unit."""
         self.close()
         self._summary_done = True
         self._entry_indent = None
@@ -559,7 +545,7 @@ class _DocstringSegmenter:
             self._section = "prose"
 
     def _consume_entry(self, line: _DocLine) -> None:
-        """Start a new entry on a caption line, or extend the open one
+        """Start a new entry on a caption line, or extend the open one.
 
         An entry opens on a `name:`-style caption at the entry margin; a
         line that carries no caption continues the open entry, whether
@@ -581,7 +567,7 @@ class _DocstringSegmenter:
             self._open.append(line)
 
     def _consume_paragraph(self, line: _DocLine) -> None:
-        """Extend the open summary or body paragraph, or start a new one"""
+        """Extend the open summary or body paragraph, or start a new one."""
         if self._open and self._open_kind in ("summary", "body"):
             self._open.append(line)
             return

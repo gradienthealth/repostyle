@@ -1,4 +1,4 @@
-"""Visibility rule: a public name used only in its own module should be private
+"""Visibility rule: a public name used only in its own module should be private.
 
 Unlike every other rule, this one reasons across the whole package: it
 catalogs each module's top-level public `def`/`class` and every module's
@@ -32,7 +32,7 @@ from pystyle.rules._violation import RS_SHOULD_BE_PRIVATE, Violation
 def check_should_be_private(
     files: Sequence[tuple[Path, str]],
 ) -> Iterator[tuple[Path, Violation]]:
-    """Flag a public top-level name used only within its own module
+    """Flag a public top-level name used only within its own module.
 
     A name fires only when it is loaded inside its defining module yet
     referenced by no other first-party module and absent from the
@@ -71,7 +71,7 @@ def check_should_be_private(
 
 
 def _module_facts(path: Path, source: str) -> _ModuleFacts | None:
-    """Distil one module's defs, exports, imports, and references"""
+    """Distil one module's defs, exports, imports, and references."""
     tree = _parse_python(path, source)
     if tree is None:
         return None
@@ -84,7 +84,7 @@ def _module_facts(path: Path, source: str) -> _ModuleFacts | None:
 
 @dataclass
 class _ModuleFacts:
-    """What one module contributes to the package-wide visibility pass"""
+    """What one module contributes to the package-wide visibility pass."""
 
     path: Path
     """The module's source path."""
@@ -105,7 +105,7 @@ class _ModuleFacts:
 
 
 def _collect_definitions(tree: ast.AST, facts: _ModuleFacts) -> None:
-    """Record `tree`'s top-level public defs and its `__all__` exports"""
+    """Record `tree`'s top-level public defs and its `__all__` exports."""
     for node in tree.body:
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
             if not node.name.startswith("_"):
@@ -121,7 +121,7 @@ def _collect_definitions(tree: ast.AST, facts: _ModuleFacts) -> None:
 
 
 def _collect_references(tree: ast.AST, facts: _ModuleFacts) -> None:
-    """Record the imports, name loads, and broad references across `tree`"""
+    """Record the imports, name loads, and broad references across `tree`."""
     for node in ast.walk(tree):
         if isinstance(node, ast.Import | ast.ImportFrom):
             facts.imported |= _bound_import_names(node)
@@ -134,7 +134,7 @@ def _collect_references(tree: ast.AST, facts: _ModuleFacts) -> None:
 
 
 def _bound_import_names(node: ast.Import | ast.ImportFrom) -> set[str]:
-    """Return the names an import statement binds into the module namespace"""
+    """Return the names an import statement binds into the module namespace."""
     names: set[str] = set()
     for alias in node.names:
         if alias.name == "*":
@@ -151,7 +151,7 @@ def _bound_import_names(node: ast.Import | ast.ImportFrom) -> set[str]:
 def _decorator_names(
     node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
 ) -> frozenset[str]:
-    """Return the final attribute name of each decorator on a definition"""
+    """Return the final attribute name of each decorator on a definition."""
     names: set[str] = set()
     for decorator in node.decorator_list:
         target = decorator.func if isinstance(decorator, ast.Call) else decorator
@@ -163,7 +163,7 @@ def _decorator_names(
 
 
 def _exported_names(node: ast.stmt) -> set[str]:
-    """Return the string entries of a module-level `__all__` assignment"""
+    """Return the string entries of a module-level `__all__` assignment."""
     targets = node.targets if isinstance(node, ast.Assign) else []
     if isinstance(node, ast.AnnAssign):
         targets = [node.target]
@@ -180,7 +180,7 @@ def _exported_names(node: ast.stmt) -> set[str]:
 
 
 def _is_public_module(path: Path) -> bool:
-    """Report whether a module re-exports names as a public surface
+    """Report whether a module re-exports names as a public surface.
 
     Every package `__init__.py` is a re-export surface; a repo names any
     other export module through the `public-modules` glob list.
@@ -198,7 +198,7 @@ def _is_public_module(path: Path) -> bool:
 
 
 def _public_decorators(anchor: Path) -> frozenset[str]:
-    """Read the `public-decorators` allowlist from the file's pyproject"""
+    """Read the `public-decorators` allowlist from the file's pyproject."""
     pyproject = find_pyproject(anchor)
     if pyproject is None:
         return frozenset()
@@ -207,12 +207,12 @@ def _public_decorators(anchor: Path) -> frozenset[str]:
 
 @lru_cache(maxsize=128)
 def _public_modules(pyproject: Path) -> tuple[str, ...]:
-    """Read the `public-modules` glob list from a pyproject file"""
+    """Read the `public-modules` glob list from a pyproject file."""
     return _string_list(pyproject, "public-modules")
 
 
 def _public_surface(modules: Sequence[_ModuleFacts], anchor: Path) -> set[str]:
-    """Collect every name the package declares as part of its public API"""
+    """Collect every name the package declares as part of its public API."""
     public: set[str] = set(_entry_point_names(anchor)) | set(_public_names(anchor))
     for module in modules:
         public |= module.exported
@@ -224,7 +224,7 @@ def _public_surface(modules: Sequence[_ModuleFacts], anchor: Path) -> set[str]:
 
 @lru_cache(maxsize=128)
 def _entry_point_names(anchor: Path) -> tuple[str, ...]:
-    """Return the function names declared as `[project.scripts]` entry points"""
+    """Return the function names declared as `[project.scripts]` entry points."""
     pyproject = find_pyproject(anchor)
     if pyproject is None:
         return ()
@@ -237,14 +237,14 @@ def _entry_point_names(anchor: Path) -> tuple[str, ...]:
 
 
 def _public_names(pyproject: Path | None) -> tuple[str, ...]:
-    """Read the `public-names` allowlist from the file's pyproject"""
+    """Read the `public-names` allowlist from the file's pyproject."""
     pyproject = find_pyproject(pyproject) if pyproject is not None else None
     return _string_list(pyproject, "public-names") if pyproject is not None else ()
 
 
 @lru_cache(maxsize=128)
 def _string_list(pyproject: Path, key: str) -> tuple[str, ...]:
-    """Read a `[tool.pystyle]` list-of-strings setting from a pyproject file"""
+    """Read a `[tool.pystyle]` list-of-strings setting from a pyproject file."""
     data = _load_pyproject(pyproject)
     value = data.get("tool", {}).get("pystyle", {}).get(key, [])
     return tuple(str(entry) for entry in value) if isinstance(value, list) else ()

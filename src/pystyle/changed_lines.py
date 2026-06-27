@@ -1,4 +1,4 @@
-"""Map a file to the new-file line numbers a git diff added or modified
+"""Map a file to the new-file line numbers a git diff added or modified.
 
 This backs the CLI's `--diff` mode: a finding is reported only when its
 own line is one the change touched, so adopting a rule does not block a
@@ -17,7 +17,7 @@ _HUNK_HEADER = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 
 
 def changed_lines(path: Path, base: str) -> set[int] | None:
-    """Return the new-file line numbers `path` adds or modifies versus `base`
+    """Return the new-file line numbers `path` adds or modifies versus `base`.
 
     Return `None` when the change set cannot be trusted — git is
     unavailable, `base` is unknown, or `path` is untracked — so the

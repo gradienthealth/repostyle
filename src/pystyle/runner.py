@@ -1,4 +1,4 @@
-"""Resolve the enabled-rule set from config and lint paths with it"""
+"""Resolve the enabled-rule set from config and lint paths with it."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ _SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules"})
 
 
 def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
-    """Discover config from the first path's directory and resolve rules"""
+    """Discover config from the first path's directory and resolve rules."""
     paths = list(paths)
     if not paths:
         return set(ALL_RULE_IDS)
@@ -34,7 +34,7 @@ def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
 
 
 def load_config(pyproject: Path) -> dict | None:
-    """Read the `[tool.pystyle]` table from a pyproject file"""
+    """Read the `[tool.pystyle]` table from a pyproject file."""
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
@@ -43,7 +43,7 @@ def load_config(pyproject: Path) -> dict | None:
 
 
 def resolve_enabled_rules(config: dict | None) -> set[str]:
-    """Resolve enabled rule ids from a `[tool.pystyle]` table
+    """Resolve enabled rule ids from a `[tool.pystyle]` table.
 
     `select` defaults to every rule; `ignore` defaults to none. The
     enabled set is `select` minus `ignore`. A missing or empty table
@@ -86,7 +86,7 @@ def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
 def lint_package(
     paths: Iterable[Path], enabled: set[str]
 ) -> dict[Path, list[Violation]]:
-    """Run the enabled whole-package rules, scoped to the given paths
+    """Run the enabled whole-package rules, scoped to the given paths.
 
     A package rule sees every first-party file under the repo root so
     its cross-module view is whole, but findings are reported only on
@@ -115,7 +115,7 @@ def lint_package(
 
 
 def _package_files(root: Path) -> list[tuple[Path, str]]:
-    """Read every first-party Python file under `root`"""
+    """Read every first-party Python file under `root`."""
     root = root.resolve()
     base = root if root.is_dir() else root.parent
     files: list[tuple[Path, str]] = []
@@ -135,7 +135,7 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:
-    """Reflow RS009 findings in `path` in place, reporting whether it changed
+    """Reflow RS009 findings in `path` in place, reporting whether it changed.
 
     A no-op unless RS009 is enabled and `path` is a Python file. A
     whole-file ignore directive leaves the file untouched, and a

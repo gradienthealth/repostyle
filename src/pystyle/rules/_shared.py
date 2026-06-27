@@ -1,4 +1,4 @@
-"""Helpers shared across rule modules
+"""Helpers shared across rule modules.
 
 A helper used by a single rule lives in that rule's module; one used by
 two or more lives here so the rule modules stay independent of each
@@ -45,7 +45,7 @@ _SENTENCE_ABBREVIATIONS = frozenset(
 def _has_decorator(
     node: ast.FunctionDef | ast.AsyncFunctionDef, names: frozenset[str] | set[str]
 ) -> bool:
-    """Report whether the definition carries a decorator named in `names`
+    """Report whether the definition carries a decorator named in `names`.
 
     Match both the bare (`@override`) and dotted (`@typing.override`)
     forms, comparing only the final attribute name, and see through a
@@ -61,7 +61,7 @@ def _has_decorator(
 
 
 def _is_test_file(path: Path) -> bool:
-    """Report whether a path is a test module by location or filename"""
+    """Report whether a path is a test module by location or filename."""
     posix = _posix(path)
     return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
 
@@ -71,7 +71,7 @@ def _posix(path: Path) -> str:
 
 
 def find_pyproject(start: Path) -> Path | None:
-    """Walk up from `start` to find the nearest `pyproject.toml`"""
+    """Walk up from `start` to find the nearest `pyproject.toml`."""
     start = start.resolve()
     directory = start if start.is_dir() else start.parent
     for candidate in (directory, *directory.parents):
@@ -94,12 +94,12 @@ def _parse_python(path: Path, source: str) -> ast.AST | None:
 
 
 def _comment_text(comment: str) -> str:
-    """Return a comment's prose, stripped of its leading hashes and space"""
+    """Return a comment's prose, stripped of its leading hashes and space."""
     return comment.lstrip("#").strip()
 
 
 def _is_directive_comment(text: str) -> bool:
-    """Report whether a comment's text is a tool directive or coding line"""
+    """Report whether a comment's text is a tool directive or coding line."""
     return bool(
         _DIRECTIVE_COMMENT_PATTERN.match(text)
         or _CODING_DECLARATION_PATTERN.search(text)
@@ -107,7 +107,7 @@ def _is_directive_comment(text: str) -> bool:
 
 
 def _is_code_fragment(text: str) -> bool:
-    """Report whether a comment's text parses as commented-out Python
+    """Report whether a comment's text parses as commented-out Python.
 
     A fragment that parses to anything other than a bare name,
     attribute, comparison, or boolean expression is code: an assignment,
@@ -130,7 +130,7 @@ def _is_code_fragment(text: str) -> bool:
 
 
 def _is_prose_comment(text: str) -> bool:
-    """Report whether a comment's text reads as a documenting sentence
+    """Report whether a comment's text reads as a documenting sentence.
 
     Prose is capitalised and at least three words. A tool directive, a
     shebang, a coding line, and a commented-out statement are all
@@ -145,12 +145,12 @@ def _is_prose_comment(text: str) -> bool:
 
 
 def _strip_trailing_closers(text: str) -> str:
-    """Return `text` without trailing whitespace or sentence-closing marks"""
+    """Return `text` without trailing whitespace or sentence-closing marks."""
     return text.rstrip().rstrip(_TRAILING_CLOSERS)
 
 
 def _has_sentence_boundary(text: str) -> bool:
-    """Report whether `text` runs more than one sentence
+    """Report whether `text` runs more than one sentence.
 
     A terminal mark followed by whitespace and a capital opens a second
     sentence, unless the token ending in the mark is an initialism, a
@@ -168,7 +168,7 @@ def _has_sentence_boundary(text: str) -> bool:
 
 
 def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
-    """Classify a prose unit's terminal punctuation against the house rule
+    """Classify a prose unit's terminal punctuation against the house rule.
 
     A prose unit — one spanning lines, running multiple sentences, or
     standing as a docstring body paragraph — must close with `.`, `!`,
