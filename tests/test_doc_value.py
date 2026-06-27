@@ -168,8 +168,10 @@ class TestCheckArgDescribedInProse:
             v.rule == RS_ARG_DESCRIBED_IN_PROSE and "`Args:`" in v.message
             for v in violations
         )
-        for name in expected:
-            assert any(f"parameter '{name}'" in v.message for v in violations)
+        assert all(
+            any(f"parameter '{name}'" in v.message for v in violations)
+            for name in expected
+        )
 
     @pytest.mark.parametrize(
         "source",
