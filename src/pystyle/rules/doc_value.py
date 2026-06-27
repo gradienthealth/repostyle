@@ -58,6 +58,9 @@ _ARG_ENTRY_PATTERN = re.compile(r"^[ \t]+\*{0,2}(\w+)\s*(?:\([^)]*\))?\s*:")
 _SUBJECT_LEAD_PATTERN = re.compile(
     r"^(?:the|an?|each|takes(?:\s+an?)?)\s+", re.IGNORECASE
 )
+# Body prose splits into clauses on sentence and line breaks, but not
+# commas, so a parameter listed mid-clause is not read as a subject.
+_CLAUSE_SPLIT_PATTERN = re.compile(r"[.;\n]")
 
 
 def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]:
@@ -73,18 +76,7 @@ def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]
     undocumented one, so the rule relocates explanation a writer already
     gave rather than demanding new prose.
     """
-    if _is_test_file(path):
-        return
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            continue
-        if node.name.startswith(("_", "test_")):
-            continue
-        if _has_decorator(node, {"overload"}):
-            continue
+    for node in _public_functions(path, source):
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None:
             continue
@@ -109,6 +101,20 @@ def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
     multi-element `tuple` but no `Returns:` section. Trivial,
     non-public, test, and `@overload` definitions never fire.
     """
+    for node in _public_functions(path, source):
+        yield from _check_function(node)
+
+
+def _public_functions(
+    path: Path, source: str
+) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
+    """Yield each public, non-test function in a parseable source file.
+
+    A definition is in scope when the file is not a test module and the
+    function is neither underscore- nor `test_`-prefixed nor an
+    `@overload` stub — the shared subject both documentation-value rules
+    inspect.
+    """
     if _is_test_file(path):
         return
     tree = _parse_python(path, source)
@@ -121,7 +127,7 @@ def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
             continue
         if _has_decorator(node, {"overload"}):
             continue
-        yield from _check_function(node)
+        yield node
 
 
 def _body_and_documented_args(docstring: str) -> tuple[str, set[str]]:
@@ -161,7 +167,7 @@ def _describes_param_as_subject(body: str, name: str) -> bool:
     listed mid-clause in contract prose is not read as a description.
     """
     token = f"`{name}`"
-    for clause in re.split(r"[.;\n]", body):
+    for clause in _CLAUSE_SPLIT_PATTERN.split(body):
         if _SUBJECT_LEAD_PATTERN.sub("", clause.strip()).startswith(token):
             return True
     return False
