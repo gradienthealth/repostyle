@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 
 from pystyle.changed_lines import changed_lines
-from pystyle.rules import Severity, Violation, severity_of
+from pystyle.explain import discovery_hint, explain_rule
+from pystyle.rules import ALL_RULE_IDS, Severity, Violation, has_guidance, severity_of
 from pystyle.runner import (
     fix_path,
     lint_package,
@@ -17,15 +18,54 @@ from pystyle.runner import (
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Lint the given paths and return the process exit code.
+    """Lint the given paths, or explain a rule, and return the exit code.
 
-    Parse the arguments, resolve the enabled rule set, optionally reflow
-    RS009 findings in place under `--fix`, and print each path's
-    findings. Return 2 when the rule set cannot be resolved, 1 when an
-    error-severity finding remains or a file was reflowed, and 0
-    otherwise.
+    Dispatch to the `explain` subcommand when it leads the arguments;
+    otherwise lint. Linting returns 2 when the rule set cannot be
+    resolved, 1 when an error-severity finding remains or a file was
+    reflowed, and 0 otherwise. `explain` returns 2 for an unknown id and
+    0 otherwise.
     """
-    options = _parse_args(sys.argv[1:] if argv is None else argv)
+    args = sys.argv[1:] if argv is None else argv
+    if args and args[0] == "explain":
+        return _run_explain(args[1:])
+    return _run_lint(args)
+
+
+def _run_explain(argv: list[str]) -> int:
+    """Print the explanation card for each named rule, or every rule.
+
+    Return 2 when any named id is unknown, after printing the cards for
+    the ids that resolve.
+    """
+    parser = argparse.ArgumentParser(prog="pystyle explain")
+    parser.add_argument("rules", nargs="*", metavar="RSnnn")
+    parser.add_argument("--all", action="store_true", help="print every rule's card")
+    options = parser.parse_args(argv)
+    if options.all:
+        rule_ids = sorted(ALL_RULE_IDS)
+    elif options.rules:
+        rule_ids = options.rules
+    else:
+        parser.error("specify a rule id (e.g. RS010) or --all")
+    cards: list[str] = []
+    unknown: list[str] = []
+    for rule_id in rule_ids:
+        card = explain_rule(rule_id)
+        if card is None:
+            unknown.append(rule_id)
+        else:
+            cards.append(card)
+    if cards:
+        print("\n\n".join(cards))
+    for rule_id in unknown:
+        print(f"pystyle: unknown rule id {rule_id}", file=sys.stderr)
+    return 2 if unknown else 0
+
+
+def _run_lint(argv: list[str]) -> int:
+    """Resolve the rule set, optionally reflow, and report each path."""
+    options = _parse_args(argv)
     try:
         enabled = resolve_enabled_rules_for_paths(options.paths)
     except ValueError as error:
@@ -34,14 +74,20 @@ def main(argv: list[str] | None = None) -> int:
     package = lint_package(options.paths, enabled)
     failed = False
     fixed: list[Path] = []
+    fired: set[str] = set()
     for path in options.paths:
         if options.fix and fix_path(path, enabled):
             fixed.append(path)
         extra = package.get(path.resolve(), [])
-        failed = _report_path(path, enabled, options, extra) or failed
+        path_failed, path_rules = _report_path(path, enabled, options, extra)
+        failed = path_failed or failed
+        fired |= path_rules
     if fixed:
         listed = ", ".join(str(path) for path in fixed)
         print(f"pystyle: reflowed {listed}; review and re-stage", file=sys.stderr)
+    if not options.no_explain_hint:
+        for rule_id in sorted(rule for rule in fired if has_guidance(rule)):
+            print(discovery_hint(rule_id), file=sys.stderr)
     return 1 if failed or fixed else 0
 
 
@@ -64,6 +110,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="reflow fixable findings (RS009) in place before reporting",
     )
+    parser.add_argument(
+        "--no-explain-hint",
+        action="store_true",
+        help="suppress the per-rule 'run explain' pointer printed on findings",
+    )
     return parser.parse_args(argv)
 
 
@@ -72,12 +123,12 @@ def _report_path(
     enabled: set[str],
     options: argparse.Namespace,
     extra: list[Violation],
-) -> bool:
-    """Print a path's findings and report whether any is error-severity.
+) -> tuple[bool, set[str]]:
+    """Print a path's findings, returning whether any failed and which rules fired.
 
     `extra` carries whole-package findings already scoped to this path,
     merged with the per-file findings before diff-filtering and
-    printing.
+    printing. The returned rule set drives the per-rule discovery hint.
     """
     violations = sorted(set(lint_path(path, enabled)) | set(extra))
     if options.diff:
@@ -85,11 +136,13 @@ def _report_path(
         if touched is not None:
             violations = [v for v in violations if v.line in touched]
     failed = False
+    fired: set[str] = set()
     for line, col, rule, message in violations:
         severity = severity_of(rule)
         print(f"{path}:{line}:{col}: {severity.value}: {rule} {message}")
         failed = failed or severity is Severity.ERROR
-    return failed
+        fired.add(rule)
+    return failed, fired
 
 
 if __name__ == "__main__":

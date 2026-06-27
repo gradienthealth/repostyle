@@ -8,6 +8,14 @@ regardless of which module the name lives in.
 
 from __future__ import annotations
 
+from pystyle.rules._catalog import (
+    ABBREVIATION_EXPANSIONS,
+    RULE_DOCS,
+    GoodBad,
+    RuleDoc,
+    has_guidance,
+    rule_doc,
+)
 from pystyle.rules._registry import (
     ALL_RULE_IDS,
     PACKAGE_RULES,
@@ -100,9 +108,11 @@ from pystyle.rules.testing import (
 from pystyle.rules.visibility import check_should_be_private
 
 __all__ = [
+    "ABBREVIATION_EXPANSIONS",
     "ALL_RULE_IDS",
     "PACKAGE_RULES",
     "RULES",
+    "RULE_DOCS",
     "RULE_SEVERITY",
     "RS_ACRONYM_CASING",
     "RS_ARG_DESCRIBED_IN_PROSE",
@@ -135,6 +145,8 @@ __all__ = [
     "RS_TERMINAL_PUNCTUATION",
     "RS_TEST_NAMING",
     "RS_TOO_MANY_POSITIONAL_ARGS",
+    "GoodBad",
+    "RuleDoc",
     "Severity",
     "Violation",
     "check_acronym_casing",
@@ -171,7 +183,9 @@ __all__ = [
     "check_summary_comment_as_docstring",
     "check_test_naming",
     "check_too_many_positional_args",
+    "has_guidance",
     "reflow_doc_fill",
+    "rule_doc",
     "run_package_rule",
     "run_rule",
     "severity_of",

@@ -120,6 +120,63 @@ class TestFix:
         assert "under-wrapped" in capsys.readouterr().out
 
 
+class TestExplain:
+    def test_KnownRule_PrintsCardAndReturnsZero(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        exit_code = main(["explain", "RS010"])
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "RS010  banned-abbreviation" in out
+        assert "Reference:" in out
+
+    def test_All_PrintsEveryCard(self, capsys: pytest.CaptureFixture[str]) -> None:
+        exit_code = main(["explain", "--all"])
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "RS001  acronym-casing" in out
+        assert "RS031  arg-described-in-prose" in out
+
+    def test_UnknownRule_ReturnsTwoAndReportsToStderr(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        exit_code = main(["explain", "RS999"])
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert "RS999" in captured.err
+        assert captured.out == ""
+
+    def test_NoRuleId_ExitsWithUsageError(self) -> None:
+        with pytest.raises(SystemExit) as raised:
+            main(["explain"])
+        assert raised.value.code == 2
+
+
+class TestDiscoveryHint:
+    def test_FindingWithGuidance_PrintsTheExplainHintToStderr(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _project(tmp_path, "def f(cfg): ...\n", '["RS010"]')
+        exit_code = main([str(target)])
+        captured = capsys.readouterr()
+        assert exit_code == 1
+        assert "→ run 'pystyle explain RS010'" in captured.err
+
+    def test_NoExplainHintFlag_SuppressesTheHint(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _project(tmp_path, "def f(cfg): ...\n", '["RS010"]')
+        main(["--no-explain-hint", str(target)])
+        assert "explain RS010" not in capsys.readouterr().err
+
+    def test_FindingWithoutGuidance_PrintsNoHint(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        main([str(target)])
+        assert "explain" not in capsys.readouterr().err
+
+
 def _project(tmp_path: Path, source: str, select: str) -> Path:
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.pystyle]\nselect = {select}\n", encoding="utf-8"
