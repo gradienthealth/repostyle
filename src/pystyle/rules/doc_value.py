@@ -6,13 +6,12 @@ function's documentation value and warns when a non-trivial public
 function is under-documented; RS031 warns when per-argument detail is
 narrated in the docstring body instead of a structured `Args:` section.
 
-RS018 has three triggers. The presence trigger fires when a complex or
-many-argumented public function carries no docstring. The `Args:`
-trigger fires when a documented public function has many parameters but
-no structured `Args:` section. The `Returns:` trigger fires when a
-documented function returns a multi-element `tuple` — an anonymous
-composite whose parts a single summary line cannot name; a scalar, a
-named type, or a homogeneous collection is left to the summary line.
+RS018 has two triggers. The presence trigger fires when a complex or
+many-argumented public function carries no docstring. The `Returns:`
+trigger fires when a documented function returns a multi-element `tuple`
+— an anonymous composite whose parts a single summary line cannot name;
+a scalar, a named type, or a homogeneous collection is left to the
+summary line.
 """
 
 from __future__ import annotations
@@ -33,12 +32,10 @@ from pystyle.rules.complexity import _score_block
 # The presence check fires when a function scores at or above the
 # complexity floor (well below RS012's limit of 15, which marks
 # over-complexity, not mere worth-documenting) or has at least the
-# parameter floor. The `Args:` trigger keeps its own parameter floor.
+# parameter floor.
 DOC_VALUE_COMPLEXITY_FLOOR = 5
 DOC_VALUE_PARAM_FLOOR = 4
-DOC_VALUE_ARGS_PARAM_FLOOR = 4
 
-_ARGS_SECTION_PATTERN = re.compile(r"^[ \t]*(Args|Arguments):\s*$", re.MULTILINE)
 _RETURNS_SECTION_PATTERN = re.compile(r"^[ \t]*(Returns|Yields):\s*$", re.MULTILINE)
 
 # A Google-style section header is a known caption alone on its line.
@@ -100,9 +97,9 @@ def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
 
     A public function with no docstring earns a warning when it is
     complex or many-argumented; a documented public function earns one
-    when it has many parameters but no `Args:` section, or returns a
-    multi-element `tuple` but no `Returns:` section. Trivial,
-    non-public, test, and `@overload` definitions never fire.
+    when it returns a multi-element `tuple` but has no `Returns:`
+    section. Trivial, non-public, test, and `@overload` definitions
+    never fire.
     """
     for node in _public_functions(path, source):
         yield from _check_function(node)
@@ -153,15 +150,6 @@ def _check_function(
                 "document it",
             )
         return
-    if params >= DOC_VALUE_ARGS_PARAM_FLOOR and not _ARGS_SECTION_PATTERN.search(
-        docstring
-    ):
-        yield _violation(
-            node,
-            RS_DOC_VALUE_SIGNAL,
-            f"function '{node.name}' has {params} parameters but its docstring "
-            "has no `Args:` section; document them in one rather than in prose",
-        )
     if _returns_multi_element_tuple(node) and not _RETURNS_SECTION_PATTERN.search(
         docstring
     ):

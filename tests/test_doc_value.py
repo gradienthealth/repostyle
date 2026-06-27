@@ -34,33 +34,12 @@ class TestCheckDocValueSignal:
     def test_TrivialFunction_NoViolation(self) -> None:
         assert _check("def add(a, b):\n    return a + b\n") == []
 
-    def test_DocumentedManyParameterFunction_FlagsArgs(self) -> None:
+    def test_DocumentedManyParameterFunction_NoViolation(self) -> None:
         source = (
             "def configure(a, b, c, d) -> None:\n"
             '    """Set up the thing."""\n'
             "    return\n"
         )
-        violations = _check(source)
-        assert len(violations) == 1
-        assert "`Args:`" in violations[0].message
-
-    def test_DocstringWithArgsSection_NoViolation(self) -> None:
-        source = (
-            "def configure(a, b, c, d) -> int:\n"
-            '    """Set up the thing.\n'
-            "\n"
-            "    Args:\n"
-            "        a: first.\n"
-            "        b: second.\n"
-            "        c: third.\n"
-            "        d: fourth.\n"
-            '    """\n'
-            "    return a\n"
-        )
-        assert _check(source) == []
-
-    def test_DocumentedFewParameterFunction_NoArgsViolation(self) -> None:
-        source = 'def fetch(a, b) -> int:\n    """Get the count."""\n    return a + b\n'
         assert _check(source) == []
 
     def test_DocumentedScalarReturn_NoReturnsViolation(self) -> None:
