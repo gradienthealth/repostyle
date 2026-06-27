@@ -98,6 +98,27 @@ class TestCheckModuleElementOrder:
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "class _Result:\n    pass\n\n\n"
+            "def build() -> _Result:\n    return _Result()\n",
+            "class _Arg:\n    pass\n\n\ndef consume(value: _Arg) -> None:\n    pass\n",
+            "from typing import Protocol\n\n\n"
+            "class _Started(Protocol):\n    def tick(self) -> float: ...\n\n\n"
+            "class Clock(Protocol):\n    def __call__(self) -> _Started: ...\n",
+        ],
+        ids=["return_annotation", "param_annotation", "protocol_method_return"],
+    )
+    def test_SignatureAnnotationReferencesClassAbove_NoViolation(
+        self, tmp_path: Path, source: str
+    ) -> None:
+        # A parameter or return annotation is evaluated when the `def`
+        # runs, so the annotated class must precede it; the top-down
+        # order leaves it above and does not flag it.
+        target = _target(tmp_path, source)
+        assert list(check_module_element_order(target, source)) == []
+
     def test_MethodBodyUsesHelperBelow_FlagsViolation(self, tmp_path: Path) -> None:
         # A method body defers to call time, so a helper it reads is a
         # top-down dependency: with the callee above its caller, the

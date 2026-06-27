@@ -268,6 +268,24 @@ def _definition_time_nodes(stmt: ast.stmt) -> list[ast.AST]:
     if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
         defaults = (*stmt.args.defaults, *stmt.args.kw_defaults)
         nodes.extend(default for default in defaults if default is not None)
+        # Parameter and return annotations are evaluated when the `def`
+        # runs, so a class named in a signature must precede the
+        # function, exactly like a default argument.
+        if stmt.returns is not None:
+            nodes.append(stmt.returns)
+        args = stmt.args
+        every_arg = (
+            *args.posonlyargs,
+            *args.args,
+            *args.kwonlyargs,
+            args.vararg,
+            args.kwarg,
+        )
+        nodes.extend(
+            arg.annotation
+            for arg in every_arg
+            if arg is not None and arg.annotation is not None
+        )
     if isinstance(stmt, ast.AnnAssign):
         nodes.append(stmt.annotation)
         if stmt.value is not None:
