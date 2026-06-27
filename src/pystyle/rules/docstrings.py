@@ -287,6 +287,194 @@ def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
             yield node
 
 
+def _docstring_constant(node: ast.AST) -> ast.Constant | None:
+    """Return `node`'s docstring string-literal node, or `None`."""
+    body = getattr(node, "body", None)
+    if not body:
+        return None
+    first = body[0]
+    if (
+        isinstance(first, ast.Expr)
+        and isinstance(first.value, ast.Constant)
+        and isinstance(first.value.value, str)
+    ):
+        return first.value
+    return None
+
+
+def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
+    """Group a docstring's lines into summary, body, and entry units."""
+    segmenter = _DocstringSegmenter()
+    for line in _doc_lines(constant):
+        segmenter.consume(line)
+    segmenter.close()
+    return segmenter.units
+
+
+def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
+    """Split a docstring literal into structure-tagged source lines.
+
+    The first line abuts the opening quote, so it anchors its column at
+    the literal and the body margin is taken from the first following
+    non-blank line, with every later line's indent measured relative to
+    it. The source line is clamped to the literal's physical span, so a
+    docstring carrying escaped newlines or built by implicit
+    concatenation still points within itself rather than past it.
+    """
+    lines = constant.value.splitlines()
+    last = constant.end_lineno or constant.lineno
+    margin = next(
+        (len(line) - len(line.lstrip()) for line in lines[1:] if line.strip()),
+        0,
+    )
+    result: list[_DocLine] = []
+    for index, line in enumerate(lines):
+        lineno = min(constant.lineno + index, last)
+        column = constant.col_offset if index == 0 else len(line) - len(line.lstrip())
+        relative = 0 if index == 0 else max(0, column - margin)
+        result.append(_DocLine(lineno, column, relative, line.strip()))
+    return result
+
+
+class _DocLine(NamedTuple):
+    lineno: int
+    """1-based source line of this docstring line."""
+    column: int
+    """0-based leading-whitespace width, the violation's column anchor."""
+    relative_indent: int
+    """Indent relative to the docstring's body margin, for structure."""
+    text: str
+    """The line stripped of leading and trailing whitespace."""
+
+
+class _DocstringSegmenter:
+    """Group docstring lines into the prose units the rule grades.
+
+    Feed lines in order with `consume`, call `close` after the last,
+    then read `units`. The first paragraph is the summary; later margin
+    paragraphs are body; a `Note:` section's body is treated as body; an
+    `Args:`-style section yields one entry per item; and code, doctests,
+    `Example:` sections, bullets, and verbatim lines yield nothing.
+    """
+
+    def __init__(self) -> None:
+        self.units: list[_ProseUnit] = []
+        self._open: list[_DocLine] = []
+        self._open_kind = "summary"
+        self._in_fence = False
+        self._section: str | None = None
+        self._entry_indent: int | None = None
+        self._summary_done = False
+
+    def close(self) -> None:
+        """Finish the open unit, appending it to `units` if non-empty."""
+        if not self._open:
+            return
+        if self._open_kind == "summary":
+            self._summary_done = True
+        last = self._open[-1]
+        text = " ".join(line.text for line in self._open)
+        self.units.append(
+            _ProseUnit(self._open_kind, last.lineno, last.column + 1, text)
+        )
+        self._open = []
+
+    def consume(self, line: _DocLine) -> None:
+        """Route `line` to its unit, ending the open unit as needed."""
+        if self._consume_structural(line):
+            return
+        if self._section == "code":
+            return
+        if _BULLET_PATTERN.match(line.text):
+            self.close()
+            return
+        if self._section == "entry":
+            self._consume_entry(line)
+        else:
+            self._consume_paragraph(line)
+
+    def _consume_entry(self, line: _DocLine) -> None:
+        """Start a new entry on a caption line, or extend the open one.
+
+        An entry opens on a `name:`-style caption at the entry margin; a
+        line that carries no caption continues the open entry, whether
+        it wraps at a deeper indent or at the entry margin, so a
+        `Returns:` description wrapped at one indent stays a single
+        multi-line entry.
+        """
+        if self._entry_indent is None:
+            self._entry_indent = line.relative_indent
+        starts_entry = (
+            line.relative_indent <= self._entry_indent
+            and _SECTION_ENTRY_PATTERN.match(line.text) is not None
+        )
+        if not self._open or starts_entry:
+            self.close()
+            self._open = [line]
+            self._open_kind = "entry"
+        else:
+            self._open.append(line)
+
+    def _consume_paragraph(self, line: _DocLine) -> None:
+        """Extend the open summary or body paragraph, or start a new one."""
+        if self._open and self._open_kind in ("summary", "body"):
+            self._open.append(line)
+            return
+        self.close()
+        self._open = [line]
+        self._open_kind = "summary" if not self._summary_done else "body"
+
+    def _consume_structural(self, line: _DocLine) -> bool:
+        """Handle a blank, fence, doctest, header, or section-exit line.
+
+        Return whether `line` was structural and yields no prose unit.
+        """
+        text = line.text
+        if not text:
+            self.close()
+            return True
+        if text.startswith("```"):
+            self.close()
+            self._in_fence = not self._in_fence
+            return True
+        if self._in_fence:
+            return True
+        if text.startswith((">>>", "... ")) or _VERBATIM_LINE_PATTERN.match(text):
+            self.close()
+            return True
+        if line.relative_indent == 0 and text in _SECTION_HEADERS:
+            self._enter_section(text)
+            return True
+        if self._section is not None and line.relative_indent == 0:
+            self.close()
+            self._section = None
+            self._entry_indent = None
+        return False
+
+    def _enter_section(self, header: str) -> None:
+        """Open the section a header introduces, closing the open unit."""
+        self.close()
+        self._summary_done = True
+        self._entry_indent = None
+        if header in _ENTRY_SECTION_HEADERS:
+            self._section = "entry"
+        elif header in _CODE_SECTION_HEADERS:
+            self._section = "code"
+        else:
+            self._section = "prose"
+
+
+class _ProseUnit(NamedTuple):
+    kind: str
+    """`summary`, `body`, or `entry`."""
+    lineno: int
+    """Source line the unit's terminal punctuation sits on."""
+    col: int
+    """1-based column the violation points at."""
+    text: str
+    """The unit's lines joined into one string."""
+
+
 def _field_has_docstring(body: list[ast.stmt], index: int) -> bool:
     """Report whether the statement after a field is a string-literal docstring."""
     following = body[index + 1] if index + 1 < len(body) else None
@@ -368,31 +556,6 @@ def _summary_comment_owners(
             yield node
 
 
-def _walk_docstring_owners(
-    tree: ast.AST,
-) -> Iterator[ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module]:
-    for node in ast.walk(tree):
-        if isinstance(
-            node, ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module
-        ):
-            yield node
-
-
-def _docstring_constant(node: ast.AST) -> ast.Constant | None:
-    """Return `node`'s docstring string-literal node, or `None`."""
-    body = getattr(node, "body", None)
-    if not body:
-        return None
-    first = body[0]
-    if (
-        isinstance(first, ast.Expr)
-        and isinstance(first.value, ast.Constant)
-        and isinstance(first.value.value, str)
-    ):
-        return first.value
-    return None
-
-
 def _terminal_punctuation_message(kind: str) -> str:
     """Return the fix message for a missing terminal mark on `kind`."""
     subject = {
@@ -403,174 +566,11 @@ def _terminal_punctuation_message(kind: str) -> str:
     return f"{subject} should end with terminal punctuation (`.`, `!`, or `?`)"
 
 
-class _DocLine(NamedTuple):
-    lineno: int
-    """1-based source line of this docstring line."""
-    column: int
-    """0-based leading-whitespace width, the violation's column anchor."""
-    relative_indent: int
-    """Indent relative to the docstring's body margin, for structure."""
-    text: str
-    """The line stripped of leading and trailing whitespace."""
-
-
-class _ProseUnit(NamedTuple):
-    kind: str
-    """`summary`, `body`, or `entry`."""
-    lineno: int
-    """Source line the unit's terminal punctuation sits on."""
-    col: int
-    """1-based column the violation points at."""
-    text: str
-    """The unit's lines joined into one string."""
-
-
-def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
-    """Split a docstring literal into structure-tagged source lines.
-
-    The first line abuts the opening quote, so it anchors its column at
-    the literal and the body margin is taken from the first following
-    non-blank line, with every later line's indent measured relative to
-    it. The source line is clamped to the literal's physical span, so a
-    docstring carrying escaped newlines or built by implicit
-    concatenation still points within itself rather than past it.
-    """
-    lines = constant.value.splitlines()
-    last = constant.end_lineno or constant.lineno
-    margin = next(
-        (len(line) - len(line.lstrip()) for line in lines[1:] if line.strip()),
-        0,
-    )
-    result: list[_DocLine] = []
-    for index, line in enumerate(lines):
-        lineno = min(constant.lineno + index, last)
-        column = constant.col_offset if index == 0 else len(line) - len(line.lstrip())
-        relative = 0 if index == 0 else max(0, column - margin)
-        result.append(_DocLine(lineno, column, relative, line.strip()))
-    return result
-
-
-def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
-    """Group a docstring's lines into summary, body, and entry units."""
-    segmenter = _DocstringSegmenter()
-    for line in _doc_lines(constant):
-        segmenter.consume(line)
-    segmenter.close()
-    return segmenter.units
-
-
-class _DocstringSegmenter:
-    """Group docstring lines into the prose units the rule grades.
-
-    Feed lines in order with `consume`, call `close` after the last,
-    then read `units`. The first paragraph is the summary; later margin
-    paragraphs are body; a `Note:` section's body is treated as body; an
-    `Args:`-style section yields one entry per item; and code, doctests,
-    `Example:` sections, bullets, and verbatim lines yield nothing.
-    """
-
-    def __init__(self) -> None:
-        self.units: list[_ProseUnit] = []
-        self._open: list[_DocLine] = []
-        self._open_kind = "summary"
-        self._in_fence = False
-        self._section: str | None = None
-        self._entry_indent: int | None = None
-        self._summary_done = False
-
-    def close(self) -> None:
-        """Finish the open unit, appending it to `units` if non-empty."""
-        if not self._open:
-            return
-        if self._open_kind == "summary":
-            self._summary_done = True
-        last = self._open[-1]
-        text = " ".join(line.text for line in self._open)
-        self.units.append(
-            _ProseUnit(self._open_kind, last.lineno, last.column + 1, text)
-        )
-        self._open = []
-
-    def consume(self, line: _DocLine) -> None:
-        """Route `line` to its unit, ending the open unit as needed."""
-        if self._consume_structural(line):
-            return
-        if self._section == "code":
-            return
-        if _BULLET_PATTERN.match(line.text):
-            self.close()
-            return
-        if self._section == "entry":
-            self._consume_entry(line)
-        else:
-            self._consume_paragraph(line)
-
-    def _consume_structural(self, line: _DocLine) -> bool:
-        """Handle a blank, fence, doctest, header, or section-exit line.
-
-        Return whether `line` was structural and yields no prose unit.
-        """
-        text = line.text
-        if not text:
-            self.close()
-            return True
-        if text.startswith("```"):
-            self.close()
-            self._in_fence = not self._in_fence
-            return True
-        if self._in_fence:
-            return True
-        if text.startswith((">>>", "... ")) or _VERBATIM_LINE_PATTERN.match(text):
-            self.close()
-            return True
-        if line.relative_indent == 0 and text in _SECTION_HEADERS:
-            self._enter_section(text)
-            return True
-        if self._section is not None and line.relative_indent == 0:
-            self.close()
-            self._section = None
-            self._entry_indent = None
-        return False
-
-    def _enter_section(self, header: str) -> None:
-        """Open the section a header introduces, closing the open unit."""
-        self.close()
-        self._summary_done = True
-        self._entry_indent = None
-        if header in _ENTRY_SECTION_HEADERS:
-            self._section = "entry"
-        elif header in _CODE_SECTION_HEADERS:
-            self._section = "code"
-        else:
-            self._section = "prose"
-
-    def _consume_entry(self, line: _DocLine) -> None:
-        """Start a new entry on a caption line, or extend the open one.
-
-        An entry opens on a `name:`-style caption at the entry margin; a
-        line that carries no caption continues the open entry, whether
-        it wraps at a deeper indent or at the entry margin, so a
-        `Returns:` description wrapped at one indent stays a single
-        multi-line entry.
-        """
-        if self._entry_indent is None:
-            self._entry_indent = line.relative_indent
-        starts_entry = (
-            line.relative_indent <= self._entry_indent
-            and _SECTION_ENTRY_PATTERN.match(line.text) is not None
-        )
-        if not self._open or starts_entry:
-            self.close()
-            self._open = [line]
-            self._open_kind = "entry"
-        else:
-            self._open.append(line)
-
-    def _consume_paragraph(self, line: _DocLine) -> None:
-        """Extend the open summary or body paragraph, or start a new one."""
-        if self._open and self._open_kind in ("summary", "body"):
-            self._open.append(line)
-            return
-        self.close()
-        self._open = [line]
-        self._open_kind = "summary" if not self._summary_done else "body"
+def _walk_docstring_owners(
+    tree: ast.AST,
+) -> Iterator[ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module]:
+    for node in ast.walk(tree):
+        if isinstance(
+            node, ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module
+        ):
+            yield node

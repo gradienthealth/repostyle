@@ -101,6 +101,44 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
         )
 
 
+def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern[str]:
+    """Build the regex a canonical `TAG(TICKET): message` comment matches."""
+    tag_group = "|".join(re.escape(tag) for tag in tags)
+    return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
+
+
+def _own_line_comments(source: str) -> Iterator[tuple[int, int, str]]:
+    """Yield `(line, column, string)` for each comment that owns its line."""
+    for lineno, column, string, is_trailing in _comment_tokens(source):
+        if not is_trailing:
+            yield lineno, column, string
+
+
+def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
+    """Return the allowed tags and ticket pattern for `path`'s repo."""
+    pyproject = find_pyproject(path)
+    if pyproject is None:
+        return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
+    return _comment_tag_config(pyproject)
+
+
+@lru_cache(maxsize=128)
+def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
+    """Read the allowed tags and ticket pattern from a pyproject file.
+
+    Return the configured allowed tag tuple and ticket-pattern regex,
+    each falling back to its default when the table omits it.
+    """
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
+    table = data.get("tool", {}).get("pystyle", {})
+    tags = tuple(table.get("comment-tags", DEFAULT_TAGS))
+    pattern = table.get("comment-ticket-pattern", DEFAULT_TICKET_PATTERN)
+    return tags, pattern
+
+
 def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Violation]:
     """A prose comment's terminal punctuation must match its shape.
 
@@ -114,32 +152,6 @@ def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Viol
         return
     yield from _trailing_comment_faults(source)
     yield from _standalone_comment_block_faults(source)
-
-
-def _comment_terminal_message(fault: str) -> str:
-    """Return the fix message for a comment terminal-punctuation `fault`."""
-    if fault == "missing":
-        return "comment reads as prose; end it with terminal punctuation"
-    return "comment reads as a fragment; drop the trailing period"
-
-
-def _trailing_comment_faults(source: str) -> Iterator[Violation]:
-    """Flag a prose comment trailing code whose punctuation is wrong."""
-    for lineno, column, string, is_trailing in _comment_tokens(source):
-        if not is_trailing:
-            continue
-        text = _comment_text(string)
-        if not _is_prose_comment(text):
-            continue
-        fault = _terminal_punctuation_fault(text, is_prose=_has_sentence_boundary(text))
-        if fault is None:
-            continue
-        yield Violation(
-            lineno,
-            column + 1,
-            RS_TERMINAL_PUNCTUATION,
-            _comment_terminal_message(fault),
-        )
 
 
 def _standalone_comment_block_faults(source: str) -> Iterator[Violation]:
@@ -187,6 +199,32 @@ def _standalone_comment_blocks(
         yield block
 
 
+def _trailing_comment_faults(source: str) -> Iterator[Violation]:
+    """Flag a prose comment trailing code whose punctuation is wrong."""
+    for lineno, column, string, is_trailing in _comment_tokens(source):
+        if not is_trailing:
+            continue
+        text = _comment_text(string)
+        if not _is_prose_comment(text):
+            continue
+        fault = _terminal_punctuation_fault(text, is_prose=_has_sentence_boundary(text))
+        if fault is None:
+            continue
+        yield Violation(
+            lineno,
+            column + 1,
+            RS_TERMINAL_PUNCTUATION,
+            _comment_terminal_message(fault),
+        )
+
+
+def _comment_terminal_message(fault: str) -> str:
+    """Return the fix message for a comment terminal-punctuation `fault`."""
+    if fault == "missing":
+        return "comment reads as prose; end it with terminal punctuation"
+    return "comment reads as a fragment; drop the trailing period"
+
+
 def _comment_tokens(source: str) -> Iterator[tuple[int, int, str, bool]]:
     """Yield each comment as `(line, column, string, trails-code)`."""
     source_lines = source.splitlines()
@@ -200,41 +238,3 @@ def _comment_tokens(source: str) -> Iterator[tuple[int, int, str, bool]]:
         lineno, column = token.start
         is_trailing = bool(source_lines[lineno - 1][:column].strip())
         yield lineno, column, token.string, is_trailing
-
-
-def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern[str]:
-    """Build the regex a canonical `TAG(TICKET): message` comment matches."""
-    tag_group = "|".join(re.escape(tag) for tag in tags)
-    return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
-
-
-def _own_line_comments(source: str) -> Iterator[tuple[int, int, str]]:
-    """Yield `(line, column, string)` for each comment that owns its line."""
-    for lineno, column, string, is_trailing in _comment_tokens(source):
-        if not is_trailing:
-            yield lineno, column, string
-
-
-def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
-    """Return the allowed tags and ticket pattern for `path`'s repo."""
-    pyproject = find_pyproject(path)
-    if pyproject is None:
-        return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
-    return _comment_tag_config(pyproject)
-
-
-@lru_cache(maxsize=128)
-def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
-    """Read the allowed tags and ticket pattern from a pyproject file.
-
-    Return the configured allowed tag tuple and ticket-pattern regex,
-    each falling back to its default when the table omits it.
-    """
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
-    table = data.get("tool", {}).get("pystyle", {})
-    tags = tuple(table.get("comment-tags", DEFAULT_TAGS))
-    pattern = table.get("comment-ticket-pattern", DEFAULT_TICKET_PATTERN)
-    return tags, pattern
