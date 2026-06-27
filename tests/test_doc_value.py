@@ -123,50 +123,53 @@ class TestCheckDocValueSignal:
 
 
 class TestCheckArgDescribedInProse:
-    def test_BacktickedParamInBody_FlagsParam(self) -> None:
-        source = (
-            "def fetch(handle):\n"
-            '    """Open a connection.\n'
-            "\n"
-            "    The `handle` selects which pool to draw from.\n"
-            '    """\n'
-            "    return handle\n"
-        )
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            (
+                "def fetch(handle):\n"
+                '    """Open a connection.\n'
+                "\n"
+                "    The `handle` selects which pool to draw from.\n"
+                '    """\n'
+                "    return handle\n",
+                {"handle"},
+            ),
+            (
+                "def fetch(handle, pool):\n"
+                '    """Open a connection.\n'
+                "\n"
+                "    The `pool` is chosen lazily.\n"
+                "\n"
+                "    Args:\n"
+                "        handle: the connection handle.\n"
+                '    """\n'
+                "    return handle\n",
+                {"pool"},
+            ),
+            (
+                "def merge(left, right):\n"
+                '    """Combine two sequences.\n'
+                "\n"
+                "    The `left` wins ties; the `right` fills gaps.\n"
+                '    """\n'
+                "    return left\n",
+                {"left", "right"},
+            ),
+        ],
+        ids=["single", "args-section-omits-it", "several"],
+    )
+    def test_ParamDescribedInBodyProse_FlagsEach(
+        self, source: str, expected: set[str]
+    ) -> None:
         violations = _check_arg(source)
-        assert len(violations) == 1
-        assert violations[0].rule == RS_ARG_DESCRIBED_IN_PROSE
-        assert "'handle'" in violations[0].message
-        assert "`Args:`" in violations[0].message
-
-    def test_ParamProseWithArgsSectionOmittingIt_FlagsParam(self) -> None:
-        source = (
-            "def fetch(handle, pool):\n"
-            '    """Open a connection.\n'
-            "\n"
-            "    The `pool` is chosen lazily.\n"
-            "\n"
-            "    Args:\n"
-            "        handle: the connection handle.\n"
-            '    """\n'
-            "    return handle\n"
+        assert len(violations) == len(expected)
+        assert all(
+            v.rule == RS_ARG_DESCRIBED_IN_PROSE and "`Args:`" in v.message
+            for v in violations
         )
-        violations = _check_arg(source)
-        assert len(violations) == 1
-        assert "'pool'" in violations[0].message
-
-    def test_SeveralBacktickedParamsInBody_FlagsEach(self) -> None:
-        source = (
-            "def merge(left, right):\n"
-            '    """Combine two sequences.\n'
-            "\n"
-            "    The `left` wins ties; the `right` fills gaps.\n"
-            '    """\n'
-            "    return left\n"
-        )
-        assert {v.message.split("'")[1] for v in _check_arg(source)} == {
-            "left",
-            "right",
-        }
+        for name in expected:
+            assert any(f"parameter '{name}'" in v.message for v in violations)
 
     @pytest.mark.parametrize(
         "source",
