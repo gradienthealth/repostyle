@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/gradienthealth/pystyle/compare/pystyle-v0.4.0...pystyle-v0.5.0) (2026-06-27)
+
+
+### Features
+
+* **PROC-2281:** add RS031 and drop RS018's parameter-count Args trigger ([#46](https://github.com/gradienthealth/pystyle/issues/46)) ([987dbba](https://github.com/gradienthealth/pystyle/commit/987dbbab39ff3c0537b3598f1e9c0238dda9fbb0))
+* **PROC-2323:** add the RS029 should-be-private visibility rule ([#40](https://github.com/gradienthealth/pystyle/issues/40)) ([49bc7a3](https://github.com/gradienthealth/pystyle/commit/49bc7a3470675e07c967957a2aac206b5850bf69))
+* **PROC-2325:** add agent-facing rule explanations via an explain subcommand ([#48](https://github.com/gradienthealth/pystyle/issues/48)) ([46217c3](https://github.com/gradienthealth/pystyle/commit/46217c3cbee99982ecf78f974777fcb3e19b306e))
+* **PROC-2371:** add the RS030 terminal-punctuation rule for docstrings and comments ([#47](https://github.com/gradienthealth/pystyle/issues/47)) ([9270532](https://github.com/gradienthealth/pystyle/commit/927053203d0d9285021cc43bad5e91c0208e8f71))
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** exempt a literal sleep(0) from RS014's flaky-sleep check ([#45](https://github.com/gradienthealth/pystyle/issues/45)) ([e539aea](https://github.com/gradienthealth/pystyle/commit/e539aea5bc2d5c42951fdf24effd5d725a9d6442))
+* **PROC-2356:** leave a backtick span wrapped across source lines untouched ([#38](https://github.com/gradienthealth/pystyle/issues/38)) ([7447019](https://github.com/gradienthealth/pystyle/commit/7447019679c6a6046af21772383bcf7954054876))
+* **PROC-2375:** count a class body as definition-time for RS019 ordering ([#49](https://github.com/gradienthealth/pystyle/issues/49)) ([f701561](https://github.com/gradienthealth/pystyle/commit/f7015617cc50f029b07b5e594daff76a45540c23))
+
 ## [0.4.0](https://github.com/gradienthealth/pystyle/compare/pystyle-v0.3.0...pystyle-v0.4.0) (2026-06-26)
 
 
