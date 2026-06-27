@@ -18,6 +18,7 @@ from pystyle.rules._catalog import (
 )
 from pystyle.rules._registry import (
     ALL_RULE_IDS,
+    FIXABLE_RULES,
     PACKAGE_RULES,
     RULE_SEVERITY,
     RULES,
@@ -111,6 +112,7 @@ __all__ = [
     "ABBREVIATION_EXPANSIONS",
     "ALL_RULE_IDS",
     "DOC_FILL_COLUMNS",
+    "FIXABLE_RULES",
     "PACKAGE_RULES",
     "RULES",
     "RULE_DOCS",

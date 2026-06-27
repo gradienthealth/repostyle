@@ -70,8 +70,6 @@ class RuleDoc(NamedTuple):
     """One line stating what the rule requires."""
     rationale: str = ""
     """Why the rule holds, so a fix generalizes rather than papers over."""
-    is_fixable: bool = False
-    """Whether `pystyle --fix` rewrites the finding in place."""
     examples: tuple[GoodBad, ...] = ()
     """Before/after pairs, one per distinct cause the rule has."""
     signals: tuple[str, ...] = ()
@@ -156,7 +154,6 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "reads as ragged and churns diffs when reflowed by hand. Fill each "
             "prose paragraph to 72 columns. This rule rewrites in place."
         ),
-        is_fixable=True,
     ),
     RS_BANNED_ABBREVIATION: RuleDoc(
         name="banned-abbreviation",

@@ -12,9 +12,9 @@ import textwrap
 
 from pystyle.rules import (
     DOC_FILL_COLUMNS,
+    FIXABLE_RULES,
     GoodBad,
     RuleDoc,
-    has_guidance,
     rule_doc,
     severity_of,
 )
@@ -49,7 +49,7 @@ def _render_card(rule_id: str, doc: RuleDoc) -> str:
         blocks.append("Examples:\n" + _examples(doc.examples))
     if doc.reference:
         blocks.append("Reference:\n" + _bullets(doc.reference))
-    blocks.append(_fixable_line(doc))
+    blocks.append(_fixable_line(rule_id))
     return "\n\n".join(blocks)
 
 
@@ -94,9 +94,9 @@ def _code(snippet: str) -> str:
     return "\n".join(f"{_CODE_INDENT}{line}" for line in snippet.splitlines())
 
 
-def _fixable_line(doc: RuleDoc) -> str:
+def _fixable_line(rule_id: str) -> str:
     """State whether the rule is autofixable, and how."""
-    if doc.is_fixable:
+    if rule_id in FIXABLE_RULES:
         return "Fixable: yes — rerun with `pystyle --fix`."
     return "Fixable: no."
 
@@ -108,4 +108,4 @@ def _wrap(text: str) -> str:
     )
 
 
-__all__ = ["discovery_hint", "explain_rule", "has_guidance"]
+__all__ = ["discovery_hint", "explain_rule"]

@@ -160,6 +160,12 @@ RULE_SEVERITY: dict[str, Severity] = {
 }
 
 
+# The rules `pystyle --fix` rewrites in place. The single source both
+# the runner's fix path and the `explain` card's fixable line consult,
+# so a card never promises a fix the runner does not perform.
+FIXABLE_RULES: frozenset[str] = frozenset({RS_DOC_FILL})
+
+
 def severity_of(rule_id: str) -> Severity:
     """Return a rule's severity, defaulting to `ERROR`."""
     return RULE_SEVERITY.get(rule_id, Severity.ERROR)
