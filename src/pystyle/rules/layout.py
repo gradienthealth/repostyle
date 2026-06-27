@@ -258,12 +258,39 @@ def _definition_time_nodes(stmt: ast.stmt) -> list[ast.AST]:
     if isinstance(stmt, ast.ClassDef):
         nodes.extend(stmt.bases)
         nodes.extend(keyword.value for keyword in stmt.keywords)
+        # A class body runs when the class statement does, so its field
+        # annotations and attribute defaults are evaluated at definition
+        # time and their names must precede the class, exactly like a
+        # base or decorator. Only the bodies of nested defs defer, and
+        # recursing leaves those out.
+        for child in stmt.body:
+            nodes.extend(_definition_time_nodes(child))
     if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
         defaults = (*stmt.args.defaults, *stmt.args.kw_defaults)
         nodes.extend(default for default in defaults if default is not None)
-    if isinstance(stmt, ast.Assign):
-        nodes.append(stmt.value)
-    if isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+        # Parameter and return annotations are evaluated when the `def`
+        # runs, so a class named in a signature must precede the
+        # function, exactly like a default argument.
+        if stmt.returns is not None:
+            nodes.append(stmt.returns)
+        args = stmt.args
+        every_arg = (
+            *args.posonlyargs,
+            *args.args,
+            *args.kwonlyargs,
+            args.vararg,
+            args.kwarg,
+        )
+        nodes.extend(
+            arg.annotation
+            for arg in every_arg
+            if arg is not None and arg.annotation is not None
+        )
+    if isinstance(stmt, ast.AnnAssign):
+        nodes.append(stmt.annotation)
+        if stmt.value is not None:
+            nodes.append(stmt.value)
+    elif isinstance(stmt, ast.Assign):
         nodes.append(stmt.value)
     return nodes
 

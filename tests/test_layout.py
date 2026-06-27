@@ -73,6 +73,65 @@ class TestCheckModuleElementOrder:
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
+    def test_FieldAnnotationReferencesClassAbove_NoViolation(
+        self, tmp_path: Path
+    ) -> None:
+        # A field's type annotation is evaluated when the class body
+        # runs, so the annotated class must precede it; the top-down
+        # order leaves it above and does not flag it.
+        source = (
+            "import dataclasses\n\n\n"
+            "@dataclasses.dataclass\n"
+            "class _Part:\n    x: int\n\n\n"
+            "@dataclasses.dataclass\n"
+            "class Whole:\n    part: _Part\n"
+        )
+        target = _target(tmp_path, source)
+        assert list(check_module_element_order(target, source)) == []
+
+    def test_AttributeDefaultInstantiatesClassAbove_NoViolation(
+        self, tmp_path: Path
+    ) -> None:
+        # An attribute default runs at class-definition time, so the
+        # instantiated class must precede the class that defaults to it.
+        source = "class _Part:\n    pass\n\n\nclass Whole:\n    part: _Part = _Part()\n"
+        target = _target(tmp_path, source)
+        assert list(check_module_element_order(target, source)) == []
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "class _Result:\n    pass\n\n\n"
+            "def build() -> _Result:\n    return _Result()\n",
+            "class _Arg:\n    pass\n\n\ndef consume(value: _Arg) -> None:\n    pass\n",
+            "from typing import Protocol\n\n\n"
+            "class _Started(Protocol):\n    def tick(self) -> float: ...\n\n\n"
+            "class Clock(Protocol):\n    def __call__(self) -> _Started: ...\n",
+        ],
+        ids=["return_annotation", "param_annotation", "protocol_method_return"],
+    )
+    def test_SignatureAnnotationReferencesClassAbove_NoViolation(
+        self, tmp_path: Path, source: str
+    ) -> None:
+        # A parameter or return annotation is evaluated when the `def`
+        # runs, so the annotated class must precede it; the top-down
+        # order leaves it above and does not flag it.
+        target = _target(tmp_path, source)
+        assert list(check_module_element_order(target, source)) == []
+
+    def test_MethodBodyUsesHelperBelow_FlagsViolation(self, tmp_path: Path) -> None:
+        # A method body defers to call time, so a helper it reads is a
+        # top-down dependency: with the callee above its caller, the
+        # class should move above the helper.
+        source = (
+            "def _helper():\n    return 1\n\n\n"
+            "class K:\n    def run(self):\n        return _helper()\n"
+        )
+        target = _target(tmp_path, source)
+        violations = list(check_module_element_order(target, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_ELEMENT_ORDER
+
     def test_ConstantConsumedByFunctionBelow_NoViolation(self, tmp_path: Path) -> None:
         # Constants stay at the head of the file regardless of what
         # reads them, so a function using one from below is not a
