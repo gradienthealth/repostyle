@@ -65,7 +65,7 @@ from pystyle.rules.comments import (
     check_comment_terminal_punctuation,
 )
 from pystyle.rules.complexity import check_cognitive_complexity
-from pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
+from pystyle.rules.doc_fill import DOC_FILL_COLUMNS, check_doc_fill, reflow_doc_fill
 from pystyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
@@ -110,6 +110,7 @@ from pystyle.rules.visibility import check_should_be_private
 __all__ = [
     "ABBREVIATION_EXPANSIONS",
     "ALL_RULE_IDS",
+    "DOC_FILL_COLUMNS",
     "PACKAGE_RULES",
     "RULES",
     "RULE_DOCS",

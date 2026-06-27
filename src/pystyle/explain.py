@@ -11,6 +11,7 @@ from __future__ import annotations
 import textwrap
 
 from pystyle.rules import (
+    DOC_FILL_COLUMNS,
     GoodBad,
     RuleDoc,
     has_guidance,
@@ -18,7 +19,7 @@ from pystyle.rules import (
     severity_of,
 )
 
-_WIDTH = 72
+_WIDTH = DOC_FILL_COLUMNS
 _INDENT = "  "
 _CODE_INDENT = "      "
 
@@ -67,7 +68,7 @@ def _bullets(items: tuple[str, ...]) -> str:
 
 def _examples(examples: tuple[GoodBad, ...]) -> str:
     """Render each before/after pair, leaving its code unwrapped."""
-    rendered = []
+    rendered: list[str] = []
     for example in examples:
         parts = [
             f"{_INDENT}bad:",
