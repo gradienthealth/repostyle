@@ -54,7 +54,7 @@ from pystyle.rules._violation import (
 )
 
 
-class GoodBad(NamedTuple):
+class Example(NamedTuple):
     bad: str
     """The violating snippet, shown first so the contrast lands."""
     good: str
@@ -70,7 +70,7 @@ class RuleDoc(NamedTuple):
     """One line stating what the rule requires."""
     rationale: str = ""
     """Why the rule holds, so a fix generalizes rather than papers over."""
-    examples: tuple[GoodBad, ...] = ()
+    examples: tuple[Example, ...] = ()
     """Before/after pairs, one per distinct cause the rule has."""
     signals: tuple[str, ...] = ()
     """For a heuristic rule, the distinct causes and their remedies."""
@@ -169,7 +169,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "or a string literal is left alone."
         ),
         examples=(
-            GoodBad(
+            Example(
                 bad="def handle(req, resp): ...",
                 good="def handle(request, response): ...",
                 note=(
@@ -256,7 +256,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "the calls be an implementation detail."
         ),
         examples=(
-            GoodBad(
+            Example(
                 bad=(
                     "repository.save(patient)\n"
                     "repository.save.assert_called_once_with(patient)"
@@ -280,7 +280,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "owns what."
         ),
         examples=(
-            GoodBad(
+            Example(
                 bad=(
                     "# in src/domain/ports/clock.py\n"
                     "from myrepo.adapters.system_clock import now"
@@ -345,7 +345,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "pattern are configured in `[tool.pystyle]`."
         ),
         examples=(
-            GoodBad(
+            Example(
                 bad="# TODO: handle the empty case",
                 good="# TODO(PROC-1234): handle the empty case",
                 note="With no ticket, use `# TODO(NO-ISSUE): ...`.",

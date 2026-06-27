@@ -13,7 +13,7 @@ import textwrap
 from pystyle.rules import (
     DOC_FILL_COLUMNS,
     FIXABLE_RULES,
-    GoodBad,
+    Example,
     RuleDoc,
     rule_doc,
     severity_of,
@@ -66,7 +66,7 @@ def _bullets(items: tuple[str, ...]) -> str:
     )
 
 
-def _examples(examples: tuple[GoodBad, ...]) -> str:
+def _examples(examples: tuple[Example, ...]) -> str:
     """Render each before/after pair, leaving its code unwrapped."""
     rendered: list[str] = []
     for example in examples:

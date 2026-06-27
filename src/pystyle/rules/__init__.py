@@ -11,7 +11,7 @@ from __future__ import annotations
 from pystyle.rules._catalog import (
     ABBREVIATION_EXPANSIONS,
     RULE_DOCS,
-    GoodBad,
+    Example,
     RuleDoc,
     has_guidance,
     rule_doc,
@@ -148,7 +148,7 @@ __all__ = [
     "RS_TERMINAL_PUNCTUATION",
     "RS_TEST_NAMING",
     "RS_TOO_MANY_POSITIONAL_ARGS",
-    "GoodBad",
+    "Example",
     "RuleDoc",
     "Severity",
     "Violation",

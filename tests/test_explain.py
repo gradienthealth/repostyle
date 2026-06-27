@@ -41,6 +41,7 @@ class TestExplainRule:
     def test_RuleCard_RendersOnlyItsApplicableSections(
         self, rule_id: str, present: list[str], absent: list[str]
     ) -> None:
+        """A card shows the sections its rule populates and omits the rest."""
         card = explain_rule(rule_id)
         assert card is not None
         assert not [marker for marker in present if marker not in card]
