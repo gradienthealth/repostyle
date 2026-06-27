@@ -174,10 +174,13 @@ def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
     or `?`; return `"missing"` when it does not. A single-line single-
     sentence fragment is a label and must not close with a period;
     return `"extra"` when it does. A unit ending with a colon introduces
-    a list and is exempt. Return `None` when the unit conforms.
+    a list, and one ending in a URL cannot take punctuation, so both are
+    exempt. Return `None` when the unit conforms.
     """
     stripped = _strip_trailing_closers(text)
     if not stripped or stripped.endswith(":"):
+        return None
+    if "://" in stripped.rsplit(maxsplit=1)[-1]:
         return None
     if is_prose:
         return None if stripped[-1] in ".!?" else "missing"

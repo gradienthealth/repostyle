@@ -963,6 +963,8 @@ class TestCheckDocstringTerminalPunctuation:
             _DOC_MULTI_LINE_ENTRY,
             _DOC_COLON_INTRO,
             _DOC_EXAMPLE_SECTION,
+            'def f():\n    """Do it\n\n    See the spec at\n'
+            '    https://example.com/spec\n    """\n',
         ],
         ids=[
             "summary-no-period",
@@ -972,6 +974,7 @@ class TestCheckDocstringTerminalPunctuation:
             "multi-line-entry-with-period",
             "colon-list-intro",
             "example-section-code",
+            "body-url-tail",
         ],
     )
     def test_ConformingDocstring_NoViolation(self, source: str) -> None:
@@ -1016,6 +1019,7 @@ class TestCheckCommentTerminalPunctuation:
             "# This comment wraps across two lines and ends\n# with a period.\nx = 1\n",
             "x = 1  # noqa: E501\n",
             "# def helper():\n#     return 1\nx = 1\n",
+            "# The spec lives at\n# https://example.com/spec\nx = 1\n",
         ],
         ids=[
             "standalone-fragment",
@@ -1023,6 +1027,7 @@ class TestCheckCommentTerminalPunctuation:
             "multiline-prose-with-period",
             "trailing-directive",
             "commented-out-code",
+            "url-tail",
         ],
     )
     def test_ConformingComment_NoViolation(self, source: str) -> None:
