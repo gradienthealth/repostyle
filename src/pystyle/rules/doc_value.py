@@ -50,6 +50,10 @@ _SECTION_HEADER_PATTERN = re.compile(
     r"See Also|References):\s*$"
 )
 _ARG_ENTRY_PATTERN = re.compile(r"^[ \t]+\*{0,2}(\w+)\s*(?:\([^)]*\))?\s*:")
+# The section captions whose entries name documented parameters, a subset
+# of the headers above. Kept as one set so the entry collector and the
+# header pattern agree on which sections hold `Args:`-style entries.
+_ARGS_CAPTIONS = frozenset({"Args", "Arguments", "Keyword Args", "Keyword Arguments"})
 
 # A parameter counts as "described" only when it is the subject of a
 # body sentence — it leads the clause, after an optional article or
@@ -151,7 +155,7 @@ def _body_and_documented_args(docstring: str) -> tuple[str, set[str]]:
             section = header.group(1)
         elif section is None:
             body.append(line)
-        elif section in ("Args", "Arguments", "Keyword Args", "Keyword Arguments"):
+        elif section in _ARGS_CAPTIONS:
             entry = _ARG_ENTRY_PATTERN.match(line)
             if entry is not None:
                 documented.add(entry.group(1))
