@@ -34,7 +34,7 @@ class TestCheckDocValueSignal:
     def test_TrivialFunction_NoViolation(self) -> None:
         assert _check("def add(a, b):\n    return a + b\n") == []
 
-    def test_DocumentedManyParameterFunction_NoViolation(self) -> None:
+    def test_DocumentedManyParameterFunctionWithoutArgs_NoViolation(self) -> None:
         source = (
             "def configure(a, b, c, d) -> None:\n"
             '    """Set up the thing."""\n'
