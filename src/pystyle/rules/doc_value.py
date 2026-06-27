@@ -50,9 +50,9 @@ _SECTION_HEADER_PATTERN = re.compile(
     r"See Also|References):\s*$"
 )
 _ARG_ENTRY_PATTERN = re.compile(r"^[ \t]+\*{0,2}(\w+)\s*(?:\([^)]*\))?\s*:")
-# The section captions whose entries name documented parameters, a subset
-# of the headers above. Kept as one set so the entry collector and the
-# header pattern agree on which sections hold `Args:`-style entries.
+# The section captions whose entries name documented parameters, a
+# subset of the headers above. Kept as one set so the entry collector
+# and the header pattern agree on which sections hold `Args:` entries.
 _ARGS_CAPTIONS = frozenset({"Args", "Arguments", "Keyword Args", "Keyword Arguments"})
 
 # A parameter counts as "described" only when it is the subject of a
@@ -109,31 +109,6 @@ def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
         yield from _check_function(node)
 
 
-def _public_functions(
-    path: Path, source: str
-) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
-    """Yield each public, non-test function in a parseable source file.
-
-    A definition is in scope when the file is not a test module and the
-    function is neither underscore- nor `test_`-prefixed nor an
-    `@overload` stub — the shared subject both documentation-value rules
-    inspect.
-    """
-    if _is_test_file(path):
-        return
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            continue
-        if node.name.startswith(("_", "test_")):
-            continue
-        if _has_decorator(node, {"overload"}):
-            continue
-        yield node
-
-
 def _body_and_documented_args(docstring: str) -> tuple[str, set[str]]:
     """Split a cleaned docstring into its body prose and documented args.
 
@@ -160,21 +135,6 @@ def _body_and_documented_args(docstring: str) -> tuple[str, set[str]]:
             if entry is not None:
                 documented.add(entry.group(1))
     return "\n".join(body), documented
-
-
-def _describes_param_as_subject(body: str, name: str) -> bool:
-    """Report whether a body sentence documents the parameter as subject.
-
-    A sentence describes the parameter when, after an optional leading
-    article or `Takes`, the clause opens with the backtick-wrapped name.
-    Sentences split on `.`, `;`, and newlines but not commas, so a name
-    listed mid-clause in contract prose is not read as a description.
-    """
-    token = f"`{name}`"
-    for clause in _CLAUSE_SPLIT_PATTERN.split(body):
-        if _SUBJECT_LEAD_PATTERN.sub("", clause.strip()).startswith(token):
-            return True
-    return False
 
 
 def _check_function(
@@ -214,6 +174,21 @@ def _check_function(
         )
 
 
+def _describes_param_as_subject(body: str, name: str) -> bool:
+    """Report whether a body sentence documents the parameter as subject.
+
+    A sentence describes the parameter when, after an optional leading
+    article or `Takes`, the clause opens with the backtick-wrapped name.
+    Sentences split on `.`, `;`, and newlines but not commas, so a name
+    listed mid-clause in contract prose is not read as a description.
+    """
+    token = f"`{name}`"
+    for clause in _CLAUSE_SPLIT_PATTERN.split(body):
+        if _SUBJECT_LEAD_PATTERN.sub("", clause.strip()).startswith(token):
+            return True
+    return False
+
+
 def _param_count(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
     """Count a function's parameters, excluding a leading `self`/`cls`."""
     return len(_param_names(node))
@@ -231,6 +206,31 @@ def _param_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
     if positional and positional[0].arg in ("self", "cls"):
         names = names[1:]
     return names
+
+
+def _public_functions(
+    path: Path, source: str
+) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
+    """Yield each public, non-test function in a parseable source file.
+
+    A definition is in scope when the file is not a test module and the
+    function is neither underscore- nor `test_`-prefixed nor an
+    `@overload` stub — the shared subject both documentation-value rules
+    inspect.
+    """
+    if _is_test_file(path):
+        return
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        if node.name.startswith(("_", "test_")):
+            continue
+        if _has_decorator(node, {"overload"}):
+            continue
+        yield node
 
 
 def _returns_multi_element_tuple(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
