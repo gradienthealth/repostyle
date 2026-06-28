@@ -124,6 +124,19 @@ class TestLintPackage:
         mod = next(path for path, _ in files if path.name == "mod.py")
         assert lint_package([mod], set()) == {}
 
+    def test_PystyleOwnSource_DeclaresHonestPublicSurface(self) -> None:
+        # pystyle is an open, published package whose public API is
+        # anchored in `__all__` at each package `__init__` plus the
+        # `pystyle` console entry point. Run RS029 over its own source
+        # the way the hook does, to pin that no public symbol leaks
+        # internal-only scope.
+        package = Path(__file__).resolve().parents[1] / "src" / "pystyle"
+        sources = [
+            path for path in package.rglob("*.py") if "__pycache__" not in path.parts
+        ]
+        assert package / "runner.py" in sources
+        assert lint_package(sources, {RS_SHOULD_BE_PRIVATE}) == {}
+
 
 def _pkg(
     tmp_path: Path, modules: dict[str, str], pyproject: str = ""
