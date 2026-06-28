@@ -38,10 +38,10 @@ ignore = [
     "D213",
     "PT004",
 ]
-# The comments below follow the select order. ANN401 bans typing.Any in
-# a parameter or return annotation: an Any in a signature opts that edge
-# out of type checking. Only ANN401 is selected, not the whole ANN
-# group, which would demand annotations everywhere.
+# ANN401 bans typing.Any in a parameter or return annotation: an Any in
+# a signature opts that edge out of type checking. Only ANN401 is
+# selected, not the whole ANN group, which would demand annotations
+# everywhere.
 # Complexity and size guardrails: C90 (cyclomatic, threshold in
 # [lint.mccabe]) and the PLR caps on returns/branches/statements.
 # FBT (flake8-boolean-trap) flags boolean-typed positional arguments and
