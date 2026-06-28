@@ -38,8 +38,16 @@ ignore = [
     "D213",
     "PT004",
 ]
+# ANN401 bans typing.Any in a parameter or return annotation: an Any in
+# a signature opts that edge out of type checking. Only ANN401 is
+# selected, not the whole ANN group, which would demand annotations
+# everywhere.
 # Complexity and size guardrails: C90 (cyclomatic, threshold in
 # [lint.mccabe]) and the PLR caps on returns/branches/statements.
+# FBT (flake8-boolean-trap) flags boolean-typed positional arguments and
+# bare True/False passed positionally — a bool reads clearer by keyword.
+# The whole group is selected so the trap is caught at the definition
+# site (FBT001/002), not only at call sites (FBT003).
 # PLC0415 (import-outside-top-level) bans in-function imports: an import
 # inside a function body hides a dependency from the module header and is
 # usually reflexive rather than a deliberate guard. A genuinely guarded
@@ -49,12 +57,14 @@ ignore = [
 # many legitimate wide signatures, and is better adopted once
 # enforcement is scoped to a PR's changed lines, not the whole tree.
 select = [
+    "ANN401",  # any-type (ban typing.Any in annotations)
     "B",       # flake8-bugbear
     "C4",      # flake8-comprehensions
     "C90",     # mccabe cyclomatic complexity
     "D",       # pydocstyle (Google convention)
     "E",       # pycodestyle errors
     "F",       # pyflakes
+    "FBT",     # flake8-boolean-trap (boolean positional arguments)
     "I",       # isort
     "PLC0415", # import outside top-level (ban in-function imports)
     "PLR0911", # too many return statements
