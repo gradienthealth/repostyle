@@ -6,10 +6,10 @@ The Gradient-wide judgment layer of the Python house style — the conventions a
 
 The house style has two layers, and they do not overlap:
 
-- **Mechanical** — the `RSnnn` rules in this package plus `ruff`, `mypy`, and `pydoclint`. AST/token/line-decidable conventions: acronym casing, abbreviations, docstring shape, fill width, import order, member order, comment-tag format, and the naming rules that graduated here from review (a negated boolean is `RS024`, a production `make_` is `RS025`). These fail CI; an engineer never argues with them.
+- **Mechanical** — the `RSnnn` rules in this package plus `ruff`, `mypy`, and `pydoclint`. AST/token/line-decidable conventions: acronym casing, abbreviations, docstring shape, fill width, import order, member order, comment-tag format, and the naming rules that graduated here from review (a negated boolean is `RS024`, a production `make_` is `RS025`, a `bool`-annotated name missing its `is_`/`has_` prefix is `RS026`). These fail CI; an engineer never argues with them.
 - **Judgment** — the conventions below. They need a reader to decide whether a docstring is about the right subject, whether a comment earns its place, whether a verb means what the tree uses it to mean. They are upheld by review and by the `python-style-review` skill, never by a linter.
 
-A convention belongs in exactly one layer. When a judgment convention turns out to be mechanically decidable with near-zero false positives, it graduates to an `RSnnn` rule and leaves this doc — the trajectory that produced `RS024` and `RS025`. What remains here is judgment that resisted that graduation.
+A convention belongs in exactly one layer. When a judgment convention turns out to be mechanically decidable with near-zero false positives, it graduates to an `RSnnn` rule and leaves this doc — the trajectory that produced `RS024`, `RS025`, and `RS026`. What remains here is judgment that resisted that graduation.
 
 ## A. A docstring states the unit's own contract
 
@@ -46,7 +46,7 @@ The verb tells a reader, without opening the body, whether a call does I/O, can 
 ## D. Nouns name identity; clarity beats brevity
 
 - **Nouns name what an object *is***, by its responsibility, not a vague role. `RS011` bans the literal `Manager` / `Helper` / `Util` / `Utils` suffixes; judgment catches the role-not-a-thing miss those four words cannot enumerate — a `Processor` or `Coordinator` that names what a class loosely does. A class whose best name is a verb usually wants to be a function.
-- **Booleans read as a positive yes/no question** — `is_` / `has_` / `can_` / `should_`. `RS024` mechanically rejects an embedded `not` / `no` word; judgment catches what the word-match cannot — a bool that reads negative through a prefix-merged word (`is_invalid`, forcing `if not is_invalid` → `is_valid`) or a `bool`-returning predicate not phrased as a question at all (`valid()` → `is_valid()`).
+- **Booleans read as a positive yes/no question** — `is_` / `has_` / `can_` / `should_`. `RS024` mechanically rejects an embedded `not` / `no` word, and `RS026` requires the prefix on a `bool`-annotated name; judgment catches what neither reaches — a bool that reads negative through a prefix-merged word (`is_invalid`, forcing `if not is_invalid` → `is_valid`) or a `bool`-returning function or property not phrased as a question at all (`valid()` → `is_valid()`), whose return type `RS026`'s annotation match does not see.
 - **Clarity beats brevity.** This codebase is verbose on purpose; a longer name that removes a guess wins. `RS010` owns the fixed abbreviation list; judgment catches the wide-scope, too-terse name it cannot pre-enumerate — a module-level `data`, `tmp`, `val`, or a single-letter non-loop variable that forces the reader to reconstruct intent.
 
 ## E. Tests pin contract, not implementation
