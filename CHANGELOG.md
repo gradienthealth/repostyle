@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/gradienthealth/pystyle/compare/pystyle-v0.5.0...pystyle-v0.6.0) (2026-06-28)
+
+
+### Features
+
+* **PROC-2376:** enable Ruff FBT and ANN401 in the shared baseline ([#51](https://github.com/gradienthealth/pystyle/issues/51)) ([e89dc17](https://github.com/gradienthealth/pystyle/commit/e89dc17aed654bf6869ec07c5a28fd7b31a7b9fe))
+
+
+### Documentation
+
+* **NO-ISSUE:** note RS026 graduation in the boolean convention ([#53](https://github.com/gradienthealth/pystyle/issues/53)) ([03a46ed](https://github.com/gradienthealth/pystyle/commit/03a46ed0f5b20937dbdd5185ce4e7953da18c401))
+
 ## [0.5.0](https://github.com/gradienthealth/pystyle/compare/pystyle-v0.4.0...pystyle-v0.5.0) (2026-06-27)
 
 
