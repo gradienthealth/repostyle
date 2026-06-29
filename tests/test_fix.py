@@ -12,15 +12,6 @@ _PY = Path("src/x.py")
 _MD = Path("README.md")
 
 
-def _project(tmp_path: Path, source: str, select: str, name: str = "x.py") -> Path:
-    (tmp_path / "pyproject.toml").write_text(
-        f"[tool.pystyle]\nselect = {select}\n", encoding="utf-8"
-    )
-    target = tmp_path / name
-    target.write_text(source, encoding="utf-8")
-    return target
-
-
 class TestFixDoubleBackticks:
     def test_DocstringDoubleBackticks_RewriteToSingle(self) -> None:
         source = 'def f():\n    """Use ``dict`` here."""\n'
@@ -159,3 +150,12 @@ class TestFixPath:
     def test_NonSourceSuffix_NoOp(self, tmp_path: Path) -> None:
         target = _project(tmp_path, "See ``X``.\n", '["RS005"]', name="data.txt")
         assert fix_path(target, {"RS005"}) is False
+
+
+def _project(tmp_path: Path, source: str, select: str, name: str = "x.py") -> Path:
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.pystyle]\nselect = {select}\n", encoding="utf-8"
+    )
+    target = tmp_path / name
+    target.write_text(source, encoding="utf-8")
+    return target

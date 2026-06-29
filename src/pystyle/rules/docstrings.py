@@ -633,9 +633,9 @@ def _terminal_insert_index(line: str, lineno: int, constant: ast.Constant) -> in
     """
     stripped = line.rstrip()
     if lineno == constant.end_lineno:
-        # Match the delimiter by suffix, not `end_col_offset`: that offset
-        # is in bytes and misplaces the mark on a line carrying non-ASCII
-        # text.
+        # Match the delimiter by suffix, not `end_col_offset`: that
+        # offset is in bytes and misplaces the mark on a line carrying
+        # non-ASCII text.
         for delimiter in ('"""', "'''", '"', "'"):
             if stripped.endswith(delimiter):
                 return len(stripped[: -len(delimiter)].rstrip())
