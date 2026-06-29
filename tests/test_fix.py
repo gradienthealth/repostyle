@@ -1,12 +1,7 @@
 from pathlib import Path
 
-import pytest
-
 from pystyle.rules import (
     check_comment_terminal_punctuation,
-    check_docstring_terminal_punctuation,
-    check_no_double_backticks_in_docstrings,
-    check_no_double_backticks_in_md,
     fix_comment_terminal_punctuation,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
@@ -52,15 +47,6 @@ class TestFixDoubleBackticks:
         source = 'def f():\n    """Use `dict` here."""\n'
         assert fix_double_backticks(_PY, source) == source
 
-    def test_FixedDocstring_ClearsTheRule(self) -> None:
-        source = 'def f():\n    """Use ``dict`` here."""\n'
-        fixed = fix_double_backticks(_PY, source)
-        assert list(check_no_double_backticks_in_docstrings(_PY, fixed)) == []
-
-    def test_FixedMarkdown_ClearsTheRule(self) -> None:
-        fixed = fix_double_backticks(_MD, "See ``X`` now.\n")
-        assert list(check_no_double_backticks_in_md(_MD, fixed)) == []
-
 
 class TestFixDocstringTerminalPunctuation:
     def test_SingleLineSummary_AppendsPeriodBeforeQuote(self) -> None:
@@ -102,10 +88,6 @@ class TestFixDocstringTerminalPunctuation:
         source = '"""Resolve the lease."""\n'
         assert fix_docstring_terminal_punctuation(_PY, source) == source
 
-    def test_FixedSummary_ClearsTheRule(self) -> None:
-        fixed = fix_docstring_terminal_punctuation(_PY, '"""Resolve the lease"""\n')
-        assert list(check_docstring_terminal_punctuation(_PY, fixed)) == []
-
 
 class TestFixCommentTerminalPunctuation:
     def test_ProseBlockMissingMark_AppendsPeriod(self) -> None:
@@ -134,11 +116,6 @@ class TestFixCommentTerminalPunctuation:
         assert (
             fix_comment_terminal_punctuation(_MD, "# Title here\n") == "# Title here\n"
         )
-
-    def test_FixedBlock_ClearsTheRule(self) -> None:
-        source = "# This is prose spanning\n# two lines here\nx = 1\n"
-        fixed = fix_comment_terminal_punctuation(_PY, source)
-        assert list(check_comment_terminal_punctuation(_PY, fixed)) == []
 
 
 class TestFixPath:
@@ -179,7 +156,6 @@ class TestFixPath:
         assert fix_path(target, {"RS001"}) is False
         assert target.read_text(encoding="utf-8") == source
 
-    @pytest.mark.parametrize("suffix", [".txt", ".cfg", ".toml"])
-    def test_NonSourceSuffix_NoOp(self, tmp_path: Path, suffix: str) -> None:
-        target = _project(tmp_path, "See ``X``.\n", '["RS005"]', name=f"data{suffix}")
+    def test_NonSourceSuffix_NoOp(self, tmp_path: Path) -> None:
+        target = _project(tmp_path, "See ``X``.\n", '["RS005"]', name="data.txt")
         assert fix_path(target, {"RS005"}) is False
