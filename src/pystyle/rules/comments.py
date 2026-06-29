@@ -32,6 +32,8 @@ from pystyle.rules._shared import (
     _has_sentence_boundary,
     _is_directive_comment,
     _is_prose_comment,
+    _join_source_lines,
+    _strip_trailing_closers,
     _terminal_punctuation_fault,
     find_pyproject,
 )
@@ -150,12 +152,61 @@ def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Viol
     """
     if path.suffix != ".py":
         return
-    yield from _trailing_comment_faults(source)
-    yield from _standalone_comment_block_faults(source)
+    for lineno, column, fault in _comment_terminal_faults(source):
+        yield Violation(
+            lineno,
+            column + 1,
+            RS_TERMINAL_PUNCTUATION,
+            _comment_terminal_message(fault),
+        )
 
 
-def _standalone_comment_block_faults(source: str) -> Iterator[Violation]:
-    """Flag a standalone prose comment block whose punctuation is wrong."""
+def fix_comment_terminal_punctuation(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Repair each flagged comment's terminal punctuation, the RS030 fix.
+
+    A prose comment missing terminal punctuation gains a trailing `.`; a
+    fragment carrying one drops it, including a period sitting before
+    trailing closers (`note.)`), so the repair matches what the rule
+    flags. A comment whose line is in `skip_lines` is left untouched.
+    Return the source unchanged when nothing repairs.
+    """
+    if path.suffix != ".py":
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for lineno, _, fault in _comment_terminal_faults(source):
+        if lineno in skip_lines:
+            continue
+        stripped = source_lines[lineno - 1].rstrip()
+        if fault == "missing":
+            source_lines[lineno - 1] = f"{stripped}."
+            changed = True
+            continue
+        core = _strip_trailing_closers(stripped)
+        if core.endswith("."):
+            source_lines[lineno - 1] = core[:-1] + stripped[len(core) :]
+            changed = True
+    return _join_source_lines(source, source_lines) if changed else source
+
+
+def _comment_terminal_faults(source: str) -> Iterator[tuple[int, int, str]]:
+    """Yield `(line, column, fault)` for each mispunctuated prose comment.
+
+    Trailing comments and standalone blocks are both covered, so the
+    check and its fixer see the same flagged locations. The fault is
+    `"missing"` or `"extra"`, per the house rule.
+    """
+    for lineno, column, string, is_trailing in _comment_tokens(source):
+        if not is_trailing:
+            continue
+        text = _comment_text(string)
+        if not _is_prose_comment(text):
+            continue
+        fault = _terminal_punctuation_fault(text, is_prose=_has_sentence_boundary(text))
+        if fault is not None:
+            yield lineno, column, fault
     for block in _standalone_comment_blocks(source):
         text = " ".join(_comment_text(string) for _, _, string in block)
         if not _is_prose_comment(text):
@@ -165,12 +216,14 @@ def _standalone_comment_block_faults(source: str) -> Iterator[Violation]:
         if fault is None:
             continue
         last_line, last_column, _ = block[-1]
-        yield Violation(
-            last_line,
-            last_column + 1,
-            RS_TERMINAL_PUNCTUATION,
-            _comment_terminal_message(fault),
-        )
+        yield last_line, last_column, fault
+
+
+def _comment_terminal_message(fault: str) -> str:
+    """Return the fix message for a comment terminal-punctuation `fault`."""
+    if fault == "missing":
+        return "comment reads as prose; end it with terminal punctuation"
+    return "comment reads as a fragment; drop the trailing period"
 
 
 def _standalone_comment_blocks(
@@ -197,32 +250,6 @@ def _standalone_comment_blocks(
         previous = (lineno, column)
     if block:
         yield block
-
-
-def _trailing_comment_faults(source: str) -> Iterator[Violation]:
-    """Flag a prose comment trailing code whose punctuation is wrong."""
-    for lineno, column, string, is_trailing in _comment_tokens(source):
-        if not is_trailing:
-            continue
-        text = _comment_text(string)
-        if not _is_prose_comment(text):
-            continue
-        fault = _terminal_punctuation_fault(text, is_prose=_has_sentence_boundary(text))
-        if fault is None:
-            continue
-        yield Violation(
-            lineno,
-            column + 1,
-            RS_TERMINAL_PUNCTUATION,
-            _comment_terminal_message(fault),
-        )
-
-
-def _comment_terminal_message(fault: str) -> str:
-    """Return the fix message for a comment terminal-punctuation `fault`."""
-    if fault == "missing":
-        return "comment reads as prose; end it with terminal punctuation"
-    return "comment reads as a fragment; drop the trailing period"
 
 
 def _comment_tokens(source: str) -> Iterator[tuple[int, int, str, bool]]:

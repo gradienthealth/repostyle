@@ -146,6 +146,18 @@ def _is_test_file(path: Path) -> bool:
     return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
 
 
+def _join_source_lines(source: str, lines: list[str]) -> str:
+    """Rejoin split-and-edited `lines` preserving `source`'s line endings.
+
+    The source's newline style and its final-newline presence are
+    carried over, so a fixer that splits with `splitlines` and rewrites
+    a few lines does not churn the file's endings.
+    """
+    newline = "\r\n" if "\r\n" in source else "\n"
+    rejoined = newline.join(lines)
+    return rejoined + newline if source.endswith("\n") else rejoined
+
+
 # Cache on (path, source) so each file is parsed once and its tree
 # shared across rules.
 @lru_cache(maxsize=128)

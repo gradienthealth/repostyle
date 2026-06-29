@@ -64,6 +64,7 @@ from pystyle.rules._violation import (
 from pystyle.rules.comments import (
     check_comment_tag_format,
     check_comment_terminal_punctuation,
+    fix_comment_terminal_punctuation,
 )
 from pystyle.rules.complexity import check_cognitive_complexity
 from pystyle.rules.doc_fill import DOC_FILL_COLUMNS, check_doc_fill, reflow_doc_fill
@@ -79,6 +80,8 @@ from pystyle.rules.docstrings import (
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
     check_summary_comment_as_docstring,
+    fix_docstring_terminal_punctuation,
+    fix_double_backticks,
 )
 from pystyle.rules.duration import check_duration_as_timedelta
 from pystyle.rules.import_layering import check_banned_import_by_path
@@ -186,6 +189,9 @@ __all__ = [
     "check_summary_comment_as_docstring",
     "check_test_naming",
     "check_too_many_positional_args",
+    "fix_comment_terminal_punctuation",
+    "fix_docstring_terminal_punctuation",
+    "fix_double_backticks",
     "has_guidance",
     "reflow_doc_fill",
     "rule_doc",

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tomllib
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from pystyle.rules import (
@@ -11,13 +11,31 @@ from pystyle.rules import (
     FIXABLE_RULES,
     PACKAGE_RULES,
     RS_DOC_FILL,
+    RS_NO_DOUBLE_BACKTICKS,
+    RS_TERMINAL_PUNCTUATION,
     Violation,
+    fix_comment_terminal_punctuation,
+    fix_docstring_terminal_punctuation,
+    fix_double_backticks,
     reflow_doc_fill,
     run_package_rule,
     run_rule,
 )
 from pystyle.rules._shared import find_pyproject
 from pystyle.suppressions import filter_suppressed, suppressed_lines
+
+# Each fixer rewrites one rule's findings, taking `(path, source,
+# waived_lines)` and returning the rewritten source. They run in this
+# order so the surface edits (backticks, terminal punctuation) settle
+# before the reflow rewraps the corrected prose; each re-parses the
+# source it is handed, so chaining their edits is safe.
+_Fixer = Callable[[Path, str, frozenset[int]], str]
+_FIXERS: tuple[tuple[str, _Fixer], ...] = (
+    (RS_NO_DOUBLE_BACKTICKS, fix_double_backticks),
+    (RS_TERMINAL_PUNCTUATION, fix_docstring_terminal_punctuation),
+    (RS_TERMINAL_PUNCTUATION, fix_comment_terminal_punctuation),
+    (RS_DOC_FILL, reflow_doc_fill),
+)
 
 # Directories never holding first-party source, skipped when building
 # the whole-package index a package rule scans.
@@ -136,23 +154,29 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:
-    """Reflow RS009 findings in `path` in place, reporting whether it changed.
+    """Apply every enabled fixable rule to `path` in place, reporting a change.
 
-    A no-op unless a fixable rule is enabled and `path` is a Python
-    file. A whole-file ignore directive leaves the file untouched, and a
-    per-line suppression leaves its unit untouched.
+    A no-op unless a fixable rule is enabled and `path` is a Python or
+    markdown file. The fixers run in `_FIXERS` order, each handed the
+    output of the last. A whole-file ignore directive leaves the file
+    untouched for that rule, and a per-line suppression leaves its line
+    untouched.
     """
-    if not enabled & FIXABLE_RULES or path.suffix != ".py":
+    if not enabled & FIXABLE_RULES or path.suffix not in (".py", ".md"):
         return False
     try:
         source = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return False
-    file_suppressed, skip = suppressed_lines(source, RS_DOC_FILL)
-    if file_suppressed:
+    original = source
+    for rule_id, fixer in _FIXERS:
+        if rule_id not in enabled:
+            continue
+        file_suppressed, skip = suppressed_lines(source, rule_id)
+        if file_suppressed:
+            continue
+        source = fixer(path, source, skip)
+    if source == original:
         return False
-    rewritten = reflow_doc_fill(path, source, skip)
-    if rewritten == source:
-        return False
-    path.write_text(rewritten, encoding="utf-8")
+    path.write_text(source, encoding="utf-8")
     return True
