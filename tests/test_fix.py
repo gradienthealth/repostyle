@@ -88,6 +88,12 @@ class TestFixDocstringTerminalPunctuation:
             'def f():\n    """See the note (here)."""\n'
         )
 
+    def test_NonAsciiClosingLine_InsertsBeforeQuoteNotPastIt(self) -> None:
+        source = 'def f():\n    """Résumé café text"""\n'
+        assert fix_docstring_terminal_punctuation(_PY, source) == (
+            'def f():\n    """Résumé café text."""\n'
+        )
+
     def test_LineSuppressed_LeavesUnit(self) -> None:
         source = '"""Resolve the lease"""\n'
         assert fix_docstring_terminal_punctuation(_PY, source, frozenset({1})) == source
@@ -113,6 +119,12 @@ class TestFixCommentTerminalPunctuation:
         assert fix_comment_terminal_punctuation(_PY, source) == (
             "x = 1  # Frobnicate the widget here\n"
         )
+
+    def test_FragmentPeriodBeforeCloser_DropsPeriodKeepsCloser(self) -> None:
+        source = "x = 1  # Frobnicate the widget (here.)\n"
+        fixed = fix_comment_terminal_punctuation(_PY, source)
+        assert fixed == "x = 1  # Frobnicate the widget (here)\n"
+        assert list(check_comment_terminal_punctuation(_PY, fixed)) == []
 
     def test_LineSuppressed_LeavesComment(self) -> None:
         source = "x = 1  # Frobnicate the widget here.\n"

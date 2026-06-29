@@ -305,14 +305,13 @@ def fix_docstring_terminal_punctuation(
         constant = _docstring_constant(node)
         if constant is None:
             continue
-        quote = _closing_quote(source, constant)
         for unit in _docstring_prose_units(constant):
             if unit.lineno in skip_lines:
                 continue
             if _terminal_punctuation_fault(unit.text, is_prose=True) != "missing":
                 continue
             line = source_lines[unit.lineno - 1]
-            index = _terminal_insert_index(line, unit.lineno, constant, quote)
+            index = _terminal_insert_index(line, unit.lineno, constant)
             source_lines[unit.lineno - 1] = f"{line[:index]}.{line[index:]}"
             changed = True
     return _join_source_lines(source, source_lines) if changed else source
@@ -335,17 +334,6 @@ def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
                 RS_NO_DOUBLE_BACKTICKS,
                 "use single backticks, not double, in prose",
             )
-
-
-def _closing_quote(source: str, constant: ast.Constant) -> str:
-    """Return the quote delimiter (`\"\"\"`, `'''`, `\"`, or `'`) closing `constant`."""
-    segment = ast.get_source_segment(source, constant) or '"'
-    start = 0
-    while start < len(segment) and segment[start] in "rRbBuUfF":
-        start += 1
-    if segment[start : start + 3] in ('"""', "'''"):
-        return segment[start : start + 3]
-    return segment[start : start + 1] or '"'
 
 
 def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, str]]:
@@ -649,19 +637,21 @@ def _summary_comment_owners(
             yield node
 
 
-def _terminal_insert_index(
-    line: str, lineno: int, constant: ast.Constant, quote: str
-) -> int:
+def _terminal_insert_index(line: str, lineno: int, constant: ast.Constant) -> int:
     """Return the column on `line` just past a prose unit's last content.
 
     When the closing quote shares the unit's last line, the index lands
     before it; otherwise it lands after the line's last non-space
-    character.
+    character. The closing delimiter is found by matching the line's
+    suffix rather than `end_col_offset`, which is a byte offset and so
+    misplaces the mark on a line carrying non-ASCII text.
     """
+    stripped = line.rstrip()
     if lineno == constant.end_lineno:
-        cut = (constant.end_col_offset or len(line)) - len(quote)
-        return len(line[:cut].rstrip())
-    return len(line.rstrip())
+        for delimiter in ('"""', "'''", '"', "'"):
+            if stripped.endswith(delimiter):
+                return len(stripped[: -len(delimiter)].rstrip())
+    return len(stripped)
 
 
 def _terminal_punctuation_message(kind: str) -> str:

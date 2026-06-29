@@ -33,6 +33,7 @@ from pystyle.rules._shared import (
     _is_directive_comment,
     _is_prose_comment,
     _join_source_lines,
+    _strip_trailing_closers,
     _terminal_punctuation_fault,
     find_pyproject,
 )
@@ -166,9 +167,10 @@ def fix_comment_terminal_punctuation(
     """Repair each flagged comment's terminal punctuation, the RS030 fix.
 
     A prose comment missing terminal punctuation gains a trailing `.`; a
-    fragment carrying one drops it, when the period is the line's last
-    character. A comment whose line is in `skip_lines` is left
-    untouched. Return the source unchanged when nothing repairs.
+    fragment carrying one drops it, including a period sitting before
+    trailing closers (`note.)`), so the repair matches what the rule
+    flags. A comment whose line is in `skip_lines` is left untouched.
+    Return the source unchanged when nothing repairs.
     """
     if path.suffix != ".py":
         return source
@@ -177,13 +179,14 @@ def fix_comment_terminal_punctuation(
     for lineno, _, fault in _comment_terminal_faults(source):
         if lineno in skip_lines:
             continue
-        line = source_lines[lineno - 1]
-        stripped = line.rstrip()
+        stripped = source_lines[lineno - 1].rstrip()
         if fault == "missing":
             source_lines[lineno - 1] = f"{stripped}."
             changed = True
-        elif stripped.endswith("."):
-            source_lines[lineno - 1] = stripped[:-1]
+            continue
+        core = _strip_trailing_closers(stripped)
+        if core.endswith("."):
+            source_lines[lineno - 1] = core[:-1] + stripped[len(core) :]
             changed = True
     return _join_source_lines(source, source_lines) if changed else source
 
