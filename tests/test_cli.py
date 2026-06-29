@@ -98,7 +98,7 @@ class TestFix:
         exit_code = main(["--fix", str(target)])
         captured = capsys.readouterr()
         assert exit_code == 1
-        assert "reflowed" in captured.err and str(target) in captured.err
+        assert "fixed" in captured.err and str(target) in captured.err
 
     def test_FixOnFilledFile_ExitsZeroAndIsSilent(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -118,6 +118,14 @@ class TestFix:
         assert exit_code == 1
         assert target.read_text(encoding="utf-8") == _UNDERWRAPPED_DOCSTRING
         assert "under-wrapped" in capsys.readouterr().out
+
+    def test_FixRewritesBackticksAndPunctuation(self, tmp_path: Path) -> None:
+        source = 'def f():\n    """Use ``dict`` here"""\n'
+        target = _project(tmp_path, source, '["RS005", "RS030"]')
+        main(["--fix", str(target)])
+        assert target.read_text(encoding="utf-8") == (
+            'def f():\n    """Use `dict` here."""\n'
+        )
 
 
 class TestExplain:

@@ -23,8 +23,8 @@ def main(argv: list[str] | None = None) -> int:
     Dispatch to the `explain` subcommand when it leads the arguments;
     otherwise lint. Linting returns 2 when the rule set cannot be
     resolved, 1 when an error-severity finding remains or a file was
-    reflowed, and 0 otherwise. `explain` returns 2 for an unknown id and
-    0 otherwise.
+    fixed, and 0 otherwise. `explain` returns 2 for an unknown id and 0
+    otherwise.
     """
     args = sys.argv[1:] if argv is None else argv
     if args and args[0] == "explain":
@@ -64,7 +64,7 @@ def _run_explain(argv: list[str]) -> int:
 
 
 def _run_lint(argv: list[str]) -> int:
-    """Resolve the rule set, optionally reflow, and report each path."""
+    """Resolve the rule set, optionally fix, and report each path."""
     options = _parse_args(argv)
     try:
         enabled = resolve_enabled_rules_for_paths(options.paths)
@@ -84,7 +84,7 @@ def _run_lint(argv: list[str]) -> int:
         fired |= path_rules
     if fixed:
         listed = ", ".join(str(path) for path in fixed)
-        print(f"pystyle: reflowed {listed}; review and re-stage", file=sys.stderr)
+        print(f"pystyle: fixed {listed}; review and re-stage", file=sys.stderr)
     if not options.no_explain_hint:
         for rule_id in sorted(rule for rule in fired if has_guidance(rule)):
             print(discovery_hint(rule_id), file=sys.stderr)
@@ -108,7 +108,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--fix",
         action="store_true",
-        help="reflow fixable findings (RS009) in place before reporting",
+        help="fix fixable findings (RS005, RS009, RS030) in place before reporting",
     )
     parser.add_argument(
         "--no-explain-hint",
