@@ -156,14 +156,8 @@ def fix_double_backticks(
 def _fix_double_backticks_md(source: str) -> str:
     """Rewrite double backticks to single in a markdown file's prose."""
     source_lines = source.splitlines()
-    in_fence = False
     changed = False
-    for index, line in enumerate(source_lines):
-        if line.lstrip().startswith("```"):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
+    for index, line in _unfenced_md_lines(source):
         rewritten = DOUBLE_BACKTICK_PATTERN.sub("`", line)
         if rewritten != line:
             source_lines[index] = rewritten
@@ -318,18 +312,11 @@ def fix_docstring_terminal_punctuation(
 
 
 def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
-    in_fence = False
-    for lineno, line in enumerate(source.splitlines(), start=1):
-        stripped = line.lstrip()
-        if stripped.startswith("```"):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
+    for index, line in _unfenced_md_lines(source):
         match = DOUBLE_BACKTICK_PATTERN.search(line)
         if match:
             yield Violation(
-                lineno,
+                index + 1,
                 match.start() + 1,
                 RS_NO_DOUBLE_BACKTICKS,
                 "use single backticks, not double, in prose",
@@ -662,6 +649,21 @@ def _terminal_punctuation_message(kind: str) -> str:
         "entry": "section entry",
     }[kind]
     return f"{subject} should end with terminal punctuation (`.`, `!`, or `?`)"
+
+
+def _unfenced_md_lines(source: str) -> Iterator[tuple[int, str]]:
+    """Yield `(index, line)` for each line outside a fenced code block.
+
+    The markdown backtick check and its fixer both consume this, so they
+    agree on which lines are prose and which are fenced verbatim code.
+    """
+    in_fence = False
+    for index, line in enumerate(source.splitlines()):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence:
+            yield index, line
 
 
 def _walk_docstring_owners(
