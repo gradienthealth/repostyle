@@ -124,6 +124,16 @@ class TestLintPackage:
         mod = next(path for path, _ in files if path.name == "mod.py")
         assert lint_package([mod], set()) == {}
 
+    def test_PystyleOwnSource_HasNoLeakedInternalName(self) -> None:
+        # Dogfood RS029 over pystyle's own source the way the hook does,
+        # pinning that no public symbol leaks internal-only scope.
+        package = Path(__file__).resolve().parents[1] / "src" / "pystyle"
+        sources = [
+            path for path in package.rglob("*.py") if "__pycache__" not in path.parts
+        ]
+        assert package / "__init__.py" in sources
+        assert lint_package(sources, {RS_SHOULD_BE_PRIVATE}) == {}
+
 
 def _pkg(
     tmp_path: Path, modules: dict[str, str], pyproject: str = ""
