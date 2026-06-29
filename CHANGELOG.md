@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/gradienthealth/pystyle/compare/pystyle-v0.6.0...pystyle-v0.7.0) (2026-06-29)
+
+
+### Features
+
+* **PROC-2279:** extend --fix to the RS005 and RS030 prose rules ([#56](https://github.com/gradienthealth/pystyle/issues/56)) ([3604b6b](https://github.com/gradienthealth/pystyle/commit/3604b6b52318fde5182f1a8c2eac23cde88e3d6c))
+
 ## [0.6.0](https://github.com/gradienthealth/pystyle/compare/pystyle-v0.5.0...pystyle-v0.6.0) (2026-06-28)
 
 
