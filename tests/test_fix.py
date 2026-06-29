@@ -96,7 +96,7 @@ class TestFixCommentTerminalPunctuation:
             "# This is prose spanning\n# two lines here.\nx = 1\n"
         )
 
-    def test_TrailingFragmentWithPeriod_DropsIt(self) -> None:
+    def test_TrailingFragmentWithPeriod_RemovesTrailingPeriod(self) -> None:
         source = "x = 1  # Frobnicate the widget here.\n"
         assert fix_comment_terminal_punctuation(_PY, source) == (
             "x = 1  # Frobnicate the widget here\n"
@@ -131,7 +131,7 @@ class TestFixPath:
             '    The body line has no mark.\n    """\n'
         )
 
-    def test_OnlyOneRuleEnabled_LeavesTheOthers(self, tmp_path: Path) -> None:
+    def test_OnlyOneRuleEnabled_OtherFixersSkipped(self, tmp_path: Path) -> None:
         source = 'def f():\n    """Use ``dict`` here"""\n'
         target = _project(tmp_path, source, '["RS005"]')
         fix_path(target, {"RS005"})

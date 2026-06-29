@@ -28,8 +28,7 @@ from pystyle.suppressions import filter_suppressed, suppressed_lines
 # waived_lines)` and returning the rewritten source. They run in this
 # order so the surface edits (backticks, terminal punctuation) settle
 # before the reflow rewraps the corrected prose; each re-parses the
-# source it is handed, so chaining their edits is safe. A rule may carry
-# more than one fixer when its findings span docstrings and comments.
+# source it is handed, so chaining their edits is safe.
 _Fixer = Callable[[Path, str, frozenset[int]], str]
 _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_NO_DOUBLE_BACKTICKS, fix_double_backticks),

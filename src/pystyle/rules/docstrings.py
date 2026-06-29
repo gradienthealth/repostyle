@@ -629,12 +629,13 @@ def _terminal_insert_index(line: str, lineno: int, constant: ast.Constant) -> in
 
     When the closing quote shares the unit's last line, the index lands
     before it; otherwise it lands after the line's last non-space
-    character. The closing delimiter is found by matching the line's
-    suffix rather than `end_col_offset`, which is a byte offset and so
-    misplaces the mark on a line carrying non-ASCII text.
+    character.
     """
     stripped = line.rstrip()
     if lineno == constant.end_lineno:
+        # Match the delimiter by suffix, not `end_col_offset`: that offset
+        # is in bytes and misplaces the mark on a line carrying non-ASCII
+        # text.
         for delimiter in ('"""', "'''", '"', "'"):
             if stripped.endswith(delimiter):
                 return len(stripped[: -len(delimiter)].rstrip())
@@ -652,11 +653,7 @@ def _terminal_punctuation_message(kind: str) -> str:
 
 
 def _unfenced_md_lines(source: str) -> Iterator[tuple[int, str]]:
-    """Yield `(index, line)` for each line outside a fenced code block.
-
-    The markdown backtick check and its fixer both consume this, so they
-    agree on which lines are prose and which are fenced verbatim code.
-    """
+    """Yield `(index, line)` for each line outside a fenced code block."""
     in_fence = False
     for index, line in enumerate(source.splitlines()):
         if line.lstrip().startswith("```"):

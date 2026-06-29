@@ -194,9 +194,9 @@ def fix_comment_terminal_punctuation(
 def _comment_terminal_faults(source: str) -> Iterator[tuple[int, int, str]]:
     """Yield `(line, column, fault)` for each mispunctuated prose comment.
 
-    A trailing comment is checked first, then each standalone comment
-    block, so the shared check and fix agree on what is flagged and
-    where. The fault is `"missing"` or `"extra"`, per the house rule.
+    Trailing comments and standalone blocks are both covered, so the
+    check and its fixer see the same flagged locations. The fault is
+    `"missing"` or `"extra"`, per the house rule.
     """
     for lineno, column, string, is_trailing in _comment_tokens(source):
         if not is_trailing:
