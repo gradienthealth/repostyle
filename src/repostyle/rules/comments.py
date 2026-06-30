@@ -71,9 +71,10 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     message. A deviation — an unknown tag, wrong casing, a missing or malformed
     ticket, or a wrong separator — is flagged. A title-case word trailed by
     prose is an ordinary sentence and is left alone. The allowed tags and
-    ticket pattern come from config.
+    ticket pattern come from config. The check runs over Python, TOML, and YAML
+    comments alike, since a `#` comment reads the same in each.
     """
-    if path.suffix != ".py":
+    if path.suffix not in COMMENT_SUFFIXES:
         return
     tags, ticket_pattern = _resolve_config(path)
     allowed = {tag.upper() for tag in tags}
