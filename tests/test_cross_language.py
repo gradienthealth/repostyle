@@ -66,6 +66,17 @@ class TestExtractComments:
     def test_UnsupportedSuffix_YieldsNothing(self) -> None:
         assert _comments(Path("notes.txt"), "# a comment\n") == []
 
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "# lead\nif x:\n\tpass\n        pass\n",
+            '# lead\nx = "unterminated\n',
+        ],
+        ids=["indentation_error", "unterminated_string"],
+    )
+    def test_UnparseablePython_DoesNotRaise(self, source: str) -> None:
+        assert _comments(Path("m.py"), source) == [(1, 0, False, "lead")]
+
 
 def _comments(path: Path, source: str) -> list[tuple[int, int, bool, str]]:
     """Collect each comment as `(line, column, is_trailing, stripped text)`."""

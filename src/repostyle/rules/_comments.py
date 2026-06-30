@@ -117,7 +117,11 @@ def _python_comments(source: str) -> Iterator[_CommentToken]:
             lineno, column = token.start
             is_trailing = bool(source_lines[lineno - 1][:column].strip())
             yield _CommentToken(lineno, column, token.string, is_trailing)
-    except tokenize.TokenError:
+    except (tokenize.TokenError, SyntaxError):
+        # An unterminated tail raises TokenError; inconsistent
+        # indentation raises IndentationError/TabError (SyntaxError
+        # subclasses). Stop at the fault and keep the comments already
+        # surfaced.
         return
 
 

@@ -541,6 +541,12 @@ class TestCheckDocFill:
         source = 'key = "' + "a" * 90 + '#x"\n'
         assert list(check_doc_fill(Path("config.toml"), source)) == []
 
+    def test_UnparseablePython_NotChecked(self) -> None:
+        # An over-long comment in a .py file that does not parse: the
+        # check stays silent because --fix cannot rewrap it.
+        source = "def f(:\n# " + "abcde " * 13 + "end\n"
+        assert list(check_doc_fill(Path("src/x.py"), source)) == []
+
 
 class TestCheckBannedAbbreviation:
     @pytest.mark.parametrize(

@@ -56,6 +56,11 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
+    # An unparseable Python file is one `reflow_doc_fill` declines to
+    # rewrite, so the check skips it too rather than flag what `--fix`
+    # will not repair. A TOML or YAML file has no tree to parse.
+    if path.suffix == ".py" and _parse_python(path, source) is None:
+        return
     for unit in _fillable_units(path, source):
         # A span broken across source lines lost the whitespace at the
         # break, so `_reflow_unit` cannot rejoin it and skips it. The
