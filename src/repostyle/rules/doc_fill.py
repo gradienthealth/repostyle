@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
-from repostyle.rules._shared import _parse_python
+from repostyle.rules._shared import _join_source_lines, _parse_python
 from repostyle.rules._violation import RS_DOC_FILL, Violation
 
 DOC_FILL_COLUMNS = 72
@@ -101,9 +101,7 @@ def reflow_doc_fill(
         return source
     for start, stop, rewrapped in sorted(replacements, reverse=True):
         source_lines[start - 1 : stop] = rewrapped
-    newline = "\r\n" if "\r\n" in source else "\n"
-    rewritten = newline.join(source_lines)
-    return rewritten + newline if source.endswith("\n") else rewritten
+    return _join_source_lines(source, source_lines)
 
 
 def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:

@@ -21,6 +21,7 @@ from repostyle.rules._shared import (
     _comment_text,
     _is_directive_comment,
     _is_prose_comment,
+    _join_source_lines,
     _parse_python,
     _terminal_punctuation_fault,
 )
@@ -120,6 +121,48 @@ def check_no_double_backticks_in_docstrings(
                 RS_NO_DOUBLE_BACKTICKS,
                 "use single backticks, not double, in docstrings",
             )
+
+
+def fix_double_backticks(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Rewrite double backticks to single in `source`, the RS005 fix.
+
+    A markdown file's prose lines and a Python file's docstring lines
+    are rewritten; a fenced markdown block and a docstring whose owner
+    line is in `skip_lines` are left untouched. Return the source
+    unchanged when nothing rewrites.
+    """
+    if path.suffix == ".md":
+        return _fix_double_backticks_md(source)
+    tree = _parse_python(path, source)
+    if tree is None:
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None or getattr(node, "lineno", 1) in skip_lines:
+            continue
+        end = constant.end_lineno or constant.lineno
+        for lineno in range(constant.lineno, end + 1):
+            rewritten = DOUBLE_BACKTICK_PATTERN.sub("`", source_lines[lineno - 1])
+            if rewritten != source_lines[lineno - 1]:
+                source_lines[lineno - 1] = rewritten
+                changed = True
+    return _join_source_lines(source, source_lines) if changed else source
+
+
+def _fix_double_backticks_md(source: str) -> str:
+    """Rewrite double backticks to single in a markdown file's prose."""
+    source_lines = source.splitlines()
+    changed = False
+    for index, line in _unfenced_md_lines(source):
+        rewritten = DOUBLE_BACKTICK_PATTERN.sub("`", line)
+        if rewritten != line:
+            source_lines[index] = rewritten
+            changed = True
+    return _join_source_lines(source, source_lines) if changed else source
 
 
 def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Violation]:
@@ -236,19 +279,44 @@ def check_docstring_terminal_punctuation(
             )
 
 
+def fix_docstring_terminal_punctuation(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Append a period to each unterminated docstring prose unit, the RS030 fix.
+
+    A summary, body paragraph, or section entry that the rule flags as
+    missing terminal punctuation gains a trailing `.` after its content,
+    before the closing quote when the quote shares the line. A unit
+    whose line is in `skip_lines` is left untouched. Return the source
+    unchanged when nothing appends.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for unit in _docstring_prose_units(constant):
+            if unit.lineno in skip_lines:
+                continue
+            if _terminal_punctuation_fault(unit.text, is_prose=True) != "missing":
+                continue
+            line = source_lines[unit.lineno - 1]
+            index = _terminal_insert_index(line, unit.lineno, constant)
+            source_lines[unit.lineno - 1] = f"{line[:index]}.{line[index:]}"
+            changed = True
+    return _join_source_lines(source, source_lines) if changed else source
+
+
 def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
-    in_fence = False
-    for lineno, line in enumerate(source.splitlines(), start=1):
-        stripped = line.lstrip()
-        if stripped.startswith("```"):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
+    for index, line in _unfenced_md_lines(source):
         match = DOUBLE_BACKTICK_PATTERN.search(line)
         if match:
             yield Violation(
-                lineno,
+                index + 1,
                 match.start() + 1,
                 RS_NO_DOUBLE_BACKTICKS,
                 "use single backticks, not double, in prose",
@@ -556,6 +624,24 @@ def _summary_comment_owners(
             yield node
 
 
+def _terminal_insert_index(line: str, lineno: int, constant: ast.Constant) -> int:
+    """Return the column on `line` just past a prose unit's last content.
+
+    When the closing quote shares the unit's last line, the index lands
+    before it; otherwise it lands after the line's last non-space
+    character.
+    """
+    stripped = line.rstrip()
+    if lineno == constant.end_lineno:
+        # Match the delimiter by suffix, not `end_col_offset`: that
+        # offset is in bytes and misplaces the mark on a line carrying
+        # non-ASCII text.
+        for delimiter in ('"""', "'''", '"', "'"):
+            if stripped.endswith(delimiter):
+                return len(stripped[: -len(delimiter)].rstrip())
+    return len(stripped)
+
+
 def _terminal_punctuation_message(kind: str) -> str:
     """Return the fix message for a missing terminal mark on `kind`."""
     subject = {
@@ -564,6 +650,17 @@ def _terminal_punctuation_message(kind: str) -> str:
         "entry": "section entry",
     }[kind]
     return f"{subject} should end with terminal punctuation (`.`, `!`, or `?`)"
+
+
+def _unfenced_md_lines(source: str) -> Iterator[tuple[int, str]]:
+    """Yield `(index, line)` for each line outside a fenced code block."""
+    in_fence = False
+    for index, line in enumerate(source.splitlines()):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence:
+            yield index, line
 
 
 def _walk_docstring_owners(

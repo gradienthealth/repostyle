@@ -163,7 +163,9 @@ RULE_SEVERITY: dict[str, Severity] = {
 # The rules `repostyle --fix` rewrites in place. The single source both
 # the runner's fix path and the `explain` card's fixable line consult,
 # so a card never promises a fix the runner does not perform.
-FIXABLE_RULES: frozenset[str] = frozenset({RS_DOC_FILL})
+FIXABLE_RULES: frozenset[str] = frozenset(
+    {RS_DOC_FILL, RS_NO_DOUBLE_BACKTICKS, RS_TERMINAL_PUNCTUATION}
+)
 
 
 def severity_of(rule_id: str) -> Severity:
