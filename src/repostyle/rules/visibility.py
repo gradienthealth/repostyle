@@ -1,18 +1,17 @@
 """Visibility rule: a public name used only in its own module should be private.
 
-Unlike every other rule, this one reasons across the whole package: it
-catalogs each module's top-level public `def`/`class` and every module's
-references, then flags a public name that is used only inside its own
-module and exported nowhere. Such a name leaked public scope and should
-carry a leading underscore, or be added to `__all__` if it is genuinely
-part of the package's public API.
+Unlike every other rule, this one reasons across the whole package: it catalogs
+each module's top-level public `def`/`class` and every module's references,
+then flags a public name that is used only inside its own module and exported
+nowhere. Such a name leaked public scope and should carry a leading underscore,
+or be added to `__all__` if it is genuinely part of the package's public API.
 
-The public surface a repo declares is the authoritative contract, so a
-name is left alone when it appears in any `__all__`, is re-exported from
-a public module (every `__init__.py`, plus any `public-modules` glob),
-is a `[project.scripts]` entry point, or is named in the `public-names`
-/ `public-decorators` escape hatches. Cross-module reference detection
-errs toward counting a use, so the rule under- rather than over-reports.
+The public surface a repo declares is the authoritative contract, so a name is
+left alone when it appears in any `__all__`, is re-exported from a public
+module (every `__init__.py`, plus any `public-modules` glob), is a
+`[project.scripts]` entry point, or is named in the `public-names` /
+`public-decorators` escape hatches. Cross-module reference detection errs
+toward counting a use, so the rule under- rather than over-reports.
 """
 
 from __future__ import annotations
@@ -35,9 +34,9 @@ def check_should_be_private(
     """Flag a public top-level name used only within its own module.
 
     A name fires only when it is loaded inside its defining module yet
-    referenced by no other first-party module and absent from the
-    declared public surface. A name used nowhere is dead code, not an
-    internal-only name, and is left to a different tool.
+    referenced by no other first-party module and absent from the declared
+    public surface. A name used nowhere is dead code, not an internal-only
+    name, and is left to a different tool.
     """
     modules = [
         facts
@@ -182,8 +181,8 @@ def _exported_names(node: ast.stmt) -> set[str]:
 def _is_public_module(path: Path) -> bool:
     """Report whether a module re-exports names as a public surface.
 
-    Every package `__init__.py` is a re-export surface; a repo names any
-    other export module through the `public-modules` glob list.
+    Every package `__init__.py` is a re-export surface; a repo names any other
+    export module through the `public-modules` glob list.
     """
     if path.name == "__init__.py":
         return True

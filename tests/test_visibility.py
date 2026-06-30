@@ -3,8 +3,8 @@ from pathlib import Path
 from repostyle.rules import RS_SHOULD_BE_PRIVATE, check_should_be_private
 from repostyle.runner import lint_package
 
-# A module whose public `run` (exported) calls a public `helper` that no
-# other module references: `helper` leaked public scope.
+# A module whose public `run` (exported) calls a public `helper` that no other
+# module references: `helper` leaked public scope.
 _LEAKED = """\
 __all__ = ["run"]
 
@@ -125,8 +125,8 @@ class TestLintPackage:
         assert lint_package([mod], set()) == {}
 
     def test_RepostyleOwnSource_HasNoLeakedInternalName(self) -> None:
-        # Dogfood RS029 over repostyle's own source the way the hook
-        # does, pinning that no public symbol leaks internal-only scope.
+        # Dogfood RS029 over repostyle's own source the way the hook does,
+        # pinning that no public symbol leaks internal-only scope.
         package = Path(__file__).resolve().parents[1] / "src" / "repostyle"
         sources = [
             path for path in package.rglob("*.py") if "__pycache__" not in path.parts

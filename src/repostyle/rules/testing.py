@@ -76,10 +76,10 @@ def check_no_mock_patch(path: Path, source: str) -> Iterator[Violation]:
 def check_conditional_test_logic(path: Path, source: str) -> Iterator[Violation]:
     """A test may not wrap an `assert` in conditional or loop logic.
 
-    An `if`, `for`, `while`, or `try` whose own body asserts makes the
-    asserted path depend on runtime state, so a test that never enters
-    the branch passes vacuously. Keep test bodies straight-line, or
-    split the cases into separate tests or parametrized rows.
+    An `if`, `for`, `while`, or `try` whose own body asserts makes the asserted
+    path depend on runtime state, so a test that never enters the branch passes
+    vacuously. Keep test bodies straight-line, or split the cases into separate
+    tests or parametrized rows.
     """
     if not _is_test_file(path):
         return
@@ -101,11 +101,10 @@ def check_conditional_test_logic(path: Path, source: str) -> Iterator[Violation]
 def check_sleepy_test(path: Path, source: str) -> Iterator[Violation]:
     """A test may not call `time.sleep` or `asyncio.sleep`.
 
-    A real sleep makes the suite slow and couples it to wall-clock
-    timing, the usual source of flakes; wait on the observable condition
-    or drive a fake clock instead. A literal `sleep(0)` is exempt: it is
-    the idiomatic single-turn yield to the event loop, neither slow nor
-    flaky.
+    A real sleep makes the suite slow and couples it to wall-clock timing, the
+    usual source of flakes; wait on the observable condition or drive a fake
+    clock instead. A literal `sleep(0)` is exempt: it is the idiomatic
+    single-turn yield to the event loop, neither slow nor flaky.
     """
     if not _is_test_file(path):
         return
@@ -134,10 +133,10 @@ def check_sleepy_test(path: Path, source: str) -> Iterator[Violation]:
 def check_excessive_mocking(path: Path, source: str) -> Iterator[Violation]:
     """Warn when a test builds many mock objects.
 
-    A high mock count per test points at over-mocked, brittle coupling
-    worth a look; it is a density signal of where to look, not a verdict
-    that any single mock is wrong. Counts `Mock`/`MagicMock`/`patch` and
-    their kin, including `@patch` decorators.
+    A high mock count per test points at over-mocked, brittle coupling worth a
+    look; it is a density signal of where to look, not a verdict that any
+    single mock is wrong. Counts `Mock`/`MagicMock`/`patch` and their kin,
+    including `@patch` decorators.
     """
     if not _is_test_file(path):
         return
@@ -166,10 +165,10 @@ def check_excessive_mocking(path: Path, source: str) -> Iterator[Violation]:
 def check_behavior_verification_only(path: Path, source: str) -> Iterator[Violation]:
     """Warn when a test asserts only call choreography, never state.
 
-    A test whose only checks are `mock.assert_called*` pins how the unit
-    calls its collaborators rather than the outcome a caller relies on,
-    so it survives a correct refactor and breaks on a harmless one. A
-    test with at least one plain `assert` is left alone.
+    A test whose only checks are `mock.assert_called*` pins how the unit calls
+    its collaborators rather than the outcome a caller relies on, so it
+    survives a correct refactor and breaks on a harmless one. A test with at
+    least one plain `assert` is left alone.
     """
     if not _is_test_file(path):
         return

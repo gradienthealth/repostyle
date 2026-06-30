@@ -1,13 +1,13 @@
 name: sync shared style files
 
-# docs/judgment-conventions.md (the judgment canon) and ruff-base.toml
-# (the shared ruff baseline) are org-wide style sources. Consumer repos
-# vendor read-only copies — the canon imported from CLAUDE.md,
-# ruff-base.toml extended from pyproject.toml — so both sit where a
-# coding agent and the linter see them, not only at review. When either
-# changes on main, mint a gradienthealth-bot token, copy both into each
-# consumer repo, and open a pull request. Edit these here, never the
-# vendored copies — the next sync overwrites them.
+# docs/judgment-conventions.md (the judgment canon) and ruff-base.toml (the
+# shared ruff baseline) are org-wide style sources. Consumer repos vendor
+# read-only copies — the canon imported from CLAUDE.md, ruff-base.toml extended
+# from pyproject.toml — so both sit where a coding agent and the linter see
+# them, not only at review. When either changes on main, mint a
+# gradienthealth-bot token, copy both into each consumer repo, and open a pull
+# request. Edit these here, never the vendored copies — the next sync
+# overwrites them.
 
 on:
   push:
@@ -27,8 +27,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Consumer repos that vendor these files. Add a repo here once
-        # it vendors docs/judgment-conventions.md and ruff-base.toml.
+        # Consumer repos that vendor these files. Add a repo here once it
+        # vendors docs/judgment-conventions.md and ruff-base.toml.
         repo:
           - fhir-ingestor
     steps:

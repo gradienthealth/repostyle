@@ -27,8 +27,8 @@ from pathlib import Path
 from repostyle.rules._shared import _has_decorator, _parse_python
 from repostyle.rules._violation import RS_TOO_MANY_POSITIONAL_ARGS, Violation
 
-# Matches ruff PLR0917's default `max-positional-args`. A definition
-# with more positional parameters than this is flagged.
+# Matches ruff PLR0917's default `max-positional-args`. A definition with more
+# positional parameters than this is flagged.
 MAX_POSITIONAL_ARGS = 5
 
 _OVERRIDE_DECORATORS = frozenset({"override"})
@@ -37,12 +37,12 @@ _OVERRIDE_DECORATORS = frozenset({"override"})
 def check_too_many_positional_args(path: Path, source: str) -> Iterator[Violation]:
     """Flag a definition that takes more than the allowed positional arguments.
 
-    Count a definition's positional-only and positional-or-keyword
-    parameters; keyword-only parameters (those after a `*`) never count,
-    so a keyword-only dependency-injection builder is left alone however
-    many it declares. The implicit `self`/`cls` of an instance or class
-    method is not counted, and a method decorated with `@override` is
-    exempt. A definition over the cap is reported at its `def` line.
+    Count a definition's positional-only and positional-or-keyword parameters;
+    keyword-only parameters (those after a `*`) never count, so a keyword-only
+    dependency-injection builder is left alone however many it declares. The
+    implicit `self`/`cls` of an instance or class method is not counted, and a
+    method decorated with `@override` is exempt. A definition over the cap is
+    reported at its `def` line.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -53,10 +53,10 @@ def check_too_many_positional_args(path: Path, source: str) -> Iterator[Violatio
 def _check_scope(node: ast.AST, is_within_class: bool) -> Iterator[Violation]:
     """Walk one scope, tracking whether its definitions are class methods.
 
-    A function defined directly in a class body binds an implicit
-    `self`/`cls`, so its first positional parameter is excluded; a
-    nested function or a module-level one does not, so descending into a
-    function body resets the class context.
+    A function defined directly in a class body binds an implicit `self`/`cls`,
+    so its first positional parameter is excluded; a nested function or a
+    module-level one does not, so descending into a function body resets the
+    class context.
     """
     for child in ast.iter_child_nodes(node):
         if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):

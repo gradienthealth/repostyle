@@ -26,11 +26,10 @@ from repostyle.runner import (
 def main(argv: list[str] | None = None) -> int:
     """Lint the given paths, or explain a rule, and return the exit code.
 
-    Dispatch to the `explain` subcommand when it leads the arguments;
-    otherwise lint. Linting returns 2 when the rule set cannot be
-    resolved, 1 when an error-severity finding remains or a file was
-    fixed, and 0 otherwise. `explain` returns 2 for an unknown id and 0
-    otherwise.
+    Dispatch to the `explain` subcommand when it leads the arguments; otherwise
+    lint. Linting returns 2 when the rule set cannot be resolved, 1 when an
+    error-severity finding remains or a file was fixed, and 0 otherwise.
+    `explain` returns 2 for an unknown id and 0 otherwise.
     """
     args = sys.argv[1:] if argv is None else argv
     if args and args[0] == "explain":
@@ -41,8 +40,8 @@ def main(argv: list[str] | None = None) -> int:
 def _run_explain(argv: list[str]) -> int:
     """Print the explanation card for each named rule, or every rule.
 
-    Return 2 when any named id is unknown, after printing the cards for
-    the ids that resolve.
+    Return 2 when any named id is unknown, after printing the cards for the ids
+    that resolve.
     """
     parser = argparse.ArgumentParser(prog="repostyle explain")
     parser.add_argument("rules", nargs="*", metavar="RSnnn")
@@ -132,9 +131,9 @@ def _report_path(
 ) -> tuple[bool, set[str]]:
     """Print a path's findings, returning whether any failed and which rules fired.
 
-    `extra` carries whole-package findings already scoped to this path,
-    merged with the per-file findings before diff-filtering and
-    printing. The returned rule set drives the per-rule discovery hint.
+    `extra` carries whole-package findings already scoped to this path, merged
+    with the per-file findings before diff-filtering and printing. The returned
+    rule set drives the per-rule discovery hint.
     """
     violations = sorted(set(lint_path(path, enabled)) | set(extra))
     if options.diff:

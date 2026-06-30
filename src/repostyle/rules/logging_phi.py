@@ -17,13 +17,13 @@ _LOGGING_CALL_NAMES = frozenset(
 def check_no_phi_safe_with_exc_info(path: Path, source: str) -> Iterator[Violation]:
     """A log record carrying `exc_info` may not be marked `phi_safe`.
 
-    The formatter renders the record's full exception chain, and
-    third-party exception messages in the chain can embed identifiers
-    (request URLs, query parameters, statement parameters), so no
-    `exc_info`-bearing record can be certain to be PHI-free. Detected
-    when a logging-style call (`.exception(...)`, or any level method
-    with a truthy `exc_info=` argument) passes a literal `extra` (a dict
-    display or `dict(...)` call) containing a `"phi_safe"` key.
+    The formatter renders the record's full exception chain, and third-party
+    exception messages in the chain can embed identifiers (request URLs, query
+    parameters, statement parameters), so no `exc_info`-bearing record can be
+    certain to be PHI-free. Detected when a logging-style call
+    (`.exception(...)`, or any level method with a truthy `exc_info=` argument)
+    passes a literal `extra` (a dict display or `dict(...)` call) containing a
+    `"phi_safe"` key.
     """
     tree = _parse_python(path, source)
     if tree is None:

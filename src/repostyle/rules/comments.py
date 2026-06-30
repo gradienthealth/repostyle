@@ -8,13 +8,13 @@ message`, where the tag is one of a configured allowed set (`TODO`,
 pattern (the Linear-id shape `[A-Z]+-\\d+`, plus the literal `NO-ISSUE`,
 by default).
 
-A comment whose leading token looks like a tag but deviates is flagged:
-a tag outside the allowed set (`XXX`, `BUG`), wrong casing (`# todo`),
-missing parentheses (`TODO PROC-1`), a missing ticket (`TODO: fix`), a
-name instead of a ticket (`TODO(sai)`), or a wrong separator after the
-parenthesized ticket. Both the allowed tag set and the ticket pattern
-are read from the `[tool.repostyle]` table, so a repo expresses its own
-ticket shape; with no config the defaults apply.
+A comment whose leading token looks like a tag but deviates is flagged: a tag
+outside the allowed set (`XXX`, `BUG`), wrong casing (`# todo`), missing
+parentheses (`TODO PROC-1`), a missing ticket (`TODO: fix`), a name instead of
+a ticket (`TODO(sai)`), or a wrong separator after the parenthesized ticket.
+Both the allowed tag set and the ticket pattern are read from the
+`[tool.repostyle]` table, so a repo expresses its own ticket shape; with no
+config the defaults apply.
 """
 
 from __future__ import annotations
@@ -45,10 +45,10 @@ from repostyle.rules._violation import (
 DEFAULT_TAGS = ("TODO", "FIXME", "NOTE", "HACK")
 DEFAULT_TICKET_PATTERN = r"[A-Z]+-\d+|NO-ISSUE"
 
-# Tags an author commonly reaches for that the canonical set replaces,
-# so a deviation is steered toward an allowed tag rather than silently
-# accepted. A token matching the leading-token shape but on neither this
-# set nor the allowed set is ordinary prose and never flagged.
+# Tags an author commonly reaches for that the canonical set replaces, so a
+# deviation is steered toward an allowed tag rather than silently accepted. A
+# token matching the leading-token shape but on neither this set nor the
+# allowed set is ordinary prose and never flagged.
 _KNOWN_ALIASES = frozenset({"XXX", "BUG", "TBD", "OPTIMIZE", "REVIEW", "WIP"})
 
 # A comment's first token, with the character that immediately follows
@@ -64,15 +64,14 @@ _LEADING_TOKEN_PATTERN = re.compile(r"^#+\s*([A-Za-z]+)([(:]?)")
 def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     """A special comment must read `TAG(TICKET): message`.
 
-    A comment opening with a tag — a token that is an allowed tag or a
-    known alias of one, and is used tag-style: written in all caps or
-    set off by a `(` or `:` separator — is held to the canonical form:
-    an allowed tag, the ticket in parentheses matching the configured
-    pattern, then `: ` and a message. A deviation — an unknown tag,
-    wrong casing, a missing or malformed ticket, or a wrong separator —
-    is flagged. A title-case word trailed by prose is an ordinary
-    sentence and is left alone. The allowed tags and ticket pattern come
-    from config.
+    A comment opening with a tag — a token that is an allowed tag or a known
+    alias of one, and is used tag-style: written in all caps or set off by a
+    `(` or `:` separator — is held to the canonical form: an allowed tag, the
+    ticket in parentheses matching the configured pattern, then `: ` and a
+    message. A deviation — an unknown tag, wrong casing, a missing or malformed
+    ticket, or a wrong separator — is flagged. A title-case word trailed by
+    prose is an ordinary sentence and is left alone. The allowed tags and
+    ticket pattern come from config.
     """
     if path.suffix != ".py":
         return
@@ -127,8 +126,8 @@ def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
 def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
     """Read the allowed tags and ticket pattern from a pyproject file.
 
-    Return the configured allowed tag tuple and ticket-pattern regex,
-    each falling back to its default when the table omits it.
+    Return the configured allowed tag tuple and ticket-pattern regex, each
+    falling back to its default when the table omits it.
     """
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
@@ -143,12 +142,12 @@ def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
 def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Violation]:
     """A prose comment's terminal punctuation must match its shape.
 
-    A single-line comment that is one fragment reads as a label and must
-    not end with a period; a comment spanning lines or running more than
-    one sentence reads as prose and must end with `.`, `!`, or `?`. A
-    tool directive, a coding line, and a commented-out statement are not
-    prose and are left alone. The check runs over Python, TOML, and YAML
-    comments alike, since a `#` comment reads the same in each.
+    A single-line comment that is one fragment reads as a label and must not
+    end with a period; a comment spanning lines or running more than one
+    sentence reads as prose and must end with `.`, `!`, or `?`. A tool
+    directive, a coding line, and a commented-out statement are not prose and
+    are left alone. The check runs over Python, TOML, and YAML comments alike,
+    since a `#` comment reads the same in each.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -167,11 +166,11 @@ def fix_comment_terminal_punctuation(
     """Repair each flagged comment's terminal punctuation, the RS030 fix.
 
     A prose comment missing terminal punctuation gains a trailing `.`; a
-    fragment carrying one drops it, including a period sitting before
-    trailing closers (`note.)`), so the repair matches what the rule
-    flags. A comment whose line is in `skip_lines` is left untouched.
-    The fix runs on Python only, though the check spans TOML and YAML
-    too. Return the source unchanged when nothing repairs.
+    fragment carrying one drops it, including a period sitting before trailing
+    closers (`note.)`), so the repair matches what the rule flags. A comment
+    whose line is in `skip_lines` is left untouched. The fix runs on Python
+    only, though the check spans TOML and YAML too. Return the source unchanged
+    when nothing repairs.
     """
     if path.suffix != ".py":
         return source
@@ -195,10 +194,9 @@ def fix_comment_terminal_punctuation(
 def _comment_terminal_faults(path: Path, source: str) -> Iterator[tuple[int, int, str]]:
     """Yield `(line, column, fault)` for each mispunctuated prose comment.
 
-    Trailing comments and standalone blocks are both covered, so the
-    check and its fixer see the same flagged locations. Comments are
-    read across Python, TOML, and YAML. The fault is `"missing"` or
-    `"extra"`, per the house rule.
+    Trailing comments and standalone blocks are both covered, so the check and
+    its fixer see the same flagged locations. Comments are read across Python,
+    TOML, and YAML. The fault is `"missing"` or `"extra"`, per the house rule.
     """
     for comment in extract_comments(path, source):
         if not comment.is_trailing:
@@ -233,9 +231,9 @@ def _standalone_comment_blocks(
 ) -> Iterator[list[tuple[int, int, str]]]:
     """Group own-line comments into adjacent same-column blocks.
 
-    A directive line, a trailing comment, a blank gap, or a column shift
-    closes the open block, so each yielded block is one contiguous prose
-    comment a reader sees as a paragraph.
+    A directive line, a trailing comment, a blank gap, or a column shift closes
+    the open block, so each yielded block is one contiguous prose comment a
+    reader sees as a paragraph.
     """
     block: list[tuple[int, int, str]] = []
     previous: tuple[int, int] | None = None

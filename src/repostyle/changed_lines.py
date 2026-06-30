@@ -1,10 +1,10 @@
 """Map a file to the new-file line numbers a git diff added or modified.
 
-This backs the CLI's `--diff` mode: a finding is reported only when its
-own line is one the change touched, so adopting a rule does not block a
-pull request on its pre-existing backlog. The intersection is on the
-finding's own line — a whole-unit finding reported at a `def` re-arms
-only when that line changes, not on an edit elsewhere in its body.
+This backs the CLI's `--diff` mode: a finding is reported only when its own
+line is one the change touched, so adopting a rule does not block a pull
+request on its pre-existing backlog. The intersection is on the finding's own
+line — a whole-unit finding reported at a `def` re-arms only when that line
+changes, not on an edit elsewhere in its body.
 """
 
 from __future__ import annotations
@@ -19,10 +19,10 @@ _HUNK_HEADER = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 def changed_lines(path: Path, base: str) -> set[int] | None:
     """Return the new-file line numbers `path` adds or modifies versus `base`.
 
-    Return `None` when the change set cannot be trusted — git is
-    unavailable, `base` is unknown, or `path` is untracked — so the
-    caller reports every finding rather than hide one. A tracked file
-    with no diff against `base` returns an empty set.
+    Return `None` when the change set cannot be trusted — git is unavailable,
+    `base` is unknown, or `path` is untracked — so the caller reports every
+    finding rather than hide one. A tracked file with no diff against `base`
+    returns an empty set.
     """
     diff = _run_git(["diff", "--unified=0", base, "--", path.name], path.parent)
     if diff.returncode != 0:
@@ -37,9 +37,9 @@ def changed_lines(path: Path, base: str) -> set[int] | None:
             lines.add(new_lineno)
             new_lineno += 1
     if not lines:
-        # An untracked file has no diff at all, so an empty result is
-        # the only case mistakable for an unchanged tracked file; fail
-        # open when the file proves untracked.
+        # An untracked file has no diff at all, so an empty result is the only
+        # case mistakable for an unchanged tracked file; fail open when the
+        # file proves untracked.
         tracked = _run_git(
             ["ls-files", "--error-unmatch", "--", path.name], path.parent
         )

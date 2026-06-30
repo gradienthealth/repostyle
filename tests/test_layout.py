@@ -67,8 +67,8 @@ class TestCheckModuleElementOrder:
         assert list(check_module_element_order(target, source)) == []
 
     def test_BaseClassAboveSubclass_NoViolation(self, tmp_path: Path) -> None:
-        # A base class must precede its subclass at definition time, so
-        # the top-down order leaves it above and does not flag it.
+        # A base class must precede its subclass at definition time, so the
+        # top-down order leaves it above and does not flag it.
         source = "class _Base:\n    pass\n\n\nclass Sub(_Base):\n    pass\n"
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
@@ -76,9 +76,9 @@ class TestCheckModuleElementOrder:
     def test_FieldAnnotationReferencesClassAbove_NoViolation(
         self, tmp_path: Path
     ) -> None:
-        # A field's type annotation is evaluated when the class body
-        # runs, so the annotated class must precede it; the top-down
-        # order leaves it above and does not flag it.
+        # A field's type annotation is evaluated when the class body runs, so
+        # the annotated class must precede it; the top-down order leaves it
+        # above and does not flag it.
         source = (
             "import dataclasses\n\n\n"
             "@dataclasses.dataclass\n"
@@ -113,16 +113,16 @@ class TestCheckModuleElementOrder:
     def test_SignatureAnnotationReferencesClassAbove_NoViolation(
         self, tmp_path: Path, source: str
     ) -> None:
-        # A parameter or return annotation is evaluated when the `def`
-        # runs, so the annotated class must precede it; the top-down
-        # order leaves it above and does not flag it.
+        # A parameter or return annotation is evaluated when the `def` runs, so
+        # the annotated class must precede it; the top-down order leaves it
+        # above and does not flag it.
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
     def test_MethodBodyUsesHelperBelow_FlagsViolation(self, tmp_path: Path) -> None:
-        # A method body defers to call time, so a helper it reads is a
-        # top-down dependency: with the callee above its caller, the
-        # class should move above the helper.
+        # A method body defers to call time, so a helper it reads is a top-down
+        # dependency: with the callee above its caller, the class should move
+        # above the helper.
         source = (
             "def _helper():\n    return 1\n\n\n"
             "class K:\n    def run(self):\n        return _helper()\n"
@@ -133,23 +133,22 @@ class TestCheckModuleElementOrder:
         assert violations[0].rule == RS_ELEMENT_ORDER
 
     def test_ConstantConsumedByFunctionBelow_NoViolation(self, tmp_path: Path) -> None:
-        # Constants stay at the head of the file regardless of what
-        # reads them, so a function using one from below is not a
-        # violation.
+        # Constants stay at the head of the file regardless of what reads them,
+        # so a function using one from below is not a violation.
         source = "CONST = 1\n\n\ndef public():\n    return CONST\n"
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
     def test_PytestClassesNotAlphabetised_NoViolation(self, tmp_path: Path) -> None:
-        # Test classes mirror the order of the callables they cover, not
-        # an alphabetical one, so two out of order do not flag.
+        # Test classes mirror the order of the callables they cover, not an
+        # alphabetical one, so two out of order do not flag.
         source = "class TestB:\n    pass\n\n\nclass TestA:\n    pass\n"
         target = _target(tmp_path, source)
         assert list(check_module_element_order(target, source)) == []
 
     def test_LocalNameShadowingADefinition_NoViolation(self, tmp_path: Path) -> None:
-        # The local '_helper' is not a reference to the helper below it,
-        # so no dependency edge exists.
+        # The local '_helper' is not a reference to the helper below it, so no
+        # dependency edge exists.
         source = (
             "def public():\n    _helper = 1\n    return _helper\n\n\n"
             "def _helper():\n    return 2\n"
@@ -164,8 +163,7 @@ class TestCheckModuleElementOrder:
 
     def test_BranchingCycleAmongHelpers_NoViolation(self, tmp_path: Path) -> None:
         # All four helpers belong to one dependency cycle, so none is
-        # independent of the others and alphabetical order does not
-        # apply.
+        # independent of the others and alphabetical order does not apply.
         source = (
             "def _a():\n    return _b() + _c()\n\n\n"
             "def _b():\n    return _d()\n\n\n"
@@ -208,8 +206,8 @@ class TestCheckClassMemberOrder:
         assert violations[0].rule == RS_ELEMENT_ORDER
 
     def test_PytestClassMethodsNotOrdered_NoViolation(self, tmp_path: Path) -> None:
-        # A pytest test class follows scenario order, not the method
-        # bands, so out-of-order test methods do not flag.
+        # A pytest test class follows scenario order, not the method bands, so
+        # out-of-order test methods do not flag.
         source = (
             "class TestThing:\n"
             "    def test_zebra(self):\n        assert True\n\n"

@@ -1,10 +1,10 @@
 """Cognitive-complexity rule: warn when a function is too hard to follow.
 
-Cognitive complexity weights control flow by how deeply it nests, so a
-flat sequence of branches scores far lower than the same branches buried
-inside each other. The limit of 15 is Sonar's default rule threshold,
-not a figure from Campbell's original paper, so the warning marks a
-function worth a second look rather than asserting a defect.
+Cognitive complexity weights control flow by how deeply it nests, so a flat
+sequence of branches scores far lower than the same branches buried inside each
+other. The limit of 15 is Sonar's default rule threshold, not a figure from
+Campbell's original paper, so the warning marks a function worth a second look
+rather than asserting a defect.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ _NESTING_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
 def check_cognitive_complexity(path: Path, source: str) -> Iterator[Violation]:
     """Flag a function whose cognitive complexity exceeds the limit.
 
-    Each branch (`if`, `for`, `while`, `except`, conditional expression)
-    and each boolean-operator sequence adds to the score, and a branch
-    nested inside another adds more for its depth. A function scoring
-    over the limit is reported at its `def` line as a warning.
+    Each branch (`if`, `for`, `while`, `except`, conditional expression) and
+    each boolean-operator sequence adds to the score, and a branch nested
+    inside another adds more for its depth. A function scoring over the limit
+    is reported at its `def` line as a warning.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -58,9 +58,9 @@ def _score_children(node: ast.AST, nesting: int) -> int:
 def _score_if(node: ast.If, nesting: int) -> int:
     """Score an `if`, treating an `elif` as a flat continuation, not deeper nesting.
 
-    An `elif` is a lone `If` in the `orelse`; scoring it at the same
-    nesting keeps a dispatch chain of branches from reading as deeply
-    nested code, matching how cognitive complexity treats `else if`.
+    An `elif` is a lone `If` in the `orelse`; scoring it at the same nesting
+    keeps a dispatch chain of branches from reading as deeply nested code,
+    matching how cognitive complexity treats `else if`.
     """
     score = 1 + nesting + _score_node(node.test, nesting)
     score += _score_block(node.body, nesting + 1)

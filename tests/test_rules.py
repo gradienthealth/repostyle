@@ -48,10 +48,9 @@ from repostyle.rules import (
     check_test_naming,
 )
 
-# PEP 695 type-alias / type-parameter syntax only parses on Python
-# 3.12+, so these cases skip on 3.11, where the source is a SyntaxError
-# the checker correctly cannot inspect (such code cannot exist on 3.11
-# anyway).
+# PEP 695 type-alias / type-parameter syntax only parses on Python 3.12+, so
+# these cases skip on 3.11, where the source is a SyntaxError the checker
+# correctly cannot inspect (such code cannot exist on 3.11 anyway).
 _REQUIRES_PEP695 = pytest.mark.skipif(
     sys.version_info < (3, 12), reason="PEP 695 syntax requires Python 3.12+"
 )
@@ -495,7 +494,7 @@ class TestCheckDocFill:
     @pytest.mark.parametrize(
         "source",
         [
-            'def f():\n    """Summary.\n\n    ' + "a" * 64 + "\n    bbbb\n" + '    """',
+            'def f():\n    """Summary.\n\n    ' + "a" * 72 + "\n    bbbb\n" + '    """',
             '"""' + "abcde " * 13 + 'end."""',
             '"""Summary line that runs well past the seventy-two column limit xxxx\n\n'
             'body.\n"""',
@@ -549,8 +548,8 @@ class TestCheckDocFill:
         assert list(check_doc_fill(Path("README.md"), "# aaa\n# bbb")) == []
 
     def test_UnparseablePython_NotChecked(self) -> None:
-        # An over-long comment in a .py file that does not parse: the
-        # check stays silent because --fix cannot rewrap it.
+        # An over-long comment in a .py file that does not parse: the check
+        # stays silent because --fix cannot rewrap it.
         source = "def f(:\n# " + "abcde " * 13 + "end\n"
         assert list(check_doc_fill(Path("src/x.py"), source)) == []
 
@@ -994,8 +993,8 @@ _DOC_EXAMPLE_SECTION = (
     'def f():\n    """Do the thing.\n\n    Example:\n'
     '        >>> f()\n        result\n    """\n'
 )
-# A Returns description that wraps at the entry margin (no hanging
-# indent) is one multi-line entry, not two single-line labels.
+# A Returns description that wraps at the entry margin (no hanging indent) is
+# one multi-line entry, not two single-line labels.
 _DOC_SAME_INDENT_RETURNS = (
     'def f():\n    """Do the thing.\n\n    Returns:\n'
     "        A tuple of the parsed bundle and the\n"

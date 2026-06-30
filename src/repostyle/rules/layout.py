@@ -1,20 +1,19 @@
 """Element-ordering rule: top-down by dependency, then order free choices.
 
-Two structural conventions, both derived from the code itself rather
-than from names. A module-level definition appears above the definitions
-it uses, so a module reads top-down from its public surface into the
-helpers beneath it (the newspaper layout); mutual-recursion cycles are
-exempt because no such order exists. Where the dependency graph leaves
-the order free — adjacent private helpers or classes that do not
-reference each other — they go alphabetically, the one tie-break that
-stays stable as bodies change.
+Two structural conventions, both derived from the code itself rather than from
+names. A module-level definition appears above the definitions it uses, so a
+module reads top-down from its public surface into the helpers beneath it (the
+newspaper layout); mutual-recursion cycles are exempt because no such order
+exists. Where the dependency graph leaves the order free — adjacent private
+helpers or classes that do not reference each other — they go alphabetically,
+the one tie-break that stays stable as bodies change.
 
-Within a class, methods run dunders, then public, then private, with the
-public and private runs alphabetical; an enum whose members all carry
-explicit literal values orders them alphabetically too. Public functions
-and module constants are left to the author: a public surface often has
-a narrative order, and constants carry implicit orders (a numeric id
-sequence, say) that a name sort would destroy.
+Within a class, methods run dunders, then public, then private, with the public
+and private runs alphabetical; an enum whose members all carry explicit literal
+values orders them alphabetically too. Public functions and module constants
+are left to the author: a public surface often has a narrative order, and
+constants carry implicit orders (a numeric id sequence, say) that a name sort
+would destroy.
 """
 
 from __future__ import annotations
@@ -61,9 +60,9 @@ def _enum_member_order(node: ast.ClassDef) -> Iterator[Violation]:
 def _enum_member_names(node: ast.ClassDef) -> list[str] | None:
     """Return an enum's member names if every value is an explicit literal.
 
-    Return None when the class is not an enum or any member takes a
-    computed value (`auto()`, an expression), since reordering would
-    then change the values it assigns.
+    Return None when the class is not an enum or any member takes a computed
+    value (`auto()`, an expression), since reordering would then change the
+    values it assigns.
     """
     bases = {base.id for base in node.bases if isinstance(base, ast.Name)}
     bases |= {b.attr for b in node.bases if isinstance(b, ast.Attribute)}
@@ -92,8 +91,8 @@ def _enum_member_names(node: ast.ClassDef) -> list[str] | None:
 def _method_member_order(node: ast.ClassDef) -> Iterator[Violation]:
     """Flag class methods out of band, or unsorted within a band.
 
-    A pytest test class is left alone: its methods follow the
-    happy-path, edge, error scenario order, not an alphabetical one.
+    A pytest test class is left alone: its methods follow the happy-path, edge,
+    error scenario order, not an alphabetical one.
     """
     if _is_test_class(node):
         return
@@ -146,10 +145,10 @@ def _method_band(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
 def check_module_element_order(path: Path, source: str) -> Iterator[Violation]:
     """Flag a top-level definition out of top-down or alphabetical order.
 
-    A definition that sits above a definition using it is reported (a
-    callee should follow its callers; mutual-recursion cycles exempt);
-    adjacent independent private helpers or classes that are not
-    alphabetical are reported too.
+    A definition that sits above a definition using it is reported (a callee
+    should follow its callers; mutual-recursion cycles exempt); adjacent
+    independent private helpers or classes that are not alphabetical are
+    reported too.
     """
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
@@ -166,9 +165,9 @@ def _body_references(
 ) -> dict[str, frozenset[str]]:
     """Map each function or class to the module names its body reads.
 
-    `symtable` resolves names against their scope, so a deferred body
-    call is captured while a local that shadows a module name is not. A
-    constant has no body and maps to the empty set.
+    `symtable` resolves names against their scope, so a deferred body call is
+    captured while a local that shadows a module name is not. A constant has no
+    body and maps to the empty set.
     """
     names = _top_level_names(tree.body)
     children = {
@@ -190,10 +189,10 @@ def _caller_precedes_callee(
 ) -> Iterator[Violation]:
     """Flag a function or class that a later definition calls from its body.
 
-    Only body calls order top-down: a module constant stays at the head
-    of the file whatever reads it, and a base class, decorator, or
-    default argument must precede the definition that names it, so
-    neither is asked to move below its user.
+    Only body calls order top-down: a module constant stays at the head of the
+    file whatever reads it, and a base class, decorator, or default argument
+    must precede the definition that names it, so neither is asked to move
+    below its user.
     """
     names = _top_level_names(tree.body)
     position = {name: index for index, name in enumerate(names)}
@@ -219,10 +218,9 @@ def _caller_precedes_callee(
 def _collect_global_refs(table: symtable.SymbolTable) -> set[str]:
     """Return the module globals a symbol table and its nested scopes read.
 
-    `symtable` resolves each name against its scope, so a parameter or
-    local that shadows a module name is not reported — only true global
-    references are, which keeps the dependency graph free of phantom
-    edges.
+    `symtable` resolves each name against its scope, so a parameter or local
+    that shadows a module name is not reported — only true global references
+    are, which keeps the dependency graph free of phantom edges.
     """
     names = {symbol.get_name() for symbol in table.get_symbols() if symbol.is_global()}
     for child in table.get_children():
@@ -233,9 +231,9 @@ def _collect_global_refs(table: symtable.SymbolTable) -> set[str]:
 def _forced_references(tree: ast.Module) -> dict[str, frozenset[str]]:
     """Map each top-level name to the names it reads at definition time.
 
-    A class's bases, a function's decorators and default arguments, and
-    a constant's value are all evaluated where the statement is written,
-    so the names they read must be defined above it.
+    A class's bases, a function's decorators and default arguments, and a
+    constant's value are all evaluated where the statement is written, so the
+    names they read must be defined above it.
     """
     names = _top_level_names(tree.body)
     forced: dict[str, frozenset[str]] = {}
@@ -259,18 +257,18 @@ def _definition_time_nodes(stmt: ast.stmt) -> list[ast.AST]:
         nodes.extend(stmt.bases)
         nodes.extend(keyword.value for keyword in stmt.keywords)
         # A class body runs when the class statement does, so its field
-        # annotations and attribute defaults are evaluated at definition
-        # time and their names must precede the class, exactly like a
-        # base or decorator. Only the bodies of nested defs defer, and
-        # recursing leaves those out.
+        # annotations and attribute defaults are evaluated at definition time
+        # and their names must precede the class, exactly like a base or
+        # decorator. Only the bodies of nested defs defer, and recursing leaves
+        # those out.
         for child in stmt.body:
             nodes.extend(_definition_time_nodes(child))
     if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
         defaults = (*stmt.args.defaults, *stmt.args.kw_defaults)
         nodes.extend(default for default in defaults if default is not None)
-        # Parameter and return annotations are evaluated when the `def`
-        # runs, so a class named in a signature must precede the
-        # function, exactly like a default argument.
+        # Parameter and return annotations are evaluated when the `def` runs,
+        # so a class named in a signature must precede the function, exactly
+        # like a default argument.
         if stmt.returns is not None:
             nodes.append(stmt.returns)
         args = stmt.args
@@ -321,10 +319,9 @@ def _local_alphabetical(
 def _alpha_kind(stmt: ast.stmt) -> str | None:
     """Return the alphabetised kind of a statement, or None to leave it free.
 
-    Private helper functions and classes are alphabetised where the
-    dependency graph allows; public functions, constants, and pytest
-    test classes (ordered to mirror their subjects, not by name) are
-    not.
+    Private helper functions and classes are alphabetised where the dependency
+    graph allows; public functions, constants, and pytest test classes (ordered
+    to mirror their subjects, not by name) are not.
     """
     if isinstance(stmt, ast.ClassDef):
         return None if _is_test_class(stmt) else "class"
@@ -346,9 +343,9 @@ def _is_test_class(node: ast.ClassDef) -> bool:
 def _reachability(deps: dict[str, frozenset[str]]) -> dict[str, set[str]]:
     """Map each name to every name reachable from it, transitively.
 
-    A name in a dependency cycle reaches itself, so two names reach each
-    other exactly when they share a cycle — the test both the cycle
-    exemption and the independence check rely on.
+    A name in a dependency cycle reaches itself, so two names reach each other
+    exactly when they share a cycle — the test both the cycle exemption and the
+    independence check rely on.
     """
     closure = {name: set(targets) for name, targets in deps.items()}
     changed = True

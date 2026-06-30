@@ -37,8 +37,8 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_DOC_FILL, reflow_doc_fill),
 )
 
-# Directories never holding first-party source, skipped when building
-# the whole-package index a package rule scans.
+# Directories never holding first-party source, skipped when building the
+# whole-package index a package rule scans.
 _SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules"})
 
 
@@ -64,11 +64,11 @@ def load_config(pyproject: Path) -> dict | None:
 def resolve_enabled_rules(config: dict | None) -> set[str]:
     """Resolve enabled rule ids from a `[tool.repostyle]` table.
 
-    `select` defaults to every rule; `ignore` defaults to none. The
-    enabled set is `select` minus `ignore`. A missing or empty table
-    enables all rules. An unknown id in `select` or `ignore` raises
-    `ValueError`: silently dropping it could resolve `select` to the
-    empty set and make the linter pass everything.
+    `select` defaults to every rule; `ignore` defaults to none. The enabled set
+    is `select` minus `ignore`. A missing or empty table enables all rules. An
+    unknown id in `select` or `ignore` raises `ValueError`: silently dropping
+    it could resolve `select` to the empty set and make the linter pass
+    everything.
     """
     if not config:
         return set(ALL_RULE_IDS)
@@ -106,10 +106,10 @@ def lint_package(
 ) -> dict[Path, list[Violation]]:
     """Run the enabled whole-package rules, scoped to the given paths.
 
-    A package rule sees every first-party file under the repo root so
-    its cross-module view is whole, but findings are reported only on
-    the paths passed in — keeping it sound under pre-commit's per-file
-    batching. Returns findings keyed by each path's resolved location.
+    A package rule sees every first-party file under the repo root so its
+    cross-module view is whole, but findings are reported only on the paths
+    passed in — keeping it sound under pre-commit's per-file batching. Returns
+    findings keyed by each path's resolved location.
     """
     paths = list(paths)
     package_rules = enabled & set(PACKAGE_RULES)
@@ -138,10 +138,9 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
     base = root if root.is_dir() else root.parent
     files: list[tuple[Path, str]] = []
     for path in sorted(base.rglob("*.py")):
-        # Test the parts below `base`, not the absolute ancestors: a
-        # repo checked out under a dot-directory
-        # (`.claude/worktrees/...`) must not have its whole tree
-        # skipped.
+        # Test the parts below `base`, not the absolute ancestors: a repo
+        # checked out under a dot-directory (`.claude/worktrees/...`) must not
+        # have its whole tree skipped.
         within = path.relative_to(base).parts
         if any(part.startswith(".") or part in _SKIPPED_DIRS for part in within):
             continue
@@ -155,13 +154,20 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
 def fix_path(path: Path, enabled: set[str]) -> bool:
     """Apply every enabled fixable rule to `path` in place, reporting a change.
 
-    A no-op unless a fixable rule is enabled and `path` is a Python or
-    markdown file. The fixers run in `_FIXERS` order, each handed the
-    output of the last. A whole-file ignore directive leaves the file
-    untouched for that rule, and a per-line suppression leaves its line
-    untouched.
+    A no-op unless a fixable rule is enabled and `path` is a Python, markdown,
+    TOML, or YAML file. The fixers run in `_FIXERS` order, each handed the
+    output of the last; on a TOML or YAML file only the RS009 comment reflow
+    acts, the others being Python/markdown-only. A whole-file ignore directive
+    leaves the file untouched for that rule, and a per-line suppression leaves
+    its line untouched.
     """
-    if not enabled & FIXABLE_RULES or path.suffix not in (".py", ".md"):
+    if not enabled & FIXABLE_RULES or path.suffix not in (
+        ".py",
+        ".md",
+        ".toml",
+        ".yaml",
+        ".yml",
+    ):
         return False
     try:
         source = path.read_text(encoding="utf-8")

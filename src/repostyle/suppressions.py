@@ -1,10 +1,10 @@
 """Inline and whole-file suppression directives.
 
-A `# style: ignore[RS010]` trailing comment drops that one rule's
-findings on its line; `# style: ignore` (no bracket) drops every rule's
-findings on the line; `# style: ignore-file` anywhere drops the whole
-file. The token `style` rather than `noqa` keeps these from colliding
-with ruff's own suppression handling.
+A `# style: ignore[RS010]` trailing comment drops that one rule's findings on
+its line; `# style: ignore` (no bracket) drops every rule's findings on the
+line; `# style: ignore-file` anywhere drops the whole file. The token `style`
+rather than `noqa` keeps these from colliding with ruff's own suppression
+handling.
 """
 
 from __future__ import annotations
@@ -36,11 +36,10 @@ def suppressed_lines(path: Path, source: str, rule: str) -> tuple[bool, frozense
     An autofixer consults this to leave waived lines untouched.
 
     Returns:
-        A tuple `(file_suppressed, waived_lines)`. `file_suppressed` is
-        whether a `# style: ignore-file` directive waives the entire
-        file. `waived_lines` is the set of lines on which `rule` is
-        suppressed, whether by an unscoped `# style: ignore` or one
-        naming `rule`.
+        A tuple `(file_suppressed, waived_lines)`. `file_suppressed` is whether
+        a `# style: ignore-file` directive waives the entire file.
+        `waived_lines` is the set of lines on which `rule` is suppressed,
+        whether by an unscoped `# style: ignore` or one naming `rule`.
     """
     file_suppressed, lines = _parse(path, source)
     return file_suppressed, frozenset(lines.lines_waiving(rule))

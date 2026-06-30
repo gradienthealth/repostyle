@@ -1,10 +1,9 @@
 # Shared base ruff config for gradienthealth Python repos.
 #
-# Consuming repos extend this file from their own pyproject.toml by
-# setting `extend = "path/to/ruff-base.toml"` under `[tool.ruff]`, then
-# override only what they need (e.g. target-version, per-file ignores).
-# Keep repo-specific knobs out of this file; it is the shared baseline
-# every repo inherits.
+# Consuming repos extend this file from their own pyproject.toml by setting
+# `extend = "path/to/ruff-base.toml"` under `[tool.ruff]`, then override only
+# what they need (e.g. target-version, per-file ignores). Keep repo-specific
+# knobs out of this file; it is the shared baseline every repo inherits.
 
 line-length = 88
 
@@ -13,14 +12,13 @@ indent-style = "space"
 quote-style = "double"
 
 [lint]
-# D100-D107 require docstrings on every module/class/function. The
-# convention is no docstring over a low-content one (docstring
-# minimalism). The remaining D rules still enforce shape and content
-# when a docstring exists. D203/D213 are mutually exclusive with
-# D211/D212. PT004 (leading-underscore on no-return fixtures) was
-# removed upstream because the convention "isn't a practice recommended
-# by the pytest community"; the broad PT select still pulls it in, so
-# ignore explicitly.
+# D100-D107 require docstrings on every module/class/function. The convention
+# is no docstring over a low-content one (docstring minimalism). The remaining
+# D rules still enforce shape and content when a docstring exists. D203/D213
+# are mutually exclusive with D211/D212. PT004 (leading-underscore on no-return
+# fixtures) was removed upstream because the convention "isn't a practice
+# recommended by the pytest community"; the broad PT select still pulls it in,
+# so ignore explicitly.
 ignore = [
     "E501",
     "D100",
@@ -35,28 +33,27 @@ ignore = [
     "D213",
     "PT004",
 ]
-# ANN401 bans typing.Any in a parameter or return annotation: an Any in
-# a signature opts that edge out of type checking. Only ANN401 is
-# selected, not the whole ANN group, which would demand annotations
-# everywhere.
+# ANN401 bans typing.Any in a parameter or return annotation: an Any in a
+# signature opts that edge out of type checking. Only ANN401 is selected, not
+# the whole ANN group, which would demand annotations everywhere.
 #
-# Complexity and size guardrails: C90 (cyclomatic, threshold in
-# [lint.mccabe]) and the PLR caps on returns/branches/statements.
+# Complexity and size guardrails: C90 (cyclomatic, threshold in [lint.mccabe])
+# and the PLR caps on returns/branches/statements.
 #
-# FBT (flake8-boolean-trap) flags boolean-typed positional arguments and
-# bare True/False passed positionally — a bool reads clearer by keyword.
-# The whole group is selected so the trap is caught at the definition
-# site (FBT001/002), not only at call sites (FBT003).
+# FBT (flake8-boolean-trap) flags boolean-typed positional arguments and bare
+# True/False passed positionally — a bool reads clearer by keyword. The whole
+# group is selected so the trap is caught at the definition site (FBT001/002),
+# not only at call sites (FBT003).
 #
-# PLC0415 (import-outside-top-level) bans in-function imports: an import
-# inside a function body hides a dependency from the module header and
-# is usually reflexive rather than a deliberate guard. A genuinely
-# guarded import (heavy/optional/platform-specific) keeps its if/try
-# guard at module top level.
+# PLC0415 (import-outside-top-level) bans in-function imports: an import inside
+# a function body hides a dependency from the module header and is usually
+# reflexive rather than a deliberate guard. A genuinely guarded import
+# (heavy/optional/platform-specific) keeps its if/try guard at module top
+# level.
 #
-# PLR0913 (too-many-arguments) is deliberately left out — it fires on
-# many legitimate wide signatures, and is better adopted once
-# enforcement is scoped to a PR's changed lines, not the whole tree.
+# PLR0913 (too-many-arguments) is deliberately left out — it fires on many
+# legitimate wide signatures, and is better adopted once enforcement is scoped
+# to a PR's changed lines, not the whole tree.
 select = [
     "ANN401",  # any-type (ban typing.Any in annotations)
     "B",       # flake8-bugbear
@@ -78,19 +75,18 @@ select = [
     "UP",      # pyupgrade
     "W",       # pycodestyle warnings
 ]
-# D401 (non-imperative-mood summary) is disabled by the google
-# convention's default ignore, so it must be re-enabled explicitly. It
-# enforces the imperative one-line summary PEP 257 calls for ("Return
-# the lease", not "Returns the lease"). A property whose summary
-# legitimately reads as a noun phrase takes an inline `# noqa: D401`.
+# D401 (non-imperative-mood summary) is disabled by the google convention's
+# default ignore, so it must be re-enabled explicitly. It enforces the
+# imperative one-line summary PEP 257 calls for ("Return the lease", not
+# "Returns the lease"). A property whose summary legitimately reads as a noun
+# phrase takes an inline `# noqa: D401`.
 extend-select = ["D401"]
 
 [lint.pycodestyle]
-# Docstring and comment prose fills to 72 (PEP 8), matching RS009's fill
-# target. W505 enforces this ceiling across the whole file, so consumers
-# wrap existing prose to 72 when they adopt the baseline, not only on
-# changed lines.
-max-doc-length = 72
+# Docstring and comment prose fills to 79 (PEP 8), matching RS009's fill
+# target. W505 enforces this ceiling across the whole file, so consumers wrap
+# existing prose to 79 when they adopt the baseline, not only on changed lines.
+max-doc-length = 79
 
 [lint.mccabe]
 max-complexity = 10

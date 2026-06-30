@@ -18,7 +18,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS006 | Port purity: files under `application/ports/` must not name a concrete implementation library (httpx, sqlalchemy, bigquery, psycopg, boto3). |
 | RS007 | Duration as timedelta: a module-level `*_SECONDS` constant with a numeric literal should be a `timedelta`. |
 | RS008 | No PHI-safe with exc_info: a log record carrying `exc_info` may not be marked `phi_safe`. |
-| RS009 | Doc fill: docstring and comment paragraphs must fill to 72 columns. Docstrings are checked in Python; comments in Python, TOML, and YAML. |
+| RS009 | Doc fill: docstring and comment paragraphs must fill to 79 columns. Docstrings are checked in Python; comments in Python, TOML, and YAML. |
 | RS010 | No banned abbreviation: an introduced name may not use a known abbreviation (`cfg`, `ctx`, `req`, `resp`, `conn`, ...). |
 | RS011 | No discouraged class suffix: a class may not end in `Manager`, `Helper`, `Util`, or `Utils`. |
 | RS012 | Cognitive complexity (warning): a function whose nesting-weighted complexity exceeds 15 is flagged for a second look. |
@@ -129,7 +129,7 @@ This scopes repostyle's own `RSnnn` rules. Ruff has no diff mode, so to scope th
 
 ## Rewrap docstrings and comments
 
-`RS009` flags docstring and comment paragraphs that are not filled to 72 columns. Run with `--fix` to rewrap them in place instead of only reporting:
+`RS009` flags docstring and comment paragraphs that are not filled to 79 columns. Run with `--fix` to rewrap them in place instead of only reporting:
 
 ```bash
 repostyle --fix $(git diff --name-only)
