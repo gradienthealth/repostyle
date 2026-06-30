@@ -38,10 +38,10 @@ _ACRONYM_SET = frozenset(ACRONYMS)
 
 _TYPE_FACTORY_NAMES = frozenset({"TypeVar", "NewType", "ParamSpec", "TypeVarTuple"})
 
-# PEP 695 type-alias / type-parameter syntax parses only on Python
-# 3.12+, so these AST node classes are absent on 3.11. Resolve them
-# defensively to an empty tuple there: `isinstance(node, ())` is always
-# False, and no PEP 695 node can appear in a 3.11 parse anyway.
+# PEP 695 type-alias / type-parameter syntax parses only on Python 3.12+, so
+# these AST node classes are absent on 3.11. Resolve them defensively to an
+# empty tuple there: `isinstance(node, ())` is always False, and no PEP 695
+# node can appear in a 3.11 parse anyway.
 _PEP695_TYPE_ALIAS = getattr(ast, "TypeAlias", ())
 _PEP695_TYPE_PARAMS = tuple(
     node
@@ -75,10 +75,10 @@ BOOLEAN_PREFIXES: frozenset[str] = frozenset({"can", "has", "is", "should"})
 
 NEGATION_WORDS: frozenset[str] = frozenset({"no", "not"})
 
-# `exc` optionally followed by digits: the blessed `exc`, plus `exc2`,
-# `exc3` for a nested handler that must not shadow an outer alias. `exc`
-# is the one abbreviation exempt from RS010, since it is the universal
-# Python idiom for the exception in hand.
+# `exc` optionally followed by digits: the blessed `exc`, plus `exc2`, `exc3`
+# for a nested handler that must not shadow an outer alias. `exc` is the one
+# abbreviation exempt from RS010, since it is the universal Python idiom for
+# the exception in hand.
 _BLESSED_EXCEPTION_ALIAS = re.compile(r"exc\d*")
 
 _MIN_DESCRIPTIVE_ALIAS_LENGTH = 4
@@ -89,8 +89,8 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
 
     Scope: class names, PEP 695 `type` aliases, PEP 695 type parameters
     (`class C[T]`, `def f[T]`), and `TypeVar`/`NewType`/`ParamSpec`/
-    `TypeVarTuple` factory calls in either `Name` or `typing.TypeVar`
-    attribute form.
+    `TypeVarTuple` factory calls in either `Name` or `typing.TypeVar` attribute
+    form.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -103,15 +103,14 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
 def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
     """Flag an introduced name that drops letters from a known word.
 
-    Scope: class, function, and parameter names, an `as` alias on an
-    import, and any assignment, loop, with-as, comprehension, or walrus
-    target. The name is split into its snake_case and CapWords words,
-    and a word equal to a banned abbreviation (`cfg`, `ctx`, `req`,
-    `resp`, `conn`, ...) is rejected in favor of the spelled-out word.
-    Attribute names and string contents are not checked, so a literal
-    `"cfg"` and a third-party `response.idx` access are both left alone.
-    An import without an alias is left alone too, since the imported
-    name is the source module's to spell, not this file's.
+    Scope: class, function, and parameter names, an `as` alias on an import,
+    and any assignment, loop, with-as, comprehension, or walrus target. The
+    name is split into its snake_case and CapWords words, and a word equal to a
+    banned abbreviation (`cfg`, `ctx`, `req`, `resp`, `conn`, ...) is rejected
+    in favor of the spelled-out word. Attribute names and string contents are
+    not checked, so a literal `"cfg"` and a third-party `response.idx` access
+    are both left alone. An import without an alias is left alone too, since
+    the imported name is the source module's to spell, not this file's.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -124,12 +123,11 @@ def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
 def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violation]:
     """Flag a class name ending in a vague agent suffix.
 
-    `Manager`, `Helper`, `Util`, and `Utils` name what a class loosely
-    does rather than what it is, and tend to accrete unrelated
-    procedures; name the responsibility instead (`ConnectionPool`, not
-    `ConnectionManager`). A pytest-style test class (`Test` followed by
-    a capitalized word, as in `TestContextManager`) is exempt, since it
-    is named for the unit under test.
+    `Manager`, `Helper`, `Util`, and `Utils` name what a class loosely does
+    rather than what it is, and tend to accrete unrelated procedures; name the
+    responsibility instead (`ConnectionPool`, not `ConnectionManager`). A
+    pytest-style test class (`Test` followed by a capitalized word, as in
+    `TestContextManager`) is exempt, since it is named for the unit under test.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -152,15 +150,15 @@ def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violatio
 def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
     """Flag a boolean name that embeds its own negation.
 
-    A name opening with a boolean prefix (`is`, `has`, `can`, `should`)
-    and carrying `not` or `no` as a later word reads as a standing
-    negative — `is_not_stale`, `has_no_results` — so every call site
-    must double-negate it (`if not is_not_stale`). Name the positive
-    (`is_fresh`, `has_results`) and negate where the value is read.
-    Scope: function and method names, parameters, and names bound by
-    assignment or annotation. The negation is matched only as a whole
-    snake_case or CapWords word, so `is_notable` and `is_north` (where
-    `not` or `no` is merely a leading substring) are left alone.
+    A name opening with a boolean prefix (`is`, `has`, `can`, `should`) and
+    carrying `not` or `no` as a later word reads as a standing negative —
+    `is_not_stale`, `has_no_results` — so every call site must double-negate it
+    (`if not is_not_stale`). Name the positive (`is_fresh`, `has_results`) and
+    negate where the value is read.
+    Scope: function and method names, parameters, and names bound by assignment
+    or annotation. The negation is matched only as a whole snake_case or
+    CapWords word, so `is_notable` and `is_north` (where `not` or `no` is
+    merely a leading substring) are left alone.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -173,15 +171,14 @@ def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
 def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation]:
     """Flag a boolean name that does not read as a yes/no question.
 
-    A boolean should answer a yes/no question, so it opens with `is`,
-    `has`, `can`, or `should` (`is_finalized`, `has_results`); a bare
-    `valid` or `enabled` does not. Scope: `bool`-annotated parameters
-    and `bool`-annotated variable and attribute targets. Detection is by
-    annotation, so an unannotated local is left alone and the signal
-    stays free of guesses; a `-> bool` function is left alone too, since
-    a predicate verb (`startswith`, `suppresses`) is the idiomatic name
-    for one. Advisory: it marks names to reconsider rather than failing
-    the run.
+    A boolean should answer a yes/no question, so it opens with `is`, `has`,
+    `can`, or `should` (`is_finalized`, `has_results`); a bare `valid` or
+    `enabled` does not. Scope: `bool`-annotated parameters and `bool`-annotated
+    variable and attribute targets. Detection is by annotation, so an
+    unannotated local is left alone and the signal stays free of guesses; a
+    `-> bool` function is left alone too, since a predicate verb (`startswith`,
+    `suppresses`) is the idiomatic name for one. Advisory: it marks names to
+    reconsider rather than failing the run.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -194,11 +191,11 @@ def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation
 def check_exception_alias(path: Path, source: str) -> Iterator[Violation]:
     """Flag a non-descriptive `except ... as` alias.
 
-    A caught exception's bound name must be `exc`, `exc` followed by
-    digits (`exc2`) for a nested handler, or a descriptive name of at
-    least four characters (`validation_error`, `original_exc`); the
-    noise aliases `e`, `ex`, and `err` are rejected. A bare `except X:`
-    binding no name is left alone.
+    A caught exception's bound name must be `exc`, `exc` followed by digits
+    (`exc2`) for a nested handler, or a descriptive name of at least four
+    characters (`validation_error`, `original_exc`); the noise aliases `e`,
+    `ex`, and `err` are rejected. A bare `except X:` binding no name is left
+    alone.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -224,14 +221,13 @@ def check_exception_alias(path: Path, source: str) -> Iterator[Violation]:
 def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
     """Flag a `make_` function defined outside a test module.
 
-    `make_` is reserved for test fixtures (`make_bundle`,
-    `make_patient`). In production it hides whether the call assembles
-    in memory or changes the world; use `build_` for pure in-memory
-    assembly or `create_` for construction with a side effect. A
-    function under a `tests/` path, a `test_*` / `*_test` module, or a
-    `conftest.py` is a fixture and left alone. The `make_` prefix must
-    be a whole word, so `makedirs` and a bare `make` (a builder's
-    terminal method) are not flagged.
+    `make_` is reserved for test fixtures (`make_bundle`, `make_patient`). In
+    production it hides whether the call assembles in memory or changes the
+    world; use `build_` for pure in-memory assembly or `create_` for
+    construction with a side effect. A function under a `tests/` path, a
+    `test_*` / `*_test` module, or a `conftest.py` is a fixture and left alone.
+    The `make_` prefix must be a whole word, so `makedirs` and a bare `make` (a
+    builder's terminal method) are not flagged.
     """
     if _is_test_file(path) or path.name == "conftest.py":
         return
@@ -269,9 +265,9 @@ def _abbreviation_violations(
 def _acronym_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yield the at-most-one casing-checked name a node introduces.
 
-    Resolve a class name, PEP 695 alias or type parameter, or a
-    TypeVar-family factory assignment to its (name, lineno, col_offset)
-    triple; yield nothing for any other node.
+    Resolve a class name, PEP 695 alias or type parameter, or a TypeVar-family
+    factory assignment to its (name, lineno, col_offset) triple; yield nothing
+    for any other node.
     """
     if isinstance(node, ast.ClassDef):
         yield (node.name, node.lineno, node.col_offset)
@@ -302,9 +298,9 @@ def _acronym_violations(name: str, lineno: int, col_offset: int) -> Iterator[Vio
 def _banned_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yield the at-most-one abbreviation-checked name a node introduces.
 
-    Resolve a class, function, or parameter name, an aliased import, or
-    a store-context `Name` target to its (name, lineno, col_offset)
-    triple; yield nothing for any other node.
+    Resolve a class, function, or parameter name, an aliased import, or a
+    store-context `Name` target to its (name, lineno, col_offset) triple; yield
+    nothing for any other node.
     """
     if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
         yield (node.name, node.lineno, node.col_offset)
@@ -319,9 +315,9 @@ def _banned_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
 def _boolean_prefix_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yield the at-most-one annotated boolean name a node introduces.
 
-    Resolve a `bool`-annotated parameter or a `bool`-annotated variable
-    or attribute target to its (name, lineno, col_offset) triple; yield
-    nothing for any other node.
+    Resolve a `bool`-annotated parameter or a `bool`-annotated variable or
+    attribute target to its (name, lineno, col_offset) triple; yield nothing
+    for any other node.
     """
     if isinstance(node, ast.arg) and _is_bool_annotation(node.annotation):
         yield (node.arg, node.lineno, node.col_offset)
@@ -357,10 +353,9 @@ def _capwords_acronym_violations(name: str) -> Iterator[str]:
 def _negated_boolean_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yield the at-most-one boolean-checked name a node introduces.
 
-    Resolve a function or method name, a parameter, or a store-context
-    `Name` target to its (name, lineno, col_offset) triple; yield
-    nothing for any other node. Class names, attributes, and imports are
-    out of scope.
+    Resolve a function or method name, a parameter, or a store-context `Name`
+    target to its (name, lineno, col_offset) triple; yield nothing for any
+    other node. Class names, attributes, and imports are out of scope.
     """
     if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
         yield (node.name, node.lineno, node.col_offset)
@@ -414,9 +409,9 @@ def _name_and_position(target: ast.expr) -> Iterator[tuple[str, int, int]]:
 def _typevar_factory_targets(node: ast.Assign) -> Iterator[tuple[str, int, int]]:
     """Yield the string-literal name of a TypeVar-family factory call.
 
-    Require the assigned value to be a recognized factory call whose
-    first argument is a string constant; yield that name with the
-    assignment's position, or nothing otherwise.
+    Require the assigned value to be a recognized factory call whose first
+    argument is a string constant; yield that name with the assignment's
+    position, or nothing otherwise.
     """
     call = node.value
     if not isinstance(call, ast.Call):

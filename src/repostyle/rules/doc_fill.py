@@ -13,7 +13,7 @@ from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._shared import _join_source_lines, _parse_python
 from repostyle.rules._violation import RS_DOC_FILL, Violation
 
-DOC_FILL_COLUMNS = 72
+DOC_FILL_COLUMNS = 79
 
 _SECTION_HEADERS = frozenset(
     {
@@ -32,40 +32,37 @@ _LABEL_LINE_PATTERN = re.compile(r"^[A-Z][A-Za-z]*([ -][A-Z][A-Za-z]*)*:(\s|$)")
 _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
 _BULLET_PATTERN = re.compile(r"^[-*+] ")
 _COMMENT_DIRECTIVE_PATTERN = re.compile(r"^#+\s*(!|noqa\b|type:|ruff:|pragma\b)")
-# A markdown table row (`|...|`) or a line made only of pipe, dash,
-# plus, and equals characters (`+----+`, `====`, a `---` rule) opens
-# content whose alignment is meaningful, so it is verbatim: never filled
-# and never reflowed. Requiring the whole line to be those characters
-# keeps flag-like prose (`--fix ...`) and bullets (`- `) from matching.
+# A markdown table row (`|...|`) or a line made only of pipe, dash, plus, and
+# equals characters (`+----+`, `====`, a `---` rule) opens content whose
+# alignment is meaningful, so it is verbatim: never filled and never reflowed.
+# Requiring the whole line to be those characters keeps flag-like prose
+# (`--fix ...`) and bullets (`- `) from matching.
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 
 
 def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
-    """Docstring and comment paragraphs must fill to 72 columns.
+    """Docstring and comment paragraphs must fill to 79 columns.
 
-    A paragraph line may not end while the next line's first word still
-    fits within the limit, and may not run past the limit while a break
-    is available. A backtick `...` span is one unbreakable token, so a
-    space inside it is not an available break, as with a URL. Summary
-    lines, single-line docstrings, section headers, label lines, code
-    fences, doctest lines, comment directives, and lines carrying URLs
-    are exempt, as is a unit with a backtick span hard-wrapped across
-    lines; bullets and section entries wrap as hanging paragraphs.
-    Docstrings are read from Python only; comments are read from Python,
-    TOML, and YAML alike.
+    A paragraph line may not end while the next line's first word still fits
+    within the limit, and may not run past the limit while a break is
+    available. A backtick `...` span is one unbreakable token, so a space
+    inside it is not an available break, as with a URL. Summary lines,
+    single-line docstrings, section headers, label lines, code fences, doctest
+    lines, comment directives, and lines carrying URLs are exempt, as is a unit
+    with a backtick span hard-wrapped across lines; bullets and section entries
+    wrap as hanging paragraphs. Docstrings are read from Python only; comments
+    are read from Python, TOML, and YAML alike.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
-    # An unparseable Python file is one `reflow_doc_fill` declines to
-    # rewrite, so the check skips it too rather than flag what `--fix`
-    # will not repair.
+    # An unparseable Python file is one `reflow_doc_fill` declines to rewrite,
+    # so the check skips it too rather than flag what `--fix` will not repair.
     if path.suffix == ".py" and _parse_python(path, source) is None:
         return
     for unit in _fillable_units(path, source):
-        # A span broken across source lines lost the whitespace at the
-        # break, so `_reflow_unit` cannot rejoin it and skips it. The
-        # check must exempt the same units, or it would flag what
-        # `--fix` will not repair.
+        # A span broken across source lines lost the whitespace at the break,
+        # so `_reflow_unit` cannot rejoin it and skips it. The check must
+        # exempt the same units, or it would flag what `--fix` will not repair.
         if _span_crosses_line(unit):
             continue
         yield from _unit_violations(unit)
@@ -74,16 +71,19 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
 def reflow_doc_fill(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
-    """Rewrap docstring and comment paragraphs in `source` to 72 columns.
+    """Rewrap docstring and comment paragraphs in `source` to 79 columns.
 
-    Each fillable unit is greedily refilled at its hanging indent; the
-    verbatim structures RS009 exempts (code fences, doctests, table and
-    rule lines, section headers) are left untouched, as are units on a
-    line in `skip_lines` and units with a backtick span hard-wrapped
-    across source lines. The source's line ending is preserved. Return
-    the source unchanged when nothing reflows.
+    Each fillable unit is greedily refilled at its hanging indent; the verbatim
+    structures RS009 exempts (code fences, doctests, table and rule lines,
+    section headers) are left untouched, as are units on a line in `skip_lines`
+    and units with a backtick span hard-wrapped across source lines. The
+    source's line ending is preserved. Return the source unchanged when nothing
+    reflows. Docstrings reflow in Python; comments reflow in Python, TOML, and
+    YAML alike.
     """
-    if _parse_python(path, source) is None:
+    if path.suffix not in COMMENT_SUFFIXES:
+        return source
+    if path.suffix == ".py" and _parse_python(path, source) is None:
         return source
     source_lines = source.splitlines()
     replacements: list[tuple[int, int, list[str]]] = []
@@ -108,9 +108,8 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
     """Yield every fillable docstring and comment unit in `source`.
 
     Both the check and the reflow consume this, so they agree on which
-    docstrings and comments are in scope. A Python file contributes
-    docstrings and comments; a TOML or YAML file contributes comments
-    alone.
+    docstrings and comments are in scope. A Python file contributes docstrings
+    and comments; a TOML or YAML file contributes comments alone.
     """
     source_lines = source.splitlines()
     tree = _parse_python(path, source)
@@ -136,8 +135,8 @@ def _comment_blocks(
 ) -> Iterator[list[_FillLine]]:
     """Yield runs of adjacent own-line comments at the same column.
 
-    A directive comment, or a gap in line or column, closes the open run
-    and starts a new one.
+    A directive comment, or a gap in line or column, closes the open run and
+    starts a new one.
     """
     block: list[_FillLine] = []
     previous: tuple[int, int] | None = None
@@ -193,11 +192,11 @@ def _fill_units(lines: list[_FillLine]) -> Iterator[list[_FillLine]]:
 class _UnitAccumulator:
     """Group docstring or comment lines into fillable paragraph units.
 
-    Feed lines in order with `consume`, call `close` after the last
-    line, then read the gathered paragraphs from `units`. A verbatim or
-    blank line closes the open unit without joining it; a marker line
-    starts a fresh hanging paragraph; a plain line either continues the
-    open unit at its established indent or starts its own.
+    Feed lines in order with `consume`, call `close` after the last line, then
+    read the gathered paragraphs from `units`. A verbatim or blank line closes
+    the open unit without joining it; a marker line starts a fresh hanging
+    paragraph; a plain line either continues the open unit at its established
+    indent or starts its own.
     """
 
     def __init__(self) -> None:
@@ -229,8 +228,8 @@ class _UnitAccumulator:
         """Open a fresh unit for a header, entry, bullet, or label line.
 
         A section header opens a new section and is not itself filled. A
-        section entry, bullet, or label line starts a hanging paragraph.
-        Return whether `line` was a marker and has been handled.
+        section entry, bullet, or label line starts a hanging paragraph. Return
+        whether `line` was a marker and has been handled.
         """
         if line.text in _SECTION_HEADERS:
             self.close()
@@ -251,9 +250,9 @@ class _UnitAccumulator:
     def _consume_paragraph(self, line: _FillLine) -> None:
         """Append `line` to the open unit or start a unit with it.
 
-        A line indented past a one-line unit sets that unit's
-        continuation indent; otherwise a line matching the established
-        indent continues the unit. Any other line opens its own unit.
+        A line indented past a one-line unit sets that unit's continuation
+        indent; otherwise a line matching the established indent continues the
+        unit. Any other line opens its own unit.
         """
         if self._unit and self._extend_open_unit(line):
             return
@@ -309,8 +308,8 @@ class _UnitAccumulator:
     def _starts_entry(self, line: _FillLine) -> bool:
         """Report whether `line` begins an entry within the open section.
 
-        Latch the section's entry indent to the first line examined, so
-        later lines count as entries only when they align with it.
+        Latch the section's entry indent to the first line examined, so later
+        lines count as entries only when they align with it.
         """
         if self._section_indent is None:
             return False
@@ -349,9 +348,9 @@ def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
 def _has_break_before_limit(line: _FillLine) -> bool:
     """Report whether a legal wrap break falls within the column limit.
 
-    A space inside a backtick `...` span is not a legal break, as with a
-    URL, so a line may pass the limit without one. Backticks that do not
-    pair up cannot delimit a span, so every space then counts.
+    A space inside a backtick `...` span is not a legal break, as with a URL,
+    so a line may pass the limit without one. Backticks that do not pair up
+    cannot delimit a span, so every space then counts.
     """
     prefix_length = len(line.rendered) - len(line.text)
     backticks_paired = line.rendered.count("`") % 2 == 0
@@ -367,12 +366,11 @@ def _has_break_before_limit(line: _FillLine) -> bool:
 def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     """Return `unit` rewrapped to the column limit, or `None` to skip it.
 
-    A unit whose text contains a triple quote is skipped, since
-    rewrapping would move the quote. A unit with a backtick span
-    hard-wrapped across source lines is skipped too, since rejoining it
-    would have to invent the whitespace the break elided. The first line
-    keeps the unit's leading whitespace and any marker; continuation
-    lines wrap to the hanging indent.
+    A unit whose text contains a triple quote is skipped, since rewrapping
+    would move the quote. A unit with a backtick span hard-wrapped across
+    source lines is skipped too, since rejoining it would have to invent the
+    whitespace the break elided. The first line keeps the unit's leading
+    whitespace and any marker; continuation lines wrap to the hanging indent.
     """
     if any('"""' in line.text or "'''" in line.text for line in unit):
         return None
@@ -397,10 +395,10 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
 def _atomic_tokens(text: str) -> list[str]:
     """Split `text` into fill tokens, keeping each backtick span whole.
 
-    Whitespace splits `text` into tokens, except inside a backtick `...`
-    span, where spaces are kept so the span stays one unbreakable token
-    the way a URL does. Backticks that do not pair up cannot delimit a
-    span, so `text` then splits on whitespace alone.
+    Whitespace splits `text` into tokens, except inside a backtick `...` span,
+    where spaces are kept so the span stays one unbreakable token the way a URL
+    does. Backticks that do not pair up cannot delimit a span, so `text` then
+    splits on whitespace alone.
     """
     if text.count("`") % 2:
         return text.split()
@@ -425,10 +423,10 @@ def _atomic_tokens(text: str) -> list[str]:
 def _hanging_indent(unit: list[_FillLine]) -> int:
     """Return the indent continuation lines of `unit` wrap to.
 
-    An established continuation indent (a unit already spanning lines)
-    is reused. A single over-long line wraps under its own marker: two
-    columns for a bullet, four for a section entry or label, and back to
-    the same indent for a plain paragraph.
+    An established continuation indent (a unit already spanning lines) is
+    reused. A single over-long line wraps under its own marker: two columns for
+    a bullet, four for a section entry or label, and back to the same indent
+    for a plain paragraph.
     """
     first_indent = unit[0].indent
     if len(unit) > 1:

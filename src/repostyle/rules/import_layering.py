@@ -1,8 +1,8 @@
 """Layering rule: a file may not import a source its layer forbids.
 
-The bans are config-driven, so each repo expresses its own layering
-boundaries instead of the rule hardcoding one; with no configured table
-the rule reports nothing.
+The bans are config-driven, so each repo expresses its own layering boundaries
+instead of the rule hardcoding one; with no configured table the rule reports
+nothing.
 """
 
 from __future__ import annotations
@@ -21,9 +21,9 @@ from repostyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
 def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
     """A file may not import a source its layer's config forbids.
 
-    A relative import is left to the no-relative-imports rule; only
-    absolute imports are matched against the banned sources configured
-    for a glob the file's path falls under.
+    A relative import is left to the no-relative-imports rule; only absolute
+    imports are matched against the banned sources configured for a glob the
+    file's path falls under.
     """
     pyproject = find_pyproject(path)
     if pyproject is None:

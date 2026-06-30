@@ -20,7 +20,7 @@ class TestReflowDocFill:
         source = '"""Summary.\n\n' + "abcde " * 13 + 'end.\n"""\n'
         rewritten = reflow_doc_fill(_PY, source)
         body = rewritten.splitlines()[2:-1]
-        assert all(len(line) <= 72 for line in body)
+        assert all(len(line) <= 79 for line in body)
         assert len(body) > 1
 
     def test_GoogleSectionEntry_WrapsAsHangingIndent(self) -> None:

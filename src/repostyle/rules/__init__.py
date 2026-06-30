@@ -1,9 +1,9 @@
 """Repo-style lint rules not covered by ruff or other off-the-shelf tools.
 
 Each rule is a function taking `(path, source)` and yielding `Violation`
-records, defined in a themed module. This package re-exports the whole
-public surface, so `from repostyle.rules import <name>` resolves
-regardless of which module the name lives in.
+records, defined in a themed module. This package re-exports the whole public
+surface, so `from repostyle.rules import <name>` resolves regardless of which
+module the name lives in.
 """
 
 from __future__ import annotations

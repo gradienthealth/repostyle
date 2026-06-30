@@ -7,8 +7,8 @@ name = "repostyle"
 description = "Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config."
 readme = "README.md"
 requires-python = ">=3.11"
-# Managed by release-please from Conventional-Commit PR titles; do not
-# edit by hand.
+# Managed by release-please from Conventional-Commit PR titles; do not edit by
+# hand.
 version = "0.7.0"
 dependencies = []
 

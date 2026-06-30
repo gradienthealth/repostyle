@@ -15,7 +15,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
 - `src/repostyle/suppressions.py` — the `# style: ignore[RSnnn]` line and `# style: ignore-file` whole-file directives the runner applies to drop findings.
 - `src/repostyle/changed_lines.py` — the git-diff line set the CLI's `--diff` mode intersects findings against, so a finding is reported only on lines the change touched.
 - `src/repostyle/cli.py` — the `repostyle` console script the hook invokes; its `--diff` flag scopes findings to git-changed lines, its `--fix` flag rewrites the mechanically-fixable findings in place (RS005 double-to-single backticks, RS009 reflow, RS030 terminal punctuation — the set in `_registry.FIXABLE_RULES`), and its `explain RSnnn`/`explain --all` subcommand prints a rule's card. A finding from a rule with a card prints a one-line `explain` pointer to stderr unless `--no-explain-hint` is passed.
-- `src/repostyle/explain.py` — renders a `RuleDoc` into the agent-facing explanation card (`explain_rule`) and the discovery hint, wrapping prose to 72 columns and leaving example code verbatim.
+- `src/repostyle/explain.py` — renders a `RuleDoc` into the agent-facing explanation card (`explain_rule`) and the discovery hint, wrapping prose to 79 columns and leaving example code verbatim.
 - `tests/` — `test_rules.py` (per-rule behavior), `test_runner.py` (config and dispatch), `test_cli.py` (CLI output and exit status), `test_suppressions.py` (suppression directives), `test_changed_lines.py` (the `--diff` line set), `test_complexity.py` (RS012), `test_import_layering.py` (RS017), `test_doc_value.py` (RS018, RS031), `test_layout.py` (RS019), `test_doc_form.py` (RS020, RS021, RS023), `test_comment_tags.py` (RS022), `test_signatures.py` (RS027), `test_cross_language.py` (the `extract_comments` `#`-comment extractor for TOML and YAML, plus the cross-language behaviour of RS009/RS030), `test_explain.py` (the `explain` cards, the catalog-completeness and abbreviation-map checks, and `has_guidance`), and `test_fix.py` (the RS005/RS030 fixers and the `--fix` composition in `runner.fix_path`), with a git repo from the `conftest.py` fixture.
 - `ruff-base.toml`, `.pre-commit-hooks.yaml` — the shared ruff baseline and the hook definition consumers reference.
 
@@ -24,7 +24,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
 These are the general conventions from fhir-ingestor's `docs/code-style.md` and `docs/testing.md` (the deeper rationale lives there) — the subset that applies to this package's own code. Several are rules this package itself defines, so it holds itself to them too.
 
 - Imperative Google-style docstrings stating the unit's own contract — no caller postulation, no implementation mechanics, no narration of rejected alternatives. Comments only where the *why* is non-obvious.
-- Line length 88; docstring and comment paragraphs fill to 72 columns (RS009).
+- Line length 88; docstring and comment paragraphs fill to 79 columns (RS009).
 - Single backticks in docstrings and prose, never double (RS005).
 - Every docstring prose unit — the summary, a body paragraph, and an `Args:`/`Returns:`/`Raises:`/`Yields:` entry — ends with terminal punctuation (`.`, `!`, or `?`), per PEP 257 (RS030, warning). A comment, by contrast, takes no trailing period on a single-line fragment but punctuates multi-line or multi-sentence prose.
 - Acronyms stay uppercase in CapWords identifiers (RS001): `FHIRClient`, not `FhirClient`.

@@ -1,8 +1,7 @@
 """Helpers shared across rule modules.
 
-A helper used by a single rule lives in that rule's module; one used by
-two or more lives here so the rule modules stay independent of each
-other.
+A helper used by a single rule lives in that rule's module; one used by two or
+more lives here so the rule modules stay independent of each other.
 """
 
 from __future__ import annotations
@@ -12,29 +11,28 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-# A pytest-collected test class: `Test` followed by an uppercase letter
-# or the end of the name, so `Testimony` and `Tester` are not matched.
+# A pytest-collected test class: `Test` followed by an uppercase letter or the
+# end of the name, so `Testimony` and `Tester` are not matched.
 TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
 TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 
-# A comment whose first token after the hash marks it as machinery, not
-# prose. The shebang `#!` leads a module; the rest are tool directives
-# that a prose check must skip.
+# A comment whose first token after the hash marks it as machinery, not prose.
+# The shebang `#!` leads a module; the rest are tool directives that a prose
+# check must skip.
 _DIRECTIVE_COMMENT_PATTERN = re.compile(
     r"^[ \t]*(!|type:|style:|noqa|pragma|pylint:|mypy:|ruff:|isort:|fmt:)",
 )
-# A PEP 263 encoding declaration, in either the plain `coding:` form or
-# the Emacs `-*- coding: ... -*-` form, anywhere in the comment.
+# A PEP 263 encoding declaration, in either the plain `coding:` form or the
+# Emacs `-*- coding: ... -*-` form, anywhere in the comment.
 _CODING_DECLARATION_PATTERN = re.compile(r"coding[:=]\s*[-\w.]+")
 
-# Closing characters that may sit after a sentence's terminal mark, so a
-# unit ending `note.)` or `said "go."` still reads as terminated.
+# Closing characters that may sit after a sentence's terminal mark, so a unit
+# ending `note.)` or `said "go."` still reads as terminated.
 _TRAILING_CLOSERS = ')"'
 # A sentence break: a terminal mark, any closing quotes or brackets,
-# whitespace, then a capital. The token ending in the mark decides
-# whether the break is real; an initialism, a numbered ordinal, or a
-# known abbreviation carries an internal period without ending a
-# sentence.
+# whitespace, then a capital. The token ending in the mark decides whether the
+# break is real; an initialism, a numbered ordinal, or a known abbreviation
+# carries an internal period without ending a sentence.
 _SENTENCE_BOUNDARY_PATTERN = re.compile(r"[.!?][)\"']*\s+[A-Z]")
 _INITIALISM_PATTERN = re.compile(r"(?:[A-Za-z]\.)+|\d+\.")
 _SENTENCE_ABBREVIATIONS = frozenset(
@@ -63,9 +61,9 @@ def _has_decorator(
 ) -> bool:
     """Report whether the definition carries a decorator named in `names`.
 
-    Match both the bare (`@override`) and dotted (`@typing.override`)
-    forms, comparing only the final attribute name, and see through a
-    decorator call (`@cache()`) to the name it applies.
+    Match both the bare (`@override`) and dotted (`@typing.override`) forms,
+    comparing only the final attribute name, and see through a decorator call
+    (`@cache()`) to the name it applies.
     """
     for decorator in node.decorator_list:
         target = decorator.func if isinstance(decorator, ast.Call) else decorator
@@ -80,9 +78,9 @@ def _has_sentence_boundary(text: str) -> bool:
     """Report whether `text` runs more than one sentence.
 
     A terminal mark followed by whitespace and a capital opens a second
-    sentence, unless the token ending in the mark is an initialism, a
-    decimal, or a known abbreviation, which carry an internal period
-    without closing a sentence.
+    sentence, unless the token ending in the mark is an initialism, a decimal,
+    or a known abbreviation, which carry an internal period without closing a
+    sentence.
     """
     for match in _SENTENCE_BOUNDARY_PATTERN.finditer(text):
         token = text[: match.start() + 1].split()[-1]
@@ -97,10 +95,9 @@ def _has_sentence_boundary(text: str) -> bool:
 def _is_prose_comment(text: str) -> bool:
     """Report whether a comment's text reads as a documenting sentence.
 
-    Prose is capitalised and at least three words. A tool directive, a
-    shebang, a coding line, and a commented-out statement are all
-    excluded, so the check fires only on a sentence a docstring should
-    carry.
+    Prose is capitalised and at least three words. A tool directive, a shebang,
+    a coding line, and a commented-out statement are all excluded, so the check
+    fires only on a sentence a docstring should carry.
     """
     if _is_directive_comment(text):
         return False
@@ -112,14 +109,13 @@ def _is_prose_comment(text: str) -> bool:
 def _is_code_fragment(text: str) -> bool:
     """Report whether a comment's text parses as commented-out Python.
 
-    A fragment that parses to anything other than a bare name,
-    attribute, comparison, or boolean expression is code: an assignment,
-    import, call, or keyword statement. Those four expression shapes are
-    the ones an English sentence parses into, so prose phrased around
-    `is`, `in`, `and`, or `or` (`Cache is empty`) is not mistaken for
-    code. The boundary is conservative: text that does not parse is
-    prose, and a sentence parsing to another shape falls to code, so the
-    rule under-fires rather than over-fires.
+    A fragment that parses to anything other than a bare name, attribute,
+    comparison, or boolean expression is code: an assignment, import, call, or
+    keyword statement. Those four expression shapes are the ones an English
+    sentence parses into, so prose phrased around `is`, `in`, `and`, or `or`
+    (`Cache is empty`) is not mistaken for code. The boundary is conservative:
+    text that does not parse is prose, and a sentence parsing to another shape
+    falls to code, so the rule under-fires rather than over-fires.
     """
     try:
         parsed = ast.parse(text)
@@ -149,17 +145,17 @@ def _is_test_file(path: Path) -> bool:
 def _join_source_lines(source: str, lines: list[str]) -> str:
     """Rejoin split-and-edited `lines` preserving `source`'s line endings.
 
-    The source's newline style and its final-newline presence are
-    carried over, so a fixer that splits with `splitlines` and rewrites
-    a few lines does not churn the file's endings.
+    The source's newline style and its final-newline presence are carried over,
+    so a fixer that splits with `splitlines` and rewrites a few lines does not
+    churn the file's endings.
     """
     newline = "\r\n" if "\r\n" in source else "\n"
     rejoined = newline.join(lines)
     return rejoined + newline if source.endswith("\n") else rejoined
 
 
-# Cache on (path, source) so each file is parsed once and its tree
-# shared across rules.
+# Cache on (path, source) so each file is parsed once and its tree shared
+# across rules.
 @lru_cache(maxsize=128)
 def _parse_python(path: Path, source: str) -> ast.AST | None:
     if path.suffix != ".py":
@@ -177,13 +173,12 @@ def _posix(path: Path) -> str:
 def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
     """Classify a prose unit's terminal punctuation against the house rule.
 
-    A prose unit — one spanning lines, running multiple sentences, or
-    standing as a docstring body paragraph — must close with `.`, `!`,
-    or `?`; return `"missing"` when it does not. A single-line single-
-    sentence fragment is a label and must not close with a period;
-    return `"extra"` when it does. A unit ending with a colon introduces
-    a list, and one ending in a URL cannot take punctuation, so both are
-    exempt. Return `None` when the unit conforms.
+    A prose unit — one spanning lines, running multiple sentences, or standing
+    as a docstring body paragraph — must close with `.`, `!`, or `?`; return
+    `"missing"` when it does not. A single-line single- sentence fragment is a
+    label and must not close with a period; return `"extra"` when it does. A
+    unit ending with a colon introduces a list, and one ending in a URL cannot
+    take punctuation, so both are exempt. Return `None` when the unit conforms.
     """
     stripped = _strip_trailing_closers(text)
     if not stripped or stripped.endswith(":"):

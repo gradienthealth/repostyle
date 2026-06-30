@@ -196,6 +196,20 @@ class TestCheckArgDescribedInProse:
     def test_ParamNotDescribedInBodyProse_NoViolation(self, source: str) -> None:
         assert _check_arg(source) == []
 
+    def test_ParamOpeningWrappedLineMidSentence_NoViolation(self) -> None:
+        # `base` opens a wrapped continuation line but sits mid-sentence (a
+        # comma precedes it), so it is not the subject; the verdict must not
+        # shift with where the prose happens to wrap.
+        source = (
+            "def diff(path, base):\n"
+            '    """Return the changed lines.\n\n'
+            "    Return None when the set is untrusted — git is unavailable,\n"
+            "    `base` is unknown, or path is untracked — so the caller\n"
+            "    reports every finding.\n"
+            '    """\n    return path\n'
+        )
+        assert _check_arg(source) == []
+
     @pytest.mark.parametrize(
         ("source", "path"),
         [

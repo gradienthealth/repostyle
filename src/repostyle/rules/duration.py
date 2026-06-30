@@ -16,13 +16,12 @@ SECONDS_CONSTANT_PATTERN = re.compile(r"^_?[A-Z][A-Z0-9_]*_SECONDS$")
 def check_duration_as_timedelta(path: Path, source: str) -> Iterator[Violation]:
     """Module-level duration constants must be `timedelta`, not raw seconds.
 
-    Flag module-level assignments whose name matches `*_SECONDS` (with
-    an optional leading underscore) and whose value is a numeric
-    literal. The convention is `timedelta(seconds=N)`; raw seconds
-    constants are reserved for boundaries where the wire format requires
-    an integer (DB columns, JSON payloads, external library APIs), and
-    those live on settings or domain fields inside class bodies, not at
-    module scope.
+    Flag module-level assignments whose name matches `*_SECONDS` (with an
+    optional leading underscore) and whose value is a numeric literal. The
+    convention is `timedelta(seconds=N)`; raw seconds constants are reserved
+    for boundaries where the wire format requires an integer (DB columns, JSON
+    payloads, external library APIs), and those live on settings or domain
+    fields inside class bodies, not at module scope.
     """
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
@@ -54,8 +53,8 @@ def _assignment_targets_and_value(
 ) -> tuple[list[ast.expr], ast.expr | None]:
     """Return the targets and value of `stmt` if it is an assignment.
 
-    Resolve an `Assign` or `AnnAssign` to its targets and value, and
-    return `([], None)` for any other statement.
+    Resolve an `Assign` or `AnnAssign` to its targets and value, and return
+    `([], None)` for any other statement.
     """
     if isinstance(stmt, ast.Assign):
         return list(stmt.targets), stmt.value

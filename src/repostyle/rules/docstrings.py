@@ -1,10 +1,10 @@
 """Docstring and markdown prose rules.
 
-The placement rules move a summary that documents a unit into the
-docstring slot ruff D401 grades, and reject docstring openings that
-restate the identifier instead of stating the contract: no `Attributes:`
-block, no double backticks, no leading summary comment, no field comment
-standing in for a field docstring, and no filler opening.
+The placement rules move a summary that documents a unit into the docstring
+slot ruff D401 grades, and reject docstring openings that restate the
+identifier instead of stating the contract: no `Attributes:` block, no double
+backticks, no leading summary comment, no field comment standing in for a field
+docstring, and no filler opening.
 """
 
 from __future__ import annotations
@@ -38,18 +38,18 @@ from repostyle.rules._violation import (
 ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
 DOUBLE_BACKTICK_PATTERN = re.compile(r"(?<!`)``(?!`)")
 
-# A docstring opening that names the unit's category or hedges instead
-# of stating its contract. Matched case-insensitively against the
-# summary's first non-blank line.
+# A docstring opening that names the unit's category or hedges instead of
+# stating its contract. Matched case-insensitively against the summary's first
+# non-blank line.
 _FILLER_OPENING_PATTERN = re.compile(
     r"^(this (function|method|class|module)\b|helper (to|for)\b|used to\b"
     r"|simply\b|just\b)",
     re.IGNORECASE,
 )
 
-# Google section headers, grouped by how their bodies are graded. An
-# entry section holds `name: description` items checked per entry; a
-# prose section's body is graded as prose; a code section is exempt.
+# Google section headers, grouped by how their bodies are graded. An entry
+# section holds `name: description` items checked per entry; a prose section's
+# body is graded as prose; a code section is exempt.
 _ENTRY_SECTION_HEADERS = frozenset(
     {
         "Args:",
@@ -69,11 +69,11 @@ _SECTION_HEADERS = (
 )
 _BULLET_PATTERN = re.compile(r"^[-*+] ")
 # A section entry's caption: a non-space run then a colon (`name:`,
-# `name (type):`, `ValueError:`), which opens a fresh entry. A line
-# without one continues the entry it follows.
+# `name (type):`, `ValueError:`), which opens a fresh entry. A line without one
+# continues the entry it follows.
 _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
-# A markdown table row or a line made only of rule characters opens
-# verbatim content whose terminal character is not prose punctuation.
+# A markdown table row or a line made only of rule characters opens verbatim
+# content whose terminal character is not prose punctuation.
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 
 
@@ -128,10 +128,10 @@ def fix_double_backticks(
 ) -> str:
     """Rewrite double backticks to single in `source`, the RS005 fix.
 
-    A markdown file's prose lines and a Python file's docstring lines
-    are rewritten; a fenced markdown block and a docstring whose owner
-    line is in `skip_lines` are left untouched. Return the source
-    unchanged when nothing rewrites.
+    A markdown file's prose lines and a Python file's docstring lines are
+    rewritten; a fenced markdown block and a docstring whose owner line is in
+    `skip_lines` are left untouched. Return the source unchanged when nothing
+    rewrites.
     """
     if path.suffix == ".md":
         return _fix_double_backticks_md(source)
@@ -168,9 +168,9 @@ def _fix_double_backticks_md(source: str) -> str:
 def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Violation]:
     """A leading summary comment should be a docstring.
 
-    A module, class, or function with no docstring whose first body
-    position is a standalone prose comment carries a summary that ruff
-    D401's mood check cannot see; move it into the docstring slot.
+    A module, class, or function with no docstring whose first body position is
+    a standalone prose comment carries a summary that ruff D401's mood check
+    cannot see; move it into the docstring slot.
     """
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
@@ -199,8 +199,8 @@ def check_field_comment_as_docstring(path: Path, source: str) -> Iterator[Violat
     """A dataclass field comment should be a field docstring.
 
     A field documented with a trailing prose comment and no following
-    string-literal field docstring should carry that text as the
-    per-field docstring the house style prefers.
+    string-literal field docstring should carry that text as the per-field
+    docstring the house style prefers.
     """
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
@@ -227,9 +227,9 @@ def check_field_comment_as_docstring(path: Path, source: str) -> Iterator[Violat
 def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violation]:
     """A docstring may not open with a filler phrase.
 
-    An opening like `This function`, `Helper to`, `Used to`, `Simply`,
-    or `Just` restates the identifier or hedges rather than stating the
-    contract; the summary's first words should name what the unit does.
+    An opening like `This function`, `Helper to`, `Used to`, `Simply`, or
+    `Just` restates the identifier or hedges rather than stating the contract;
+    the summary's first words should name what the unit does.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -255,11 +255,11 @@ def check_docstring_terminal_punctuation(
 ) -> Iterator[Violation]:
     """Every docstring prose unit must end with terminal punctuation.
 
-    A summary, a body paragraph, and an `Args:`, `Returns:`, `Raises:`,
-    or `Yields:` entry each close with `.`, `!`, or `?`, as PEP 257
-    prescribes for the summary and the house style extends to the rest.
-    Code (doctests, `Example:` sections, fenced blocks), bullet items, a
-    list-introducing colon, and a unit ending in a URL are exempt.
+    A summary, a body paragraph, and an `Args:`, `Returns:`, `Raises:`, or
+    `Yields:` entry each close with `.`, `!`, or `?`, as PEP 257 prescribes for
+    the summary and the house style extends to the rest. Code (doctests,
+    `Example:` sections, fenced blocks), bullet items, a list-introducing
+    colon, and a unit ending in a URL are exempt.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -284,11 +284,11 @@ def fix_docstring_terminal_punctuation(
 ) -> str:
     """Append a period to each unterminated docstring prose unit, the RS030 fix.
 
-    A summary, body paragraph, or section entry that the rule flags as
-    missing terminal punctuation gains a trailing `.` after its content,
-    before the closing quote when the quote shares the line. A unit
-    whose line is in `skip_lines` is left untouched. Return the source
-    unchanged when nothing appends.
+    A summary, body paragraph, or section entry that the rule flags as missing
+    terminal punctuation gains a trailing `.` after its content, before the
+    closing quote when the quote shares the line. A unit whose line is in
+    `skip_lines` is left untouched. Return the source unchanged when nothing
+    appends.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -326,10 +326,10 @@ def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
 def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, str]]:
     """Split a source's comments into the standalone and trailing maps.
 
-    The first map keys each whole-line comment's line to its column and
-    text; the second keys each line whose comment trails code to that
-    comment's text. A comment is standalone when nothing but whitespace
-    precedes it on its line.
+    The first map keys each whole-line comment's line to its column and text;
+    the second keys each line whose comment trails code to that comment's text.
+    A comment is standalone when nothing but whitespace precedes it on its
+    line.
     """
     source_lines = source.splitlines()
     standalone: dict[int, tuple[int, str]] = {}
@@ -382,12 +382,12 @@ def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
 def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
     """Split a docstring literal into structure-tagged source lines.
 
-    The first line abuts the opening quote, so it anchors its column at
-    the literal and the body margin is taken from the first following
-    non-blank line, with every later line's indent measured relative to
-    it. The source line is clamped to the literal's physical span, so a
-    docstring carrying escaped newlines or built by implicit
-    concatenation still points within itself rather than past it.
+    The first line abuts the opening quote, so it anchors its column at the
+    literal and the body margin is taken from the first following non-blank
+    line, with every later line's indent measured relative to it. The source
+    line is clamped to the literal's physical span, so a docstring carrying
+    escaped newlines or built by implicit concatenation still points within
+    itself rather than past it.
     """
     lines = constant.value.splitlines()
     last = constant.end_lineno or constant.lineno
@@ -418,11 +418,11 @@ class _DocLine(NamedTuple):
 class _DocstringSegmenter:
     """Group docstring lines into the prose units the rule grades.
 
-    Feed lines in order with `consume`, call `close` after the last,
-    then read `units`. The first paragraph is the summary; later margin
-    paragraphs are body; a `Note:` section's body is treated as body; an
-    `Args:`-style section yields one entry per item; and code, doctests,
-    `Example:` sections, bullets, and verbatim lines yield nothing.
+    Feed lines in order with `consume`, call `close` after the last, then read
+    `units`. The first paragraph is the summary; later margin paragraphs are
+    body; a `Note:` section's body is treated as body; an `Args:`-style section
+    yields one entry per item; and code, doctests, `Example:` sections,
+    bullets, and verbatim lines yield nothing.
     """
 
     def __init__(self) -> None:
@@ -464,11 +464,10 @@ class _DocstringSegmenter:
     def _consume_entry(self, line: _DocLine) -> None:
         """Start a new entry on a caption line, or extend the open one.
 
-        An entry opens on a `name:`-style caption at the entry margin; a
-        line that carries no caption continues the open entry, whether
-        it wraps at a deeper indent or at the entry margin, so a
-        `Returns:` description wrapped at one indent stays a single
-        multi-line entry.
+        An entry opens on a `name:`-style caption at the entry margin; a line
+        that carries no caption continues the open entry, whether it wraps at a
+        deeper indent or at the entry margin, so a `Returns:` description
+        wrapped at one indent stays a single multi-line entry.
         """
         if self._entry_indent is None:
             self._entry_indent = line.relative_indent
@@ -570,10 +569,10 @@ def _leading_comment_line(
 ) -> int | None:
     """Return the line of `node`'s first-body-position standalone comment.
 
-    The comment sits directly above the first body statement, with only
-    blank lines between, below the definition header. A comment deeper
-    in the body, or one trailing the signature, is not returned, so only
-    the leading summary position is in scope.
+    The comment sits directly above the first body statement, with only blank
+    lines between, below the definition header. A comment deeper in the body,
+    or one trailing the signature, is not returned, so only the leading summary
+    position is in scope.
     """
     line = node.body[0].lineno - 1
     while line > node.lineno:
@@ -593,8 +592,8 @@ def _module_summary_comment(
 
     A leading shebang, coding, or tool-directive line is skipped, so the
     summary comment beneath it is still reached; the first non-directive
-    standalone comment then decides, since only the leading position is
-    in scope.
+    standalone comment then decides, since only the leading position is in
+    scope.
     """
     if ast.get_docstring(tree, clean=False) is not None:
         return
@@ -627,15 +626,13 @@ def _summary_comment_owners(
 def _terminal_insert_index(line: str, lineno: int, constant: ast.Constant) -> int:
     """Return the column on `line` just past a prose unit's last content.
 
-    When the closing quote shares the unit's last line, the index lands
-    before it; otherwise it lands after the line's last non-space
-    character.
+    When the closing quote shares the unit's last line, the index lands before
+    it; otherwise it lands after the line's last non-space character.
     """
     stripped = line.rstrip()
     if lineno == constant.end_lineno:
-        # Match the delimiter by suffix, not `end_col_offset`: that
-        # offset is in bytes and misplaces the mark on a line carrying
-        # non-ASCII text.
+        # Match the delimiter by suffix, not `end_col_offset`: that offset is
+        # in bytes and misplaces the mark on a line carrying non-ASCII text.
         for delimiter in ('"""', "'''", '"', "'"):
             if stripped.endswith(delimiter):
                 return len(stripped[: -len(delimiter)].rstrip())

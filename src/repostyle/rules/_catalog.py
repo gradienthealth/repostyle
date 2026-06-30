@@ -1,18 +1,17 @@
 """Agent-facing rule metadata: the source every rich explanation renders from.
 
-The one-line finding a rule emits tells a consumer what tripped, not how
-to fix it or how to generalize the fix to lines the linter never
-flagged. That guidance lives in the rule docstrings, where a consuming
-repo's agent cannot reach it. This module lifts it into structured data
-— a `RuleDoc` per rule — so the `explain` subcommand and any later
-format render from one source rather than parsing prose back out of
-docstrings.
+The one-line finding a rule emits tells a consumer what tripped, not how to fix
+it or how to generalize the fix to lines the linter never flagged. That
+guidance lives in the rule docstrings, where a consuming repo's agent cannot
+reach it. This module lifts it into structured data — a `RuleDoc` per rule — so
+the `explain` subcommand and any later format render from one source rather
+than parsing prose back out of docstrings.
 
-Every rule carries a `summary`; the rules where general knowledge falls
-short — config-driven bans, heuristic warnings with no single fix —
-carry richer `rationale`, `examples`, `signals`, or a `reference` table.
-A rule whose one-line message already tells a competent agent the fix is
-left at its summary on purpose, to keep the cards worth reading.
+Every rule carries a `summary`; the rules where general knowledge falls short —
+config-driven bans, heuristic warnings with no single fix — carry richer
+`rationale`, `examples`, `signals`, or a `reference` table. A rule whose
+one-line message already tells a competent agent the fix is left at its summary
+on purpose, to keep the cards worth reading.
 """
 
 from __future__ import annotations
@@ -78,10 +77,10 @@ class RuleDoc(NamedTuple):
     """A canonical lookup table the agent applies wholesale."""
 
 
-# `res` and `resp` both abbreviate response-shaped names; `res` is left
-# to `result` and `resp` to `response`, the two readings that recur. The
-# keys are exactly the banned set in `naming.BANNED_ABBREVIATIONS`,
-# which a test pins so the card never drifts from what the rule rejects.
+# `res` and `resp` both abbreviate response-shaped names; `res` is left to
+# `result` and `resp` to `response`, the two readings that recur. The keys are
+# exactly the banned set in `naming.BANNED_ABBREVIATIONS`, which a test pins so
+# the card never drifts from what the rule rejects.
 ABBREVIATION_EXPANSIONS: dict[str, str] = {
     "btn": "button",
     "cfg": "configuration",
@@ -148,11 +147,11 @@ RULE_DOCS: dict[str, RuleDoc] = {
     ),
     RS_DOC_FILL: RuleDoc(
         name="doc-fill",
-        summary="A docstring or comment paragraph fills to 72 columns.",
+        summary="A docstring or comment paragraph fills to 79 columns.",
         rationale=(
             "A paragraph wrapped well short of the limit, or running past it, "
             "reads as ragged and churns diffs when reflowed by hand. Fill each "
-            "prose paragraph to 72 columns. Docstrings are checked in Python; "
+            "prose paragraph to 79 columns. Docstrings are checked in Python; "
             "comments in Python, TOML, and YAML alike. `--fix` rewrites Python "
             "in place."
         ),
@@ -426,9 +425,9 @@ def rule_doc(rule_id: str) -> RuleDoc | None:
 def has_guidance(rule_id: str) -> bool:
     """Report whether a rule carries detail past its one-line summary.
 
-    True when the rule has examples, heuristic signals, or a reference
-    table — the rules whose card is worth fetching, so the discovery
-    hint points only at those.
+    True when the rule has examples, heuristic signals, or a reference table —
+    the rules whose card is worth fetching, so the discovery hint points only
+    at those.
     """
     doc = RULE_DOCS.get(rule_id)
     return doc is not None and bool(doc.examples or doc.signals or doc.reference)

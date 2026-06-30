@@ -87,9 +87,9 @@ from repostyle.rules.testing import (
 )
 from repostyle.rules.visibility import check_should_be_private
 
-# A package rule sees every first-party file at once and yields its
-# findings keyed by path, rather than the single-file `(path, source)`
-# contract of the rules above.
+# A package rule sees every first-party file at once and yields its findings
+# keyed by path, rather than the single-file `(path, source)` contract of the
+# rules above.
 PackageCheck = Callable[[Sequence[tuple[Path, str]]], Iterator[tuple[Path, Violation]]]
 
 RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
@@ -132,17 +132,17 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
 }
 
 
-# Whole-package rules, run once over every first-party file rather than
-# per file. Kept separate from RULES so the single-file contract is
-# unchanged; the runner dispatches each through `run_package_rule`.
+# Whole-package rules, run once over every first-party file rather than per
+# file. Kept separate from RULES so the single-file contract is unchanged; the
+# runner dispatches each through `run_package_rule`.
 PACKAGE_RULES: dict[str, tuple[PackageCheck, ...]] = {
     RS_SHOULD_BE_PRIVATE: (check_should_be_private,),
 }
 
 
-# A threshold- or judgment-adjacent rule registers Severity.WARNING here
-# to emit an advisory, non-blocking signal; the mechanical, low-false-
-# positive rules stay at the default ERROR and fail the run.
+# A threshold- or judgment-adjacent rule registers Severity.WARNING here to
+# emit an advisory, non-blocking signal; the mechanical, low-false- positive
+# rules stay at the default ERROR and fail the run.
 RULE_SEVERITY: dict[str, Severity] = {
     RS_COGNITIVE_COMPLEXITY: Severity.WARNING,
     RS_EXCESSIVE_MOCKING: Severity.WARNING,
@@ -160,9 +160,9 @@ RULE_SEVERITY: dict[str, Severity] = {
 }
 
 
-# The rules `repostyle --fix` rewrites in place. The single source both
-# the runner's fix path and the `explain` card's fixable line consult,
-# so a card never promises a fix the runner does not perform.
+# The rules `repostyle --fix` rewrites in place. The single source both the
+# runner's fix path and the `explain` card's fixable line consult, so a card
+# never promises a fix the runner does not perform.
 FIXABLE_RULES: frozenset[str] = frozenset(
     {RS_DOC_FILL, RS_NO_DOUBLE_BACKTICKS, RS_TERMINAL_PUNCTUATION}
 )
@@ -176,8 +176,8 @@ def severity_of(rule_id: str) -> Severity:
 def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
     """Run a single rule by id over one source, yielding its violations.
 
-    A rule id maps to one or more check functions; e.g. RS005 runs both
-    the markdown and the Python-docstring backtick checks.
+    A rule id maps to one or more check functions; e.g. RS005 runs both the
+    markdown and the Python-docstring backtick checks.
     """
     for check in RULES.get(rule_id, ()):
         yield from check(path, source)
