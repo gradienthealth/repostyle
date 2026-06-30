@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from pystyle.changed_lines import changed_lines
+from repostyle.changed_lines import changed_lines
 
 
 class TestChangedLines:

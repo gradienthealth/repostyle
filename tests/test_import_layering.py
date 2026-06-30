@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules import RS_BANNED_IMPORT_BY_PATH, check_banned_import_by_path
+from repostyle.rules import RS_BANNED_IMPORT_BY_PATH, check_banned_import_by_path
 
-_BANNED_TABLE = '[tool.pystyle.banned-imports]\n"src/**" = ["tests", "httpx"]\n'
+_BANNED_TABLE = '[tool.repostyle.banned-imports]\n"src/**" = ["tests", "httpx"]\n'
 
 
 class TestCheckBannedImportByPath:

@@ -3,11 +3,12 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools>=61.0"]
 
 [project]
-name = "pystyle"
+name = "repostyle"
 description = "Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config."
 readme = "README.md"
 requires-python = ">=3.11"
-# Managed by release-please from Conventional-Commit PR titles; do not edit by hand.
+# Managed by release-please from Conventional-Commit PR titles; do not
+# edit by hand.
 version = "0.6.0"
 dependencies = []
 
@@ -15,7 +16,7 @@ dependencies = []
 dev = ["pytest"]
 
 [project.scripts]
-pystyle = "pystyle.cli:main"
+repostyle = "repostyle.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

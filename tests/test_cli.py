@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.cli import main
-from pystyle.rules import RS_ACRONYM_CASING, RULE_SEVERITY, Severity
+from repostyle.cli import main
+from repostyle.rules import RS_ACRONYM_CASING, RULE_SEVERITY, Severity
 
 _ACRONYM_SOURCE = "if True:\n    class FhirClient: ...\n"
 
@@ -39,7 +39,7 @@ class TestMain:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         (git_repo / "pyproject.toml").write_text(
-            '[tool.pystyle]\nselect = ["RS001"]\n', encoding="utf-8"
+            '[tool.repostyle]\nselect = ["RS001"]\n', encoding="utf-8"
         )
         target = git_repo / "x.py"
         target.write_text("class FhirClient: ...\n", encoding="utf-8")
@@ -61,7 +61,7 @@ class TestMain:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         (git_repo / "pyproject.toml").write_text(
-            '[tool.pystyle]\nselect = ["RS001"]\n', encoding="utf-8"
+            '[tool.repostyle]\nselect = ["RS001"]\n', encoding="utf-8"
         )
         target = git_repo / "x.py"
         target.write_text("class FhirClient: ...\n", encoding="utf-8")
@@ -160,7 +160,7 @@ class TestDiscoveryHint:
         exit_code = main([str(target)])
         captured = capsys.readouterr()
         assert exit_code == 1
-        assert "→ run 'pystyle explain RS010'" in captured.err
+        assert "→ run 'repostyle explain RS010'" in captured.err
 
     def test_NoExplainHintFlag_SuppressesTheHint(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -179,7 +179,7 @@ class TestDiscoveryHint:
 
 def _project(tmp_path: Path, source: str, select: str) -> Path:
     (tmp_path / "pyproject.toml").write_text(
-        f"[tool.pystyle]\nselect = {select}\n", encoding="utf-8"
+        f"[tool.repostyle]\nselect = {select}\n", encoding="utf-8"
     )
     target = tmp_path / "x.py"
     target.write_text(source, encoding="utf-8")

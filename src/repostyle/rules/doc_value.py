@@ -21,13 +21,13 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import _has_decorator, _is_test_file, _parse_python
-from pystyle.rules._violation import (
+from repostyle.rules._shared import _has_decorator, _is_test_file, _parse_python
+from repostyle.rules._violation import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
     Violation,
 )
-from pystyle.rules.complexity import _score_block
+from repostyle.rules.complexity import _score_block
 
 # The presence check fires when a function scores at or above the
 # complexity floor (well below RS012's limit of 15, which marks

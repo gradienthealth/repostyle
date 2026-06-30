@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules import (
+from repostyle.rules import (
     RS_ELEMENT_ORDER,
     check_class_member_order,
     check_module_element_order,

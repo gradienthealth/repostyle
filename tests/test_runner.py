@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules import (
+from repostyle.rules import (
     ALL_RULE_IDS,
     RS_ACRONYM_CASING,
     RS_DISCOURAGED_CLASS_SUFFIX,
@@ -11,7 +11,7 @@ from pystyle.rules import (
     Severity,
     severity_of,
 )
-from pystyle.runner import (
+from repostyle.runner import (
     find_pyproject,
     fix_path,
     lint_path,
@@ -112,10 +112,10 @@ class TestLintPathWithEnabledRules:
 
 
 class TestConfigDiscovery:
-    def test_ReadsGradientPystyleTable_FromPyproject(self, tmp_path: Path) -> None:
+    def test_ReadsRepostyleTable_FromPyproject(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text(
-            '[tool.pystyle]\nselect = ["RS001"]\nignore = ["RS011"]\n',
+            '[tool.repostyle]\nselect = ["RS001"]\nignore = ["RS011"]\n',
             encoding="utf-8",
         )
         config = load_config(pyproject)
@@ -128,7 +128,7 @@ class TestConfigDiscovery:
 
     def test_NearestPyprojectResolvesSelection_WalkingUp(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text('[tool.pystyle]\nselect = ["RS001"]\n', encoding="utf-8")
+        pyproject.write_text('[tool.repostyle]\nselect = ["RS001"]\n', encoding="utf-8")
         nested = tmp_path / "src" / "pkg"
         nested.mkdir(parents=True)
         target = nested / "x.py"

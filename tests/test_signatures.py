@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules import RS_TOO_MANY_POSITIONAL_ARGS, check_too_many_positional_args
+from repostyle.rules import RS_TOO_MANY_POSITIONAL_ARGS, check_too_many_positional_args
 
 _SRC = Path("src/x.py")
 

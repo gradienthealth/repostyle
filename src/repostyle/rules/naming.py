@@ -7,8 +7,8 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import TEST_CLASS_PATTERN, _is_test_file, _parse_python
-from pystyle.rules._violation import (
+from repostyle.rules._shared import TEST_CLASS_PATTERN, _is_test_file, _parse_python
+from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_BOOLEAN_PREFIX_REQUIRED,

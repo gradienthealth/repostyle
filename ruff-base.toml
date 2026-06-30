@@ -1,13 +1,10 @@
 # Shared base ruff config for gradienthealth Python repos.
 #
-# Consuming repos extend this file from their own pyproject.toml:
-#
-#   [tool.ruff]
-#   extend = "path/to/ruff-base.toml"
-#
-# then override only what they need (e.g. target-version, per-file
-# ignores). Keep repo-specific knobs out of this file; it is the
-# shared baseline every repo inherits.
+# Consuming repos extend this file from their own pyproject.toml by
+# setting `extend = "path/to/ruff-base.toml"` under `[tool.ruff]`, then
+# override only what they need (e.g. target-version, per-file ignores).
+# Keep repo-specific knobs out of this file; it is the shared baseline
+# every repo inherits.
 
 line-length = 88
 
@@ -21,9 +18,9 @@ quote-style = "double"
 # minimalism). The remaining D rules still enforce shape and content
 # when a docstring exists. D203/D213 are mutually exclusive with
 # D211/D212. PT004 (leading-underscore on no-return fixtures) was
-# removed upstream because the convention "isn't a practice
-# recommended by the pytest community"; the broad PT select still
-# pulls it in, so ignore explicitly.
+# removed upstream because the convention "isn't a practice recommended
+# by the pytest community"; the broad PT select still pulls it in, so
+# ignore explicitly.
 ignore = [
     "E501",
     "D100",
@@ -42,17 +39,21 @@ ignore = [
 # a signature opts that edge out of type checking. Only ANN401 is
 # selected, not the whole ANN group, which would demand annotations
 # everywhere.
+#
 # Complexity and size guardrails: C90 (cyclomatic, threshold in
 # [lint.mccabe]) and the PLR caps on returns/branches/statements.
+#
 # FBT (flake8-boolean-trap) flags boolean-typed positional arguments and
 # bare True/False passed positionally — a bool reads clearer by keyword.
 # The whole group is selected so the trap is caught at the definition
 # site (FBT001/002), not only at call sites (FBT003).
+#
 # PLC0415 (import-outside-top-level) bans in-function imports: an import
-# inside a function body hides a dependency from the module header and is
-# usually reflexive rather than a deliberate guard. A genuinely guarded
-# import (heavy/optional/platform-specific) keeps its if/try guard at
-# module top level.
+# inside a function body hides a dependency from the module header and
+# is usually reflexive rather than a deliberate guard. A genuinely
+# guarded import (heavy/optional/platform-specific) keeps its if/try
+# guard at module top level.
+#
 # PLR0913 (too-many-arguments) is deliberately left out — it fires on
 # many legitimate wide signatures, and is better adopted once
 # enforcement is scoped to a PR's changed lines, not the whole tree.
@@ -85,7 +86,9 @@ select = [
 extend-select = ["D401"]
 
 [lint.pycodestyle]
-max-doc-length = 88
+# Match RS009's docstring/comment fill width (72), per PEP 8's
+# recommendation for flowing prose.
+max-doc-length = 72
 
 [lint.mccabe]
 max-complexity = 10

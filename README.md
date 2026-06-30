@@ -1,6 +1,6 @@
-# pystyle
+# repostyle
 
-Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config. The rules are a stdlib-only AST/token/line linter that catches conventions ruff does not cover; consuming repos select the subset they want and run it as a pre-commit remote hook.
+Shared repo-style lint rules for gradienthealth repos, plus a base ruff config. The rules are a stdlib-only AST/token/line linter that catches conventions ruff does not cover; consuming repos select the subset they want and run it as a pre-commit remote hook. Most rules are Python-specific, but the comment-convention rules (RS009 wrapping, RS030 terminal punctuation) also apply to TOML and YAML comments.
 
 These rules are the *mechanical* half of the house style. The *judgment* half — conventions a linter cannot decide — lives in [`docs/judgment-conventions.md`](docs/judgment-conventions.md), the canonical source each repo references and the `python-style-review` skill distills.
 
@@ -18,7 +18,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS006 | Port purity: files under `application/ports/` must not name a concrete implementation library (httpx, sqlalchemy, bigquery, psycopg, boto3). |
 | RS007 | Duration as timedelta: a module-level `*_SECONDS` constant with a numeric literal should be a `timedelta`. |
 | RS008 | No PHI-safe with exc_info: a log record carrying `exc_info` may not be marked `phi_safe`. |
-| RS009 | Doc fill: docstring and comment paragraphs must fill to 72 columns. |
+| RS009 | Doc fill: docstring and comment paragraphs must fill to 72 columns. Docstrings are checked in Python; comments in Python, TOML, and YAML. |
 | RS010 | No banned abbreviation: an introduced name may not use a known abbreviation (`cfg`, `ctx`, `req`, `resp`, `conn`, ...). |
 | RS011 | No discouraged class suffix: a class may not end in `Manager`, `Helper`, `Util`, or `Utils`. |
 | RS012 | Cognitive complexity (warning): a function whose nesting-weighted complexity exceeds 15 is flagged for a second look. |
@@ -38,6 +38,9 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS026 | Boolean prefix required (warning): a `bool`-annotated parameter, variable, or attribute should read as a yes/no question — prefix it with `is`, `has`, `can`, or `should` (`is_valid`, not `valid`). A `-> bool` function is left alone, since a predicate verb is the idiomatic name for one. |
 | RS027 | Too many positional arguments (warning): a definition with more than five positional parameters is flagged; make the extra ones keyword-only after a `*`. Counts positional-only and positional-or-keyword parameters, excludes a method's `self`/`cls`, and never counts keyword-only ones — so a keyword-only DI builder is left alone. A stand-in for ruff's preview-gated `PLR0917`; see below. |
 | RS028 | Exception alias: an `except ... as` name must be `exc`, `exc` plus digits (`exc2`) for a nested handler, or a descriptive name of at least four characters; the noise aliases `e`, `ex`, and `err` are rejected. |
+| RS029 | Should be private (warning): a module-level name used only within its own module should be prefixed `_` to mark it internal, or added to `__all__` if it is part of the public API. |
+| RS030 | Terminal punctuation (warning): a docstring or comment prose unit must end with `.`, `!`, or `?` (per PEP 257); a single-line comment fragment must not. Comments are checked in Python, TOML, and YAML. |
+| RS031 | Arg described in prose (warning): per-argument detail narrated in the docstring body belongs in an `Args:` section. |
 
 ### Repo-agnostic vs repo-specific
 
@@ -58,20 +61,20 @@ Add to the consuming repo's `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
-  - repo: https://github.com/gradienthealth/pystyle
-    rev: pystyle-vX.Y.Z  # pin to the latest pystyle-v release tag
+  - repo: https://github.com/gradienthealth/repostyle
+    rev: repostyle-vX.Y.Z  # pin to the latest repostyle-v release tag
     hooks:
-      - id: pystyle
+      - id: repostyle
 ```
 
-The hook runs the `pystyle` console script over the staged Python and markdown files.
+The hook runs the `repostyle` console script over the staged Python, markdown, TOML, and YAML files. Most rules act on Python only; the comment-convention rules (RS009, RS030) also act on TOML and YAML comments.
 
 ## Select rules per repo
 
 The runner reads the consuming repo's `pyproject.toml`:
 
 ```toml
-[tool.pystyle]
+[tool.repostyle]
 select = ["RS001", "RS004", "RS005", "RS007", "RS008", "RS009", "RS010", "RS011"]
 ignore = []
 ```
@@ -83,7 +86,7 @@ Enabled rules are `select` minus `ignore`. If the table is missing or empty, all
 RS017 takes its bans from config, so each repo expresses its own layering. Map a path glob (relative to the repo root, `fnmatch` semantics) to the import sources files under it may not import:
 
 ```toml
-[tool.pystyle.banned-imports]
+[tool.repostyle.banned-imports]
 "src/**" = ["tests"]
 "**/application/ports/**" = ["httpx", "sqlalchemy", "psycopg", "boto3", "google.cloud.bigquery"]
 ```
@@ -95,7 +98,7 @@ A file matching a glob that imports a banned source — or a submodule of it (`t
 RS022 holds a special comment to `TAG(TICKET): message`. The allowed tag set and the ticket pattern are config-driven, so a repo expresses its own ticket shape; both fall back to a default when omitted:
 
 ```toml
-[tool.pystyle]
+[tool.repostyle]
 comment-tags = ["TODO", "FIXME", "NOTE", "HACK"]
 comment-ticket-pattern = "[A-Z]+-\\d+|NO-ISSUE"
 ```
@@ -117,19 +120,19 @@ The `style` token, rather than ruff's `noqa`, keeps these from colliding with ru
 Adopting a rule should not mean fixing the whole existing codebase first. Run with `--diff` to report only findings on lines the change touched:
 
 ```bash
-pystyle --diff --diff-base origin/main $(git diff --name-only origin/main)
+repostyle --diff --diff-base origin/main $(git diff --name-only origin/main)
 ```
 
 `--diff` intersects each finding's line with the lines that differ from `--diff-base` (default `HEAD`); a finding on an untracked file or one that cannot be diffed is reported in full, so nothing is hidden by accident. The intersection is on the finding's own line, so a whole-unit finding (a complexity rule reported at the `def`) re-arms only when that line itself changes.
 
-This scopes pystyle's own `RSnnn` rules. Ruff has no diff mode, so to scope the ruff rules to a PR's lines, filter ruff's output in CI with [reviewdog](https://github.com/reviewdog/reviewdog) (`-filter-mode=added`) or graylint locally.
+This scopes repostyle's own `RSnnn` rules. Ruff has no diff mode, so to scope the ruff rules to a PR's lines, filter ruff's output in CI with [reviewdog](https://github.com/reviewdog/reviewdog) (`-filter-mode=added`) or graylint locally.
 
 ## Rewrap docstrings and comments
 
 `RS009` flags docstring and comment paragraphs that are not filled to 72 columns. Run with `--fix` to rewrap them in place instead of only reporting:
 
 ```bash
-pystyle --fix $(git diff --name-only)
+repostyle --fix $(git diff --name-only)
 ```
 
 `--fix` greedily refills each paragraph at its hanging indent, leaving verbatim structures (code fences, doctests, tables, rules, section headers) untouched and respecting `# style: ignore` directives. It exits non-zero when it changed a file, so a pre-commit run stops and you re-stage the rewrapped files. `RS009` is the only fixable rule today.
@@ -139,11 +142,11 @@ pystyle --fix $(git diff --name-only)
 The one-line finding says what tripped; the `explain` subcommand says how to fix it and how to generalize the fix to lines the linter did not flag — a card with the rule's contract, rationale, before/after examples, and any reference table:
 
 ```bash
-pystyle explain RS010      # one rule
-pystyle explain --all      # every rule's card
+repostyle explain RS010      # one rule
+repostyle explain --all      # every rule's card
 ```
 
-A finding from a rule that carries such a card prints a one-line pointer to stderr (`→ run 'pystyle explain RS010' for guidance and examples`), so an agent reading the failure stream pulls the detail on demand at no token cost until it asks. Pass `--no-explain-hint` to suppress the pointer. The card is the same data for every rule; the rules whose one-line message already implies the fix are left at their summary, so the cards stay worth reading.
+A finding from a rule that carries such a card prints a one-line pointer to stderr (`→ run 'repostyle explain RS010' for guidance and examples`), so an agent reading the failure stream pulls the detail on demand at no token cost until it asks. Pass `--no-explain-hint` to suppress the pointer. The card is the same data for every rule; the rules whose one-line message already implies the fix are left at their summary, so the cards stay worth reading.
 
 ## Extend the base ruff config
 

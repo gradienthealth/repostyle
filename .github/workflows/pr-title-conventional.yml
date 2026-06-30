@@ -1,9 +1,10 @@
 name: PR Title Conventional Commit Check
 
-# release-please derives the version bump from the squash-merge commit subject,
-# which is the PR title. This enforces the Conventional-Commit form so every
-# merged title is parseable. Put the Linear ticket (or NO-ISSUE) in the scope
-# — `feat(PROC-123): ...` — to also satisfy the org-wide PR Title Check.
+# release-please derives the version bump from the squash-merge commit
+# subject, which is the PR title. This enforces the Conventional-Commit
+# form so every merged title is parseable. Put the Linear ticket (or
+# NO-ISSUE) in the scope — `feat(PROC-123): ...` — to also satisfy the
+# org-wide PR Title Check.
 
 on:
   pull_request:

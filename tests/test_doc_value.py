@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules import (
+from repostyle.rules import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
     check_arg_described_in_prose,

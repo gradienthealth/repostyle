@@ -24,8 +24,8 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import _has_decorator, _parse_python
-from pystyle.rules._violation import RS_TOO_MANY_POSITIONAL_ARGS, Violation
+from repostyle.rules._shared import _has_decorator, _parse_python
+from repostyle.rules._violation import RS_TOO_MANY_POSITIONAL_ARGS, Violation
 
 # Matches ruff PLR0917's default `max-positional-args`. A definition
 # with more positional parameters than this is flagged.

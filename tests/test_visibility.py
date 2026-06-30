@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from pystyle.rules import RS_SHOULD_BE_PRIVATE, check_should_be_private
-from pystyle.runner import lint_package
+from repostyle.rules import RS_SHOULD_BE_PRIVATE, check_should_be_private
+from repostyle.runner import lint_package
 
 # A module whose public `run` (exported) calls a public `helper` that no
 # other module references: `helper` leaked public scope.
@@ -47,7 +47,7 @@ class TestCheckShouldBePrivate:
         files = _pkg(
             tmp_path,
             {"mod.py": _LEAKED},
-            pyproject='[tool.pystyle]\npublic-modules = ["src/pkg/mod.py"]\n',
+            pyproject='[tool.repostyle]\npublic-modules = ["src/pkg/mod.py"]\n',
         )
         assert list(check_should_be_private(files)) == []
 
@@ -74,7 +74,7 @@ class TestCheckShouldBePrivate:
         files = _pkg(
             tmp_path,
             {"mod.py": _LEAKED},
-            pyproject='[tool.pystyle]\npublic-names = ["helper"]\n',
+            pyproject='[tool.repostyle]\npublic-names = ["helper"]\n',
         )
         assert list(check_should_be_private(files)) == []
 
@@ -83,7 +83,7 @@ class TestCheckShouldBePrivate:
         files = _pkg(
             tmp_path,
             {"mod.py": decorated},
-            pyproject='[tool.pystyle]\npublic-decorators = ["fixture"]\n',
+            pyproject='[tool.repostyle]\npublic-decorators = ["fixture"]\n',
         )
         assert list(check_should_be_private(files)) == []
 
@@ -124,10 +124,10 @@ class TestLintPackage:
         mod = next(path for path, _ in files if path.name == "mod.py")
         assert lint_package([mod], set()) == {}
 
-    def test_PystyleOwnSource_HasNoLeakedInternalName(self) -> None:
-        # Dogfood RS029 over pystyle's own source the way the hook does,
-        # pinning that no public symbol leaks internal-only scope.
-        package = Path(__file__).resolve().parents[1] / "src" / "pystyle"
+    def test_RepostyleOwnSource_HasNoLeakedInternalName(self) -> None:
+        # Dogfood RS029 over repostyle's own source the way the hook
+        # does, pinning that no public symbol leaks internal-only scope.
+        package = Path(__file__).resolve().parents[1] / "src" / "repostyle"
         sources = [
             path for path in package.rglob("*.py") if "__pycache__" not in path.parts
         ]

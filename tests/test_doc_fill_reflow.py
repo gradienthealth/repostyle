@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
+from repostyle.rules.doc_fill import check_doc_fill, reflow_doc_fill
 
 _PY = Path("src/x.py")
 _MOVES_WHOLE = '"""Summary.\n\n' + "aaaaa " * 11 + "`dict[str, int]` done.\n" + '"""\n'

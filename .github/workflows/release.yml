@@ -1,11 +1,12 @@
 name: Release and Publish
 
-# release-please derives the next semver from Conventional-Commit PR titles on
-# main, maintains a release PR, and on merge of that PR creates the
-# `pystyle-vX.Y.Z` tag + GitHub Release + CHANGELOG. The build and
-# publish jobs then ship the wheel to the internal Artifact Registry. A manual
-# `workflow_dispatch` rebuilds and republishes the current main, e.g. to
-# recover a failed upload without cutting a new release.
+# release-please derives the next semver from Conventional-Commit PR
+# titles on main, maintains a release PR, and on merge of that PR
+# creates the `repostyle-vX.Y.Z` tag + GitHub Release + CHANGELOG. The
+# build and publish jobs then ship the wheel to the internal Artifact
+# Registry. A manual `workflow_dispatch` rebuilds and republishes the
+# current main, e.g. to recover a failed upload without cutting a new
+# release.
 
 on:
   push:

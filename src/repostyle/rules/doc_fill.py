@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import ast
-import io
 import itertools
 import re
-import tokenize
 from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
 
-from pystyle.rules._shared import _parse_python
-from pystyle.rules._violation import RS_DOC_FILL, Violation
+from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
+from repostyle.rules._shared import _parse_python
+from repostyle.rules._violation import RS_DOC_FILL, Violation
 
 DOC_FILL_COLUMNS = 72
 
@@ -52,11 +51,12 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     fences, doctest lines, comment directives, and lines carrying URLs
     are exempt, as is a unit with a backtick span hard-wrapped across
     lines; bullets and section entries wrap as hanging paragraphs.
+    Docstrings are read from Python only; comments are read from Python,
+    TOML, and YAML alike.
     """
-    tree = _parse_python(path, source)
-    if tree is None:
+    if path.suffix not in COMMENT_SUFFIXES:
         return
-    for unit in _fillable_units(source, tree):
+    for unit in _fillable_units(path, source):
         # A span broken across source lines lost the whitespace at the
         # break, so `_reflow_unit` cannot rejoin it and skips it. The
         # check must exempt the same units, or it would flag what
@@ -78,12 +78,11 @@ def reflow_doc_fill(
     across source lines. The source's line ending is preserved. Return
     the source unchanged when nothing reflows.
     """
-    tree = _parse_python(path, source)
-    if tree is None:
+    if _parse_python(path, source) is None:
         return source
     source_lines = source.splitlines()
     replacements: list[tuple[int, int, list[str]]] = []
-    for unit in _fillable_units(source, tree):
+    for unit in _fillable_units(path, source):
         if any(line.lineno in skip_lines for line in unit):
             continue
         rewrapped = _reflow_unit(unit)
@@ -102,44 +101,42 @@ def reflow_doc_fill(
     return rewritten + newline if source.endswith("\n") else rewritten
 
 
-def _fillable_units(source: str, tree: ast.AST) -> Iterator[list[_FillLine]]:
+def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
     """Yield every fillable docstring and comment unit in `source`.
 
     Both the check and the reflow consume this, so they agree on which
-    docstrings and comments are in scope.
+    docstrings and comments are in scope. A Python file contributes
+    docstrings and comments; a TOML or YAML file contributes comments
+    alone.
     """
     source_lines = source.splitlines()
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Constant)
-            and isinstance(node.value.value, str)
-        ):
-            end = node.value.end_lineno
-            if end is None or end == node.value.lineno:
-                continue
-            yield from _fill_units(
-                _docstring_fill_lines(source_lines, node.value.lineno, end)
-            )
-    for block in _comment_blocks(source):
+    tree = _parse_python(path, source)
+    if tree is not None:
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Expr)
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)
+            ):
+                end = node.value.end_lineno
+                if end is None or end == node.value.lineno:
+                    continue
+                yield from _fill_units(
+                    _docstring_fill_lines(source_lines, node.value.lineno, end)
+                )
+    for block in _comment_blocks(path, source):
         yield from _fill_units(block)
 
 
-def _comment_blocks(source: str) -> Iterator[list[_FillLine]]:
+def _comment_blocks(path: Path, source: str) -> Iterator[list[_FillLine]]:
     source_lines = source.splitlines()
     block: list[_FillLine] = []
     previous: tuple[int, int] | None = None
-    try:
-        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
-    except tokenize.TokenError:
-        return
-    for token in tokens:
-        if token.type != tokenize.COMMENT:
+    for comment in extract_comments(path, source):
+        if comment.is_trailing:
             continue
-        lineno, column = token.start
-        if source_lines[lineno - 1][:column].strip():
-            continue
-        if _COMMENT_DIRECTIVE_PATTERN.match(token.string):
+        lineno, column = comment.lineno, comment.column
+        if _COMMENT_DIRECTIVE_PATTERN.match(comment.string):
             if block:
                 yield block
             block = []
@@ -149,7 +146,7 @@ def _comment_blocks(source: str) -> Iterator[list[_FillLine]]:
             yield block
             block = []
         rendered = source_lines[lineno - 1].rstrip()
-        text = token.string.lstrip("#").strip()
+        text = comment.string.lstrip("#").strip()
         block.append(_FillLine(lineno, rendered, len(rendered) - len(text), text))
         previous = (lineno, column)
     if block:
