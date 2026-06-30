@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.7.0...repostyle-v0.8.0) (2026-06-30)
+
+
+### Features
+
+* **PROC-2383:** relax prose fill to 79 and reflow TOML/YAML in --fix ([#64](https://github.com/gradienthealth/repostyle/issues/64)) ([86801ad](https://github.com/gradienthealth/repostyle/commit/86801ad7beafc36afe406173d340ae9cb6e342f5))
+
+
+### Bug Fixes
+
+* **PROC-2383:** keep ruff max-doc-length at 88 ([#61](https://github.com/gradienthealth/repostyle/issues/61)) ([6f64d99](https://github.com/gradienthealth/repostyle/commit/6f64d993f1e2ff99530ab48b737c1b730cb3c133))
+* **PROC-2383:** set ruff max-doc-length to 72 ([#63](https://github.com/gradienthealth/repostyle/issues/63)) ([730963b](https://github.com/gradienthealth/repostyle/commit/730963b7be7c4d74f97d27dac6aae9a8eb0bc20e))
+
 ## [0.7.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.6.0...repostyle-v0.7.0) (2026-06-30)
 
 
