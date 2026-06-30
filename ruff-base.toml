@@ -86,10 +86,11 @@ select = [
 extend-select = ["D401"]
 
 [lint.pycodestyle]
-# A generous ceiling, not the prose target: RS009 fills docstring and
-# comment paragraphs to 72 on changed lines (diff-scoped), so this stays
-# lax to avoid retroactively flagging existing prose across consumers.
-max-doc-length = 88
+# Docstring and comment prose fills to 72 (PEP 8), matching RS009's fill
+# target. W505 enforces this ceiling across the whole file, so consumers
+# wrap existing prose to 72 when they adopt the baseline, not only on
+# changed lines.
+max-doc-length = 72
 
 [lint.mccabe]
 max-complexity = 10
