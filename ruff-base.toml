@@ -86,9 +86,10 @@ select = [
 extend-select = ["D401"]
 
 [lint.pycodestyle]
-# Match RS009's docstring/comment fill width (72), per PEP 8's
-# recommendation for flowing prose.
-max-doc-length = 72
+# A generous ceiling, not the prose target: RS009 fills docstring and
+# comment paragraphs to 72 on changed lines (diff-scoped), so this stays
+# lax to avoid retroactively flagging existing prose across consumers.
+max-doc-length = 88
 
 [lint.mccabe]
 max-complexity = 10
