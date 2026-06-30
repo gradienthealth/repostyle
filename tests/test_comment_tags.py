@@ -107,7 +107,54 @@ class TestCheckCommentTagFormat:
         target = _target(tmp_path, source, table=table)
         assert list(check_comment_tag_format(target, source)) == []
 
-    def test_NonPythonFile_NoViolation(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "suffix,source",
+        [
+            ("toml", '# TODO(PROC-1): fix the thing\nkey = "value"\n'),
+            ("yaml", "# TODO(PROC-1): fix the thing\nkey: value\n"),
+        ],
+        ids=["toml", "yaml"],
+    )
+    def test_CanonicalTagInConfigFile_NoViolation(
+        self, tmp_path: Path, suffix: str, source: str
+    ) -> None:
+        target = tmp_path / f"config.{suffix}"
+        target.write_text(source, encoding="utf-8")
+        assert list(check_comment_tag_format(target, source)) == []
+
+    @pytest.mark.parametrize(
+        "suffix,source",
+        [
+            ("toml", '# todo: fix the thing\nkey = "value"\n'),
+            ("yaml", "# todo: fix the thing\nkey: value\n"),
+        ],
+        ids=["toml", "yaml"],
+    )
+    def test_DeviatingTagInConfigFile_FlagsViolation(
+        self, tmp_path: Path, suffix: str, source: str
+    ) -> None:
+        target = tmp_path / f"config.{suffix}"
+        target.write_text(source, encoding="utf-8")
+        violations = list(check_comment_tag_format(target, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_COMMENT_TAG_FORMAT
+
+    @pytest.mark.parametrize(
+        "suffix,source",
+        [
+            ("toml", '# TODO(PROC-1): real comment\nkey = "value # todo: inside"\n'),
+            ("yaml", '# TODO(PROC-1): real comment\nkey: "value # todo: inside"\n'),
+        ],
+        ids=["toml", "yaml"],
+    )
+    def test_HashInsideStringValue_NoViolation(
+        self, tmp_path: Path, suffix: str, source: str
+    ) -> None:
+        target = tmp_path / f"config.{suffix}"
+        target.write_text(source, encoding="utf-8")
+        assert list(check_comment_tag_format(target, source)) == []
+
+    def test_UnsupportedFile_NoViolation(self, tmp_path: Path) -> None:
         source = "# todo: fix\n"
         target = tmp_path / "notes.txt"
         target.write_text(source, encoding="utf-8")
