@@ -25,8 +25,8 @@ from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
-from pystyle.rules._shared import _parse_python, _posix, find_pyproject
-from pystyle.rules._violation import RS_SHOULD_BE_PRIVATE, Violation
+from repostyle.rules._shared import _parse_python, _posix, find_pyproject
+from repostyle.rules._violation import RS_SHOULD_BE_PRIVATE, Violation
 
 
 def check_should_be_private(
@@ -244,9 +244,9 @@ def _public_names(pyproject: Path | None) -> tuple[str, ...]:
 
 @lru_cache(maxsize=128)
 def _string_list(pyproject: Path, key: str) -> tuple[str, ...]:
-    """Read a `[tool.pystyle]` list-of-strings setting from a pyproject file."""
+    """Read a `[tool.repostyle]` list-of-strings setting from a pyproject file."""
     data = _load_pyproject(pyproject)
-    value = data.get("tool", {}).get("pystyle", {}).get(key, [])
+    value = data.get("tool", {}).get("repostyle", {}).get(key, [])
     return tuple(str(entry) for entry in value) if isinstance(value, list) else ()
 
 

@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from pystyle.rules import (
+from repostyle.rules import (
     check_comment_terminal_punctuation,
     fix_comment_terminal_punctuation,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
 )
-from pystyle.runner import fix_path
+from repostyle.runner import fix_path
 
 _PY = Path("src/x.py")
 _MD = Path("README.md")
@@ -154,7 +154,7 @@ class TestFixPath:
 
 def _project(tmp_path: Path, source: str, select: str, name: str = "x.py") -> Path:
     (tmp_path / "pyproject.toml").write_text(
-        f"[tool.pystyle]\nselect = {select}\n", encoding="utf-8"
+        f"[tool.repostyle]\nselect = {select}\n", encoding="utf-8"
     )
     target = tmp_path / name
     target.write_text(source, encoding="utf-8")

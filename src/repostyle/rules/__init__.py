@@ -2,13 +2,13 @@
 
 Each rule is a function taking `(path, source)` and yielding `Violation`
 records, defined in a themed module. This package re-exports the whole
-public surface, so `from pystyle.rules import <name>` resolves
+public surface, so `from repostyle.rules import <name>` resolves
 regardless of which module the name lives in.
 """
 
 from __future__ import annotations
 
-from pystyle.rules._catalog import (
+from repostyle.rules._catalog import (
     ABBREVIATION_EXPANSIONS,
     RULE_DOCS,
     Example,
@@ -16,7 +16,7 @@ from pystyle.rules._catalog import (
     has_guidance,
     rule_doc,
 )
-from pystyle.rules._registry import (
+from repostyle.rules._registry import (
     ALL_RULE_IDS,
     FIXABLE_RULES,
     PACKAGE_RULES,
@@ -26,7 +26,7 @@ from pystyle.rules._registry import (
     run_rule,
     severity_of,
 )
-from pystyle.rules._violation import (
+from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
@@ -61,18 +61,18 @@ from pystyle.rules._violation import (
     Severity,
     Violation,
 )
-from pystyle.rules.comments import (
+from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_terminal_punctuation,
     fix_comment_terminal_punctuation,
 )
-from pystyle.rules.complexity import check_cognitive_complexity
-from pystyle.rules.doc_fill import DOC_FILL_COLUMNS, check_doc_fill, reflow_doc_fill
-from pystyle.rules.doc_value import (
+from repostyle.rules.complexity import check_cognitive_complexity
+from repostyle.rules.doc_fill import DOC_FILL_COLUMNS, check_doc_fill, reflow_doc_fill
+from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
 )
-from pystyle.rules.docstrings import (
+from repostyle.rules.docstrings import (
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
@@ -83,14 +83,14 @@ from pystyle.rules.docstrings import (
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
 )
-from pystyle.rules.duration import check_duration_as_timedelta
-from pystyle.rules.import_layering import check_banned_import_by_path
-from pystyle.rules.layout import (
+from repostyle.rules.duration import check_duration_as_timedelta
+from repostyle.rules.import_layering import check_banned_import_by_path
+from repostyle.rules.layout import (
     check_class_member_order,
     check_module_element_order,
 )
-from pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
-from pystyle.rules.naming import (
+from repostyle.rules.logging_phi import check_no_phi_safe_with_exc_info
+from repostyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
     check_boolean_prefix_required,
@@ -99,9 +99,9 @@ from pystyle.rules.naming import (
     check_no_make_in_production,
     check_no_negated_boolean,
 )
-from pystyle.rules.ports import check_port_no_implementation
-from pystyle.rules.signatures import check_too_many_positional_args
-from pystyle.rules.testing import (
+from repostyle.rules.ports import check_port_no_implementation
+from repostyle.rules.signatures import check_too_many_positional_args
+from repostyle.rules.testing import (
     check_behavior_verification_only,
     check_conditional_test_logic,
     check_excessive_mocking,
@@ -109,7 +109,7 @@ from pystyle.rules.testing import (
     check_sleepy_test,
     check_test_naming,
 )
-from pystyle.rules.visibility import check_should_be_private
+from repostyle.rules.visibility import check_should_be_private
 
 __all__ = [
     "ABBREVIATION_EXPANSIONS",

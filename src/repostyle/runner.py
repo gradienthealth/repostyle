@@ -6,7 +6,7 @@ import tomllib
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from pystyle.rules import (
+from repostyle.rules import (
     ALL_RULE_IDS,
     FIXABLE_RULES,
     PACKAGE_RULES,
@@ -21,8 +21,8 @@ from pystyle.rules import (
     run_package_rule,
     run_rule,
 )
-from pystyle.rules._shared import find_pyproject
-from pystyle.suppressions import filter_suppressed, suppressed_lines
+from repostyle.rules._shared import find_pyproject
+from repostyle.suppressions import filter_suppressed, suppressed_lines
 
 # Each fixer rewrites one rule's findings, taking `(path, source,
 # waived_lines)` and returning the rewritten source. They run in this
@@ -53,16 +53,16 @@ def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
 
 
 def load_config(pyproject: Path) -> dict | None:
-    """Read the `[tool.pystyle]` table from a pyproject file."""
+    """Read the `[tool.repostyle]` table from a pyproject file."""
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return None
-    return data.get("tool", {}).get("pystyle")
+    return data.get("tool", {}).get("repostyle")
 
 
 def resolve_enabled_rules(config: dict | None) -> set[str]:
-    """Resolve enabled rule ids from a `[tool.pystyle]` table.
+    """Resolve enabled rule ids from a `[tool.repostyle]` table.
 
     `select` defaults to every rule; `ignore` defaults to none. The
     enabled set is `select` minus `ignore`. A missing or empty table
@@ -78,7 +78,7 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
     unknown = (set(select or ()) | set(ignore)) - known
     if unknown:
         raise ValueError(
-            "unknown pystyle rule id(s): "
+            "unknown repostyle rule id(s): "
             f"{', '.join(sorted(unknown))}. Known ids: {', '.join(sorted(known))}."
         )
     selected = set(select) if select else known
@@ -97,8 +97,7 @@ def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
     violations: list[Violation] = []
     for rule_id in enabled:
         violations.extend(run_rule(rule_id, path, source))
-    if path.suffix == ".py":
-        violations = filter_suppressed(violations, source)
+    violations = filter_suppressed(path, violations, source)
     return sorted(set(violations))
 
 
@@ -127,7 +126,7 @@ def lint_package(
             if resolved in scope:
                 findings.setdefault(resolved, []).append(violation)
     kept = {
-        path: sorted(set(filter_suppressed(violations, sources.get(path, ""))))
+        path: sorted(set(filter_suppressed(path, violations, sources.get(path, ""))))
         for path, violations in findings.items()
     }
     return {path: violations for path, violations in kept.items() if violations}
@@ -172,7 +171,7 @@ def fix_path(path: Path, enabled: set[str]) -> bool:
     for rule_id, fixer in _FIXERS:
         if rule_id not in enabled:
             continue
-        file_suppressed, skip = suppressed_lines(source, rule_id)
+        file_suppressed, skip = suppressed_lines(path, source, rule_id)
         if file_suppressed:
             continue
         source = fixer(path, source, skip)

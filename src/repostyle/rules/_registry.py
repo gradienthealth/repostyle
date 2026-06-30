@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
-from pystyle.rules._violation import (
+from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
@@ -40,17 +40,17 @@ from pystyle.rules._violation import (
     Severity,
     Violation,
 )
-from pystyle.rules.comments import (
+from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_terminal_punctuation,
 )
-from pystyle.rules.complexity import check_cognitive_complexity
-from pystyle.rules.doc_fill import check_doc_fill
-from pystyle.rules.doc_value import (
+from repostyle.rules.complexity import check_cognitive_complexity
+from repostyle.rules.doc_fill import check_doc_fill
+from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
 )
-from pystyle.rules.docstrings import (
+from repostyle.rules.docstrings import (
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
@@ -59,14 +59,14 @@ from pystyle.rules.docstrings import (
     check_no_double_backticks_in_md,
     check_summary_comment_as_docstring,
 )
-from pystyle.rules.duration import check_duration_as_timedelta
-from pystyle.rules.import_layering import check_banned_import_by_path
-from pystyle.rules.layout import (
+from repostyle.rules.duration import check_duration_as_timedelta
+from repostyle.rules.import_layering import check_banned_import_by_path
+from repostyle.rules.layout import (
     check_class_member_order,
     check_module_element_order,
 )
-from pystyle.rules.logging_phi import check_no_phi_safe_with_exc_info
-from pystyle.rules.naming import (
+from repostyle.rules.logging_phi import check_no_phi_safe_with_exc_info
+from repostyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
     check_boolean_prefix_required,
@@ -75,9 +75,9 @@ from pystyle.rules.naming import (
     check_no_make_in_production,
     check_no_negated_boolean,
 )
-from pystyle.rules.ports import check_port_no_implementation
-from pystyle.rules.signatures import check_too_many_positional_args
-from pystyle.rules.testing import (
+from repostyle.rules.ports import check_port_no_implementation
+from repostyle.rules.signatures import check_too_many_positional_args
+from repostyle.rules.testing import (
     check_behavior_verification_only,
     check_conditional_test_logic,
     check_excessive_mocking,
@@ -85,7 +85,7 @@ from pystyle.rules.testing import (
     check_sleepy_test,
     check_test_naming,
 )
-from pystyle.rules.visibility import check_should_be_private
+from repostyle.rules.visibility import check_should_be_private
 
 # A package rule sees every first-party file at once and yields its
 # findings keyed by path, rather than the single-file `(path, source)`
@@ -160,7 +160,7 @@ RULE_SEVERITY: dict[str, Severity] = {
 }
 
 
-# The rules `pystyle --fix` rewrites in place. The single source both
+# The rules `repostyle --fix` rewrites in place. The single source both
 # the runner's fix path and the `explain` card's fixable line consult,
 # so a card never promises a fix the runner does not perform.
 FIXABLE_RULES: frozenset[str] = frozenset(

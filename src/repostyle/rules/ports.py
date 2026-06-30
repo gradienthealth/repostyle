@@ -7,8 +7,8 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import _parse_python, _posix
-from pystyle.rules._violation import RS_PORT_NO_IMPLEMENTATION, Violation
+from repostyle.rules._shared import _parse_python, _posix
+from repostyle.rules._violation import RS_PORT_NO_IMPLEMENTATION, Violation
 
 PORT_IMPLEMENTATION_TOKENS: tuple[str, ...] = (
     "bigquery",

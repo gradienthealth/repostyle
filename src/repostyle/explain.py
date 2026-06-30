@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import textwrap
 
-from pystyle.rules import (
+from repostyle.rules import (
     DOC_FILL_COLUMNS,
     FIXABLE_RULES,
     Example,
@@ -34,7 +34,7 @@ def explain_rule(rule_id: str) -> str | None:
 
 def discovery_hint(rule_id: str) -> str:
     """Return the one-line pointer to a rule's card for the failure stream."""
-    return f"→ run 'pystyle explain {rule_id}' for guidance and examples"
+    return f"→ run 'repostyle explain {rule_id}' for guidance and examples"
 
 
 def _render_card(rule_id: str, doc: RuleDoc) -> str:
@@ -97,7 +97,7 @@ def _code(snippet: str) -> str:
 def _fixable_line(rule_id: str) -> str:
     """State whether the rule is autofixable, and how."""
     if rule_id in FIXABLE_RULES:
-        return "Fixable: yes — rerun with `pystyle --fix`."
+        return "Fixable: yes — rerun with `repostyle --fix`."
     return "Fixable: no."
 
 

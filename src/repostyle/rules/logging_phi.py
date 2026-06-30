@@ -6,8 +6,8 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import _parse_python
-from pystyle.rules._violation import RS_NO_PHI_SAFE_EXC_INFO, Violation
+from repostyle.rules._shared import _parse_python
+from repostyle.rules._violation import RS_NO_PHI_SAFE_EXC_INFO, Violation
 
 _LOGGING_CALL_NAMES = frozenset(
     {"debug", "info", "warning", "error", "critical", "exception", "log"}

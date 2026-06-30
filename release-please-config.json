@@ -6,8 +6,8 @@
   "bump-patch-for-minor-pre-major": false,
   "packages": {
     ".": {
-      "package-name": "pystyle",
-      "component": "pystyle"
+      "package-name": "repostyle",
+      "component": "repostyle"
     }
   }
 }

@@ -9,26 +9,28 @@ with ruff's own suppression handling.
 
 from __future__ import annotations
 
-import io
 import re
-import tokenize
 from collections.abc import Iterable
+from pathlib import Path
 
-from pystyle.rules import Violation
+from repostyle.rules import Violation
+from repostyle.rules._comments import extract_comments
 
 _FILE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore-file\b")
 _LINE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore\b(?!-file)(?:\[([\sA-Z0-9,]*)\])?")
 
 
-def filter_suppressed(violations: Iterable[Violation], source: str) -> list[Violation]:
+def filter_suppressed(
+    path: Path, violations: Iterable[Violation], source: str
+) -> list[Violation]:
     """Drop violations waived by a `# style: ignore` directive in `source`."""
-    file_suppressed, lines = _parse(source)
+    file_suppressed, lines = _parse(path, source)
     if file_suppressed:
         return []
     return [v for v in violations if not lines.suppresses(v.line, v.rule)]
 
 
-def suppressed_lines(source: str, rule: str) -> tuple[bool, frozenset[int]]:
+def suppressed_lines(path: Path, source: str, rule: str) -> tuple[bool, frozenset[int]]:
     """Report whole-file suppression and the lines waiving `rule`.
 
     An autofixer consults this to leave waived lines untouched.
@@ -40,33 +42,27 @@ def suppressed_lines(source: str, rule: str) -> tuple[bool, frozenset[int]]:
         suppressed, whether by an unscoped `# style: ignore` or one
         naming `rule`.
     """
-    file_suppressed, lines = _parse(source)
+    file_suppressed, lines = _parse(path, source)
     return file_suppressed, frozenset(lines.lines_waiving(rule))
 
 
-def _parse(source: str) -> tuple[bool, _LineSuppressions]:
+def _parse(path: Path, source: str) -> tuple[bool, _LineSuppressions]:
     file_suppressed = False
     lines = _LineSuppressions()
-    try:
-        tokens = tokenize.generate_tokens(io.StringIO(source).readline)
-        for token in tokens:
-            if token.type != tokenize.COMMENT:
-                continue
-            if _FILE_DIRECTIVE.search(token.string):
-                file_suppressed = True
-                continue
-            match = _LINE_DIRECTIVE.search(token.string)
-            if match is None:
-                continue
-            listed = match.group(1)
-            if listed is None:
-                lines.add_all(token.start[0])
-            else:
-                lines.add_rules(
-                    token.start[0], {r for r in listed.replace(" ", "").split(",") if r}
-                )
-    except tokenize.TokenError:
-        pass
+    for comment in extract_comments(path, source):
+        if _FILE_DIRECTIVE.search(comment.string):
+            file_suppressed = True
+            continue
+        match = _LINE_DIRECTIVE.search(comment.string)
+        if match is None:
+            continue
+        listed = match.group(1)
+        if listed is None:
+            lines.add_all(comment.lineno)
+        else:
+            lines.add_rules(
+                comment.lineno, {r for r in listed.replace(" ", "").split(",") if r}
+            )
     return file_suppressed, lines
 
 

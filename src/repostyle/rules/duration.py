@@ -7,8 +7,8 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from pystyle.rules._shared import _parse_python
-from pystyle.rules._violation import RS_DURATION_AS_TIMEDELTA, Violation
+from repostyle.rules._shared import _parse_python
+from repostyle.rules._violation import RS_DURATION_AS_TIMEDELTA, Violation
 
 SECONDS_CONSTANT_PATTERN = re.compile(r"^_?[A-Z][A-Z0-9_]*_SECONDS$")
 

@@ -13,21 +13,20 @@ a tag outside the allowed set (`XXX`, `BUG`), wrong casing (`# todo`),
 missing parentheses (`TODO PROC-1`), a missing ticket (`TODO: fix`), a
 name instead of a ticket (`TODO(sai)`), or a wrong separator after the
 parenthesized ticket. Both the allowed tag set and the ticket pattern
-are read from the `[tool.pystyle]` table, so a repo expresses its own
+are read from the `[tool.repostyle]` table, so a repo expresses its own
 ticket shape; with no config the defaults apply.
 """
 
 from __future__ import annotations
 
-import io
 import re
-import tokenize
 import tomllib
 from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
-from pystyle.rules._shared import (
+from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
+from repostyle.rules._shared import (
     _comment_text,
     _has_sentence_boundary,
     _is_directive_comment,
@@ -37,7 +36,7 @@ from pystyle.rules._shared import (
     _terminal_punctuation_fault,
     find_pyproject,
 )
-from pystyle.rules._violation import (
+from repostyle.rules._violation import (
     RS_COMMENT_TAG_FORMAT,
     RS_TERMINAL_PUNCTUATION,
     Violation,
@@ -80,7 +79,7 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     tags, ticket_pattern = _resolve_config(path)
     allowed = {tag.upper() for tag in tags}
     canonical = _canonical_pattern(tags, ticket_pattern)
-    for lineno, column, string in _own_line_comments(source):
+    for lineno, column, string in _own_line_comments(path, source):
         leading = _LEADING_TOKEN_PATTERN.match(string)
         if leading is None:
             continue
@@ -109,11 +108,11 @@ def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern
     return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
 
 
-def _own_line_comments(source: str) -> Iterator[tuple[int, int, str]]:
+def _own_line_comments(path: Path, source: str) -> Iterator[tuple[int, int, str]]:
     """Yield `(line, column, string)` for each comment that owns its line."""
-    for lineno, column, string, is_trailing in _comment_tokens(source):
-        if not is_trailing:
-            yield lineno, column, string
+    for comment in extract_comments(path, source):
+        if not comment.is_trailing:
+            yield comment.lineno, comment.column, comment.string
 
 
 def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
@@ -135,7 +134,7 @@ def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
-    table = data.get("tool", {}).get("pystyle", {})
+    table = data.get("tool", {}).get("repostyle", {})
     tags = tuple(table.get("comment-tags", DEFAULT_TAGS))
     pattern = table.get("comment-ticket-pattern", DEFAULT_TICKET_PATTERN)
     return tags, pattern
@@ -148,11 +147,12 @@ def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Viol
     not end with a period; a comment spanning lines or running more than
     one sentence reads as prose and must end with `.`, `!`, or `?`. A
     tool directive, a coding line, and a commented-out statement are not
-    prose and are left alone.
+    prose and are left alone. The check runs over Python, TOML, and YAML
+    comments alike, since a `#` comment reads the same in each.
     """
-    if path.suffix != ".py":
+    if path.suffix not in COMMENT_SUFFIXES:
         return
-    for lineno, column, fault in _comment_terminal_faults(source):
+    for lineno, column, fault in _comment_terminal_faults(path, source):
         yield Violation(
             lineno,
             column + 1,
@@ -170,13 +170,14 @@ def fix_comment_terminal_punctuation(
     fragment carrying one drops it, including a period sitting before
     trailing closers (`note.)`), so the repair matches what the rule
     flags. A comment whose line is in `skip_lines` is left untouched.
-    Return the source unchanged when nothing repairs.
+    The fix runs on Python only, though the check spans TOML and YAML
+    too. Return the source unchanged when nothing repairs.
     """
     if path.suffix != ".py":
         return source
     source_lines = source.splitlines()
     changed = False
-    for lineno, _, fault in _comment_terminal_faults(source):
+    for lineno, _, fault in _comment_terminal_faults(path, source):
         if lineno in skip_lines:
             continue
         stripped = source_lines[lineno - 1].rstrip()
@@ -191,23 +192,24 @@ def fix_comment_terminal_punctuation(
     return _join_source_lines(source, source_lines) if changed else source
 
 
-def _comment_terminal_faults(source: str) -> Iterator[tuple[int, int, str]]:
+def _comment_terminal_faults(path: Path, source: str) -> Iterator[tuple[int, int, str]]:
     """Yield `(line, column, fault)` for each mispunctuated prose comment.
 
     Trailing comments and standalone blocks are both covered, so the
-    check and its fixer see the same flagged locations. The fault is
-    `"missing"` or `"extra"`, per the house rule.
+    check and its fixer see the same flagged locations. Comments are
+    read across Python, TOML, and YAML. The fault is `"missing"` or
+    `"extra"`, per the house rule.
     """
-    for lineno, column, string, is_trailing in _comment_tokens(source):
-        if not is_trailing:
+    for comment in extract_comments(path, source):
+        if not comment.is_trailing:
             continue
-        text = _comment_text(string)
+        text = _comment_text(comment.string)
         if not _is_prose_comment(text):
             continue
         fault = _terminal_punctuation_fault(text, is_prose=_has_sentence_boundary(text))
         if fault is not None:
-            yield lineno, column, fault
-    for block in _standalone_comment_blocks(source):
+            yield comment.lineno, comment.column, fault
+    for block in _standalone_comment_blocks(path, source):
         text = " ".join(_comment_text(string) for _, _, string in block)
         if not _is_prose_comment(text):
             continue
@@ -227,7 +229,7 @@ def _comment_terminal_message(fault: str) -> str:
 
 
 def _standalone_comment_blocks(
-    source: str,
+    path: Path, source: str
 ) -> Iterator[list[tuple[int, int, str]]]:
     """Group own-line comments into adjacent same-column blocks.
 
@@ -237,8 +239,9 @@ def _standalone_comment_blocks(
     """
     block: list[tuple[int, int, str]] = []
     previous: tuple[int, int] | None = None
-    for lineno, column, string, is_trailing in _comment_tokens(source):
-        if is_trailing or _is_directive_comment(_comment_text(string)):
+    for comment in extract_comments(path, source):
+        lineno, column, string = comment.lineno, comment.column, comment.string
+        if comment.is_trailing or _is_directive_comment(_comment_text(string)):
             if block:
                 yield block
             block, previous = [], None
@@ -250,18 +253,3 @@ def _standalone_comment_blocks(
         previous = (lineno, column)
     if block:
         yield block
-
-
-def _comment_tokens(source: str) -> Iterator[tuple[int, int, str, bool]]:
-    """Yield each comment as `(line, column, string, trails-code)`."""
-    source_lines = source.splitlines()
-    try:
-        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
-    except tokenize.TokenError:
-        return
-    for token in tokens:
-        if token.type != tokenize.COMMENT:
-            continue
-        lineno, column = token.start
-        is_trailing = bool(source_lines[lineno - 1][:column].strip())
-        yield lineno, column, token.string, is_trailing

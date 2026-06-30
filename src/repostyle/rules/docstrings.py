@@ -17,7 +17,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
 
-from pystyle.rules._shared import (
+from repostyle.rules._shared import (
     _comment_text,
     _is_directive_comment,
     _is_prose_comment,
@@ -25,7 +25,7 @@ from pystyle.rules._shared import (
     _parse_python,
     _terminal_punctuation_fault,
 )
-from pystyle.rules._violation import (
+from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,

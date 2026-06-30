@@ -6,10 +6,16 @@ import argparse
 import sys
 from pathlib import Path
 
-from pystyle.changed_lines import changed_lines
-from pystyle.explain import discovery_hint, explain_rule
-from pystyle.rules import ALL_RULE_IDS, Severity, Violation, has_guidance, severity_of
-from pystyle.runner import (
+from repostyle.changed_lines import changed_lines
+from repostyle.explain import discovery_hint, explain_rule
+from repostyle.rules import (
+    ALL_RULE_IDS,
+    Severity,
+    Violation,
+    has_guidance,
+    severity_of,
+)
+from repostyle.runner import (
     fix_path,
     lint_package,
     lint_path,
@@ -38,7 +44,7 @@ def _run_explain(argv: list[str]) -> int:
     Return 2 when any named id is unknown, after printing the cards for
     the ids that resolve.
     """
-    parser = argparse.ArgumentParser(prog="pystyle explain")
+    parser = argparse.ArgumentParser(prog="repostyle explain")
     parser.add_argument("rules", nargs="*", metavar="RSnnn")
     parser.add_argument("--all", action="store_true", help="print every rule's card")
     options = parser.parse_args(argv)
@@ -59,7 +65,7 @@ def _run_explain(argv: list[str]) -> int:
     if cards:
         print("\n\n".join(cards))
     for rule_id in unknown:
-        print(f"pystyle: unknown rule id {rule_id}", file=sys.stderr)
+        print(f"repostyle: unknown rule id {rule_id}", file=sys.stderr)
     return 2 if unknown else 0
 
 
@@ -69,7 +75,7 @@ def _run_lint(argv: list[str]) -> int:
     try:
         enabled = resolve_enabled_rules_for_paths(options.paths)
     except ValueError as error:
-        print(f"pystyle: {error}", file=sys.stderr)
+        print(f"repostyle: {error}", file=sys.stderr)
         return 2
     package = lint_package(options.paths, enabled)
     failed = False
@@ -84,7 +90,7 @@ def _run_lint(argv: list[str]) -> int:
         fired |= path_rules
     if fixed:
         listed = ", ".join(str(path) for path in fixed)
-        print(f"pystyle: fixed {listed}; review and re-stage", file=sys.stderr)
+        print(f"repostyle: fixed {listed}; review and re-stage", file=sys.stderr)
     if not options.no_explain_hint:
         for rule_id in sorted(rule for rule in fired if has_guidance(rule)):
             print(discovery_hint(rule_id), file=sys.stderr)
@@ -92,7 +98,7 @@ def _run_lint(argv: list[str]) -> int:
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="pystyle")
+    parser = argparse.ArgumentParser(prog="repostyle")
     parser.add_argument("paths", nargs="*", type=Path)
     parser.add_argument(
         "--diff",

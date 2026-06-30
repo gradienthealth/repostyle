@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules import (
+from repostyle.rules import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
     RS_BEHAVIOR_VERIFICATION_ONLY,
@@ -468,6 +468,31 @@ class TestCheckDocFill:
         assert (violations[0].line, violations[0].col) == (4, 5)
 
     @pytest.mark.parametrize(
+        "path",
+        [Path("config.toml"), Path("config.yaml"), Path("config.yml")],
+        ids=["toml", "yaml", "yml"],
+    )
+    def test_UnderwrappedCommentBlock_FlagsAcrossCommentLanguages(
+        self, path: Path
+    ) -> None:
+        source = "# aaa\n# bbb\nkey = 1\n"
+        violations = list(check_doc_fill(path, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_DOC_FILL, 1)]
+
+    @pytest.mark.parametrize(
+        ("path", "assignment"),
+        [(Path("config.toml"), "key = 1\n"), (Path("config.yaml"), "key: 1\n")],
+        ids=["toml", "yaml"],
+    )
+    def test_OverlongComment_FlagsAcrossCommentLanguages(
+        self, path: Path, assignment: str
+    ) -> None:
+        source = "# " + "abcde " * 13 + "end\n" + assignment
+        violations = list(check_doc_fill(path, source))
+        assert [v.rule for v in violations] == [RS_DOC_FILL]
+        assert "exceeds" in violations[0].message
+
+    @pytest.mark.parametrize(
         "source",
         [
             'def f():\n    """Summary.\n\n    ' + "a" * 64 + "\n    bbbb\n" + '    """',
@@ -516,8 +541,18 @@ class TestCheckDocFill:
     def test_ExemptOrFilledStructure_NoViolation(self, source: str) -> None:
         assert list(check_doc_fill(Path("src/x.py"), source)) == []
 
+    def test_HashInsideTomlString_NotTreatedAsComment(self) -> None:
+        source = 'key = "' + "a" * 90 + '#x"\n'
+        assert list(check_doc_fill(Path("config.toml"), source)) == []
+
     def test_NonPythonFile_NotChecked(self) -> None:
         assert list(check_doc_fill(Path("README.md"), "# aaa\n# bbb")) == []
+
+    def test_UnparseablePython_NotChecked(self) -> None:
+        # An over-long comment in a .py file that does not parse: the
+        # check stays silent because --fix cannot rewrap it.
+        source = "def f(:\n# " + "abcde " * 13 + "end\n"
+        assert list(check_doc_fill(Path("src/x.py"), source)) == []
 
 
 class TestCheckBannedAbbreviation:
@@ -1123,6 +1158,28 @@ class TestCheckCommentTerminalPunctuation:
         violations = list(check_comment_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 1)]
 
+    @pytest.mark.parametrize(
+        "path",
+        [Path("config.toml"), Path("config.yaml")],
+        ids=["toml", "yaml"],
+    )
+    def test_MultilineProseWithoutTerminal_FlagsAcrossCommentLanguages(
+        self, path: Path
+    ) -> None:
+        source = (
+            "# This comment spans two lines and ends\n"
+            "# without any terminal mark\nkey: 1\n"
+        )
+        violations = list(check_comment_terminal_punctuation(path, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 2)]
+
+    def test_YamlTrailingMultiSentence_FlagsProse(self) -> None:
+        source = "key: 1  # First sentence. Second sentence with no terminal mark\n"
+        violations = list(
+            check_comment_terminal_punctuation(Path("config.yaml"), source)
+        )
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 1)]
+
     def test_NonPythonFile_NoViolation(self) -> None:
         source = "# A prose comment with a trailing period.\n"
         assert list(check_comment_terminal_punctuation(Path("notes.txt"), source)) == []
@@ -1130,3 +1187,9 @@ class TestCheckCommentTerminalPunctuation:
     def test_DirectiveSplitsBlockFromProse_NoViolation(self) -> None:
         source = "# A standalone prose comment line\n# type: ignore\nx = 1\n"
         assert list(check_comment_terminal_punctuation(_DOC_PATH, source)) == []
+
+    def test_HashInsideYamlQuotedScalar_NotTreatedAsComment(self) -> None:
+        source = 'key: "a value. with a period inside"\n'
+        assert (
+            list(check_comment_terminal_punctuation(Path("config.yaml"), source)) == []
+        )

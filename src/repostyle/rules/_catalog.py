@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from pystyle.rules._violation import (
+from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
@@ -152,7 +152,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
         rationale=(
             "A paragraph wrapped well short of the limit, or running past it, "
             "reads as ragged and churns diffs when reflowed by hand. Fill each "
-            "prose paragraph to 72 columns. This rule rewrites in place."
+            "prose paragraph to 72 columns. Docstrings are checked in Python; "
+            "comments in Python, TOML, and YAML alike. `--fix` rewrites Python "
+            "in place."
         ),
     ),
     RS_BANNED_ABBREVIATION: RuleDoc(
@@ -276,7 +278,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "but to move the code that needs it to the layer that may hold it, or "
             "to invert the dependency behind a port the inner layer owns. The "
             "banned sources are configured per glob in "
-            "`[tool.pystyle.banned-imports]`; read that table for which layer "
+            "`[tool.repostyle.banned-imports]`; read that table for which layer "
             "owns what."
         ),
         examples=(
@@ -342,7 +344,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "scope a PR title carries. The form is an allowed tag, the ticket in "
             "parentheses (a Linear id like `PROC-1234`, or the literal "
             "`NO-ISSUE`), then `: ` and the message. The allowed tags and ticket "
-            "pattern are configured in `[tool.pystyle]`."
+            "pattern are configured in `[tool.repostyle]`."
         ),
         examples=(
             Example(
@@ -402,7 +404,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
     RS_TERMINAL_PUNCTUATION: RuleDoc(
         name="terminal-punctuation",
         summary=(
-            "A docstring prose unit ends with terminal punctuation (`.`, `!`, or `?`)."
+            "A docstring or comment prose unit ends with terminal punctuation "
+            "(`.`, `!`, or `?`); comments are checked in Python, TOML, and YAML."
         ),
     ),
     RS_ARG_DESCRIBED_IN_PROSE: RuleDoc(

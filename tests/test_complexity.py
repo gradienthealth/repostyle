@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pystyle.rules import RS_COGNITIVE_COMPLEXITY, check_cognitive_complexity
+from repostyle.rules import RS_COGNITIVE_COMPLEXITY, check_cognitive_complexity
 
 _COMPLEX_SOURCE = (
     "def handle(items):\n"

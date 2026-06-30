@@ -1,5 +1,5 @@
-- id: pystyle
-  name: pystyle
-  entry: pystyle
+- id: repostyle
+  name: repostyle
+  entry: repostyle
   language: python
-  types_or: [python, markdown]
+  types_or: [python, markdown, toml, yaml]

@@ -1,8 +1,13 @@
 import pytest
 
-from pystyle.explain import discovery_hint, explain_rule
-from pystyle.rules import ABBREVIATION_EXPANSIONS, ALL_RULE_IDS, RULE_DOCS, has_guidance
-from pystyle.rules.naming import BANNED_ABBREVIATIONS
+from repostyle.explain import discovery_hint, explain_rule
+from repostyle.rules import (
+    ABBREVIATION_EXPANSIONS,
+    ALL_RULE_IDS,
+    RULE_DOCS,
+    has_guidance,
+)
+from repostyle.rules.naming import BANNED_ABBREVIATIONS
 
 _RICH_RULES = ["RS010", "RS012", "RS015", "RS016", "RS017", "RS018", "RS022"]
 _SUMMARY_ONLY_RULES = ["RS001", "RS002", "RS004"]
@@ -50,7 +55,7 @@ class TestExplainRule:
     def test_FixableRule_StatesTheFixCommand(self) -> None:
         card = explain_rule("RS009")
         assert card is not None
-        assert "Fixable: yes — rerun with `pystyle --fix`." in card
+        assert "Fixable: yes — rerun with `repostyle --fix`." in card
 
     def test_UnknownRule_ReturnsNone(self) -> None:
         assert explain_rule("RS999") is None
@@ -59,7 +64,7 @@ class TestExplainRule:
 class TestDiscoveryHint:
     def test_RuleId_FormatsThePointer(self) -> None:
         hint = discovery_hint("RS010")
-        assert hint == "→ run 'pystyle explain RS010' for guidance and examples"
+        assert hint == "→ run 'repostyle explain RS010' for guidance and examples"
 
 
 class TestHasGuidance:

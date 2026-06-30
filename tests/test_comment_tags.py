@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pystyle.rules import RS_COMMENT_TAG_FORMAT, check_comment_tag_format
+from repostyle.rules import RS_COMMENT_TAG_FORMAT, check_comment_tag_format
 
 
 class TestCheckCommentTagFormat:
@@ -93,14 +93,15 @@ class TestCheckCommentTagFormat:
         assert "XXX" not in violations[0].message
 
     def test_ConfiguredTicketPattern_AcceptsRepoShape(self, tmp_path: Path) -> None:
-        table = '[tool.pystyle]\ncomment-ticket-pattern = "#\\\\d+"\n'
+        table = '[tool.repostyle]\ncomment-ticket-pattern = "#\\\\d+"\n'
         source = "# TODO(#42): repo uses GitHub issue numbers\n"
         target = _target(tmp_path, source, table=table)
         assert list(check_comment_tag_format(target, source)) == []
 
     def test_ConfiguredAllowedTags_AcceptsExtraTag(self, tmp_path: Path) -> None:
         table = (
-            '[tool.pystyle]\ncomment-tags = ["TODO", "FIXME", "NOTE", "HACK", "PERF"]\n'
+            "[tool.repostyle]\n"
+            'comment-tags = ["TODO", "FIXME", "NOTE", "HACK", "PERF"]\n'
         )
         source = "# PERF(PROC-1): hot path, revisit\n"
         target = _target(tmp_path, source, table=table)
