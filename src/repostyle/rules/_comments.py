@@ -40,8 +40,8 @@ class _CommentToken(NamedTuple):
 
 # Cache on (path, source) so a file is scanned once and the result
 # shared across the rules that read it — RS009, RS030, and the
-# suppression parser — the way `_parse_python` caches the AST. The tuple
-# is returned directly, so every caller iterates the same scan.
+# suppression parser — the way `_parse_python` caches the AST. A tuple
+# is returned so the cached value is safe to iterate repeatedly.
 @lru_cache(maxsize=128)
 def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
     """Return each `#` comment in `source`, dispatched by file type.
@@ -89,29 +89,31 @@ def _toml_comments(source: str) -> Iterator[_CommentToken]:
     """Yield each `#` comment in TOML `source`, line by line.
 
     A multi-line string spanning lines carries its closing delimiter
-    forward in `awaiting`, so a `#` inside it is never a comment.
+    forward in `open_delimiter`, so a `#` inside it is never a comment.
     """
-    awaiting: str | None = None
+    open_delimiter: str | None = None
     for lineno, line in enumerate(source.splitlines(), start=1):
-        column, awaiting = _toml_scan_line(line, awaiting)
+        column, open_delimiter = _toml_scan_line(line, open_delimiter)
         if column is not None:
             yield _token(lineno, line, column)
 
 
-def _toml_scan_line(line: str, awaiting: str | None) -> tuple[int | None, str | None]:
+def _toml_scan_line(
+    line: str, open_delimiter: str | None
+) -> tuple[int | None, str | None]:
     """Find a `#` comment in one TOML line, tracking multi-line strings.
 
-    `awaiting`, when set, is the triple-quote delimiter closing an open
-    multi-line string; the scan resumes after it closes on this line.
-    Return the comment column (or `None`) and the delimiter still open
-    at the line's end (or `None`).
+    `open_delimiter`, when set, is the triple-quote delimiter closing an
+    open multi-line string; the scan resumes after it closes on this
+    line. Return the comment column (or `None`) and the delimiter still
+    open at the line's end (or `None`).
     """
     index = 0
-    if awaiting is not None:
-        close = line.find(awaiting)
+    if open_delimiter is not None:
+        close = line.find(open_delimiter)
         if close == -1:
-            return None, awaiting
-        index = close + len(awaiting)
+            return None, open_delimiter
+        index = close + len(open_delimiter)
     while index < len(line):
         char = line[index]
         if char == "#":
@@ -152,9 +154,9 @@ def _skip_toml_string(line: str, index: int) -> int:
 def _yaml_comments(source: str) -> Iterator[_CommentToken]:
     """Yield each `#` comment in YAML `source`, line by line.
 
-    A `|` or `>` block scalar carries its introducer indent forward in
-    `block_indent`, so a `#` in the literal lines that follow is never
-    read as a comment.
+    A `|` or `>` block scalar records its introducer indent in
+    `block_indent`; the deeper-indented lines that follow are literal,
+    so a `#` among them is never read as a comment.
     """
     block_indent: int | None = None
     for lineno, line in enumerate(source.splitlines(), start=1):
@@ -180,13 +182,7 @@ def _indent_of(line: str) -> int:
 
 
 def _opens_block_scalar(content: str) -> bool:
-    """Report whether a YAML line opens a `|` or `>` block scalar.
-
-    The value, after a `:` or `-` lead or standing alone, is a `|` or
-    `>` with optional chomping (`+`/`-`) and indent (a digit) indicators
-    and nothing else, so the indented lines that follow are literal
-    content.
-    """
+    """Report whether `content` is a YAML line opening a block scalar."""
     return _BLOCK_SCALAR_PATTERN.search(content) is not None
 
 

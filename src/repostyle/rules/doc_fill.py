@@ -58,7 +58,7 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
         return
     # An unparseable Python file is one `reflow_doc_fill` declines to
     # rewrite, so the check skips it too rather than flag what `--fix`
-    # will not repair. A TOML or YAML file has no tree to parse.
+    # will not repair.
     if path.suffix == ".py" and _parse_python(path, source) is None:
         return
     for unit in _fillable_units(path, source):
@@ -136,6 +136,11 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
 def _comment_blocks(
     path: Path, source: str, source_lines: list[str]
 ) -> Iterator[list[_FillLine]]:
+    """Yield runs of adjacent own-line comments at the same column.
+
+    A directive comment, or a gap in line or column, closes the open run
+    and starts a new one.
+    """
     block: list[_FillLine] = []
     previous: tuple[int, int] | None = None
     for comment in extract_comments(path, source):
