@@ -129,12 +129,13 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
                 yield from _fill_units(
                     _docstring_fill_lines(source_lines, node.value.lineno, end)
                 )
-    for block in _comment_blocks(path, source):
+    for block in _comment_blocks(path, source, source_lines):
         yield from _fill_units(block)
 
 
-def _comment_blocks(path: Path, source: str) -> Iterator[list[_FillLine]]:
-    source_lines = source.splitlines()
+def _comment_blocks(
+    path: Path, source: str, source_lines: list[str]
+) -> Iterator[list[_FillLine]]:
     block: list[_FillLine] = []
     previous: tuple[int, int] | None = None
     for comment in extract_comments(path, source):

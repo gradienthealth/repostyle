@@ -12,6 +12,7 @@ import io
 import re
 import tokenize
 from collections.abc import Iterator
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -37,8 +38,13 @@ class _CommentToken(NamedTuple):
     """Whether code or data precedes the comment on its line."""
 
 
-def extract_comments(path: Path, source: str) -> Iterator[_CommentToken]:
-    """Yield each `#` comment in `source`, dispatched by file type.
+# Cache on (path, source) so a file is scanned once and the result
+# shared across the rules that read it — RS009, RS030, and the
+# suppression parser — the way `_parse_python` caches the AST. The tuple
+# is returned directly, so every caller iterates the same scan.
+@lru_cache(maxsize=128)
+def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
+    """Return each `#` comment in `source`, dispatched by file type.
 
     A Python file is tokenized. A TOML or YAML file is scanned line by
     line under that language's string and block rules, so a `#` inside a
@@ -49,65 +55,19 @@ def extract_comments(path: Path, source: str) -> Iterator[_CommentToken]:
     """
     suffix = path.suffix
     if suffix == ".py":
-        yield from _python_comments(source)
-    elif suffix in {".toml", ".yaml", ".yml"}:
-        yield from _hash_comments(source, is_yaml=suffix != ".toml")
-
-
-def _hash_comments(source: str, *, is_yaml: bool) -> Iterator[_CommentToken]:
-    """Yield each `#` comment in TOML or YAML `source`, line by line.
-
-    Dispatch each line to the language's scanner, carrying the
-    cross-line state a `#` scan needs: the delimiter awaited inside an
-    open TOML multi-line string, and the introducer indent of an open
-    YAML block scalar. A line consumed by either of those carries no
-    comment.
-    """
-    awaiting: str | None = None
-    block_indent: int | None = None
-    for lineno, line in enumerate(source.splitlines(), start=1):
-        if is_yaml:
-            if block_indent is not None and _inside_block(line, block_indent):
-                continue
-            block_indent = None
-            column = _yaml_comment_column(line)
-            content = line if column is None else line[:column]
-            if _opens_block_scalar(content):
-                block_indent = _indent_of(line)
-        else:
-            column, awaiting = _toml_scan_line(line, awaiting)
-        if column is not None:
-            yield _CommentToken(
-                lineno, column, line[column:], bool(line[:column].strip())
-            )
-
-
-def _inside_block(line: str, block_indent: int) -> bool:
-    """Report whether `line` is content of a block scalar at `block_indent`."""
-    return not line.strip() or _indent_of(line) > block_indent
-
-
-def _indent_of(line: str) -> int:
-    """Return the count of leading spaces on `line`."""
-    return len(line) - len(line.lstrip(" "))
-
-
-def _opens_block_scalar(content: str) -> bool:
-    """Report whether a YAML line opens a `|` or `>` block scalar.
-
-    The value, after a `:` or `-` lead or standing alone, is a `|` or
-    `>` with optional chomping (`+`/`-`) and indent (a digit) indicators
-    and nothing else, so the indented lines that follow are literal
-    content.
-    """
-    return _BLOCK_SCALAR_PATTERN.search(content) is not None
+        return tuple(_python_comments(source))
+    if suffix == ".toml":
+        return tuple(_toml_comments(source))
+    if suffix in {".yaml", ".yml"}:
+        return tuple(_yaml_comments(source))
+    return ()
 
 
 def _python_comments(source: str) -> Iterator[_CommentToken]:
     """Yield each comment token in Python `source` via the tokenizer.
 
-    Tokens are yielded as the tokenizer produces them, so a `TokenError`
-    on an unterminated tail still surfaces the comments before it.
+    Tokens are yielded as the tokenizer produces them, so a fault in the
+    tail still surfaces the comments before it.
     """
     source_lines = source.splitlines()
     try:
@@ -123,6 +83,19 @@ def _python_comments(source: str) -> Iterator[_CommentToken]:
         # subclasses). Stop at the fault and keep the comments already
         # surfaced.
         return
+
+
+def _toml_comments(source: str) -> Iterator[_CommentToken]:
+    """Yield each `#` comment in TOML `source`, line by line.
+
+    A multi-line string spanning lines carries its closing delimiter
+    forward in `awaiting`, so a `#` inside it is never a comment.
+    """
+    awaiting: str | None = None
+    for lineno, line in enumerate(source.splitlines(), start=1):
+        column, awaiting = _toml_scan_line(line, awaiting)
+        if column is not None:
+            yield _token(lineno, line, column)
 
 
 def _toml_scan_line(line: str, awaiting: str | None) -> tuple[int | None, str | None]:
@@ -174,6 +147,52 @@ def _skip_toml_string(line: str, index: int) -> int:
             return index + 1
         index += 1
     return len(line)
+
+
+def _yaml_comments(source: str) -> Iterator[_CommentToken]:
+    """Yield each `#` comment in YAML `source`, line by line.
+
+    A `|` or `>` block scalar carries its introducer indent forward in
+    `block_indent`, so a `#` in the literal lines that follow is never
+    read as a comment.
+    """
+    block_indent: int | None = None
+    for lineno, line in enumerate(source.splitlines(), start=1):
+        if block_indent is not None and _inside_block(line, block_indent):
+            continue
+        block_indent = None
+        column = _yaml_comment_column(line)
+        content = line if column is None else line[:column]
+        if _opens_block_scalar(content):
+            block_indent = _indent_of(line)
+        if column is not None:
+            yield _token(lineno, line, column)
+
+
+def _inside_block(line: str, block_indent: int) -> bool:
+    """Report whether `line` is content of a block scalar at `block_indent`."""
+    return not line.strip() or _indent_of(line) > block_indent
+
+
+def _indent_of(line: str) -> int:
+    """Return the count of leading spaces on `line`."""
+    return len(line) - len(line.lstrip(" "))
+
+
+def _opens_block_scalar(content: str) -> bool:
+    """Report whether a YAML line opens a `|` or `>` block scalar.
+
+    The value, after a `:` or `-` lead or standing alone, is a `|` or
+    `>` with optional chomping (`+`/`-`) and indent (a digit) indicators
+    and nothing else, so the indented lines that follow are literal
+    content.
+    """
+    return _BLOCK_SCALAR_PATTERN.search(content) is not None
+
+
+def _token(lineno: int, line: str, column: int) -> _CommentToken:
+    """Build a comment token for the `#` at `column` on `line`."""
+    return _CommentToken(lineno, column, line[column:], bool(line[:column].strip()))
 
 
 def _yaml_comment_column(line: str) -> int | None:
