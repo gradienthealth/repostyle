@@ -192,9 +192,7 @@ def fix_comment_terminal_punctuation(
     return _join_source_lines(source, source_lines) if changed else source
 
 
-def _comment_terminal_faults(
-    path: Path, source: str
-) -> Iterator[tuple[int, int, str]]:
+def _comment_terminal_faults(path: Path, source: str) -> Iterator[tuple[int, int, str]]:
     """Yield `(line, column, fault)` for each mispunctuated prose comment.
 
     Trailing comments and standalone blocks are both covered, so the
