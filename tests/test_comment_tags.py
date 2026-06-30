@@ -147,7 +147,7 @@ class TestCheckCommentTagFormat:
         ],
         ids=["toml", "yaml"],
     )
-    def test_HashInsideStringValue_NotFlagged(
+    def test_HashInsideStringValue_NoViolation(
         self, tmp_path: Path, suffix: str, source: str
     ) -> None:
         target = tmp_path / f"config.{suffix}"
