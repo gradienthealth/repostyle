@@ -531,9 +531,16 @@ class TestCheckDocFill:
         violations = list(check_doc_fill(path, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_DOC_FILL, 1)]
 
-    def test_OverlongTomlComment_Flags(self) -> None:
-        source = "# " + "abcde " * 13 + "end\nkey = 1\n"
-        violations = list(check_doc_fill(Path("config.toml"), source))
+    @pytest.mark.parametrize(
+        ("path", "assignment"),
+        [(Path("config.toml"), "key = 1\n"), (Path("config.yaml"), "key: 1\n")],
+        ids=["toml", "yaml"],
+    )
+    def test_OverlongComment_FlagsAcrossCommentLanguages(
+        self, path: Path, assignment: str
+    ) -> None:
+        source = "# " + "abcde " * 13 + "end\n" + assignment
+        violations = list(check_doc_fill(path, source))
         assert [v.rule for v in violations] == [RS_DOC_FILL]
         assert "exceeds" in violations[0].message
 

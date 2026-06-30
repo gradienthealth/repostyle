@@ -33,8 +33,9 @@ class TestExtractComments:
             'key = "a # b"\n',
             "key = 'a # b'\n",
             '"""\na # b\n"""\n',
+            'key = "a \\" # b"\n',
         ],
-        ids=["basic_string", "literal_string", "multiline_string"],
+        ids=["basic_string", "literal_string", "multiline_string", "escaped_quote"],
     )
     def test_HashInsideTomlString_NotAComment(self, source: str) -> None:
         assert _comments(Path("c.toml"), source) == []
@@ -49,8 +50,14 @@ class TestExtractComments:
             'key: "a # b"\n',
             "key: 'a # b'\n",
             "url: http://example.com#frag\n",
+            "key: 'it''s # ok'\n",
         ],
-        ids=["double_quoted", "single_quoted", "no_space_before_hash"],
+        ids=[
+            "double_quoted",
+            "single_quoted",
+            "no_space_before_hash",
+            "single_quote_doubled",
+        ],
     )
     def test_HashNotOpeningYamlComment_IsIgnored(self, source: str) -> None:
         assert _comments(Path("c.yaml"), source) == []
