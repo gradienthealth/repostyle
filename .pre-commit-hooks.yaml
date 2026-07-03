@@ -1,5 +1,55 @@
+# Hooks this repo exports to consuming repos. The `repostyle` hook runs the
+# RSnnn linter; the `repostyle-*` gate hooks wrap third-party tools whose
+# versions are pinned here, so a consumer bumps one repostyle rev to move the
+# whole suite instead of tracking each tool's own hook repo. Each gate reads
+# its own `[tool.*]` table from the consuming repo's pyproject.toml, so the
+# repo-specific config stays local while the tool and its version live here.
 - id: repostyle
   name: repostyle
   entry: repostyle
   language: python
   types_or: [python, markdown, toml, yaml]
+
+- id: repostyle-bandit
+  name: bandit (via repostyle)
+  description: Security lint of src/, reading [tool.bandit] from the repo.
+  entry: bandit -c pyproject.toml -r src
+  language: python
+  additional_dependencies: ["bandit[toml]==1.7.10"]
+  pass_filenames: false
+  types: [python]
+
+- id: repostyle-vulture
+  name: vulture (via repostyle)
+  description: Dead-code scan over the paths in [tool.vulture].
+  entry: vulture
+  language: python
+  additional_dependencies: ["vulture==2.13"]
+  pass_filenames: false
+  types: [python]
+
+- id: repostyle-deptry
+  name: deptry (via repostyle)
+  description: Dependency hygiene of src/, reading [tool.deptry] from the repo.
+  entry: deptry src
+  language: python
+  additional_dependencies: ["deptry==0.20.0"]
+  pass_filenames: false
+  types: [python]
+
+- id: repostyle-interrogate
+  name: interrogate (via repostyle)
+  description: Docstring-coverage floor, reading [tool.interrogate] from the repo.
+  entry: interrogate --config=pyproject.toml
+  language: python
+  additional_dependencies: ["interrogate==1.7.0"]
+  pass_filenames: false
+  types: [python]
+
+- id: repostyle-codespell
+  name: codespell (via repostyle)
+  description: Spell-check, reading [tool.codespell] from the repo.
+  entry: codespell
+  language: python
+  additional_dependencies: ["codespell==2.3.0", "tomli"]
+  types: [text]

@@ -160,6 +160,84 @@ target-version = "py311"
 
 Override only repo-specific knobs (target version, per-file ignores) on top of the inherited baseline.
 
+## Distribute the lint gate suite
+
+Beyond the `repostyle` linter, this repo exports `repostyle-*` hooks that wrap the third-party quality gates the house style runs, with each tool's version pinned in [`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml). A consuming repo references them under the single `repostyle` rev, so bumping that one rev moves the whole suite; there is no separate hook repo to track per tool.
+
+```yaml
+repos:
+  - repo: https://github.com/gradienthealth/repostyle
+    rev: repostyle-vX.Y.Z  # pin to the latest repostyle-v release tag
+    hooks:
+      - id: repostyle
+      - id: repostyle-bandit
+      - id: repostyle-vulture
+      - id: repostyle-deptry
+      - id: repostyle-interrogate
+      - id: repostyle-codespell
+```
+
+Each gate reads its own `[tool.*]` table from the consuming repo's `pyproject.toml`, so the tool and its version live here while the repo-specific config (exclude paths, ignore lists, layering contracts) stays local. A repo adopting the suite adds these tables, tuning the paths and ignores to its own layout:
+
+```toml
+[tool.bandit]
+exclude_dirs = ["tests"]
+
+[tool.interrogate]
+fail-under = 30
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = true
+ignore-private = true
+ignore-semiprivate = true
+ignore-nested-functions = true
+exclude = ["tests"]
+
+[tool.vulture]
+paths = ["src", "vulture_whitelist.py"]
+min_confidence = 80
+ignore_decorators = ["@pytest.fixture", "@pytest.mark.parametrize"]
+# Idioms vulture cannot see are dead; extend per repo with domain stubs.
+ignore_names = ["model_config", "exc_type", "exc_val", "exc_tb"]
+
+[tool.deptry]
+known_first_party = ["<your_package>"]
+
+[tool.codespell]
+skip = "uv.lock,*.svg,.git"
+ignore-words-list = "datas,ehr,fo,hist"
+```
+
+### Gates that stay consumer-side
+
+`mypy`, `pyright`, and `pip-audit` are not exported. The first two need the consuming repo's full dependency set installed to resolve types, and `pip-audit` audits that repo's own lockfile through `uv`, so all three run in the repo's environment rather than a pre-commit-isolated one. Keep them as `local` hooks and hold their config to the same house baseline:
+
+```yaml
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        require_serial: true
+        args: [--strict]
+      - id: pyright
+        name: pyright
+        entry: uv run pyright
+        language: system
+        types: [python]
+        require_serial: true
+        pass_filenames: false
+      - id: pip-audit
+        name: pip-audit
+        entry: bash -c 'uv export --format requirements-txt --no-emit-project | uv run pip-audit --disable-pip --strict -r /dev/stdin'
+        language: system
+        pass_filenames: false
+        files: ^(uv\.lock|pyproject\.toml)$
+        stages: [pre-push]
+```
+
 ## Check docstrings against signatures
 
 The base config enforces docstring *style* (Google convention, via the ruff `D` rules) but not that a docstring's `Args`/`Returns`/`Raises` match the actual signature — ruff's `D` rules don't check that. Add [pydoclint](https://github.com/jsh9/pydoclint) as a pre-commit hook in the consuming repo to catch that drift:
