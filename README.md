@@ -162,7 +162,11 @@ Override only repo-specific knobs (target version, per-file ignores) on top of t
 
 ## Distribute the lint gate suite
 
-Beyond the `repostyle` linter, this repo exports `repostyle-*` hooks that wrap the third-party quality gates the house style runs, with each tool's version pinned in [`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml). A consuming repo references them under the single `repostyle` rev, so bumping that one rev moves the whole suite; there is no separate hook repo to track per tool.
+Beyond the `repostyle` linter, this repo distributes the third-party quality gates the house style runs (bandit, vulture, deptry, interrogate, codespell) with their versions pinned centrally, so a consuming repo gets the whole suite at one pinned version instead of tracking each tool itself. There are two ways to consume it, differing only in how the pinned versions reach the repo: as pre-commit hooks (clones this repo) or as a package extra (installs from the private index). Pick the one whose auth the repo already has.
+
+### As pre-commit hooks
+
+This repo exports `repostyle-*` hooks that wrap each gate, with the versions pinned in [`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml). A consuming repo references them under the single `repostyle` rev, so bumping that one rev moves the whole suite. Because this repo is private, pre-commit needs git-clone auth to it (a `gradienthealth-bot` token configured through `git config insteadOf` in CI); a repo without that set up should use the package extra below.
 
 ```yaml
 repos:
@@ -206,6 +210,32 @@ known_first_party = ["<your_package>"]
 [tool.codespell]
 skip = "uv.lock,*.svg,.git"
 ignore-words-list = "datas,ehr,fo,hist"
+```
+
+### As a package extra
+
+A repo that already consumes repostyle as a package from the private index (rather than cloning this private repo as a hook) installs the `gates` extra instead of referencing the `repostyle-*` hooks. The extra carries the same version pins, so a repo picks up the suite through the index auth it already has and keeps its own `local` hooks that run each tool. As long as the private index is declared `explicit = true` (so only repostyle is drawn from it, as in fhir-ingestor), the gate tools resolve from the default PyPI index, and the extra needs no index permission beyond the read access repostyle itself already requires.
+
+Add the extra to the dependency group the repo runs its linters from, keep the `local` hooks, and apply the same `[tool.*]` tables shown above:
+
+```toml
+[dependency-groups]
+lint = [
+    "repostyle[gates]>=X.Y.Z",  # floor; the lockfile pins the exact version
+]
+```
+
+```yaml
+  - repo: local
+    hooks:
+      - id: bandit
+        name: bandit
+        entry: uv run --group lint bandit -c pyproject.toml -r src
+        language: system
+        pass_filenames: false
+        types: [python]
+      # ...and one local hook per gate (vulture, deptry, interrogate, codespell),
+      # each `uv run --group lint <tool>`, so the tool resolves from the extra.
 ```
 
 ### Gates that stay consumer-side
