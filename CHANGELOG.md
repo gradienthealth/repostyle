@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.8.0...repostyle-v0.9.0) (2026-07-03)
+
+
+### Features
+
+* **NO-ISSUE:** export the house lint gate suite as repostyle hooks ([#67](https://github.com/gradienthealth/repostyle/issues/67)) ([d8cf149](https://github.com/gradienthealth/repostyle/commit/d8cf14955434fb704617495c5680f030727fec17))
+* **PROC-2381:** extend RS022 to TOML and YAML comments ([#65](https://github.com/gradienthealth/repostyle/issues/65)) ([c3ba78b](https://github.com/gradienthealth/repostyle/commit/c3ba78bcadc742bc08eb8ce24dc38e3264b63117))
+
 ## [0.8.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.7.0...repostyle-v0.8.0) (2026-06-30)
 
 
