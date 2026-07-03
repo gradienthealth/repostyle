@@ -14,6 +14,24 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest"]
+# The house third-party lint gates, version-pinned so every consuming repo gets
+# the same versions through one `repostyle[gates]` dependency rather than
+# tracking each tool itself. A consumer installs this extra from the private
+# index it already uses for repostyle, keeps its own `local` hooks, and reads
+# each tool's `[tool.*]` table from its own pyproject. This is the package
+# counterpart to the exported `repostyle-*` pre-commit hooks: same tools, same
+# pinned versions, for a repo that consumes repostyle as a package over the
+# index instead of cloning this private repo as a hook. mypy, pyright, and
+# pip-audit are absent by design; they need the consuming repo's full
+# environment, not repostyle's pinned set.
+gates = [
+    "bandit[toml]==1.7.10",
+    "codespell==2.3.0",
+    "deptry==0.20.0",
+    "interrogate==1.7.0",
+    "tomli",
+    "vulture==2.13",
+]
 
 [project.scripts]
 repostyle = "repostyle.cli:main"
