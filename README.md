@@ -214,14 +214,14 @@ ignore-words-list = "datas,ehr,fo,hist"
 
 ### As a package extra
 
-A repo that already consumes repostyle as a package from the private index (rather than cloning this private repo as a hook) installs the `gates` extra instead of referencing the `repostyle-*` hooks. The extra pins the same tool versions, so a repo picks up the suite through the index auth it already has and keeps its own `local` hooks that run each tool. The gate tools resolve from public PyPI, so the extra needs no index permission beyond the read access repostyle itself already requires.
+A repo that already consumes repostyle as a package from the private index (rather than cloning this private repo as a hook) installs the `gates` extra instead of referencing the `repostyle-*` hooks. The extra carries the same version pins, so a repo picks up the suite through the index auth it already has and keeps its own `local` hooks that run each tool. As long as the private index is declared `explicit = true` (so only repostyle is drawn from it, as in fhir-ingestor), the gate tools resolve from the default PyPI index, and the extra needs no index permission beyond the read access repostyle itself already requires.
 
 Add the extra to the dependency group the repo runs its linters from, keep the `local` hooks, and apply the same `[tool.*]` tables shown above:
 
 ```toml
 [dependency-groups]
 lint = [
-    "repostyle[gates]>=X.Y.Z",  # pin to the latest release
+    "repostyle[gates]>=X.Y.Z",  # floor; the lockfile pins the exact version
 ]
 ```
 
