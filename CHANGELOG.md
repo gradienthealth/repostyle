@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.9.0...repostyle-v0.10.0) (2026-07-03)
+
+
+### Features
+
+* **NO-ISSUE:** add a gates extra for package-route consumption ([#68](https://github.com/gradienthealth/repostyle/issues/68)) ([b52f8e8](https://github.com/gradienthealth/repostyle/commit/b52f8e886411896143550d2a856c406d6891d144))
+
 ## [0.9.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.8.0...repostyle-v0.9.0) (2026-07-03)
 
 
