@@ -1,9 +1,9 @@
-# Hooks this repo exports to consuming repos. The `repostyle` hook runs the
-# RSnnn linter; the `repostyle-*` gate hooks wrap third-party tools whose
-# versions are pinned here, so a consumer bumps one repostyle rev to move the
-# whole suite instead of tracking each tool's own hook repo. Each gate reads
-# its own `[tool.*]` table from the consuming repo's pyproject.toml, so the
-# repo-specific config stays local while the tool and its version live here.
+# The `repostyle` hook runs the RSnnn linter; the `repostyle-*` gate hooks wrap
+# third-party tools whose versions are pinned here, so a consumer bumps one
+# repostyle rev to move the whole suite instead of tracking each tool's own
+# hook repo. Each gate reads its own `[tool.*]` table from the consuming repo's
+# pyproject.toml, so the repo-specific config stays local while the tool and
+# its version live here.
 - id: repostyle
   name: repostyle
   entry: repostyle
