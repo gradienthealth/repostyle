@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.10.0...repostyle-v0.10.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** bump the gate pins to current versions ([#70](https://github.com/gradienthealth/repostyle/issues/70)) ([9b8a7cf](https://github.com/gradienthealth/repostyle/commit/9b8a7cf86baf00472df5f9dca812c5fb4d425dc9))
+
 ## [0.10.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.9.0...repostyle-v0.10.0) (2026-07-03)
 
 
