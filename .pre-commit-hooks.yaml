@@ -15,7 +15,7 @@
   description: Security lint of src/, reading [tool.bandit] from the repo.
   entry: bandit -c pyproject.toml -r src
   language: python
-  additional_dependencies: ["bandit[toml]==1.7.10"]
+  additional_dependencies: ["bandit[toml]==1.9.4"]
   pass_filenames: false
   types: [python]
 
@@ -24,7 +24,7 @@
   description: Dead-code scan over the paths in [tool.vulture].
   entry: vulture
   language: python
-  additional_dependencies: ["vulture==2.13"]
+  additional_dependencies: ["vulture==2.16"]
   pass_filenames: false
   types: [python]
 
@@ -33,7 +33,7 @@
   description: Dependency hygiene of src/, reading [tool.deptry] from the repo.
   entry: deptry src
   language: python
-  additional_dependencies: ["deptry==0.20.0"]
+  additional_dependencies: ["deptry==0.25.1"]
   pass_filenames: false
   types: [python]
 
@@ -51,5 +51,5 @@
   description: Spell-check, reading [tool.codespell] from the repo.
   entry: codespell
   language: python
-  additional_dependencies: ["codespell==2.3.0", "tomli"]
+  additional_dependencies: ["codespell==2.4.2", "tomli"]
   types: [text]
