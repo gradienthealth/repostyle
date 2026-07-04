@@ -272,12 +272,6 @@ class TestCheckReturnDescribedInProse:
             "    Returns True if the record is valid.\n"
             '    """\n'
             "    return True\n",
-            "def stream_rows(raw: bytes) -> Iterator[dict]:\n"
-            '    """Stream parsed rows lazily.\n'
-            "\n"
-            "    Returns each row as a dict as soon as it is parsed.\n"
-            '    """\n'
-            "    yield {}\n",
             "def find(key: str) -> Widget | None:\n"
             '    """Look up a widget by key.\n'
             "\n"
@@ -295,7 +289,6 @@ class TestCheckReturnDescribedInProse:
             "returns-plural",
             "return-singular",
             "returns-true-if",
-            "generator",
             "returns-none",
             "return-self",
         ],
@@ -316,6 +309,13 @@ class TestCheckReturnDescribedInProse:
             "        A dict mapping field index to field value bytes.\n"
             '    """\n'
             "    return {}\n",
+            "def stream_rows(raw: bytes) -> Iterator[dict]:\n"
+            '    """Stream parsed rows lazily.\n'
+            "\n"
+            "    Yields:\n"
+            "        Each row as a dict as soon as it is parsed.\n"
+            '    """\n'
+            "    yield {}\n",
             "def extract(raw: bytes):\n"
             '    """Extract fields by scanning bytes for pipe delimiters.\n'
             "\n"
@@ -347,6 +347,7 @@ class TestCheckReturnDescribedInProse:
         ],
         ids=[
             "has-returns-section",
+            "has-yields-section",
             "no-return-annotation",
             "none-annotation",
             "mid-sentence-mention",
@@ -363,7 +364,7 @@ class TestCheckReturnDescribedInProse:
         # case above; this is a smoke check that RS032 also routes through it.
         source = (
             "def _extract(raw: bytes) -> dict[int, bytes]:\n"
-            '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n'
+            '    """Extract fields.\n\n    Returns a dict of fields.\n    """\n'
             "    return {}\n"
         )
         assert _check_return(source) == []
