@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.10.1...repostyle-v0.11.0) (2026-07-04)
+
+
+### Features
+
+* **NO-ISSUE:** add RS032 to flag a return value narrated in docstring prose ([#74](https://github.com/gradienthealth/repostyle/issues/74)) ([48b1dbb](https://github.com/gradienthealth/repostyle/commit/48b1dbbead93e9ad9a934c1ae427b45db44a2b3c))
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** recurse into directory arguments instead of silently linting nothing ([#72](https://github.com/gradienthealth/repostyle/issues/72)) ([96f398e](https://github.com/gradienthealth/repostyle/commit/96f398eea1a535f91806a32dbc9cd56600cef221))
+
 ## [0.10.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.10.0...repostyle-v0.10.1) (2026-07-03)
 
 
