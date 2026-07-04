@@ -187,19 +187,18 @@ class TestExpandPaths:
         (tmp_path / "NOTES.MD").write_text("x\n", encoding="utf-8")
         assert expand_paths([tmp_path]) == [tmp_path / "NOTES.MD"]
 
-    def test_OverlappingDirectoryAndFile_DropsTheDuplicate(
-        self, tmp_path: Path
+    @pytest.mark.parametrize(
+        "second_arg", ["file", "nested_dir"], ids=["file", "nested_dir"]
+    )
+    def test_OverlappingArgument_DropsTheDuplicate(
+        self, tmp_path: Path, second_arg: str
     ) -> None:
-        target = tmp_path / "a.py"
-        target.write_text("x = 1\n", encoding="utf-8")
-        assert expand_paths([tmp_path, target]) == [target]
-
-    def test_OverlappingDirectories_DropsTheDuplicate(self, tmp_path: Path) -> None:
         nested = tmp_path / "pkg"
         nested.mkdir()
         target = nested / "x.py"
         target.write_text("x = 1\n", encoding="utf-8")
-        assert expand_paths([tmp_path, nested]) == [target]
+        second = target if second_arg == "file" else nested
+        assert expand_paths([tmp_path, second]) == [target]
 
 
 class TestLintPackage:

@@ -88,17 +88,17 @@ def _run_lint(argv: list[str]) -> int:
         print(f"repostyle: no such path: {listed}", file=sys.stderr)
         return 2
     original_paths = options.paths
-    options.paths = expand_paths(options.paths)
+    paths = expand_paths(original_paths)
     try:
         enabled = resolve_enabled_rules_for_paths(original_paths)
     except ValueError as error:
         print(f"repostyle: {error}", file=sys.stderr)
         return 2
-    package = lint_package(options.paths, enabled, root_paths=original_paths)
+    package = lint_package(paths, enabled, root_paths=original_paths)
     failed = False
     fixed: list[Path] = []
     fired: set[str] = set()
-    for path in options.paths:
+    for path in paths:
         if options.fix and fix_path(path, enabled):
             fixed.append(path)
         extra = package.get(path.resolve(), [])

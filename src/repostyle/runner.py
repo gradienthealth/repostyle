@@ -21,6 +21,7 @@ from repostyle.rules import (
     run_package_rule,
     run_rule,
 )
+from repostyle.rules._comments import COMMENT_SUFFIXES
 from repostyle.rules._shared import find_pyproject
 from repostyle.suppressions import filter_suppressed, suppressed_lines
 
@@ -42,12 +43,12 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
 # argument into its lintable files.
 _SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules"})
 
-# The suffixes a rule ever inspects, across every language repostyle covers
-# (Python, its own markdown, and the TOML/YAML comment rules). A directory
+# The suffixes a rule ever inspects: every `COMMENT_SUFFIXES` language plus
+# markdown, which RS005 covers but the comment rules do not. A directory
 # argument is expanded to files matching this set; an explicit file argument is
 # linted regardless of suffix, since every rule already no-ops on a suffix it
 # does not claim.
-LINTABLE_SUFFIXES = frozenset({".py", ".md", ".toml", ".yaml", ".yml"})
+LINTABLE_SUFFIXES = COMMENT_SUFFIXES | {".md"}
 
 
 def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
@@ -115,11 +116,7 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
 
 
 def _lintable_files(root: Path) -> Iterator[Path]:
-    for path in root.rglob("*"):
-        if _is_skipped_entry(path, root):
-            continue
-        if path.suffix.lower() in LINTABLE_SUFFIXES and path.is_file():
-            yield path
+    return _walk_matching(root, LINTABLE_SUFFIXES)
 
 
 def lint_paths(paths: Iterable[Path], enabled: set[str]) -> list[Violation]:
@@ -185,14 +182,20 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
     root = root.resolve()
     base = root if root.is_dir() else root.parent
     files: list[tuple[Path, str]] = []
-    for path in sorted(base.rglob("*.py")):
-        if _is_skipped_entry(path, base):
-            continue
+    for path in sorted(_walk_matching(base, frozenset({".py"}))):
         try:
             files.append((path, path.read_text(encoding="utf-8")))
         except (OSError, UnicodeDecodeError):
             continue
     return files
+
+
+def _walk_matching(root: Path, suffixes: frozenset[str]) -> Iterator[Path]:
+    for path in root.rglob("*"):
+        if _is_skipped_entry(path, root):
+            continue
+        if path.suffix.lower() in suffixes and path.is_file():
+            yield path
 
 
 def _is_skipped_entry(path: Path, base: Path) -> bool:
