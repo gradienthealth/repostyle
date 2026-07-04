@@ -8,6 +8,7 @@ from repostyle.rules import (
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
     RS_NO_DOUBLE_BACKTICKS,
+    RS_SHOULD_BE_PRIVATE,
     Severity,
     severity_of,
 )
@@ -15,6 +16,7 @@ from repostyle.runner import (
     expand_paths,
     find_pyproject,
     fix_path,
+    lint_package,
     lint_path,
     lint_paths,
     load_config,
@@ -180,6 +182,46 @@ class TestExpandPaths:
         target = tmp_path / "notes.txt"
         target.write_text("x\n", encoding="utf-8")
         assert expand_paths([target]) == [target]
+
+    def test_UppercaseSuffix_IsTreatedAsLintable(self, tmp_path: Path) -> None:
+        (tmp_path / "NOTES.MD").write_text("x\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [tmp_path / "NOTES.MD"]
+
+    def test_OverlappingDirectoryAndFile_DropsTheDuplicate(
+        self, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "a.py"
+        target.write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([tmp_path, target]) == [target]
+
+    def test_OverlappingDirectories_DropsTheDuplicate(self, tmp_path: Path) -> None:
+        nested = tmp_path / "pkg"
+        nested.mkdir()
+        target = nested / "x.py"
+        target.write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([tmp_path, nested]) == [target]
+
+
+class TestLintPackage:
+    def test_RootPathsOverride_ScansTheOriginalArgumentsTree(
+        self, tmp_path: Path
+    ) -> None:
+        nested = tmp_path / "aaa_sub"
+        nested.mkdir()
+        target = nested / "mod.py"
+        target.write_text(
+            '__all__ = ["run"]\n\n\ndef helper():\n    return 1\n\n\n'
+            "def run():\n    return helper()\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "outer.py").write_text(
+            "def go():\n    return helper()\n", encoding="utf-8"
+        )
+        expanded = [target]
+        narrow = lint_package(expanded, {RS_SHOULD_BE_PRIVATE})
+        broad = lint_package(expanded, {RS_SHOULD_BE_PRIVATE}, root_paths=[tmp_path])
+        assert target.resolve() in narrow
+        assert broad == {}
 
 
 class TestFixPath:

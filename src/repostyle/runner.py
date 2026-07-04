@@ -96,28 +96,29 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
 def expand_paths(paths: Iterable[Path]) -> list[Path]:
     """Replace each directory argument with the lintable files beneath it.
 
-    A directory silently produced zero findings before this: `lint_path`
-    reads the path as a file, fails with `IsADirectoryError`, and swallows
-    it as an empty result, so `repostyle some_dir` looked like a clean run
-    without linting anything. Walking the directory here makes `repostyle
-    src/` behave like the pre-commit hook fanning out over every tracked
-    file. A file argument passes through unchanged regardless of suffix.
+    Recurses each directory for files matching `LINTABLE_SUFFIXES`, skipping
+    dot-directories and `_SKIPPED_DIRS`, and drops a duplicate resolved path
+    reachable from more than one argument. A file argument passes through
+    unchanged regardless of suffix.
     """
     expanded: list[Path] = []
+    seen: set[Path] = set()
     for path in paths:
-        if path.is_dir():
-            expanded.extend(sorted(_lintable_files(path)))
-        else:
-            expanded.append(path)
+        candidates = sorted(_lintable_files(path)) if path.is_dir() else [path]
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            expanded.append(candidate)
     return expanded
 
 
 def _lintable_files(root: Path) -> Iterator[Path]:
     for path in root.rglob("*"):
-        within = path.relative_to(root).parts
-        if any(part.startswith(".") or part in _SKIPPED_DIRS for part in within):
+        if _is_skipped_entry(path, root):
             continue
-        if path.is_file() and path.suffix in LINTABLE_SUFFIXES:
+        if path.suffix.lower() in LINTABLE_SUFFIXES and path.is_file():
             yield path
 
 
@@ -138,7 +139,10 @@ def lint_path(path: Path, enabled: set[str]) -> list[Violation]:
 
 
 def lint_package(
-    paths: Iterable[Path], enabled: set[str]
+    paths: Iterable[Path],
+    enabled: set[str],
+    *,
+    root_paths: Iterable[Path] | None = None,
 ) -> dict[Path, list[Violation]]:
     """Run the enabled whole-package rules, scoped to the given paths.
 
@@ -146,13 +150,21 @@ def lint_package(
     cross-module view is whole, but findings are reported only on the paths
     passed in — keeping it sound under pre-commit's per-file batching. Returns
     findings keyed by each path's resolved location.
+
+    Args:
+        root_paths: locates the package root, defaulting to `paths`. Pass the
+            pre-expansion arguments when `paths` has already been expanded from
+            a directory, so the root is discovered from what the caller pointed
+            at rather than an arbitrary file the expansion happened to sort
+            first.
     """
     paths = list(paths)
     package_rules = enabled & set(PACKAGE_RULES)
     if not package_rules or not paths:
         return {}
-    root = find_pyproject(paths[0])
-    files = _package_files(root.parent if root is not None else paths[0])
+    root_paths = list(root_paths) if root_paths is not None else paths
+    root = find_pyproject(root_paths[0])
+    files = _package_files(root.parent if root is not None else root_paths[0])
     sources = {path.resolve(): source for path, source in files}
     scope = {path.resolve() for path in paths}
     findings: dict[Path, list[Violation]] = {}
@@ -174,17 +186,24 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
     base = root if root.is_dir() else root.parent
     files: list[tuple[Path, str]] = []
     for path in sorted(base.rglob("*.py")):
-        # Test the parts below `base`, not the absolute ancestors: a repo
-        # checked out under a dot-directory (`.claude/worktrees/...`) must not
-        # have its whole tree skipped.
-        within = path.relative_to(base).parts
-        if any(part.startswith(".") or part in _SKIPPED_DIRS for part in within):
+        if _is_skipped_entry(path, base):
             continue
         try:
             files.append((path, path.read_text(encoding="utf-8")))
         except (OSError, UnicodeDecodeError):
             continue
     return files
+
+
+def _is_skipped_entry(path: Path, base: Path) -> bool:
+    """Report whether `path` sits under a dot-directory or `_SKIPPED_DIRS`.
+
+    Tests the parts below `base`, not the absolute ancestors: a repo checked
+    out under a dot-directory (`.claude/worktrees/...`) must not have its whole
+    tree skipped.
+    """
+    within = path.relative_to(base).parts
+    return any(part.startswith(".") or part in _SKIPPED_DIRS for part in within)
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:
@@ -197,7 +216,7 @@ def fix_path(path: Path, enabled: set[str]) -> bool:
     leaves the file untouched for that rule, and a per-line suppression leaves
     its line untouched.
     """
-    if not enabled & FIXABLE_RULES or path.suffix not in LINTABLE_SUFFIXES:
+    if not enabled & FIXABLE_RULES or path.suffix.lower() not in LINTABLE_SUFFIXES:
         return False
     try:
         source = path.read_text(encoding="utf-8")

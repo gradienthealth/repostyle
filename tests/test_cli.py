@@ -94,6 +94,33 @@ class TestMain:
         assert exit_code == 0
         assert capsys.readouterr().out == ""
 
+    def test_DirectoryArgumentWithNestedPyproject_ResolvesRootConfig(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        (tmp_path / "pyproject.toml").write_text(
+            '[tool.repostyle]\nselect = ["RS001"]\n', encoding="utf-8"
+        )
+        nested = tmp_path / "aaa_sub"
+        nested.mkdir()
+        (nested / "pyproject.toml").write_text(
+            '[tool.repostyle]\nselect = ["RS002"]\n', encoding="utf-8"
+        )
+        (nested / "x.py").write_text(_ACRONYM_SOURCE, encoding="utf-8")
+        exit_code = main([str(tmp_path)])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert "RS001" in out
+
+    def test_NonexistentPathArgument_ReturnsTwoAndReportsError(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        missing = tmp_path / "no_such_file.py"
+        exit_code = main([str(missing)])
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert str(missing) in captured.err
+        assert captured.out == ""
+
     def test_UnknownRuleId_ReturnsTwoAndReportsError(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
