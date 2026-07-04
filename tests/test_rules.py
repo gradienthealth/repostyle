@@ -1057,7 +1057,7 @@ class TestCheckDocstringTerminalPunctuation:
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 1)]
 
     def test_AlembicLikeLineAfterEntry_GradesFollowingLineAsBody(self) -> None:
-        """An Alembic-shaped line still exits an open section first.
+        """Exit an open `Args:` section before grading an Alembic-header line.
 
         Guards the branch order in `_consume_structural`: an open `Args:`
         section must close before the Alembic-header check runs, or the
