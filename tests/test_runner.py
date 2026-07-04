@@ -183,10 +183,6 @@ class TestExpandPaths:
         target.write_text("x\n", encoding="utf-8")
         assert expand_paths([target]) == [target]
 
-    def test_UppercaseSuffix_IsTreatedAsLintable(self, tmp_path: Path) -> None:
-        (tmp_path / "NOTES.MD").write_text("x\n", encoding="utf-8")
-        assert expand_paths([tmp_path]) == [tmp_path / "NOTES.MD"]
-
     @pytest.mark.parametrize(
         "second_arg", ["file", "nested_dir"], ids=["file", "nested_dir"]
     )

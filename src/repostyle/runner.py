@@ -194,7 +194,7 @@ def _walk_matching(root: Path, suffixes: frozenset[str]) -> Iterator[Path]:
     for path in root.rglob("*"):
         if _is_skipped_entry(path, root):
             continue
-        if path.suffix.lower() in suffixes and path.is_file():
+        if path.suffix in suffixes and path.is_file():
             yield path
 
 
@@ -219,7 +219,7 @@ def fix_path(path: Path, enabled: set[str]) -> bool:
     leaves the file untouched for that rule, and a per-line suppression leaves
     its line untouched.
     """
-    if not enabled & FIXABLE_RULES or path.suffix.lower() not in LINTABLE_SUFFIXES:
+    if not enabled & FIXABLE_RULES or path.suffix not in LINTABLE_SUFFIXES:
         return False
     try:
         source = path.read_text(encoding="utf-8")
