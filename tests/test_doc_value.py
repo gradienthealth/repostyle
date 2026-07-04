@@ -5,8 +5,10 @@ import pytest
 from repostyle.rules import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
+    RS_RETURN_DESCRIBED_IN_PROSE,
     check_arg_described_in_prose,
     check_doc_value_signal,
+    check_return_described_in_prose,
 )
 
 _SRC = Path("src/x.py")
@@ -246,9 +248,135 @@ class TestCheckArgDescribedInProse:
         assert _check_arg(source, path) == []
 
 
+class TestCheckReturnDescribedInProse:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    Returns a dict mapping field index to field value bytes. Per "
+            "spec,\n"
+            "    field 1 is the separator.\n"
+            '    """\n'
+            "    return {}\n",
+            "def parse(raw: bytes) -> int:\n"
+            '    """Parse the header.\n'
+            "\n"
+            "    Return the parsed value.\n"
+            '    """\n'
+            "    return 0\n",
+            "def is_ready(raw: bytes) -> bool:\n"
+            '    """Check readiness.\n'
+            "\n"
+            "    Returns True if the record is valid.\n"
+            '    """\n'
+            "    return True\n",
+            "def find(key: str) -> Widget | None:\n"
+            '    """Look up a widget by key.\n'
+            "\n"
+            "    Returns None when no widget matches the key.\n"
+            '    """\n'
+            "    return None\n",
+            "def with_timeout(self, seconds: float) -> Client:\n"
+            '    """Configure the request timeout.\n'
+            "\n"
+            "    Return self so calls can chain.\n"
+            '    """\n'
+            "    return self\n",
+        ],
+        ids=[
+            "returns-plural",
+            "return-singular",
+            "returns-true-if",
+            "returns-none",
+            "return-self",
+        ],
+    )
+    def test_ReturnDescribedInBodyProse_FlagsViolation(self, source: str) -> None:
+        violations = _check_return(source)
+        assert len(violations) == 1
+        assert violations[0].rule == RS_RETURN_DESCRIBED_IN_PROSE
+        assert "`Returns:`/`Yields:`" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    Returns:\n"
+            "        A dict mapping field index to field value bytes.\n"
+            '    """\n'
+            "    return {}\n",
+            "def stream_rows(raw: bytes) -> Iterator[dict]:\n"
+            '    """Stream parsed rows lazily.\n'
+            "\n"
+            "    Yields:\n"
+            "        Each row as a dict as soon as it is parsed.\n"
+            '    """\n'
+            "    yield {}\n",
+            "def extract(raw: bytes):\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    Returns a dict mapping field index to field value bytes.\n"
+            '    """\n'
+            "    return {}\n",
+            "def run(raw: bytes) -> None:\n"
+            '    """Run the extraction.\n'
+            "\n"
+            "    Returns nothing; the result is logged instead.\n"
+            '    """\n'
+            "    return None\n",
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    The caller then decides how the map returns to the pool.\n"
+            '    """\n'
+            "    return {}\n",
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Return a dict mapping field index to field value bytes."""\n'
+            "    return {}\n",
+            "def schedule_return_visit(patient_id: str) -> Appointment:\n"
+            '    """Schedule a follow-up visit.\n'
+            "\n"
+            "    Return visits are limited to once every 30 days per payer "
+            "policy.\n"
+            '    """\n'
+            "    return Appointment()\n",
+        ],
+        ids=[
+            "has-returns-section",
+            "has-yields-section",
+            "no-return-annotation",
+            "none-annotation",
+            "mid-sentence-mention",
+            "only-in-summary",
+            "return-as-domain-noun",
+        ],
+    )
+    def test_ReturnNotDescribedInBodyProse_NoViolation(self, source: str) -> None:
+        assert _check_return(source) == []
+
+    def test_PrivateDefinition_NoViolation(self) -> None:
+        # _public_functions' filtering (private/test-name/test-file/overload)
+        # is exhaustively covered by TestCheckArgDescribedInProse's identical
+        # case above; this is a smoke check that RS032 also routes through it.
+        source = (
+            "def _extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields.\n\n    Returns a dict of fields.\n    """\n'
+            "    return {}\n"
+        )
+        assert _check_return(source) == []
+
+
 def _check(source: str, path: Path = _SRC) -> list:
     return list(check_doc_value_signal(path, source))
 
 
 def _check_arg(source: str, path: Path = _SRC) -> list:
     return list(check_arg_described_in_prose(path, source))
+
+
+def _check_return(source: str, path: Path = _SRC) -> list:
+    return list(check_return_described_in_prose(path, source))

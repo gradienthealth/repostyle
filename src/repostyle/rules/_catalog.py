@@ -44,6 +44,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
@@ -411,6 +412,13 @@ RULE_DOCS: dict[str, RuleDoc] = {
         name="arg-described-in-prose",
         summary=(
             "Per-argument detail goes in an `Args:` section, not narrated in the "
+            "docstring body."
+        ),
+    ),
+    RS_RETURN_DESCRIBED_IN_PROSE: RuleDoc(
+        name="return-described-in-prose",
+        summary=(
+            "The return value goes in a `Returns:` section, not narrated in the "
             "docstring body."
         ),
     ),

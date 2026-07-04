@@ -41,6 +41,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS029 | Should be private (warning): a module-level name used only within its own module should be prefixed `_` to mark it internal, or added to `__all__` if it is part of the public API. |
 | RS030 | Terminal punctuation (warning): a docstring or comment prose unit must end with `.`, `!`, or `?` (per PEP 257); a single-line comment fragment must not. Comments are checked in Python, TOML, and YAML. |
 | RS031 | Arg described in prose (warning): per-argument detail narrated in the docstring body belongs in an `Args:` section. |
+| RS032 | Return described in prose (warning): the return value narrated in the docstring body belongs in a `Returns:` section. |
 
 ### Repo-agnostic vs repo-specific
 
