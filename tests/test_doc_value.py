@@ -266,14 +266,26 @@ class TestCheckReturnDescribedInProse:
             "    Return the parsed value.\n"
             '    """\n'
             "    return 0\n",
+            "def is_ready(raw: bytes) -> bool:\n"
+            '    """Check readiness.\n'
+            "\n"
+            "    Returns True if the record is valid.\n"
+            '    """\n'
+            "    return True\n",
+            "def stream_rows(raw: bytes) -> Iterator[dict]:\n"
+            '    """Stream parsed rows lazily.\n'
+            "\n"
+            "    Returns each row as a dict as soon as it is parsed.\n"
+            '    """\n'
+            "    yield {}\n",
         ],
-        ids=["returns-plural", "return-singular"],
+        ids=["returns-plural", "return-singular", "returns-true-if", "generator"],
     )
     def test_ReturnDescribedInBodyProse_Flags(self, source: str) -> None:
         violations = _check_return(source)
         assert len(violations) == 1
         assert violations[0].rule == RS_RETURN_DESCRIBED_IN_PROSE
-        assert "`Returns:`" in violations[0].message
+        assert "`Returns:`/`Yields:`" in violations[0].message
 
     @pytest.mark.parametrize(
         "source",
@@ -309,6 +321,13 @@ class TestCheckReturnDescribedInProse:
             "def extract(raw: bytes) -> dict[int, bytes]:\n"
             '    """Extract fields by scanning bytes for pipe delimiters."""\n'
             "    return {}\n",
+            "def schedule_return_visit(patient_id: str) -> Appointment:\n"
+            '    """Schedule a follow-up visit.\n'
+            "\n"
+            "    Return visits are limited to once every 30 days per payer "
+            "policy.\n"
+            '    """\n'
+            "    return Appointment()\n",
         ],
         ids=[
             "has-returns-section",
@@ -317,6 +336,7 @@ class TestCheckReturnDescribedInProse:
             "mid-sentence-mention",
             "only-in-summary",
             "no-body",
+            "return-as-domain-noun",
         ],
     )
     def test_ReturnNotDescribedInBodyProse_NoViolation(self, source: str) -> None:
