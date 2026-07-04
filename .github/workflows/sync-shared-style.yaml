@@ -31,6 +31,8 @@ jobs:
         # vendors docs/judgment-conventions.md and ruff-base.toml.
         repo:
           - fhir-ingestor
+          - hl7-ingestor
+          - dicom-ingestor
     steps:
       - name: Check out the style sources
         uses: actions/checkout@v4
