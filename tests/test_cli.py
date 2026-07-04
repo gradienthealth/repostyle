@@ -78,6 +78,22 @@ class TestMain:
         assert exit_code == 0
         assert capsys.readouterr().out == ""
 
+    def test_DirectoryArgument_RecursesAndReportsFindings(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        exit_code = main([str(tmp_path)])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert f"{target}:2:5: error: RS001" in out
+
+    def test_EmptyDirectoryArgument_ReturnsZeroAndPrintsNothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        exit_code = main([str(tmp_path)])
+        assert exit_code == 0
+        assert capsys.readouterr().out == ""
+
     def test_UnknownRuleId_ReturnsTwoAndReportsError(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:

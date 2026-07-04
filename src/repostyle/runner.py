@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tomllib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 from repostyle.rules import (
@@ -38,8 +38,16 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
 )
 
 # Directories never holding first-party source, skipped when building the
-# whole-package index a package rule scans.
+# whole-package index a package rule scans, and when expanding a directory
+# argument into its lintable files.
 _SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules"})
+
+# The suffixes a rule ever inspects, across every language repostyle covers
+# (Python, its own markdown, and the TOML/YAML comment rules). A directory
+# argument is expanded to files matching this set; an explicit file argument is
+# linted regardless of suffix, since every rule already no-ops on a suffix it
+# does not claim.
+LINTABLE_SUFFIXES = frozenset({".py", ".md", ".toml", ".yaml", ".yml"})
 
 
 def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
@@ -83,6 +91,34 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
         )
     selected = set(select) if select else known
     return selected - set(ignore)
+
+
+def expand_paths(paths: Iterable[Path]) -> list[Path]:
+    """Replace each directory argument with the lintable files beneath it.
+
+    A directory silently produced zero findings before this: `lint_path`
+    reads the path as a file, fails with `IsADirectoryError`, and swallows
+    it as an empty result, so `repostyle some_dir` looked like a clean run
+    without linting anything. Walking the directory here makes `repostyle
+    src/` behave like the pre-commit hook fanning out over every tracked
+    file. A file argument passes through unchanged regardless of suffix.
+    """
+    expanded: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            expanded.extend(sorted(_lintable_files(path)))
+        else:
+            expanded.append(path)
+    return expanded
+
+
+def _lintable_files(root: Path) -> Iterator[Path]:
+    for path in root.rglob("*"):
+        within = path.relative_to(root).parts
+        if any(part.startswith(".") or part in _SKIPPED_DIRS for part in within):
+            continue
+        if path.is_file() and path.suffix in LINTABLE_SUFFIXES:
+            yield path
 
 
 def lint_paths(paths: Iterable[Path], enabled: set[str]) -> list[Violation]:
@@ -161,13 +197,7 @@ def fix_path(path: Path, enabled: set[str]) -> bool:
     leaves the file untouched for that rule, and a per-line suppression leaves
     its line untouched.
     """
-    if not enabled & FIXABLE_RULES or path.suffix not in (
-        ".py",
-        ".md",
-        ".toml",
-        ".yaml",
-        ".yml",
-    ):
+    if not enabled & FIXABLE_RULES or path.suffix not in LINTABLE_SUFFIXES:
         return False
     try:
         source = path.read_text(encoding="utf-8")

@@ -12,6 +12,7 @@ from repostyle.rules import (
     severity_of,
 )
 from repostyle.runner import (
+    expand_paths,
     find_pyproject,
     fix_path,
     lint_path,
@@ -152,6 +153,33 @@ class TestLintPaths:
         rules = {v.rule for v in lint_paths([first, second], set(ALL_RULE_IDS))}
         assert RS_ACRONYM_CASING in rules
         assert RS_DISCOURAGED_CLASS_SUFFIX in rules
+
+
+class TestExpandPaths:
+    def test_Directory_ExpandsToLintableFilesSorted(self, tmp_path: Path) -> None:
+        (tmp_path / "b.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "notes.txt").write_text("x\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [tmp_path / "a.py", tmp_path / "b.py"]
+
+    def test_Directory_RecursesIntoSubdirectories(self, tmp_path: Path) -> None:
+        nested = tmp_path / "pkg"
+        nested.mkdir()
+        target = nested / "x.py"
+        target.write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [target]
+
+    def test_Directory_SkipsDotAndBuildDirectories(self, tmp_path: Path) -> None:
+        for skipped in (".git", "build", "__pycache__"):
+            hidden = tmp_path / skipped
+            hidden.mkdir()
+            (hidden / "x.py").write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == []
+
+    def test_File_PassesThroughRegardlessOfSuffix(self, tmp_path: Path) -> None:
+        target = tmp_path / "notes.txt"
+        target.write_text("x\n", encoding="utf-8")
+        assert expand_paths([target]) == [target]
 
 
 class TestFixPath:

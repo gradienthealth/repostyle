@@ -16,6 +16,7 @@ from repostyle.rules import (
     severity_of,
 )
 from repostyle.runner import (
+    expand_paths,
     fix_path,
     lint_package,
     lint_path,
@@ -69,8 +70,14 @@ def _run_explain(argv: list[str]) -> int:
 
 
 def _run_lint(argv: list[str]) -> int:
-    """Resolve the rule set, optionally fix, and report each path."""
+    """Resolve the rule set, optionally fix, and report each path.
+
+    A directory argument is expanded to the lintable files beneath it before
+    resolution or reporting, so a directory recurses like the pre-commit hook
+    fanning out over individual files instead of silently linting nothing.
+    """
     options = _parse_args(argv)
+    options.paths = expand_paths(options.paths)
     try:
         enabled = resolve_enabled_rules_for_paths(options.paths)
     except ValueError as error:
