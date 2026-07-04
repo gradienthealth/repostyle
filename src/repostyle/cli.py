@@ -16,6 +16,7 @@ from repostyle.rules import (
     severity_of,
 )
 from repostyle.runner import (
+    expand_paths,
     fix_path,
     lint_package,
     lint_path,
@@ -27,9 +28,9 @@ def main(argv: list[str] | None = None) -> int:
     """Lint the given paths, or explain a rule, and return the exit code.
 
     Dispatch to the `explain` subcommand when it leads the arguments; otherwise
-    lint. Linting returns 2 when the rule set cannot be resolved, 1 when an
-    error-severity finding remains or a file was fixed, and 0 otherwise.
-    `explain` returns 2 for an unknown id and 0 otherwise.
+    lint. Linting returns 2 when a path does not exist or the rule set cannot
+    be resolved, 1 when an error-severity finding remains or a file was fixed,
+    and 0 otherwise. `explain` returns 2 for an unknown id and 0 otherwise.
     """
     args = sys.argv[1:] if argv is None else argv
     if args and args[0] == "explain":
@@ -69,18 +70,34 @@ def _run_explain(argv: list[str]) -> int:
 
 
 def _run_lint(argv: list[str]) -> int:
-    """Resolve the rule set, optionally fix, and report each path."""
+    """Resolve the rule set, optionally fix, and report each path.
+
+    A directory argument is expanded to the lintable files beneath it before
+    reporting, so a directory recurses instead of silently linting nothing.
+    Config discovery and the whole-package scan root are resolved from the
+    original arguments rather than the expanded file list, so a directory
+    argument still finds the `pyproject.toml` and package root it pointed at
+    instead of one belonging to an arbitrary file inside it. A path that does
+    not exist is reported rather than silently producing zero findings.
+    """
     options = _parse_args(argv)
+    missing = [path for path in options.paths if not path.exists()]
+    if missing:
+        listed = ", ".join(str(path) for path in missing)
+        print(f"repostyle: no such path: {listed}", file=sys.stderr)
+        return 2
+    original_paths = options.paths
+    paths = expand_paths(original_paths)
     try:
-        enabled = resolve_enabled_rules_for_paths(options.paths)
+        enabled = resolve_enabled_rules_for_paths(original_paths)
     except ValueError as error:
         print(f"repostyle: {error}", file=sys.stderr)
         return 2
-    package = lint_package(options.paths, enabled)
+    package = lint_package(paths, enabled, root_paths=original_paths)
     failed = False
     fixed: list[Path] = []
     fired: set[str] = set()
-    for path in options.paths:
+    for path in paths:
         if options.fix and fix_path(path, enabled):
             fixed.append(path)
         extra = package.get(path.resolve(), [])

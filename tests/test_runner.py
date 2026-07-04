@@ -8,12 +8,15 @@ from repostyle.rules import (
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
     RS_NO_DOUBLE_BACKTICKS,
+    RS_SHOULD_BE_PRIVATE,
     Severity,
     severity_of,
 )
 from repostyle.runner import (
+    expand_paths,
     find_pyproject,
     fix_path,
+    lint_package,
     lint_path,
     lint_paths,
     load_config,
@@ -152,6 +155,72 @@ class TestLintPaths:
         rules = {v.rule for v in lint_paths([first, second], set(ALL_RULE_IDS))}
         assert RS_ACRONYM_CASING in rules
         assert RS_DISCOURAGED_CLASS_SUFFIX in rules
+
+
+class TestExpandPaths:
+    def test_Directory_ExpandsToLintableFilesSorted(self, tmp_path: Path) -> None:
+        (tmp_path / "b.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "notes.txt").write_text("x\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [tmp_path / "a.py", tmp_path / "b.py"]
+
+    def test_Directory_RecursesIntoSubdirectories(self, tmp_path: Path) -> None:
+        nested = tmp_path / "pkg"
+        nested.mkdir()
+        target = nested / "x.py"
+        target.write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [target]
+
+    def test_Directory_SkipsDotAndBuildDirectories(self, tmp_path: Path) -> None:
+        for skipped in (".git", "build", "__pycache__"):
+            hidden = tmp_path / skipped
+            hidden.mkdir()
+            (hidden / "x.py").write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == []
+
+    def test_File_PassesThroughRegardlessOfSuffix(self, tmp_path: Path) -> None:
+        target = tmp_path / "notes.txt"
+        target.write_text("x\n", encoding="utf-8")
+        assert expand_paths([target]) == [target]
+
+    @pytest.mark.parametrize(
+        "second_arg", ["file", "nested_dir"], ids=["file", "nested_dir"]
+    )
+    def test_OverlappingArgument_DropsTheDuplicate(
+        self, tmp_path: Path, second_arg: str
+    ) -> None:
+        nested = tmp_path / "pkg"
+        nested.mkdir()
+        target = nested / "x.py"
+        target.write_text("x = 1\n", encoding="utf-8")
+        second = target if second_arg == "file" else nested
+        assert expand_paths([tmp_path, second]) == [target]
+
+
+class TestLintPackage:
+    def test_RootPathsOverride_ScansTheOriginalArgumentsTree(
+        self, tmp_path: Path
+    ) -> None:
+        """Without `root_paths`, the scan misses `outer.py`'s call to `helper`
+        and misreports it as should-be-private; passing `root_paths` widens the
+        scan to the real package root and the finding disappears.
+        """
+        nested = tmp_path / "aaa_sub"
+        nested.mkdir()
+        target = nested / "mod.py"
+        target.write_text(
+            '__all__ = ["run"]\n\n\ndef helper():\n    return 1\n\n\n'
+            "def run():\n    return helper()\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "outer.py").write_text(
+            "def go():\n    return helper()\n", encoding="utf-8"
+        )
+        expanded = [target]
+        narrow = lint_package(expanded, {RS_SHOULD_BE_PRIVATE})
+        broad = lint_package(expanded, {RS_SHOULD_BE_PRIVATE}, root_paths=[tmp_path])
+        assert target.resolve() in narrow
+        assert broad == {}
 
 
 class TestFixPath:
