@@ -293,7 +293,7 @@ class TestCheckReturnDescribedInProse:
             "return-self",
         ],
     )
-    def test_ReturnDescribedInBodyProse_Flags(self, source: str) -> None:
+    def test_ReturnDescribedInBodyProse_FlagsViolation(self, source: str) -> None:
         violations = _check_return(source)
         assert len(violations) == 1
         assert violations[0].rule == RS_RETURN_DESCRIBED_IN_PROSE
@@ -358,7 +358,7 @@ class TestCheckReturnDescribedInProse:
     def test_ReturnNotDescribedInBodyProse_NoViolation(self, source: str) -> None:
         assert _check_return(source) == []
 
-    def test_ExcludedDefinition_NoViolation(self) -> None:
+    def test_PrivateDefinition_NoViolation(self) -> None:
         # _public_functions' filtering (private/test-name/test-file/overload)
         # is exhaustively covered by TestCheckArgDescribedInProse's identical
         # case above; this is a smoke check that RS032 also routes through it.

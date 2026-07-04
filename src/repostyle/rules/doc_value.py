@@ -111,23 +111,24 @@ def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violati
     A public function with a non-`None` return annotation and no `Returns:` or
     `Yields:` section fires once when a sentence in the docstring's prose body
     opens with `Return` or `Returns` as its leading clause. That verb is what a
-    `Returns:` section caption already states, so restating it as free body
-    prose belongs there instead, structured, not narrated in the body meant to
-    state the unit's own contract. Unlike RS031, which anchors on the exact
-    parameter name, this has no function-specific anchor to check the clause
-    against, so a docstring genuinely narrating a `return`-the-item domain
-    action (returning a physical or borrowed thing, not this function's return
-    value) can rarely false-positive; the closed opener set narrows this but
-    does not eliminate it.
+    `Returns:` section caption already states, so the description belongs in a
+    structured `Returns:`/`Yields:` entry, where readers and tools look for it,
+    not narrated in the body prose meant to state the unit's own contract.
+    Unlike RS031, which anchors on the exact parameter name, this has no
+    function-specific anchor to check the clause against, so a docstring
+    genuinely narrating a `return`-the-item domain action (returning a physical
+    or borrowed thing, not this function's return value) can rarely trigger a
+    false positive; the closed opener set narrows but does not eliminate that
+    risk.
     """
     for node in _public_functions(path, source):
-        if not _has_return_value(node):
+        if not _has_return_annotation(node):
             continue
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None or _RETURNS_SECTION_PATTERN.search(docstring):
             continue
         body, _ = _body_and_documented_args(docstring)
-        if not _describes_return_as_subject(body):
+        if not _describes_return_up_front(body):
             continue
         yield _violation(
             node,
@@ -217,7 +218,7 @@ def _describes_param_as_subject(body: str, name: str) -> bool:
     )
 
 
-def _describes_return_as_subject(body: str) -> bool:
+def _describes_return_up_front(body: str) -> bool:
     """Report whether a body sentence narrates the return value up front.
 
     A sentence narrates the return value when its clause opens with `Return` or
@@ -242,7 +243,7 @@ def _any_clause_leads_with(body: str, leads_with: Callable[[str], bool]) -> bool
     )
 
 
-def _has_return_value(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+def _has_return_annotation(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Report whether the return annotation is present and not `None`."""
     annotation = node.returns
     if annotation is None:
