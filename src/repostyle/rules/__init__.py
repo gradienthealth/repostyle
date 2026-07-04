@@ -52,6 +52,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
@@ -71,6 +72,7 @@ from repostyle.rules.doc_fill import DOC_FILL_COLUMNS, check_doc_fill, reflow_do
 from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
+    check_return_described_in_prose,
 )
 from repostyle.rules.docstrings import (
     check_docstring_terminal_punctuation,
@@ -145,6 +147,7 @@ __all__ = [
     "RS_NO_NEGATED_BOOLEAN",
     "RS_NO_PHI_SAFE_EXC_INFO",
     "RS_PORT_NO_IMPLEMENTATION",
+    "RS_RETURN_DESCRIBED_IN_PROSE",
     "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
     "RS_SUMMARY_COMMENT_AS_DOCSTRING",
@@ -184,6 +187,7 @@ __all__ = [
     "check_no_negated_boolean",
     "check_no_phi_safe_with_exc_info",
     "check_port_no_implementation",
+    "check_return_described_in_prose",
     "check_should_be_private",
     "check_sleepy_test",
     "check_summary_comment_as_docstring",

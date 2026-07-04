@@ -1,10 +1,11 @@
 """Documentation-value signals: warn where a docstring earns its keep.
 
-Two rules live here, both advising that documentation land where it is most
+Three rules live here, all advising that documentation land where it is most
 useful rather than demanding it everywhere. RS018 scores a function's
 documentation value and warns when a non-trivial public function is
 under-documented; RS031 warns when per-argument detail is narrated in the
-docstring body instead of a structured `Args:` section.
+docstring body instead of a structured `Args:` section; RS032 warns when the
+return value is narrated there instead of a `Returns:` section.
 
 RS018 has two triggers. The presence trigger fires when a complex or
 many-argumented public function carries no docstring. The `Returns:` trigger
@@ -24,6 +25,7 @@ from repostyle.rules._shared import _has_decorator, _is_test_file, _parse_python
 from repostyle.rules._violation import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
+    RS_RETURN_DESCRIBED_IN_PROSE,
     Violation,
 )
 from repostyle.rules.complexity import _score_block
@@ -62,6 +64,11 @@ _SUBJECT_LEAD_PATTERN = re.compile(
 # the result does not shift when the prose is rewrapped to a different width.
 _CLAUSE_SPLIT_PATTERN = re.compile(r"[.;]")
 
+# A clause opening with `Return`/`Returns` restates the verb a `Returns:`
+# section already implies, so the same clause-lead test RS031 uses for a
+# parameter's backtick-wrapped name applies here to the bare verb instead.
+_RETURN_LEAD_PATTERN = re.compile(r"^returns?\b", re.IGNORECASE)
+
 
 def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]:
     """Flag a parameter explained in the docstring body, not in `Args:`.
@@ -88,6 +95,33 @@ def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]
                 f"parameter '{name}' is described in the docstring body of "
                 f"'{node.name}'; move the description into an `Args:` entry",
             )
+
+
+def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violation]:
+    """Flag a return value described in the docstring body, not in `Returns:`.
+
+    A public function with a non-`None` return annotation and no `Returns:` or
+    `Yields:` section fires once when a sentence in the docstring's prose body
+    opens with `Return` or `Returns` as its leading clause. That verb is what a
+    `Returns:` section caption already states, so restating it as free body
+    prose belongs there instead, structured, not narrated in the body meant to
+    state the unit's own contract.
+    """
+    for node in _public_functions(path, source):
+        if not _has_return_value(node):
+            continue
+        docstring = ast.get_docstring(node, clean=True)
+        if docstring is None or _RETURNS_SECTION_PATTERN.search(docstring):
+            continue
+        body, _ = _body_and_documented_args(docstring)
+        if not _describes_return_as_subject(body):
+            continue
+        yield _violation(
+            node,
+            RS_RETURN_DESCRIBED_IN_PROSE,
+            f"the return value of '{node.name}' is described in the docstring "
+            "body; move the description into a `Returns:` entry",
+        )
 
 
 def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
@@ -173,6 +207,29 @@ def _describes_param_as_subject(body: str, name: str) -> bool:
         if _SUBJECT_LEAD_PATTERN.sub("", clause.strip()).startswith(token):
             return True
     return False
+
+
+def _describes_return_as_subject(body: str) -> bool:
+    """Report whether a body sentence narrates the return value up front.
+
+    A sentence narrates the return value when its clause opens with `Return` or
+    `Returns`. Sentences split on `.` and `;` but not commas or line breaks, so
+    a mid-clause mention is not read as a description and the verdict does not
+    shift when the prose is rewrapped to a different width.
+    """
+    flowing = body.replace("\n", " ")
+    for clause in _CLAUSE_SPLIT_PATTERN.split(flowing):
+        if _RETURN_LEAD_PATTERN.match(clause.strip()):
+            return True
+    return False
+
+
+def _has_return_value(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Report whether the return annotation is present and not `None`."""
+    annotation = node.returns
+    if annotation is None:
+        return False
+    return not (isinstance(annotation, ast.Constant) and annotation.value is None)
 
 
 def _param_count(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:

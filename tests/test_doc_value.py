@@ -5,8 +5,10 @@ import pytest
 from repostyle.rules import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
+    RS_RETURN_DESCRIBED_IN_PROSE,
     check_arg_described_in_prose,
     check_doc_value_signal,
+    check_return_described_in_prose,
 )
 
 _SRC = Path("src/x.py")
@@ -246,9 +248,122 @@ class TestCheckArgDescribedInProse:
         assert _check_arg(source, path) == []
 
 
+class TestCheckReturnDescribedInProse:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    Returns a dict mapping field index to field value bytes. Per "
+            "spec,\n"
+            "    field 1 is the separator.\n"
+            '    """\n'
+            "    return {}\n",
+            "def parse(raw: bytes) -> int:\n"
+            '    """Parse the header.\n'
+            "\n"
+            "    Return the parsed value.\n"
+            '    """\n'
+            "    return 0\n",
+        ],
+        ids=["returns-plural", "return-singular"],
+    )
+    def test_ReturnDescribedInBodyProse_Flags(self, source: str) -> None:
+        violations = _check_return(source)
+        assert len(violations) == 1
+        assert violations[0].rule == RS_RETURN_DESCRIBED_IN_PROSE
+        assert "`Returns:`" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    Returns:\n"
+            "        A dict mapping field index to field value bytes.\n"
+            '    """\n'
+            "    return {}\n",
+            "def extract(raw: bytes):\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    Returns a dict mapping field index to field value bytes.\n"
+            '    """\n'
+            "    return {}\n",
+            "def run(raw: bytes) -> None:\n"
+            '    """Run the extraction.\n'
+            "\n"
+            "    Returns nothing; the result is logged instead.\n"
+            '    """\n'
+            "    return None\n",
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    The caller then decides how the map returns to the pool.\n"
+            '    """\n'
+            "    return {}\n",
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Return a dict mapping field index to field value bytes."""\n'
+            "    return {}\n",
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields by scanning bytes for pipe delimiters."""\n'
+            "    return {}\n",
+        ],
+        ids=[
+            "has-returns-section",
+            "no-return-annotation",
+            "none-annotation",
+            "mid-sentence-mention",
+            "only-in-summary",
+            "no-body",
+        ],
+    )
+    def test_ReturnNotDescribedInBodyProse_NoViolation(self, source: str) -> None:
+        assert _check_return(source) == []
+
+    @pytest.mark.parametrize(
+        ("source", "path"),
+        [
+            (
+                "def _extract(raw: bytes) -> dict[int, bytes]:\n"
+                '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n'
+                "    return {}\n",
+                _SRC,
+            ),
+            (
+                "def test_extract(raw: bytes) -> dict[int, bytes]:\n"
+                '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n'
+                "    return {}\n",
+                _SRC,
+            ),
+            (
+                "def extract(raw: bytes) -> dict[int, bytes]:\n"
+                '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n'
+                "    return {}\n",
+                Path("tests/test_x.py"),
+            ),
+            (
+                "from typing import overload\n"
+                "@overload\n"
+                "def extract(raw: bytes) -> dict[int, bytes]:\n"
+                '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n',
+                _SRC,
+            ),
+        ],
+        ids=["private-name", "test-name", "test-file", "overload"],
+    )
+    def test_ExcludedDefinition_NoViolation(self, source: str, path: Path) -> None:
+        assert _check_return(source, path) == []
+
+
 def _check(source: str, path: Path = _SRC) -> list:
     return list(check_doc_value_signal(path, source))
 
 
 def _check_arg(source: str, path: Path = _SRC) -> list:
     return list(check_arg_described_in_prose(path, source))
+
+
+def _check_return(source: str, path: Path = _SRC) -> list:
+    return list(check_return_described_in_prose(path, source))
