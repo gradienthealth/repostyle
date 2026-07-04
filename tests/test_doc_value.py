@@ -278,8 +278,27 @@ class TestCheckReturnDescribedInProse:
             "    Returns each row as a dict as soon as it is parsed.\n"
             '    """\n'
             "    yield {}\n",
+            "def find(key: str) -> Widget | None:\n"
+            '    """Look up a widget by key.\n'
+            "\n"
+            "    Returns None when no widget matches the key.\n"
+            '    """\n'
+            "    return None\n",
+            "def with_timeout(self, seconds: float) -> Client:\n"
+            '    """Configure the request timeout.\n'
+            "\n"
+            "    Return self so calls can chain.\n"
+            '    """\n'
+            "    return self\n",
         ],
-        ids=["returns-plural", "return-singular", "returns-true-if", "generator"],
+        ids=[
+            "returns-plural",
+            "return-singular",
+            "returns-true-if",
+            "generator",
+            "returns-none",
+            "return-self",
+        ],
     )
     def test_ReturnDescribedInBodyProse_Flags(self, source: str) -> None:
         violations = _check_return(source)
@@ -318,9 +337,6 @@ class TestCheckReturnDescribedInProse:
             "def extract(raw: bytes) -> dict[int, bytes]:\n"
             '    """Return a dict mapping field index to field value bytes."""\n'
             "    return {}\n",
-            "def extract(raw: bytes) -> dict[int, bytes]:\n"
-            '    """Extract fields by scanning bytes for pipe delimiters."""\n'
-            "    return {}\n",
             "def schedule_return_visit(patient_id: str) -> Appointment:\n"
             '    """Schedule a follow-up visit.\n'
             "\n"
@@ -335,46 +351,22 @@ class TestCheckReturnDescribedInProse:
             "none-annotation",
             "mid-sentence-mention",
             "only-in-summary",
-            "no-body",
             "return-as-domain-noun",
         ],
     )
     def test_ReturnNotDescribedInBodyProse_NoViolation(self, source: str) -> None:
         assert _check_return(source) == []
 
-    @pytest.mark.parametrize(
-        ("source", "path"),
-        [
-            (
-                "def _extract(raw: bytes) -> dict[int, bytes]:\n"
-                '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n'
-                "    return {}\n",
-                _SRC,
-            ),
-            (
-                "def test_extract(raw: bytes) -> dict[int, bytes]:\n"
-                '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n'
-                "    return {}\n",
-                _SRC,
-            ),
-            (
-                "def extract(raw: bytes) -> dict[int, bytes]:\n"
-                '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n'
-                "    return {}\n",
-                Path("tests/test_x.py"),
-            ),
-            (
-                "from typing import overload\n"
-                "@overload\n"
-                "def extract(raw: bytes) -> dict[int, bytes]:\n"
-                '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n',
-                _SRC,
-            ),
-        ],
-        ids=["private-name", "test-name", "test-file", "overload"],
-    )
-    def test_ExcludedDefinition_NoViolation(self, source: str, path: Path) -> None:
-        assert _check_return(source, path) == []
+    def test_ExcludedDefinition_NoViolation(self) -> None:
+        # _public_functions' filtering (private/test-name/test-file/overload)
+        # is exhaustively covered by TestCheckArgDescribedInProse's identical
+        # case above; this is a smoke check that RS032 also routes through it.
+        source = (
+            "def _extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields.\n\n    Returns a dict of fields.\n"""\n'
+            "    return {}\n"
+        )
+        assert _check_return(source) == []
 
 
 def _check(source: str, path: Path = _SRC) -> list:

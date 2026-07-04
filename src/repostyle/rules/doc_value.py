@@ -113,7 +113,12 @@ def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violati
     opens with `Return` or `Returns` as its leading clause. That verb is what a
     `Returns:` section caption already states, so restating it as free body
     prose belongs there instead, structured, not narrated in the body meant to
-    state the unit's own contract.
+    state the unit's own contract. Unlike RS031, which anchors on the exact
+    parameter name, this has no function-specific anchor to check the clause
+    against, so a docstring genuinely narrating a `return`-the-item domain
+    action (returning a physical or borrowed thing, not this function's return
+    value) can rarely false-positive; the closed opener set narrows this but
+    does not eliminate it.
     """
     for node in _public_functions(path, source):
         if not _has_return_value(node):
