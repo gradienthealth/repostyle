@@ -1056,6 +1056,17 @@ class TestCheckDocstringTerminalPunctuation:
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 1)]
 
+    def test_AlembicLikeLineAfterEntry_GradesFollowingLineAsBody(self) -> None:
+        source = (
+            'def f(foo):\n    """Do it.\n\n'
+            "    Args:\n        foo: the widget.\n\n"
+            "    Create Date: pretend prose\n"
+            '        a continuation with no mark\n    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 8)]
+        assert "docstring body paragraph" in violations[0].message
+
     def test_ModuleDocstringWithoutTerminal_FlagsAtColumnOne(self) -> None:
         violations = list(
             check_docstring_terminal_punctuation(_DOC_PATH, '"""Resolve the lease"""\n')
