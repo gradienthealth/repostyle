@@ -75,6 +75,12 @@ _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
 # A markdown table row or a line made only of rule characters opens verbatim
 # content whose terminal character is not prose punctuation.
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
+# Alembic's revision-template header: a fixed, machine-generated field list (a
+# hash, an optional parent hash, a timestamp), not prose, so a value never
+# takes terminal punctuation the way a Google-section entry's description does.
+_ALEMBIC_HEADER_PATTERN = re.compile(
+    r"^(Revision ID|Revises|Down Revision|Create Date):(\s|$)"
+)
 
 
 def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
@@ -259,7 +265,8 @@ def check_docstring_terminal_punctuation(
     `Yields:` entry each close with `.`, `!`, or `?`, as PEP 257 prescribes for
     the summary and the house style extends to the rest. Code (doctests,
     `Example:` sections, fenced blocks), bullet items, a list-introducing
-    colon, and a unit ending in a URL are exempt.
+    colon, a unit ending in a URL, and an Alembic revision-header field
+    (`Revision ID:`, `Revises:`, `Down Revision:`, `Create Date:`) are exempt.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -422,7 +429,7 @@ class _DocstringSegmenter:
     `units`. The first paragraph is the summary; later margin paragraphs are
     body; a `Note:` section's body is treated as body; an `Args:`-style section
     yields one entry per item; and code, doctests, `Example:` sections,
-    bullets, and verbatim lines yield nothing.
+    bullets, verbatim lines, and Alembic revision-header fields yield nothing.
     """
 
     def __init__(self) -> None:
@@ -507,6 +514,9 @@ class _DocstringSegmenter:
         if self._in_fence:
             return True
         if text.startswith((">>>", "... ")) or _VERBATIM_LINE_PATTERN.match(text):
+            self.close()
+            return True
+        if line.relative_indent == 0 and _ALEMBIC_HEADER_PATTERN.match(text):
             self.close()
             return True
         if line.relative_indent == 0 and text in _SECTION_HEADERS:

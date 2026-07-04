@@ -1018,6 +1018,8 @@ class TestCheckDocstringTerminalPunctuation:
             '    https://example.com/spec\n    """\n',
             'def f():\n    """Do it.\n\n    - first point\n    - second\n    """\n',
             'def f():\n    """Do it.\n\n    ```\n    code here\n    ```\n    """\n',
+            '"""Add fhir_ingestor_config.\n\nRevision ID: 060831c5b789\nRevises: \n'
+            'Create Date: 2025-12-28 00:00:00.000000\n\n"""\n',
         ],
         ids=[
             "summary-with-period",
@@ -1031,6 +1033,7 @@ class TestCheckDocstringTerminalPunctuation:
             "body-url-tail",
             "bullet-list",
             "fenced-code",
+            "alembic-revision-header",
         ],
     )
     def test_ConformingDocstring_NoViolation(self, source: str) -> None:
@@ -1043,6 +1046,15 @@ class TestCheckDocstringTerminalPunctuation:
         assert violations[0].rule == RS_TERMINAL_PUNCTUATION
         assert (violations[0].line, violations[0].col) == (2, 5)
         assert "terminal punctuation" in violations[0].message
+
+    def test_AlembicSummaryWithoutTerminal_FlagsSummaryNotHeader(self) -> None:
+        source = (
+            '"""Add remote_aes and discovery_cursors tables\n\n'
+            "Revision ID: 060831c5b789\nRevises: 97470e9f5c78\n"
+            'Create Date: 2025-12-28 00:00:00.000000\n\n"""\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 1)]
 
     def test_ModuleDocstringWithoutTerminal_FlagsAtColumnOne(self) -> None:
         violations = list(

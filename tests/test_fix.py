@@ -79,6 +79,25 @@ class TestFixDocstringTerminalPunctuation:
         source = '"""Resolve the lease."""\n'
         assert fix_docstring_terminal_punctuation(_PY, source) == source
 
+    def test_AlembicRevisionHeader_LeavesTimestampUnchanged(self) -> None:
+        source = (
+            '"""Add fhir_ingestor_config.\n\nRevision ID: 060831c5b789\nRevises: \n'
+            'Create Date: 2025-12-28 00:00:00.000000\n\n"""\n'
+        )
+        assert fix_docstring_terminal_punctuation(_PY, source) == source
+
+    def test_AlembicSummaryWithoutTerminal_FixesSummaryLeavesHeaderAlone(self) -> None:
+        source = (
+            '"""Add remote_aes and discovery_cursors tables\n\n'
+            "Revision ID: 060831c5b789\nRevises: 97470e9f5c78\n"
+            'Create Date: 2025-12-28 00:00:00.000000\n\n"""\n'
+        )
+        assert fix_docstring_terminal_punctuation(_PY, source) == (
+            '"""Add remote_aes and discovery_cursors tables.\n\n'
+            "Revision ID: 060831c5b789\nRevises: 97470e9f5c78\n"
+            'Create Date: 2025-12-28 00:00:00.000000\n\n"""\n'
+        )
+
 
 class TestFixCommentTerminalPunctuation:
     def test_ProseBlockMissingMark_AppendsPeriod(self) -> None:
