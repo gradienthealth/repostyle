@@ -87,13 +87,6 @@ class TestMain:
         assert exit_code == 1
         assert f"{target}:2:5: error: RS001" in out
 
-    def test_EmptyDirectoryArgument_ReturnsZeroAndPrintsNothing(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        exit_code = main([str(tmp_path)])
-        assert exit_code == 0
-        assert capsys.readouterr().out == ""
-
     def test_DirectoryArgumentWithNestedPyproject_ResolvesRootConfig(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
@@ -110,6 +103,13 @@ class TestMain:
         out = capsys.readouterr().out
         assert exit_code == 1
         assert "RS001" in out
+
+    def test_EmptyDirectoryArgument_ReturnsZeroAndPrintsNothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        exit_code = main([str(tmp_path)])
+        assert exit_code == 0
+        assert capsys.readouterr().out == ""
 
     def test_NonexistentPathArgument_ReturnsTwoAndReportsError(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]

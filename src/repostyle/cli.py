@@ -73,13 +73,12 @@ def _run_lint(argv: list[str]) -> int:
     """Resolve the rule set, optionally fix, and report each path.
 
     A directory argument is expanded to the lintable files beneath it before
-    reporting, so a directory recurses like the pre-commit hook fanning out
-    over individual files instead of silently linting nothing. Config discovery
-    and the whole-package scan root are resolved from the original arguments
-    rather than the expanded file list, so a directory argument still finds the
-    `pyproject.toml` and package root it pointed at instead of one belonging to
-    an arbitrary file inside it. A path that does not exist is reported rather
-    than silently producing zero findings.
+    reporting, so a directory recurses instead of silently linting nothing.
+    Config discovery and the whole-package scan root are resolved from the
+    original arguments rather than the expanded file list, so a directory
+    argument still finds the `pyproject.toml` and package root it pointed at
+    instead of one belonging to an arbitrary file inside it. A path that does
+    not exist is reported rather than silently producing zero findings.
     """
     options = _parse_args(argv)
     missing = [path for path in options.paths if not path.exists()]
