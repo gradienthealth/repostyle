@@ -7,9 +7,9 @@ governed by import-identifier conventions elsewhere. Each check reads its own
 is absent, rather than reporting nothing: the defaults reflect a documented,
 spec- or style-guide-level convention rather than a Gradient-specific house
 preference, so a repo that never configures this rule still gets a defensible
-baseline. A repo that disagrees overrides the relevant key; one with fixed-name
-files a tool mandates (`Dockerfile`, `LICENSE`, a generated `CHANGELOG.md`)
-exempts them via `filename-ignore` rather than renaming them.
+baseline. A repo that disagrees overrides the relevant key; one with a
+fixed-name file a tool mandates (a generated `CHANGELOG.md`) exempts it via
+`filename-ignore` rather than renaming it.
 """
 
 from __future__ import annotations
@@ -51,9 +51,12 @@ def check_filename_extension(path: Path, source: str) -> Iterator[Violation]:
     from `[tool.repostyle.filename-extensions]`, defaulting to `.yml` ->
     `.yaml`. A `.py` file and a path matched by `filename-ignore` are exempt.
     """
-    if path.suffix == ".py" or _is_ignored(path):
+    if path.suffix == ".py":
         return
-    table = _repostyle_table(find_pyproject(path))
+    pyproject = find_pyproject(path)
+    if _is_ignored(path, pyproject):
+        return
+    table = _repostyle_table(pyproject)
     preferred = _extension_map(table).get(path.suffix.lower())
     if preferred is None or preferred.lower() == path.suffix.lower():
         return
@@ -75,9 +78,12 @@ def check_filename_casing(path: Path, source: str) -> Iterator[Violation]:
     and a path matched by `filename-ignore` are exempt. A leading dot marking a
     hidden file (`.pre-commit-config.yaml`) is not itself a word boundary.
     """
-    if path.suffix == ".py" or _is_ignored(path):
+    if path.suffix == ".py":
         return
-    table = _repostyle_table(find_pyproject(path))
+    pyproject = find_pyproject(path)
+    if _is_ignored(path, pyproject):
+        return
+    table = _repostyle_table(pyproject)
     case = _filename_case(table)
     pattern = _WORD_PATTERN.get(case)
     if pattern is None:
@@ -95,17 +101,16 @@ def check_filename_casing(path: Path, source: str) -> Iterator[Violation]:
 
 def _extension_map(table: dict[str, object]) -> dict[str, str]:
     configured = table.get("filename-extensions")
-    if configured is None:
-        return DEFAULT_EXTENSION_MAP
+    if not isinstance(configured, dict):
+        return DEFAULT_EXTENSION_MAP if configured is None else {}
     return {str(key).lower(): str(value) for key, value in configured.items()}
 
 
 def _filename_case(table: dict[str, object]) -> str:
-    return str(table.get("filename-case", DEFAULT_FILENAME_CASE))
+    return str(table.get("filename-case", DEFAULT_FILENAME_CASE)).lower()
 
 
-def _is_ignored(path: Path) -> bool:
-    pyproject = find_pyproject(path)
+def _is_ignored(path: Path, pyproject: Path | None) -> bool:
     table = _repostyle_table(pyproject)
     globs = _ignore_globs(table)
     if not globs:
@@ -115,15 +120,15 @@ def _is_ignored(path: Path) -> bool:
 
 
 def _ignore_globs(table: dict[str, object]) -> tuple[str, ...]:
-    return tuple(str(glob) for glob in table.get("filename-ignore", ()))
+    configured = table.get("filename-ignore", ())
+    if isinstance(configured, str):
+        configured = (configured,)
+    return tuple(str(glob) for glob in configured)
 
 
 def _name_segments(stem: str) -> list[str]:
-    """Split a stem on `.` into its words, dropping a leading hidden-file dot."""
-    segments = stem.split(".")
-    if segments and segments[0] == "":
-        segments = segments[1:]
-    return [segment for segment in segments if segment]
+    """Split a stem on `.` into its words, dropping any empty segment."""
+    return [segment for segment in stem.split(".") if segment]
 
 
 def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:

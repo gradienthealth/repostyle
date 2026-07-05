@@ -120,7 +120,9 @@ filename-ignore = ["README.md", "LICENSE"]   # globs exempted from both checks
 ".yml" = ".yaml"
 ```
 
-`filename-extensions` replaces the default mapping wholesale rather than merging into it — repeat `.yml = .yaml` alongside any extra entries, or declare the table empty to disable the check. `filename-case` and `filename-ignore` apply to both the extension and the casing check. `filename-ignore` globs (`fnmatch` semantics, matched against the path relative to the repo root) are the place for a fixed name a tool or convention mandates — `README.md`, `LICENSE`, `Dockerfile`, a generated `CHANGELOG.md`, or `.github/workflows/*.yml` if the repo keeps GitHub Actions' own `.yml` convention — rather than renaming them. Both checks skip `.py` files, whose names are already governed by import-identifier conventions.
+`filename-extensions` replaces the default mapping wholesale rather than merging into it — repeat `.yml = .yaml` alongside any extra entries, or declare the table empty to disable the check. `filename-case` and `filename-ignore` apply to both the extension and the casing check. `filename-ignore` globs (`fnmatch` semantics, matched against the path relative to the repo root) are the place for a fixed name a tool or convention mandates — `README.md`, a generated `CHANGELOG.md`, or `.github/workflows/*.yml` if the repo keeps GitHub Actions' own `.yml` convention — rather than renaming them. Both checks skip `.py` files, whose names are already governed by import-identifier conventions.
+
+RS033 only ever sees a file its invocation actually discovers: a bare directory argument and the shipped `repostyle` pre-commit hook both limit discovery to `.py`/`.toml`/`.yaml`/`.yml`/`.md`. An extensionless fixed name like `Dockerfile` or `LICENSE` only reaches the rule if the consuming repo widens its own hook's `types`/`files` to pass it, or names it as an explicit CLI argument.
 
 ## Suppress a finding
 

@@ -438,9 +438,12 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "configurable — `[tool.repostyle.filename-extensions]` replaces "
             "the extension map wholesale, `[tool.repostyle.filename-case]` "
             "takes `snake` or `none` — and `[tool.repostyle.filename-ignore]` "
-            "exempts a glob of fixed-name files a tool mandates "
-            "(`Dockerfile`, `LICENSE`, `README.md`) rather than asking them "
-            "renamed."
+            "exempts a glob of fixed-name files a tool mandates (`README.md`, "
+            "a generated `CHANGELOG.md`) rather than asking them renamed. An "
+            "extensionless name like `Dockerfile` or `LICENSE` only reaches "
+            "this rule if the consuming repo's own pre-commit hook is "
+            "configured to pass it — the shipped hook and a bare directory "
+            "argument both discover only `.py`/`.toml`/`.yaml`/`.yml`/`.md`."
         ),
         examples=(
             Example(

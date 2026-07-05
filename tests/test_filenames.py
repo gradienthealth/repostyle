@@ -18,16 +18,16 @@ class TestCheckFilenameExtension:
         assert len(violations) == 1
         assert violations[0].rule == RS_FILENAME_CONVENTION
 
+    def test_AlreadyPreferredExtension_NoViolation(self, tmp_path: Path) -> None:
+        target = _target(tmp_path, "config.yaml")
+        assert list(check_filename_extension(target, _SOURCE)) == []
+
     def test_ConfiguredMapping_FlagsConfiguredExtension(self, tmp_path: Path) -> None:
         table = '[tool.repostyle.filename-extensions]\n".txt" = ".md"\n'
         target = _target(tmp_path, "notes.txt", table=table)
         violations = list(check_filename_extension(target, _SOURCE))
         assert len(violations) == 1
         assert violations[0].rule == RS_FILENAME_CONVENTION
-
-    def test_AlreadyPreferredExtension_NoViolation(self, tmp_path: Path) -> None:
-        target = _target(tmp_path, "config.yaml")
-        assert list(check_filename_extension(target, _SOURCE)) == []
 
     def test_ConfiguredMappingReplacesDefault_NoViolationForYml(
         self, tmp_path: Path
@@ -41,8 +41,18 @@ class TestCheckFilenameExtension:
         target = _target(tmp_path, "config.yml", table=table)
         assert list(check_filename_extension(target, _SOURCE)) == []
 
+    def test_NonDictConfiguredMapping_DisablesCheck(self, tmp_path: Path) -> None:
+        table = "[tool.repostyle]\nfilename-extensions = []\n"
+        target = _target(tmp_path, "config.yml", table=table)
+        assert list(check_filename_extension(target, _SOURCE)) == []
+
     def test_IgnoredGlob_NoViolation(self, tmp_path: Path) -> None:
         table = '[tool.repostyle]\nfilename-ignore = ["config.yml"]\n'
+        target = _target(tmp_path, "config.yml", table=table)
+        assert list(check_filename_extension(target, _SOURCE)) == []
+
+    def test_BareStringIgnoreGlob_TreatsAsSingleGlob(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle]\nfilename-ignore = "config.yml"\n'
         target = _target(tmp_path, "config.yml", table=table)
         assert list(check_filename_extension(target, _SOURCE)) == []
 
@@ -85,6 +95,13 @@ class TestCheckFilenameCasing:
         table = '[tool.repostyle]\nfilename-case = "snake"\n'
         target = _target(tmp_path, "my_config.yaml", table=table)
         assert list(check_filename_casing(target, _SOURCE)) == []
+
+    def test_ConfiguredCaseIsCaseInsensitive(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle]\nfilename-case = "SNAKE"\n'
+        target = _target(tmp_path, "my-config.yaml", table=table)
+        violations = list(check_filename_casing(target, _SOURCE))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_FILENAME_CONVENTION
 
     def test_ConfiguredNone_DisablesCheck(self, tmp_path: Path) -> None:
         table = '[tool.repostyle]\nfilename-case = "none"\n'
