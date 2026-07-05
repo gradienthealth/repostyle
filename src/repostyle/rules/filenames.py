@@ -51,12 +51,9 @@ def check_filename_extension(path: Path, source: str) -> Iterator[Violation]:
     from `[tool.repostyle.filename-extensions]`, defaulting to `.yml` ->
     `.yaml`. A `.py` file and a path matched by `filename-ignore` are exempt.
     """
-    if path.suffix == ".py":
+    table = _resolve_table(path)
+    if table is None:
         return
-    pyproject = find_pyproject(path)
-    if _is_ignored(path, pyproject):
-        return
-    table = _repostyle_table(pyproject)
     preferred = _extension_map(table).get(path.suffix.lower())
     if preferred is None or preferred.lower() == path.suffix.lower():
         return
@@ -78,12 +75,9 @@ def check_filename_casing(path: Path, source: str) -> Iterator[Violation]:
     and a path matched by `filename-ignore` are exempt. A leading dot marking a
     hidden file (`.pre-commit-config.yaml`) is not itself a word boundary.
     """
-    if path.suffix == ".py":
+    table = _resolve_table(path)
+    if table is None:
         return
-    pyproject = find_pyproject(path)
-    if _is_ignored(path, pyproject):
-        return
-    table = _repostyle_table(pyproject)
     case = _filename_case(table)
     pattern = _WORD_PATTERN.get(case)
     if pattern is None:
@@ -100,9 +94,9 @@ def check_filename_casing(path: Path, source: str) -> Iterator[Violation]:
 
 
 def _extension_map(table: dict[str, object]) -> dict[str, str]:
-    configured = table.get("filename-extensions")
+    configured = table.get("filename-extensions", DEFAULT_EXTENSION_MAP)
     if not isinstance(configured, dict):
-        return DEFAULT_EXTENSION_MAP if configured is None else {}
+        return {}
     return {str(key).lower(): str(value) for key, value in configured.items()}
 
 
@@ -110,8 +104,18 @@ def _filename_case(table: dict[str, object]) -> str:
     return str(table.get("filename-case", DEFAULT_FILENAME_CASE)).lower()
 
 
-def _is_ignored(path: Path, pyproject: Path | None) -> bool:
+def _resolve_table(path: Path) -> dict[str, object] | None:
+    """Return `path`'s `[tool.repostyle]` table, or None if `path` is exempt."""
+    if path.suffix == ".py":
+        return None
+    pyproject = find_pyproject(path)
     table = _repostyle_table(pyproject)
+    if _is_ignored(path, pyproject, table):
+        return None
+    return table
+
+
+def _is_ignored(path: Path, pyproject: Path | None, table: dict[str, object]) -> bool:
     globs = _ignore_globs(table)
     if not globs:
         return False
@@ -123,6 +127,8 @@ def _ignore_globs(table: dict[str, object]) -> tuple[str, ...]:
     configured = table.get("filename-ignore", ())
     if isinstance(configured, str):
         configured = (configured,)
+    if not isinstance(configured, list | tuple):
+        return ()
     return tuple(str(glob) for glob in configured)
 
 

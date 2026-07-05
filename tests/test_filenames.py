@@ -46,13 +46,13 @@ class TestCheckFilenameExtension:
         target = _target(tmp_path, "config.yml", table=table)
         assert list(check_filename_extension(target, _SOURCE)) == []
 
-    def test_IgnoredGlob_NoViolation(self, tmp_path: Path) -> None:
-        table = '[tool.repostyle]\nfilename-ignore = ["config.yml"]\n'
-        target = _target(tmp_path, "config.yml", table=table)
-        assert list(check_filename_extension(target, _SOURCE)) == []
-
-    def test_BareStringIgnoreGlob_TreatsAsSingleGlob(self, tmp_path: Path) -> None:
-        table = '[tool.repostyle]\nfilename-ignore = "config.yml"\n'
+    @pytest.mark.parametrize(
+        "ignore_value",
+        ['["config.yml"]', '"config.yml"'],
+        ids=["list", "bare_string"],
+    )
+    def test_IgnoredGlob_NoViolation(self, tmp_path: Path, ignore_value: str) -> None:
+        table = f"[tool.repostyle]\nfilename-ignore = {ignore_value}\n"
         target = _target(tmp_path, "config.yml", table=table)
         assert list(check_filename_extension(target, _SOURCE)) == []
 
@@ -82,8 +82,13 @@ class TestCheckFilenameCasing:
         target = _target(tmp_path, name)
         assert list(check_filename_casing(target, _SOURCE)) == []
 
-    def test_ConfiguredSnakeCase_FlagsHyphenatedName(self, tmp_path: Path) -> None:
-        table = '[tool.repostyle]\nfilename-case = "snake"\n'
+    @pytest.mark.parametrize(
+        "case_value", ["snake", "SNAKE"], ids=["lowercase", "uppercase"]
+    )
+    def test_ConfiguredSnakeCase_FlagsHyphenatedName(
+        self, tmp_path: Path, case_value: str
+    ) -> None:
+        table = f'[tool.repostyle]\nfilename-case = "{case_value}"\n'
         target = _target(tmp_path, "my-config.yaml", table=table)
         violations = list(check_filename_casing(target, _SOURCE))
         assert len(violations) == 1
@@ -95,13 +100,6 @@ class TestCheckFilenameCasing:
         table = '[tool.repostyle]\nfilename-case = "snake"\n'
         target = _target(tmp_path, "my_config.yaml", table=table)
         assert list(check_filename_casing(target, _SOURCE)) == []
-
-    def test_ConfiguredCaseIsCaseInsensitive(self, tmp_path: Path) -> None:
-        table = '[tool.repostyle]\nfilename-case = "SNAKE"\n'
-        target = _target(tmp_path, "my-config.yaml", table=table)
-        violations = list(check_filename_casing(target, _SOURCE))
-        assert len(violations) == 1
-        assert violations[0].rule == RS_FILENAME_CONVENTION
 
     def test_ConfiguredNone_DisablesCheck(self, tmp_path: Path) -> None:
         table = '[tool.repostyle]\nfilename-case = "none"\n'
