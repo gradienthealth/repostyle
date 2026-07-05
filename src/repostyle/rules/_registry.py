@@ -23,6 +23,7 @@ from repostyle.rules._violation import (
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
+    RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -62,6 +63,7 @@ from repostyle.rules.docstrings import (
     check_summary_comment_as_docstring,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
+from repostyle.rules.filenames import check_filename_casing, check_filename_extension
 from repostyle.rules.import_layering import check_banned_import_by_path
 from repostyle.rules.layout import (
     check_class_member_order,
@@ -132,6 +134,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     ),
     RS_ARG_DESCRIBED_IN_PROSE: (check_arg_described_in_prose,),
     RS_RETURN_DESCRIBED_IN_PROSE: (check_return_described_in_prose,),
+    RS_FILENAME_CONVENTION: (check_filename_extension, check_filename_casing),
 }
 
 
@@ -161,6 +164,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_TERMINAL_PUNCTUATION: Severity.WARNING,
     RS_ARG_DESCRIBED_IN_PROSE: Severity.WARNING,
     RS_RETURN_DESCRIBED_IN_PROSE: Severity.WARNING,
+    RS_FILENAME_CONVENTION: Severity.WARNING,
 }
 
 

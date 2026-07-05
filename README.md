@@ -42,6 +42,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS030 | Terminal punctuation (warning): a docstring or comment prose unit must end with `.`, `!`, or `?` (per PEP 257); a single-line comment fragment must not. Comments are checked in Python, TOML, and YAML. |
 | RS031 | Arg described in prose (warning): per-argument detail narrated in the docstring body belongs in an `Args:` section. |
 | RS032 | Return described in prose (warning): the return value narrated in the docstring body belongs in a `Returns:` section. |
+| RS033 | Filename convention (warning): a non-Python file's extension and casing follow the configured preference, defaulting to `.yaml` over `.yml` and kebab-case for a multi-word name (see below). |
 
 ### Repo-agnostic vs repo-specific
 
@@ -50,9 +51,9 @@ Most rules are repo-agnostic and safe to enable anywhere. Two are tied to the fh
 - **RS002** assumes PascalCase test naming under `tests/unit/`. Repos with a different test-naming convention should not select it.
 - **RS006** bans concrete implementation libraries inside a `src/fhir_ingestor/application/ports/` path. The path fragment and the hexagonal `ports` layering are fhir-ingestor-specific.
 
-RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011, RS024, RS025, RS026, RS027, RS028) are general style rules.
+RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011, RS024, RS025, RS026, RS027, RS028, RS033) are general style rules.
 
-The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. RS027 warns too, matching how the repo's other threshold rule (RS012) is treated; note that ruff's `PLR0917`, which it stands in for, is a hard error, so adopting it later raises the severity. The boolean-naming rules RS024 and RS026 are advisory too, warning rather than failing until their false-positive rate on the existing repos is measured. RS013, RS014, RS022, RS023, RS025, and RS028 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
+The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. RS027 warns too, matching how the repo's other threshold rule (RS012) is treated; note that ruff's `PLR0917`, which it stands in for, is a hard error, so adopting it later raises the severity. The boolean-naming rules RS024 and RS026 are advisory too, warning rather than failing until their false-positive rate on the existing repos is measured. RS033 is advisory too: its casing default is an industry-wide convention, not a Gradient-measured one, and a repo's existing files may need a batch of `filename-ignore` entries before it is worth hard-failing. RS013, RS014, RS022, RS023, RS025, and RS028 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
 
 RS027 is a stand-in for ruff's [`PLR0917`](https://docs.astral.sh/ruff/rules/too-many-positional-arguments/) (`too-many-positional-arguments`), which is preview-gated in the pinned ruff version. Enabling it through ruff would require setting `preview = true` on the shared `ruff-base.toml`, a global switch that turns on preview behavior for every rule and the formatter across all consuming repos, so the rule lives here instead. It mirrors `PLR0917`'s default cap of five and its positional-only counting, including the `self`/`cls` exclusion and the `@override` exemption. When `PLR0917` graduates to stable in the pinned ruff version, select it in `ruff-base.toml` and delete RS027 (PROC-2319).
 
@@ -105,6 +106,21 @@ comment-ticket-pattern = "[A-Z]+-\\d+|NO-ISSUE"
 ```
 
 A comment whose leading token is an allowed tag, or a known alias of one (`XXX`, `BUG`, `TBD`, ...), is held to the canonical form; the alias steers toward the first allowed tag. A deviation — an unknown tag, wrong casing, a missing or malformed ticket, or a wrong separator — is flagged. A comment whose leading token is neither a tag nor an alias is ordinary prose and is left alone. The default ticket pattern is the Linear-id shape plus the literal `NO-ISSUE`.
+
+## Configure filename conventions (RS033)
+
+RS033 checks a non-Python file's extension and casing, and ships a default for both rather than reporting nothing until configured — `.yaml` over `.yml` (yaml.org's recommended extension since 2006) and kebab-case for a multi-word name (Google's developer documentation style guide, since a search engine reads a hyphen as a word break but not an underscore):
+
+```toml
+[tool.repostyle]
+filename-case = "kebab"                      # or "snake", or "none" to disable
+filename-ignore = ["README.md", "LICENSE"]   # globs exempted from both checks
+
+[tool.repostyle.filename-extensions]
+".yml" = ".yaml"
+```
+
+`filename-extensions` replaces the default mapping wholesale rather than merging into it — repeat `.yml = .yaml` alongside any extra entries, or declare the table empty to disable the check. `filename-case` and `filename-ignore` apply to both the extension and the casing check. `filename-ignore` globs (`fnmatch` semantics, matched against the path relative to the repo root) are the place for a fixed name a tool or convention mandates — `README.md`, `LICENSE`, `Dockerfile`, a generated `CHANGELOG.md`, or `.github/workflows/*.yml` if the repo keeps GitHub Actions' own `.yml` convention — rather than renaming them. Both checks skip `.py` files, whose names are already governed by import-identifier conventions.
 
 ## Suppress a finding
 
