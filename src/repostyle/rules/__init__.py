@@ -44,6 +44,7 @@ from repostyle.rules._violation import (
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
+    RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -86,6 +87,7 @@ from repostyle.rules.docstrings import (
     fix_double_backticks,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
+from repostyle.rules.filenames import check_filename_casing, check_filename_extension
 from repostyle.rules.import_layering import check_banned_import_by_path
 from repostyle.rules.layout import (
     check_class_member_order,
@@ -139,6 +141,7 @@ __all__ = [
     "RS_EXCEPTION_ALIAS",
     "RS_EXCESSIVE_MOCKING",
     "RS_FIELD_COMMENT_AS_DOCSTRING",
+    "RS_FILENAME_CONVENTION",
     "RS_FILLER_DOCSTRING_OPENING",
     "RS_NO_ATTRIBUTES_BLOCK",
     "RS_NO_DOUBLE_BACKTICKS",
@@ -177,6 +180,8 @@ __all__ = [
     "check_exception_alias",
     "check_excessive_mocking",
     "check_field_comment_as_docstring",
+    "check_filename_casing",
+    "check_filename_extension",
     "check_filler_docstring_opening",
     "check_module_element_order",
     "check_no_attributes_block",

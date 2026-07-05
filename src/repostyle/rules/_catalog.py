@@ -36,6 +36,7 @@ from repostyle.rules._violation import (
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
+    RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -420,6 +421,41 @@ RULE_DOCS: dict[str, RuleDoc] = {
         summary=(
             "The return value goes in a `Returns:` section, not narrated in the "
             "docstring body."
+        ),
+    ),
+    RS_FILENAME_CONVENTION: RuleDoc(
+        name="filename-convention",
+        summary=(
+            "A non-Python file uses the configured preferred extension and "
+            "casing (default: `.yaml` over `.yml`, kebab-case)."
+        ),
+        rationale=(
+            "yaml.org has recommended `.yaml` since 2006; `.yml` only "
+            "persists from the old DOS/Windows 8.3 filename-length limit. "
+            "Google's developer documentation style guide prefers hyphens "
+            "over underscores in filenames, since a search engine reads a "
+            "hyphen as a word break but not an underscore. Both defaults are "
+            "configurable — `[tool.repostyle.filename-extensions]` replaces "
+            "the extension map wholesale, `filename-case` takes `snake` or "
+            "`none`, and `filename-ignore` exempts a glob of fixed-name "
+            "files a tool mandates (`README.md`, a generated `CHANGELOG.md`) "
+            "rather than asking them renamed. An "
+            "extensionless name like `Dockerfile` or `LICENSE` only reaches "
+            "this rule if the consuming repo's own pre-commit hook is "
+            "configured to pass it — the shipped hook and a bare directory "
+            "argument both discover only `.py`/`.toml`/`.yaml`/`.yml`/`.md`."
+        ),
+        examples=(
+            Example(
+                bad="config.yml",
+                good="config.yaml",
+                note="The default `filename-extensions` mapping.",
+            ),
+            Example(
+                bad="my_config.yaml",
+                good="my-config.yaml",
+                note="The default `filename-case` of kebab.",
+            ),
         ),
     ),
 }
