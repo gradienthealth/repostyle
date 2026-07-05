@@ -33,12 +33,11 @@ DEFAULT_EXTENSION_MAP: dict[str, str] = {".yml": ".yaml"}
 
 # Google's developer documentation style guide prefers hyphens over underscores
 # in filenames, since a search engine reads a hyphen as a word break but not an
-# underscore. `[tool.repostyle.filename-case]` overrides this with `"snake"`,
-# or disables the check with any other value (`"none"` is the documented
-# spelling).
+# underscore. `filename-case` overrides this with `"snake"`, or disables the
+# check with any other value (`"none"` is the documented spelling).
 DEFAULT_FILENAME_CASE = "kebab"
 
-_WORD_PATTERN = {
+_WORD_PATTERNS = {
     "kebab": re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$"),
     "snake": re.compile(r"^[a-z0-9]+(_[a-z0-9]+)*$"),
 }
@@ -67,19 +66,19 @@ def check_filename_extension(path: Path, source: str) -> Iterator[Violation]:
 
 
 def check_filename_casing(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a filename whose dot-separated words are not uniformly cased.
+    """Flag a filename stem whose segments don't match the configured case.
 
-    The casing (`"kebab"` or `"snake"`) is read from
-    `[tool.repostyle.filename-case]`, defaulting to kebab-case; any other
-    value, including the documented `"none"`, disables the check. A `.py` file
-    and a path matched by `filename-ignore` are exempt. A leading dot marking a
-    hidden file (`.pre-commit-config.yaml`) is not itself a word boundary.
+    The casing (`"kebab"` or `"snake"`) is read from `filename-case`,
+    defaulting to kebab-case; any other value, including the documented
+    `"none"`, disables the check. A `.py` file and a path matched by
+    `filename-ignore` are exempt. A leading dot marking a hidden file
+    (`.pre-commit-config.yaml`) is not itself a word boundary.
     """
     table = _resolve_table(path)
     if table is None:
         return
     case = _filename_case(table)
-    pattern = _WORD_PATTERN.get(case)
+    pattern = _WORD_PATTERNS.get(case)
     if pattern is None:
         return
     segments = _name_segments(path.stem)
