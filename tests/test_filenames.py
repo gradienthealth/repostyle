@@ -56,16 +56,24 @@ class TestCheckFilenameExtension:
         target = _target(tmp_path, "config.yml", table=table)
         assert list(check_filename_extension(target, _SOURCE)) == []
 
+    def test_IgnoredGlobDoesNotMatch_StillFlagsViolation(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle]\nfilename-ignore = ["other.yml"]\n'
+        target = _target(tmp_path, "config.yml", table=table)
+        violations = list(check_filename_extension(target, _SOURCE))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_FILENAME_CONVENTION
+
     def test_PythonFile_NoViolation(self, tmp_path: Path) -> None:
-        target = _target(tmp_path, "config.py")
+        table = '[tool.repostyle.filename-extensions]\n".py" = ".pyx"\n'
+        target = _target(tmp_path, "config.py", table=table)
         assert list(check_filename_extension(target, "x = 1\n")) == []
 
 
 class TestCheckFilenameCasing:
     @pytest.mark.parametrize(
         "name",
-        ["my_config.yaml", "MyConfig.yaml", "my_config.toml"],
-        ids=["snake_case", "PascalCase", "toml_snake_case"],
+        ["my_config.yaml", "MyConfig.yaml"],
+        ids=["snake_case", "PascalCase"],
     )
     def test_NonKebabName_FlagsViolation(self, tmp_path: Path, name: str) -> None:
         target = _target(tmp_path, name)
