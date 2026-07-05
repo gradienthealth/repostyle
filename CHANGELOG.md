@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.11.0...repostyle-v0.12.0) (2026-07-05)
+
+
+### Features
+
+* **NO-ISSUE:** add RS033 to flag non-conforming filenames ([#77](https://github.com/gradienthealth/repostyle/issues/77)) ([4330df1](https://github.com/gradienthealth/repostyle/commit/4330df1cca513c6b84e696fab7a1ea12593b8644))
+
 ## [0.11.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.10.1...repostyle-v0.11.0) (2026-07-04)
 
 
