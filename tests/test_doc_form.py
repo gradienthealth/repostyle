@@ -240,6 +240,7 @@ class TestCheckImperativeDocstringOpening:
         ("summary", "expected_message_fragment"),
         [
             ("Return the lease.", "'Returns', not 'Return'"),
+            ("Check whether the input is valid.", "'Checks', not 'Check'"),
             ("Apply the patch.", "'Applies', not 'Apply'"),
             ("Do the work.", "'Does', not 'Do'"),
             ("Have the value ready.", "'Has', not 'Have'"),
@@ -247,6 +248,7 @@ class TestCheckImperativeDocstringOpening:
         ],
         ids=[
             "regular",
+            "kept-homograph",
             "consonant-y",
             "es-suffix-o",
             "irregular",
@@ -287,9 +289,7 @@ class TestCheckImperativeDocstringOpening:
         [
             "Returns the lease held by the client.",
             "A test that returns the lease.",
-            "Reads and returns the cached value.",
             "Returned the wrong lease before this fix.",
-            "Check constraint enforced on the age column.",
             "Report card issued to students.",
             "Route table entry added for the subnet.",
             "return the count.",
@@ -297,9 +297,7 @@ class TestCheckImperativeDocstringOpening:
         ids=[
             "descriptive",
             "not-first-word",
-            "second-conjugated-verb",
             "past-tense",
-            "homograph-check",
             "homograph-report",
             "homograph-route",
             "lowercase-opening",

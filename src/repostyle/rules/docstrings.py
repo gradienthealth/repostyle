@@ -52,14 +52,18 @@ _FILLER_OPENING_PATTERN = re.compile(
 # Bare-infinitive verbs commonly seen opening a docstring summary, matched
 # case-sensitively (a docstring summary always capitalizes its first word) with
 # a trailing `\b`, so `Returned` or `Returning` does not false-match `Return`.
-# A common-noun reading is a real risk for some verbs (`Format`, `Set`,
-# `Group`, `Flag`, `Handle`, `Filter`, `Report`, `Route`, `Check`); rather than
-# guard each shape a noun reading can take, this list leaves all of them out
-# entirely.
+# A common-noun reading is a real risk for some of these; the ones rarely seen
+# as a genuine imperative opening (`Format`, `Set`, `Group`, `Flag`, `Handle`,
+# `Filter`, `Report`, `Route`) are left out of this list entirely. `Check` is
+# kept despite the same risk (`Check constraint enforced on the age column.`)
+# because it is by far the most common genuine imperative opening among them;
+# the occasional false positive is an accepted cost of a warning-severity,
+# advisory rule.
 _IMPERATIVE_VERBS: tuple[str, ...] = (
     "Add",
     "Apply",
     "Build",
+    "Check",
     "Close",
     "Collect",
     "Combine",
