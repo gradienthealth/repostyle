@@ -142,8 +142,11 @@ def fix_double_backticks(
 
     A markdown file's prose lines and a Python file's docstring lines are
     rewritten; a fenced markdown block and a docstring whose owner line is in
-    `skip_lines` are left untouched. Returns the source unchanged when nothing
-    rewrites.
+    `skip_lines` are left untouched.
+
+    Returns:
+        The source with double backticks rewritten to single, unchanged when
+        nothing rewrites.
     """
     if path.suffix == ".md":
         return _fix_double_backticks_md(source)
@@ -376,8 +379,11 @@ def fix_docstring_terminal_punctuation(
     A summary, body paragraph, or section entry that the rule flags as missing
     terminal punctuation gains a trailing `.` after its content, before the
     closing quote when the quote shares the line. A unit whose line is in
-    `skip_lines` is left untouched. Returns the source unchanged when nothing
-    appends.
+    `skip_lines` is left untouched.
+
+    Returns:
+        The source with a period appended to each flagged unit, unchanged when
+        nothing appends.
     """
     tree = _parse_python(path, source)
     if tree is None:

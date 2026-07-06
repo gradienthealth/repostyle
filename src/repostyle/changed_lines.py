@@ -19,10 +19,11 @@ _HUNK_HEADER = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 def changed_lines(path: Path, base: str) -> set[int] | None:
     """Returns the new-file line numbers `path` adds or modifies versus `base`.
 
-    Returns `None` when the change set cannot be trusted — git is unavailable,
-    `base` is unknown, or `path` is untracked — so the caller reports every
-    finding rather than hide one. A tracked file with no diff against `base`
-    returns an empty set.
+    Returns:
+        `None` when the change set cannot be trusted — git is unavailable,
+        `base` is unknown, or `path` is untracked — so the caller reports every
+        finding rather than hide one, or an empty set for a tracked file with
+        no diff against `base`.
     """
     diff = _run_git(["diff", "--unified=0", base, "--", path.name], path.parent)
     if diff.returncode != 0:

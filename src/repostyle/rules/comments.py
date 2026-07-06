@@ -170,8 +170,11 @@ def fix_comment_terminal_punctuation(
     fragment carrying one drops it, including a period sitting before trailing
     closers (`note.)`), so the repair matches what the rule flags. A comment
     whose line is in `skip_lines` is left untouched. The fix runs on Python
-    only, though the check spans TOML and YAML too. Returns the source
-    unchanged when nothing repairs.
+    only, though the check spans TOML and YAML too.
+
+    Returns:
+        The source with each flagged comment's terminal punctuation repaired,
+        unchanged when nothing repairs.
     """
     if path.suffix != ".py":
         return source
