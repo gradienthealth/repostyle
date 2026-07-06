@@ -79,7 +79,7 @@ select = [
 # "Returns the lease"). The house convention is the opposite — a descriptive
 # third-person summary, matching Google's own style guide rather than PEP 257 —
 # so D401 stays off. The google convention's default ignore already excludes
-# it; this is a deliberate choice, not an oversight.
+# it.
 
 [lint.pycodestyle]
 # Docstring and comment prose fills to 79 (PEP 8), matching RS009's fill

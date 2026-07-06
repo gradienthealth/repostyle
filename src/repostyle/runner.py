@@ -210,7 +210,7 @@ def _is_skipped_entry(path: Path, base: Path) -> bool:
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:
-    """Applies each enabled fixable rule to `path` in place, reports a change.
+    """Applies each enabled fixable rule to `path` in place, reporting a change.
 
     A no-op unless a fixable rule is enabled and `path` is a Python, markdown,
     TOML, or YAML file. The fixers run in `_FIXERS` order, each handed the
