@@ -271,17 +271,6 @@ class TestCheckImperativeDocstringOpening:
         assert violations[0].line == 1
         assert expected_message_fragment in violations[0].message
 
-    def test_SurveyedHomographs_StayInVerbList(self) -> None:
-        kept = {"Check", "Report", "Route", "Format", "Handle", "Set"}
-        pydocstyle_backed = {"Group", "Flag", "Filter"}
-        assert (kept | pydocstyle_backed) <= set(IMPERATIVE_VERB_CONJUGATIONS)
-
-    def test_NonTrivialConjugations_KeepsOnlyIrregularAndSuffixChanges(self) -> None:
-        assert NON_TRIVIAL_CONJUGATIONS["Have"] == "Has"
-        assert NON_TRIVIAL_CONJUGATIONS["Fetch"] == "Fetches"
-        assert "Return" not in NON_TRIVIAL_CONJUGATIONS
-        assert set(NON_TRIVIAL_CONJUGATIONS) <= set(IMPERATIVE_VERB_CONJUGATIONS)
-
     @pytest.mark.parametrize(
         ("source", "expected_line"),
         [
@@ -322,6 +311,30 @@ class TestCheckImperativeDocstringOpening:
         source = f'def f():\n    """{summary}"""\n    return 1\n'
         assert list(check_imperative_docstring_opening(_SRC, source)) == []
 
+    def test_ImperativeOpeningIsCaseSensitive_NoViolation(self) -> None:
+        source = 'def f():\n    """return the count."""\n    return 1\n'
+        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+
+    def test_NoDocstring_NoViolation(self) -> None:
+        source = "def f():\n    return 1\n"
+        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+
+    def test_UnparseableSource_NoViolation(self) -> None:
+        source = 'def (:\n    """Return the count."""\n'
+        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+
+
+class TestImperativeVerbConjugations:
+    def test_SurveyedHomographs_StayInVerbList(self) -> None:
+        """Keeps homographs a gradienthealth-repo survey found genuinely imperative."""
+        kept = {"Check", "Report", "Route", "Format", "Handle", "Set"}
+        assert kept <= set(IMPERATIVE_VERB_CONJUGATIONS)
+
+    def test_PydocstyleAcceptedHomographs_StayInVerbList(self) -> None:
+        """Keeps homographs pydocstyle's own list accepts with no repo survey."""
+        pydocstyle_backed = {"Group", "Flag", "Filter"}
+        assert pydocstyle_backed <= set(IMPERATIVE_VERB_CONJUGATIONS)
+
     def test_ExcludedWords_AreNotInVerbList(self) -> None:
         domain_nouns = {
             "List",
@@ -339,14 +352,8 @@ class TestCheckImperativeDocstringOpening:
         not_real_verbs = {"Partial", "Rollback", "Init"}
         assert not (domain_nouns | not_real_verbs) & set(IMPERATIVE_VERB_CONJUGATIONS)
 
-    def test_ImperativeOpeningIsCaseSensitive_NoViolation(self) -> None:
-        source = 'def f():\n    """return the count."""\n    return 1\n'
-        assert list(check_imperative_docstring_opening(_SRC, source)) == []
-
-    def test_NoDocstring_NoViolation(self) -> None:
-        source = "def f():\n    return 1\n"
-        assert list(check_imperative_docstring_opening(_SRC, source)) == []
-
-    def test_UnparseableSource_NoViolation(self) -> None:
-        source = 'def (:\n    """Return the count."""\n'
-        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+    def test_NonTrivialConjugations_KeepsOnlyIrregularAndSuffixChanges(self) -> None:
+        assert NON_TRIVIAL_CONJUGATIONS["Have"] == "Has"
+        assert NON_TRIVIAL_CONJUGATIONS["Fetch"] == "Fetches"
+        assert "Return" not in NON_TRIVIAL_CONJUGATIONS
+        assert set(NON_TRIVIAL_CONJUGATIONS) <= set(IMPERATIVE_VERB_CONJUGATIONS)
