@@ -39,6 +39,7 @@ from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -566,6 +567,33 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 note=(
                     "Backtick a literal and a code-shaped parameter; a plain "
                     "word like `path` stays for review to judge."
+                ),
+            ),
+        ),
+    ),
+    RS_GLUED_CODE_SPAN: RuleDoc(
+        name="glued-code-span",
+        summary=(
+            "Prose ends a code span on a word boundary; no suffix is glued to "
+            "the closing backtick."
+        ),
+        rationale=(
+            "A code span sets a name in code font, so a suffix run straight "
+            "onto its closing backtick — a possessive, a plural, or a verb "
+            "ending — reads as part of the identifier and breaks the span in "
+            "rendered Markdown. Moving the suffix outside the span keeps the "
+            "prose readable and the identifier exact. The check stays "
+            "mechanical: it fires on a closing backtick followed by a letter "
+            "or an apostrophe, and leaves a hyphenated compound (`-typed`, "
+            "`-safe`) alone, since that still ends the span on a word boundary."
+        ),
+        examples=(
+            Example(
+                bad='"""Returns the `Observation`s in the bundle."""',
+                good='"""Returns the `Observation` resources in the bundle."""',
+                note=(
+                    "A possessive glues the same way: write the value of "
+                    "`patient.identifier`, not `patient.identifier`'s value."
                 ),
             ),
         ),

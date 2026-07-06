@@ -201,9 +201,9 @@ class TestLintPackage:
     def test_RootPathsOverride_ScansTheOriginalArgumentsTree(
         self, tmp_path: Path
     ) -> None:
-        """Without `root_paths`, the scan misses `outer.py`'s call to `helper`
-        and misreports it as should-be-private; passing `root_paths` widens the
-        scan to the real package root and the finding disappears.
+        """Without `root_paths`, the scan misses the call to `helper` in
+        `outer.py` and misreports it as should-be-private; passing `root_paths`
+        widens the scan to the real package root and the finding disappears.
         """
         nested = tmp_path / "aaa_sub"
         nested.mkdir()

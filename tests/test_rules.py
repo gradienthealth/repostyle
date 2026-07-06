@@ -15,6 +15,7 @@ from repostyle.rules import (
     RS_DURATION_AS_TIMEDELTA,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
+    RS_GLUED_CODE_SPAN,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MAKE_IN_PRODUCTION,
@@ -39,6 +40,9 @@ from repostyle.rules import (
     check_duration_as_timedelta,
     check_exception_alias,
     check_excessive_mocking,
+    check_glued_code_span_in_comments,
+    check_glued_code_span_in_docstrings,
+    check_glued_code_span_in_md,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
@@ -304,6 +308,11 @@ class TestCheckUnbacktickedCodeReference:
                 'def f(skip_lines):\n    """Does it. skip_lines drives it."""\n',
                 "skip_lines",
             ),
+            (
+                'def f(skip_lines):\n    """Does it.\n\n'
+                '    - drops skip_lines.\n    """\n',
+                "skip_lines",
+            ),
         ],
         ids=[
             "literal",
@@ -311,6 +320,7 @@ class TestCheckUnbacktickedCodeReference:
             "camel-case-import",
             "attribute",
             "code-shape-at-sentence-start",
+            "bullet-item",
         ],
     )
     def test_BareCodeNameInProse_FlagsViolation(self, source: str, token: str) -> None:
@@ -366,6 +376,186 @@ class TestCheckUnbacktickedCodeReference:
     def test_NonPythonFile_NotChecked(self) -> None:
         assert (
             list(check_unbackticked_code_reference(Path("README.md"), "Returns None."))
+            == []
+        )
+
+
+class TestCheckGluedCodeSpanInDocstrings:
+    @pytest.mark.parametrize(
+        "docstring",
+        [
+            '"""Returns `patient.identifier`\'s value."""',
+            '"""Returns the `Observation`s in the bundle."""',
+            '"""Returns the bundle once `parse`d."""',
+            '"""Returns `x`’s value."""',
+        ],
+        ids=["possessive", "plural", "verb-suffix", "curly-apostrophe"],
+    )
+    def test_SuffixGluedToSpan_FlagsViolation(self, docstring: str) -> None:
+        source = f"def f():\n    {docstring}\n"
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_GLUED_CODE_SPAN
+
+    @pytest.mark.parametrize(
+        "docstring",
+        [
+            '"""Returns the value of `patient.identifier`."""',
+            '"""Builds a `str`-typed value."""',
+            '"""Returns `x`, then stops."""',
+            '"""Returns `x` (the id)."""',
+        ],
+        ids=["of-form", "hyphen-compound", "punctuation", "paren"],
+    )
+    def test_SpanEndsOnWordBoundary_NoViolation(self, docstring: str) -> None:
+        source = f"def f():\n    {docstring}\n"
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_GluedSuffix_ColumnAtSuffix(self) -> None:
+        source = 'def f():\n    """Uses `x`s here."""\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (2, 16)
+
+    def test_TwoSpansWithGapBetween_NoViolation(self) -> None:
+        # The gap between two spans must not be read as a span of its own, the
+        # regression the finditer pairing exists to prevent.
+        source = 'def f():\n    """Uses `a` and `b` here."""\n'
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_TwoGluedSpans_FlagsEach(self) -> None:
+        source = 'def f():\n    """Uses `a`s and `b`s here."""\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert len(violations) == 2
+
+    def test_GluedSuffixOnLaterLine_MapsToThatLineAndColumn(self) -> None:
+        source = 'def f():\n    """Summary.\n\n    Uses `x`s in the body.\n    """\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (4, 13)
+
+    def test_SpanCrossingLineBreak_NoFalsePositive(self) -> None:
+        # A span whose backticks sit on different physical lines pairs as one
+        # span; its trailing backtick must not pair with a later opening one.
+        source = 'def f():\n    """Returns the `long\n    reference` value."""\n'
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_EmptySpanBeforeLetter_NoViolation(self) -> None:
+        source = 'def f():\n    """text ``s here."""\n'
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_GluedSuffixInsideFence_NoViolation(self) -> None:
+        # A fenced code block holds code, not prose; its backticks must not
+        # pair with a prose span's and draw a false finding, as the Markdown
+        # check also excludes a fence.
+        source = (
+            "def f():\n"
+            '    """Doc.\n'
+            "\n"
+            "    ```\n"
+            "    xs = `Observation`s\n"
+            "    ```\n"
+            '    """\n'
+        )
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_GluedSuffixInExampleSection_NoViolation(self) -> None:
+        # An `Example:` section holds code, not prose, whether or not it is
+        # fenced; the segmenter excludes it as it does for the other doc rules.
+        source = (
+            "def f():\n"
+            '    """Parses input.\n'
+            "\n"
+            "    Example:\n"
+            "        result = `parse`d output\n"
+            '    """\n'
+        )
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_GluedSuffixInBullet_FlagsViolation(self) -> None:
+        # A bullet item is prose, so a glued span in one is flagged, unlike a
+        # code section; the finding lands on the bullet's own line.
+        source = 'def f():\n    """Doc.\n\n    - uses `x`s here.\n    """\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (4, 15)
+
+    def test_GluedSuffixInConcatenatedDocstring_FlagsViolation(self) -> None:
+        # An implicitly-concatenated docstring collapses the value-to-physical
+        # line mapping, so its lines are all scanned; the finding still lands
+        # on the physical line the glued span sits on.
+        source = 'def f():\n    ("""Summary text."""\n     """Uses `item`s here.""")\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (3, 20)
+
+    def test_EscapedNewlineWithFence_NoViolation(self) -> None:
+        # An escaped newline only adds value lines, not physical ones, so it is
+        # not the collapsed-mapping case; the fence stays blanked, unscanned.
+        source = (
+            "def f():\n"
+            '    """Doc.\\nmore.\n'
+            "\n"
+            "    ```\n"
+            "    y = `item`s\n"
+            "    ```\n"
+            '    """\n'
+        )
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+
+class TestCheckGluedCodeSpanInComments:
+    def test_SuffixGluedToSpanInComment_FlagsViolation(self) -> None:
+        source = "x = 1  # `retries`'s ceiling\n"
+        violations = list(check_glued_code_span_in_comments(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_GLUED_CODE_SPAN
+
+    def test_SpanEndsOnWordBoundaryInComment_NoViolation(self) -> None:
+        source = "x = 1  # the ceiling of `retries`\n"
+        assert list(check_glued_code_span_in_comments(Path("src/x.py"), source)) == []
+
+    def test_GluedSuffixInComment_ColumnAtSuffix(self) -> None:
+        source = "x = 1  # `retries`'s ceiling\n"
+        violations = list(check_glued_code_span_in_comments(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (1, 19)
+
+    def test_YamlComment_FlagsViolation(self) -> None:
+        source = "key: 1  # `retries`'s cap\n"
+        violations = list(check_glued_code_span_in_comments(Path("cfg.yaml"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_GLUED_CODE_SPAN
+
+    def test_MarkdownFile_NotCheckedAsComment(self) -> None:
+        # `.md` is not a comment-bearing suffix; a heading is the md check's,
+        # not the comment check's, so it is not tokenized or double-reported.
+        source = "# `Observation`s heading\n"
+        assert list(check_glued_code_span_in_comments(Path("README.md"), source)) == []
+
+    def test_MalformedPythonIndentation_DoesNotRaise(self) -> None:
+        # An untokenizable file yields nothing rather than aborting the run;
+        # the finding on the malformed line is dropped, not reported.
+        source = "def f():\n    x = 1\n  y = 2  # `x`'s note\n"
+        assert list(check_glued_code_span_in_comments(Path("bad.py"), source)) == []
+
+
+class TestCheckGluedCodeSpanInMd:
+    def test_SuffixGluedToSpanInMd_FlagsViolation(self) -> None:
+        violations = list(
+            check_glued_code_span_in_md(Path("README.md"), "The `Observation`s ship.")
+        )
+        assert len(violations) == 1
+        assert violations[0].rule == RS_GLUED_CODE_SPAN
+
+    def test_GluedSuffixInsideFence_NoViolation(self) -> None:
+        source = "```python\nxs = `Observation`s\n```"
+        assert list(check_glued_code_span_in_md(Path("README.md"), source)) == []
+
+    def test_SpanAtEndOfLine_NoViolation(self) -> None:
+        assert (
+            list(check_glued_code_span_in_md(Path("README.md"), "See `Observation`"))
+            == []
+        )
+
+    def test_NonMarkdownFile_NotChecked(self) -> None:
+        assert (
+            list(check_glued_code_span_in_md(Path("notes.txt"), "The `Observation`s."))
             == []
         )
 

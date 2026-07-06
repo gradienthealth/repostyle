@@ -26,6 +26,7 @@ from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -60,6 +61,9 @@ from repostyle.rules.docstrings import (
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
+    check_glued_code_span_in_comments,
+    check_glued_code_span_in_docstrings,
+    check_glued_code_span_in_md,
     check_imperative_docstring_opening,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
@@ -143,6 +147,11 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_FILENAME_CONVENTION: (check_filename_extension, check_filename_casing),
     RS_DOC_SUMMARY_OVERFLOW: (check_doc_summary_overflow,),
     RS_UNBACKTICKED_CODE_REFERENCE: (check_unbackticked_code_reference,),
+    RS_GLUED_CODE_SPAN: (
+        check_glued_code_span_in_md,
+        check_glued_code_span_in_docstrings,
+        check_glued_code_span_in_comments,
+    ),
 }
 
 
@@ -176,6 +185,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_IMPERATIVE_DOCSTRING_OPENING: Severity.WARNING,
     RS_DOC_SUMMARY_OVERFLOW: Severity.WARNING,
     RS_UNBACKTICKED_CODE_REFERENCE: Severity.WARNING,
+    RS_GLUED_CODE_SPAN: Severity.WARNING,
 }
 
 

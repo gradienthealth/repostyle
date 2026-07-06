@@ -107,7 +107,7 @@ def _filename_case(table: dict[str, object]) -> str:
 
 
 def _resolve_table(path: Path) -> dict[str, object] | None:
-    """Returns `path`'s `[tool.repostyle]` table, or `None` if exempt."""
+    """Returns the `[tool.repostyle]` table for `path`, or `None` if exempt."""
     if path.suffix == ".py":
         return None
     pyproject = find_pyproject(path)

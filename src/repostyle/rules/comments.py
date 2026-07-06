@@ -116,7 +116,7 @@ def _own_line_comments(path: Path, source: str) -> Iterator[tuple[int, int, str]
 
 
 def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
-    """Returns the allowed tags and ticket pattern for `path`'s repo."""
+    """Returns the allowed tags and ticket pattern for the repo of `path`."""
     pyproject = find_pyproject(path)
     if pyproject is None:
         return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN

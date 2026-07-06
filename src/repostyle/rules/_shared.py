@@ -144,7 +144,7 @@ def _is_test_file(path: Path) -> bool:
 
 
 def _join_source_lines(source: str, lines: list[str]) -> str:
-    """Rejoins split-and-edited `lines` preserving `source`'s line endings.
+    """Rejoins edited `lines`, keeping the line endings of `source`.
 
     The source's newline style and its final-newline presence are carried over,
     so a fixer that splits with `splitlines` and rewrites a few lines does not

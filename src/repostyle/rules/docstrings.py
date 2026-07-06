@@ -19,6 +19,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
+from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._shared import (
     _comment_text,
     _is_directive_comment,
@@ -33,6 +34,7 @@ from repostyle.rules._shared import (
 from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -104,6 +106,9 @@ _IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # before scanning.
 _ENTRY_CAPTION_PATTERN = re.compile(r"^\S+(?:\s*\([^)]*\))?:\s*")
 _SENTENCE_ENDINGS = (".", "!", "?")
+_GLUED_SPAN_MESSAGE = (
+    "a code span carries a glued suffix; move the suffix outside the backticks"
+)
 
 
 def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
@@ -195,6 +200,121 @@ def _fix_double_backticks_md(source: str) -> str:
             source_lines[index] = rewritten
             changed = True
     return _join_source_lines(source, source_lines) if changed else source
+
+
+def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Violation]:
+    """Docstring prose may not glue an inflection to a code span.
+
+    A code span sets a name in code font, so an English suffix run straight
+    onto its closing backtick — a possessive apostrophe-s, a plural, or a verb
+    ending — reads as part of the identifier and breaks the span in rendered
+    Markdown. The check fires on a closing backtick followed at once by a
+    letter or an apostrophe, and leaves a hyphenated compound such as `-safe`
+    alone, since that keeps the span ending on a word boundary. The rule warns
+    and has no automatic fix; the remedy is to move the suffix outside the
+    span.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        start = constant.lineno
+        end = constant.end_lineno or start
+        # Join the docstring's physical lines so a code span crossing a line
+        # break pairs as one span; scanning each line alone would pair a
+        # wrapped span's trailing backtick with the next span's opening one. A
+        # line outside the segmenter's prose units — inside a fence or
+        # `Example:` section, or a doctest line — is blanked to its width so
+        # its backticks neither pair nor draw a finding, as RS030 and RS036
+        # also skip those lines, while the blank preserves the column math
+        # below. The blanking is skipped only for an implicitly-concatenated
+        # literal, whose adjacent pieces decode to fewer lines than the literal
+        # spans and so collapse the value-to-physical mapping the blanking
+        # relies on; such a literal carries no code section, so all its lines
+        # are scanned. A single literal — even one with an escaped newline,
+        # which only adds value lines — keeps the blanking so a fenced or
+        # `Example:` region stays excluded.
+        concatenated = constant.value.count("\n") < end - start
+        prose_lines = _docstring_prose_line_numbers(constant)
+        block = "\n".join(
+            line if concatenated or lineno in prose_lines else " " * len(line)
+            for lineno, line in enumerate(source_lines[start - 1 : end], start)
+        )
+        for offset in _glued_code_span_columns(block):
+            before = block[:offset]
+            yield Violation(
+                start + before.count("\n"),
+                offset - before.rfind("\n"),
+                RS_GLUED_CODE_SPAN,
+                _GLUED_SPAN_MESSAGE,
+            )
+
+
+def check_glued_code_span_in_comments(path: Path, source: str) -> Iterator[Violation]:
+    """A comment may not glue an English suffix onto a code span.
+
+    The same rule the docstring check applies holds for a comment: a suffix run
+    onto a code span's closing backtick reads as part of the identifier. A
+    standalone and a trailing comment are covered alike, across the Python,
+    TOML, and YAML comments `extract_comments` handles — tokenizing a
+    non-Python file as Python here would raise on its first irregular indent.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    for comment in extract_comments(path, source):
+        for offset in _glued_code_span_columns(comment.string):
+            yield Violation(
+                comment.lineno,
+                comment.column + offset + 1,
+                RS_GLUED_CODE_SPAN,
+                _GLUED_SPAN_MESSAGE,
+            )
+
+
+def check_glued_code_span_in_md(path: Path, source: str) -> Iterator[Violation]:
+    """Markdown prose may not glue an inflection to a code span."""
+    if path.suffix != ".md":
+        return
+    for index, line in _unfenced_md_lines(source):
+        for offset in _glued_code_span_columns(line):
+            yield Violation(
+                index + 1, offset + 1, RS_GLUED_CODE_SPAN, _GLUED_SPAN_MESSAGE
+            )
+
+
+def _docstring_prose_line_numbers(constant: ast.Constant) -> frozenset[int]:
+    """Returns the source lines the docstring's prose units occupy.
+
+    The segmenter that groups a docstring into summary, body, entry, and bullet
+    units already drops a fenced block, an `Example:` section, a doctest, and a
+    verbatim line, so the union of its units' source lines is exactly the prose
+    the glued-span check should scan.
+    """
+    return frozenset(
+        lineno for unit in _docstring_prose_units(constant) for lineno in unit.linenos
+    )
+
+
+def _glued_code_span_columns(text: str) -> Iterator[int]:
+    """Yields the 0-based column of each suffix glued to a code span in `text`.
+
+    Real spans are found with `finditer`, which consumes each span so backticks
+    pair left to right; matching the trailing character in the pattern instead
+    would let a failed match restart on a closing backtick and read the gap
+    between two spans as a span of its own. A letter or an apostrophe abutting
+    a span's closing backtick is the glued suffix; a hyphen (a compound like
+    `-typed`) and any other character are left alone.
+    """
+    for match in _BACKTICK_SPAN_PATTERN.finditer(text):
+        end = match.end()
+        if end - match.start() <= 2 or end >= len(text):
+            continue
+        if text[end].isalpha() or text[end] in "'’":
+            yield end
 
 
 def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Violation]:
@@ -378,6 +498,8 @@ def check_docstring_terminal_punctuation(
         if constant is None:
             continue
         for unit in _docstring_prose_units(constant):
+            if unit.kind == "bullet":
+                continue
             if _terminal_punctuation_fault(unit.text, is_prose=True) is None:
                 continue
             yield Violation(
@@ -453,7 +575,7 @@ def fix_docstring_terminal_punctuation(
         if constant is None:
             continue
         for unit in _docstring_prose_units(constant):
-            if unit.lineno in skip_lines:
+            if unit.kind == "bullet" or unit.lineno in skip_lines:
                 continue
             if _terminal_punctuation_fault(unit.text, is_prose=True) != "missing":
                 continue
@@ -591,7 +713,7 @@ def _begins_sentence(text: str, start: int) -> bool:
 
 
 def _docstring_constant(node: ast.AST) -> ast.Constant | None:
-    """Returns `node`'s docstring string-literal node, or `None`."""
+    """Returns the docstring string-literal node of `node`, or `None`."""
     body = getattr(node, "body", None)
     if not body:
         return None
@@ -640,7 +762,7 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
 
 
 def _docstring_summary_line(docstring: str) -> str:
-    """Returns a cleaned `docstring`'s first non-blank line, stripped."""
+    """Returns the first non-blank line of a cleaned `docstring`, stripped."""
     return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
 
 
@@ -661,8 +783,8 @@ class _DocstringSegmenter:
     Feed lines in order with `consume`, call `close` after the last, then read
     `units`. The first paragraph is the summary; later margin paragraphs are
     body; a `Note:` section's body is treated as body; an `Args:`-style section
-    yields one entry per item; and code, doctests, `Example:` sections,
-    bullets, and verbatim lines yield nothing.
+    yields one entry per item; a bullet yields a one-line bullet unit; and
+    code, doctests, `Example:` sections, and verbatim lines yield nothing.
     """
 
     def __init__(self) -> None:
@@ -682,8 +804,9 @@ class _DocstringSegmenter:
             self._summary_done = True
         last = self._open[-1]
         text = " ".join(line.text for line in self._open)
+        linenos = tuple(line.lineno for line in self._open)
         self.units.append(
-            _ProseUnit(self._open_kind, last.lineno, last.column + 1, text)
+            _ProseUnit(self._open_kind, last.lineno, last.column + 1, text, linenos)
         )
         self._open = []
 
@@ -695,6 +818,14 @@ class _DocstringSegmenter:
             return
         if _BULLET_PATTERN.match(line.text):
             self.close()
+            # A bullet is prose the code-reference and glued-span rules scan,
+            # so it becomes its own unit; the terminal-punctuation rule skips a
+            # `bullet` unit, since a list item need not close with a period.
+            self.units.append(
+                _ProseUnit(
+                    "bullet", line.lineno, line.column + 1, line.text, (line.lineno,)
+                )
+            )
             return
         if self._section == "entry":
             self._consume_entry(line)
@@ -773,13 +904,15 @@ class _DocstringSegmenter:
 
 class _ProseUnit(NamedTuple):
     kind: str
-    """`summary`, `body`, or `entry`."""
+    """`summary`, `body`, `entry`, or `bullet`."""
     lineno: int
     """Source line the unit's terminal punctuation sits on."""
     col: int
     """1-based column the violation points at."""
     text: str
     """The unit's lines joined into one string."""
+    linenos: tuple[int, ...]
+    """The source lines the unit's prose occupies."""
 
 
 def _field_has_docstring(body: list[ast.stmt], index: int) -> bool:
@@ -807,7 +940,7 @@ def _leading_comment_line(
     comments: dict[int, tuple[int, str]],
     source_lines: list[str],
 ) -> int | None:
-    """Returns the line of `node`'s first-body-position standalone comment.
+    """Returns the line of the first-position standalone comment in `node`.
 
     The comment sits directly above the first body statement, with only blank
     lines between, below the definition header. A comment deeper in the body,
