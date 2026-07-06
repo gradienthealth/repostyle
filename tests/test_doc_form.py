@@ -285,9 +285,7 @@ class TestCheckImperativeDocstringOpening:
         target = _target(tmp_path, source, table)
         assert list(check_imperative_docstring_opening(target, source)) == []
 
-    def test_ConfiguredSingleLetterExtraVerb_DoesNotCrash(
-        self, tmp_path: Path
-    ) -> None:
+    def test_ConfiguredSingleLetterExtraVerb_DoesNotCrash(self, tmp_path: Path) -> None:
         """Conjugates a one-letter configured verb without an index error."""
         table = '[tool.repostyle]\nimperative-verbs-extra = ["y"]\n'
         source = 'def f():\n    """y the thing."""\n'
