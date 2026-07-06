@@ -322,8 +322,8 @@ def _effective_conjugations(pyproject: Path | None) -> dict[str, str]:
 
     A repo adds its own survey-backed verb via `imperative-verbs-extra`, or
     drops a homograph too risky for its own domain via
-    `imperative-verbs-exclude`, tuning RS034 locally instead of forking
-    repostyle's curated list — the same override pattern RS017's
+    `imperative-verbs-exclude`, tuning RS034 locally instead of editing the
+    shared verb list every repo inherits — the same override pattern RS017's
     `banned-imports` and RS033's `filename-extensions` already use. A consuming
     repo excluding every verb (its own plus any extra) is left with an empty
     map; `_effective_pattern` handles that by matching nothing, rather than

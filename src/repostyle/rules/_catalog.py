@@ -490,7 +490,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "this codebase's own domain. A consuming repo tunes the set for "
             "its own domain via `imperative-verbs-extra`/"
             "`imperative-verbs-exclude` in `[tool.repostyle]`, rather than "
-            "forking repostyle's source."
+            "editing the shared verb list every repo inherits."
         ),
         examples=(
             Example(
