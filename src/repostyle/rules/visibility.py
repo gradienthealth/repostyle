@@ -98,9 +98,9 @@ class _ModuleFacts:
     imported: set[str] = field(default_factory=set)
     """Names this module binds through an import (its re-export candidates)."""
     name_loads: set[str] = field(default_factory=set)
-    """Identifiers loaded by name in this module, precise local-use signal."""
+    """Identifiers this module loads by name, a precise local-use signal."""
     broad_refs: set[str] = field(default_factory=set)
-    """Every identifier this module mentions, generous cross-module signal."""
+    """Identifiers this module mentions, a generous cross-module signal."""
 
 
 def _collect_definitions(tree: ast.AST, facts: _ModuleFacts) -> None:

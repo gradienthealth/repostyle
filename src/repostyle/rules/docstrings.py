@@ -282,7 +282,7 @@ def check_docstring_terminal_punctuation(
 def fix_docstring_terminal_punctuation(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
-    """Appends a period to an unterminated docstring prose unit, the RS030 fix.
+    """Appends a period to each unterminated docstring prose unit, RS030's fix.
 
     A summary, body paragraph, or section entry that the rule flags as missing
     terminal punctuation gains a trailing `.` after its content, before the

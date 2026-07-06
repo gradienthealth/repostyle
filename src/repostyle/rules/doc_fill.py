@@ -85,7 +85,7 @@ def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
         return
     source_lines = source.splitlines()
     for node in ast.walk(tree):
-        if not _is_docstring_constant(node):
+        if not _is_bare_string_literal_statement(node):
             continue
         lineno = node.value.lineno
         rendered = source_lines[lineno - 1].rstrip()
@@ -148,7 +148,7 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
     tree = _parse_python(path, source)
     if tree is not None:
         for node in ast.walk(tree):
-            if _is_docstring_constant(node):
+            if _is_bare_string_literal_statement(node):
                 end = node.value.end_lineno
                 if end is None or end == node.value.lineno:
                     continue
@@ -159,7 +159,7 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
         yield from _fill_units(block)
 
 
-def _is_docstring_constant(node: ast.AST) -> bool:
+def _is_bare_string_literal_statement(node: ast.AST) -> bool:
     """Reports whether `node` is a bare string-literal expression statement."""
     return (
         isinstance(node, ast.Expr)

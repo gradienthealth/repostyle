@@ -31,7 +31,7 @@ _BRANCH_STATEMENTS = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.Try)
 
 
 def check_test_naming(path: Path, source: str) -> Iterator[Violation]:
-    """A unit test matches `test_StateUnderTest_ExpectedBehavior`."""
+    """A `tests/unit/` test matches `test_StateUnderTest_ExpectedBehavior`."""
     if UNIT_TEST_PATH_FRAGMENT not in _posix(path):
         return
     if path.name in {"conftest.py", "__init__.py"}:
