@@ -224,7 +224,6 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
             continue
         start = constant.lineno
         end = constant.end_lineno or start
-        prose_lines = _docstring_prose_line_numbers(constant)
         # Join the docstring's physical lines so a code span crossing a line
         # break pairs as one span; scanning each line alone would pair a
         # wrapped span's trailing backtick with the next span's opening one. A
@@ -232,9 +231,17 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
         # `Example:` section, or a doctest line — is blanked to its width so
         # its backticks neither pair nor draw a finding, as RS030 and RS036
         # also skip those lines, while the blank preserves the column math
-        # below.
+        # below. The blanking is skipped only for an implicitly-concatenated
+        # literal, whose adjacent pieces decode to fewer lines than the literal
+        # spans and so collapse the value-to-physical mapping the blanking
+        # relies on; such a literal carries no code section, so all its lines
+        # are scanned. A single literal — even one with an escaped newline,
+        # which only adds value lines — keeps the blanking so a fenced or
+        # `Example:` region stays excluded.
+        concatenated = constant.value.count("\n") < end - start
+        prose_lines = _docstring_prose_line_numbers(constant)
         block = "\n".join(
-            line if lineno in prose_lines else " " * len(line)
+            line if concatenated or lineno in prose_lines else " " * len(line)
             for lineno, line in enumerate(source_lines[start - 1 : end], start)
         )
         for offset in _glued_code_span_columns(block):
@@ -282,10 +289,10 @@ def check_glued_code_span_in_md(path: Path, source: str) -> Iterator[Violation]:
 def _docstring_prose_line_numbers(constant: ast.Constant) -> frozenset[int]:
     """Returns the source lines the docstring's prose units occupy.
 
-    The segmenter that groups a docstring into summary, body, and entry units
-    already drops a fenced block, an `Example:` section, a doctest, a bullet,
-    and a verbatim line, so the union of its units' source lines is exactly the
-    prose the glued-span check should scan.
+    The segmenter that groups a docstring into summary, body, entry, and bullet
+    units already drops a fenced block, an `Example:` section, a doctest, and a
+    verbatim line, so the union of its units' source lines is exactly the prose
+    the glued-span check should scan.
     """
     return frozenset(
         lineno for unit in _docstring_prose_units(constant) for lineno in unit.linenos
@@ -491,6 +498,8 @@ def check_docstring_terminal_punctuation(
         if constant is None:
             continue
         for unit in _docstring_prose_units(constant):
+            if unit.kind == "bullet":
+                continue
             if _terminal_punctuation_fault(unit.text, is_prose=True) is None:
                 continue
             yield Violation(
@@ -566,7 +575,7 @@ def fix_docstring_terminal_punctuation(
         if constant is None:
             continue
         for unit in _docstring_prose_units(constant):
-            if unit.lineno in skip_lines:
+            if unit.kind == "bullet" or unit.lineno in skip_lines:
                 continue
             if _terminal_punctuation_fault(unit.text, is_prose=True) != "missing":
                 continue
@@ -774,8 +783,8 @@ class _DocstringSegmenter:
     Feed lines in order with `consume`, call `close` after the last, then read
     `units`. The first paragraph is the summary; later margin paragraphs are
     body; a `Note:` section's body is treated as body; an `Args:`-style section
-    yields one entry per item; and code, doctests, `Example:` sections,
-    bullets, and verbatim lines yield nothing.
+    yields one entry per item; a bullet yields a one-line bullet unit; and
+    code, doctests, `Example:` sections, and verbatim lines yield nothing.
     """
 
     def __init__(self) -> None:
@@ -809,6 +818,14 @@ class _DocstringSegmenter:
             return
         if _BULLET_PATTERN.match(line.text):
             self.close()
+            # A bullet is prose the code-reference and glued-span rules scan,
+            # so it becomes its own unit; the terminal-punctuation rule skips a
+            # `bullet` unit, since a list item need not close with a period.
+            self.units.append(
+                _ProseUnit(
+                    "bullet", line.lineno, line.column + 1, line.text, (line.lineno,)
+                )
+            )
             return
         if self._section == "entry":
             self._consume_entry(line)
@@ -887,7 +904,7 @@ class _DocstringSegmenter:
 
 class _ProseUnit(NamedTuple):
     kind: str
-    """`summary`, `body`, or `entry`."""
+    """`summary`, `body`, `entry`, or `bullet`."""
     lineno: int
     """Source line the unit's terminal punctuation sits on."""
     col: int

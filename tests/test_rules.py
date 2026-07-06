@@ -308,6 +308,11 @@ class TestCheckUnbacktickedCodeReference:
                 'def f(skip_lines):\n    """Does it. skip_lines drives it."""\n',
                 "skip_lines",
             ),
+            (
+                'def f(skip_lines):\n    """Does it.\n\n'
+                '    - drops skip_lines.\n    """\n',
+                "skip_lines",
+            ),
         ],
         ids=[
             "literal",
@@ -315,6 +320,7 @@ class TestCheckUnbacktickedCodeReference:
             "camel-case-import",
             "attribute",
             "code-shape-at-sentence-start",
+            "bullet-item",
         ],
     )
     def test_BareCodeNameInProse_FlagsViolation(self, source: str, token: str) -> None:
@@ -460,6 +466,35 @@ class TestCheckGluedCodeSpanInDocstrings:
             "\n"
             "    Example:\n"
             "        result = `parse`d output\n"
+            '    """\n'
+        )
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_GluedSuffixInBullet_FlagsViolation(self) -> None:
+        # A bullet item is prose, so a glued span in one is flagged, unlike a
+        # code section; the finding lands on the bullet's own line.
+        source = 'def f():\n    """Doc.\n\n    - uses `x`s here.\n    """\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (4, 15)
+
+    def test_GluedSuffixInConcatenatedDocstring_FlagsViolation(self) -> None:
+        # An implicitly-concatenated docstring collapses the value-to-physical
+        # line mapping, so its lines are all scanned; the finding still lands
+        # on the physical line the glued span sits on.
+        source = 'def f():\n    ("""Summary text."""\n     """Uses `item`s here.""")\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (3, 20)
+
+    def test_EscapedNewlineWithFence_NoViolation(self) -> None:
+        # An escaped newline only adds value lines, not physical ones, so it is
+        # not the collapsed-mapping case; the fence stays blanked, unscanned.
+        source = (
+            "def f():\n"
+            '    """Doc.\\nmore.\n'
+            "\n"
+            "    ```\n"
+            "    y = `item`s\n"
+            "    ```\n"
             '    """\n'
         )
         assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
