@@ -43,6 +43,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS031 | Arg described in prose (warning): per-argument detail narrated in the docstring body belongs in an `Args:` section. |
 | RS032 | Return described in prose (warning): the return value narrated in the docstring body belongs in a `Returns:` section. |
 | RS033 | Filename convention (warning): a non-Python file's extension and casing follow the configured preference, defaulting to `.yaml` over `.yml` and kebab-case for a multi-word name (see below). |
+| RS034 | Imperative docstring opening (warning): a docstring summary opens with a known bare-infinitive verb (`Return`, `Build`, `Fetch`, ...) instead of its descriptive third-person conjugation (`Returns`, `Builds`, `Fetches`, ...); the verb set is config-tunable (see below). |
 | RS035 | Doc summary overflow (warning): a docstring summary line — the whole line of a single-line docstring, or the opening line of a multi-line one — runs past 79 columns; unlike a body paragraph it has no second line to reflow onto, so it must be shortened by hand. |
 
 ### Repo-agnostic vs repo-specific
@@ -52,9 +53,9 @@ Most rules are repo-agnostic and safe to enable anywhere. Two are tied to the fh
 - **RS002** assumes PascalCase test naming under `tests/unit/`. Repos with a different test-naming convention should not select it.
 - **RS006** bans concrete implementation libraries inside a `src/fhir_ingestor/application/ports/` path. The path fragment and the hexagonal `ports` layering are fhir-ingestor-specific.
 
-RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011, RS024, RS025, RS026, RS027, RS028, RS033, RS035) are general style rules.
+RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011, RS024, RS025, RS026, RS027, RS028, RS033, RS034, RS035) are general style rules.
 
-The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. RS027 warns too, matching how the repo's other threshold rule (RS012) is treated; note that ruff's `PLR0917`, which it stands in for, is a hard error, so adopting it later raises the severity. The boolean-naming rules RS024 and RS026 are advisory too, warning rather than failing until their false-positive rate on the existing repos is measured. RS033 is advisory too: its casing default is an industry-wide convention, not a Gradient-measured one, and a repo's existing files may need a batch of `filename-ignore` entries before it is worth hard-failing. RS035 is advisory too, since its fix is "shorten this by hand" rather than a mechanical rewrite. RS013, RS014, RS022, RS023, RS025, and RS028 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
+The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. RS027 warns too, matching how the repo's other threshold rule (RS012) is treated; note that ruff's `PLR0917`, which it stands in for, is a hard error, so adopting it later raises the severity. The boolean-naming rules RS024 and RS026 are advisory too, warning rather than failing until their false-positive rate on the existing repos is measured. RS033 is advisory too: its casing default is an industry-wide convention, not a Gradient-measured one, and a repo's existing files may need a batch of `filename-ignore` entries before it is worth hard-failing. RS034 is advisory too: it matches only a fixed, curated verb list, so it neither catches every imperative opening nor is guaranteed free of a false match on an unmeasured repo. RS035 is advisory too, since its fix is "shorten this by hand" rather than a mechanical rewrite. RS013, RS014, RS022, RS023, RS025, and RS028 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
 
 RS027 is a stand-in for ruff's [`PLR0917`](https://docs.astral.sh/ruff/rules/too-many-positional-arguments/) (`too-many-positional-arguments`), which is preview-gated in the pinned ruff version. Enabling it through ruff would require setting `preview = true` on the shared `ruff-base.toml`, a global switch that turns on preview behavior for every rule and the formatter across all consuming repos, so the rule lives here instead. It mirrors `PLR0917`'s default cap of five and its positional-only counting, including the `self`/`cls` exclusion and the `@override` exemption. When `PLR0917` graduates to stable in the pinned ruff version, select it in `ruff-base.toml` and delete RS027 (PROC-2319).
 
@@ -124,6 +125,18 @@ filename-ignore = ["README.md", "LICENSE"]   # globs exempted from both checks
 `filename-extensions` replaces the default mapping wholesale rather than merging into it — repeat `.yml = .yaml` alongside any extra entries, or declare the table empty to disable the check. `filename-case` and `filename-ignore` apply to both the extension and the casing check. `filename-ignore` globs (`fnmatch` semantics, matched against the path relative to the repo root) are the place for a fixed name a tool or convention mandates — `README.md`, a generated `CHANGELOG.md`, or `.github/workflows/*.yml` if the repo keeps GitHub Actions' own `.yml` convention — rather than renaming them. Both checks skip `.py` files, whose names are already governed by import-identifier conventions.
 
 RS033 only ever sees a file its invocation actually discovers: a bare directory argument and the shipped `repostyle` pre-commit hook both limit discovery to `.py`/`.toml`/`.yaml`/`.yml`/`.md`. An extensionless fixed name like `Dockerfile` or `LICENSE` only reaches the rule if the consuming repo widens its own hook's `types`/`files` to pass it, or names it as an explicit CLI argument.
+
+## Configure the imperative-verb list (RS034)
+
+RS034 matches a fixed, curated verb list, adapted from pydocstyle's own word list plus a handful of gradienthealth-specific exclusions. A repo whose own domain disagrees tunes the list without a repostyle source change:
+
+```toml
+[tool.repostyle]
+imperative-verbs-extra = ["Deploy"]      # a verb this repo's own docstrings use imperatively
+imperative-verbs-exclude = ["Cache"]     # a verb whose noun reading dominates in this repo's domain
+```
+
+`imperative-verbs-extra` adds to the shipped list rather than replacing it; `imperative-verbs-exclude` removes from the combined result, so it can drop a shipped verb, an added one, or both. Neither key needs the other configured.
 
 ## Suppress a finding
 

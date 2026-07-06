@@ -39,6 +39,7 @@ from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MAKE_IN_PRODUCTION,
@@ -54,6 +55,7 @@ from repostyle.rules._violation import (
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
 )
+from repostyle.rules.imperative_verbs import NON_TRIVIAL_CONJUGATIONS
 
 
 class Example(NamedTuple):
@@ -458,6 +460,48 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 good="my-config.yaml",
                 note="The default `filename-case` of kebab.",
             ),
+        ),
+    ),
+    RS_IMPERATIVE_DOCSTRING_OPENING: RuleDoc(
+        name="imperative-docstring-opening",
+        summary=(
+            "A docstring summary opens descriptively (`Returns the lease.`), "
+            "not imperatively (`Return the lease.`)."
+        ),
+        rationale=(
+            "The house convention states a unit's contract in descriptive "
+            "third person, matching Google's own style guide rather than "
+            "PEP 257's imperative recommendation. The check matches a fixed "
+            "set of common bare-infinitive openings adapted from "
+            "pydocstyle's own word list (the data behind ruff's D401, which "
+            "enforces the opposite convention), so it is advisory in both "
+            "directions: an opening verb outside that set is not flagged, "
+            "and a verb that commonly doubles as a noun (`Check`, `Report`, "
+            "`Format`, `Handle`, `Set`, ...) still stays in the set because "
+            "pydocstyle's own data accepts that risk wholesale, reinforced "
+            "for several of these by a survey of real gradienthealth repos "
+            "that found a genuine imperative opening for each and no "
+            "noun-phrase false positive; the occasional false positive "
+            "(`Check constraint enforced on the age column.`) is an "
+            "accepted cost. `Route` carries the same risk on that survey's "
+            "evidence alone, since it is not itself a pydocstyle entry. A "
+            "handful of pydocstyle's own entries (`List`, `Query`, `Test`, "
+            "...) are left out anyway because the noun reading dominates in "
+            "this codebase's own domain. A consuming repo tunes the set for "
+            "its own domain via `imperative-verbs-extra`/"
+            "`imperative-verbs-exclude` in `[tool.repostyle]`, rather than "
+            "editing the shared verb list every repo inherits."
+        ),
+        examples=(
+            Example(
+                bad='"""Return the lease held by `client_id`."""',
+                good='"""Returns the lease held by `client_id`."""',
+                note="Conjugate the opening verb to third-person singular.",
+            ),
+        ),
+        reference=tuple(
+            f"{verb} -> {conjugated}"
+            for verb, conjugated in sorted(NON_TRIVIAL_CONJUGATIONS.items())
         ),
     ),
     RS_DOC_SUMMARY_OVERFLOW: RuleDoc(

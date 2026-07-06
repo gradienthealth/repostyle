@@ -5,10 +5,16 @@ import pytest
 from repostyle.rules import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
+    check_imperative_docstring_opening,
     check_summary_comment_as_docstring,
+)
+from repostyle.rules.imperative_verbs import (
+    IMPERATIVE_VERB_CONJUGATIONS,
+    NON_TRIVIAL_CONJUGATIONS,
 )
 
 _SRC = Path("src/x.py")
@@ -231,3 +237,156 @@ class TestCheckFillerDocstringOpening:
     def test_UnparseableSource_NoViolation(self) -> None:
         source = 'def (:\n    """This function does X."""\n'
         assert list(check_filler_docstring_opening(_SRC, source)) == []
+
+
+class TestCheckImperativeDocstringOpening:
+    @pytest.mark.parametrize(
+        ("summary", "expected_message_fragment"),
+        [
+            ("Return the lease.", "'Returns', not 'Return'"),
+            ("Check whether the input is valid.", "'Checks', not 'Check'"),
+            ("Apply the patch.", "'Applies', not 'Apply'"),
+            ("Do the work.", "'Does', not 'Do'"),
+            ("Have the value ready.", "'Has', not 'Have'"),
+            ("Fetch the record.", "'Fetches', not 'Fetch'"),
+            ("Finish the report.", "'Finishes', not 'Finish'"),
+        ],
+        ids=[
+            "regular",
+            "kept-homograph",
+            "consonant-y",
+            "es-suffix-o",
+            "irregular",
+            "es-suffix-ch",
+            "es-suffix-sh",
+        ],
+    )
+    def test_ImperativeOpening_FlagsViolation(
+        self, tmp_path: Path, summary: str, expected_message_fragment: str
+    ) -> None:
+        source = f'def f():\n    """{summary}"""\n    return 1\n'
+        violations = list(check_imperative_docstring_opening(tmp_path / "x.py", source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_IMPERATIVE_DOCSTRING_OPENING
+        assert violations[0].line == 1
+        assert expected_message_fragment in violations[0].message
+
+    def test_ConfiguredExtraVerb_FlagsViolation(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle]\nimperative-verbs-extra = ["Deploy"]\n'
+        source = 'def f():\n    """Deploy the release."""\n'
+        target = _target(tmp_path, source, table)
+        violations = list(check_imperative_docstring_opening(target, source))
+        assert len(violations) == 1
+        assert "'Deploys', not 'Deploy'" in violations[0].message
+
+    def test_ConfiguredExcludedVerb_NoViolation(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle]\nimperative-verbs-exclude = ["Check"]\n'
+        source = 'def f():\n    """Check constraint on the age column."""\n'
+        target = _target(tmp_path, source, table)
+        assert list(check_imperative_docstring_opening(target, source)) == []
+
+    def test_ConfiguredSingleLetterExtraVerb_DoesNotCrash(self, tmp_path: Path) -> None:
+        """Conjugates a one-letter configured verb without an index error."""
+        table = '[tool.repostyle]\nimperative-verbs-extra = ["y"]\n'
+        source = 'def f():\n    """y the thing."""\n'
+        target = _target(tmp_path, source, table)
+        violations = list(check_imperative_docstring_opening(target, source))
+        assert "'ys', not 'y'" in violations[0].message
+
+    @pytest.mark.parametrize(
+        ("source", "expected_line"),
+        [
+            ('"""Return the version string."""\nx = 1\n', 1),
+            ('class C:\n    """Return the cached state."""\n    x = 1\n', 1),
+        ],
+        ids=["module", "class"],
+    )
+    def test_ImperativeOpeningOnNonFunctionOwner_FlagsViolation(
+        self, tmp_path: Path, source: str, expected_line: int
+    ) -> None:
+        violations = list(check_imperative_docstring_opening(tmp_path / "x.py", source))
+        assert len(violations) == 1
+        assert violations[0].line == expected_line
+
+    def test_ImperativeOpeningOnLaterSummaryLine_FlagsViolation(
+        self, tmp_path: Path
+    ) -> None:
+        source = 'def f():\n    """\n    Return the count.\n    """\n    return 1\n'
+        target = tmp_path / "x.py"
+        assert len(list(check_imperative_docstring_opening(target, source))) == 1
+
+    @pytest.mark.parametrize(
+        "summary",
+        [
+            "Returns the lease held by the client.",
+            "A test that returns the lease.",
+            "Returned the wrong lease before this fix.",
+            "List of patient records returned by the query.",
+            "Partial application of the handler.",
+        ],
+        ids=[
+            "descriptive",
+            "not-first-word",
+            "past-tense",
+            "excluded-domain-noun",
+            "excluded-not-a-verb",
+        ],
+    )
+    def test_DescriptiveOpening_NoViolation(self, tmp_path: Path, summary: str) -> None:
+        source = f'def f():\n    """{summary}"""\n    return 1\n'
+        assert list(check_imperative_docstring_opening(tmp_path / "x.py", source)) == []
+
+    def test_ImperativeOpeningIsCaseSensitive_NoViolation(self, tmp_path: Path) -> None:
+        source = 'def f():\n    """return the count."""\n    return 1\n'
+        assert list(check_imperative_docstring_opening(tmp_path / "x.py", source)) == []
+
+    def test_NoDocstring_NoViolation(self, tmp_path: Path) -> None:
+        source = "def f():\n    return 1\n"
+        assert list(check_imperative_docstring_opening(tmp_path / "x.py", source)) == []
+
+    def test_UnparseableSource_NoViolation(self, tmp_path: Path) -> None:
+        source = 'def (:\n    """Return the count."""\n'
+        assert list(check_imperative_docstring_opening(tmp_path / "x.py", source)) == []
+
+
+class TestImperativeVerbConjugations:
+    def test_SurveyedHomographs_StayInVerbList(self) -> None:
+        """Keeps homographs a repo survey found genuinely imperative."""
+        kept = {"Check", "Report", "Route", "Format", "Handle", "Set"}
+        assert kept <= set(IMPERATIVE_VERB_CONJUGATIONS)
+
+    def test_PydocstyleAcceptedHomographs_StayInVerbList(self) -> None:
+        """Keeps homographs pydocstyle's list accepts with no repo survey."""
+        pydocstyle_backed = {"Group", "Flag", "Filter"}
+        assert pydocstyle_backed <= set(IMPERATIVE_VERB_CONJUGATIONS)
+
+    def test_ExcludedWords_AreNotInVerbList(self) -> None:
+        domain_nouns = {
+            "List",
+            "Query",
+            "Post",
+            "Test",
+            "Import",
+            "View",
+            "Map",
+            "Store",
+            "Log",
+            "Process",
+            "Match",
+        }
+        not_real_verbs = {"Partial", "Rollback", "Init"}
+        assert not (domain_nouns | not_real_verbs) & set(IMPERATIVE_VERB_CONJUGATIONS)
+
+    def test_NonTrivialConjugations_KeepsOnlyIrregularAndSuffixChanges(self) -> None:
+        assert NON_TRIVIAL_CONJUGATIONS["Have"] == "Has"
+        assert NON_TRIVIAL_CONJUGATIONS["Fetch"] == "Fetches"
+        assert "Return" not in NON_TRIVIAL_CONJUGATIONS
+        assert set(NON_TRIVIAL_CONJUGATIONS) <= set(IMPERATIVE_VERB_CONJUGATIONS)
+
+
+def _target(tmp_path: Path, source: str, table: str = "") -> Path:
+    if table:
+        (tmp_path / "pyproject.toml").write_text(table, encoding="utf-8")
+    target = tmp_path / "module.py"
+    target.write_text(source, encoding="utf-8")
+    return target

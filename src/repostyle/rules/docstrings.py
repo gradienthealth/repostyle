@@ -4,7 +4,8 @@ The placement rules move a summary that documents a unit into the docstring
 slot this package's own doc-content rules can see, and reject docstring
 openings that restate the identifier instead of stating the contract: no
 `Attributes:` block, no double backticks, no leading summary comment, no field
-comment standing in for a field docstring, and no filler opening.
+comment standing in for a field docstring, no filler opening, and no
+imperative-mood opening verb.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import io
 import re
 import tokenize
 from collections.abc import Iterator
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -23,16 +25,26 @@ from repostyle.rules._shared import (
     _is_prose_comment,
     _join_source_lines,
     _parse_python,
+    _repostyle_table,
+    _string_list,
     _terminal_punctuation_fault,
+    find_pyproject,
 )
 from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TERMINAL_PUNCTUATION,
     Violation,
+)
+from repostyle.rules.imperative_verbs import (
+    _IMPERATIVE_OPENING_PATTERN,
+    _IMPERATIVE_VERBS,
+    IMPERATIVE_VERB_CONJUGATIONS,
+    _conjugate,
 )
 
 ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
@@ -238,9 +250,7 @@ def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violatio
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None:
             continue
-        summary = next(
-            (line.strip() for line in docstring.splitlines() if line.strip()), ""
-        )
+        summary = _docstring_summary_line(docstring)
         if _FILLER_OPENING_PATTERN.match(summary):
             yield Violation(
                 getattr(node, "lineno", 1),
@@ -248,6 +258,85 @@ def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violatio
                 RS_FILLER_DOCSTRING_OPENING,
                 "docstring opening restates the identifier; state the contract instead",
             )
+
+
+def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Violation]:
+    """A docstring summary must open in descriptive, not imperative, mood.
+
+    The house convention states a unit's own contract descriptively, in the
+    third person (`Returns the lease.`), not as a command (`Return the
+    lease.`), matching Google's own style guide rather than PEP 257's
+    imperative recommendation. A summary whose first word is a known
+    bare-infinitive verb should conjugate it to third-person singular. A repo
+    tunes the verb set for its own domain via `imperative-verbs-extra` and
+    `imperative-verbs-exclude` in `[tool.repostyle]`.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    pyproject = find_pyproject(path)
+    conjugations = _effective_conjugations(pyproject)
+    pattern = _effective_pattern(pyproject)
+    for node in _walk_docstring_owners(tree):
+        docstring = ast.get_docstring(node, clean=True)
+        if docstring is None:
+            continue
+        summary = _docstring_summary_line(docstring)
+        match = pattern.match(summary)
+        if match is None:
+            continue
+        verb = match.group(1)
+        yield Violation(
+            getattr(node, "lineno", 1),
+            getattr(node, "col_offset", 0) + 1,
+            RS_IMPERATIVE_DOCSTRING_OPENING,
+            f"docstring opens in imperative mood; use "
+            f"'{conjugations[verb]}', not '{verb}'",
+        )
+
+
+@lru_cache(maxsize=128)
+def _effective_pattern(pyproject: Path | None) -> re.Pattern[str]:
+    """Returns the opening-verb regex built from this repo's effective verbs.
+
+    Each verb is escaped before joining: `imperative-verbs-extra` comes from
+    repo config, not this module's own hardcoded list, so a configured entry
+    containing a regex metacharacter must match itself literally rather than be
+    interpreted as one. An empty effective verb set (every verb excluded)
+    compiles to a pattern that matches nothing, not one that matches everything
+    — `re.compile("^()\\b")` would otherwise match the empty string at the
+    start of every summary.
+    """
+    conjugations = _effective_conjugations(pyproject)
+    if conjugations is IMPERATIVE_VERB_CONJUGATIONS:
+        return _IMPERATIVE_OPENING_PATTERN
+    if not conjugations:
+        return re.compile(r"(?!)")
+    escaped = (re.escape(verb) for verb in conjugations)
+    return re.compile(r"^(" + "|".join(escaped) + r")\b")
+
+
+@lru_cache(maxsize=128)
+def _effective_conjugations(pyproject: Path | None) -> dict[str, str]:
+    """Returns the verb-to-conjugation map, adjusted for this repo's config.
+
+    A repo adds its own survey-backed verb via `imperative-verbs-extra`, or
+    drops a homograph too risky for its own domain via
+    `imperative-verbs-exclude`, tuning RS034 locally instead of editing the
+    shared verb list every repo inherits — the same override pattern RS017's
+    `banned-imports` and RS033's `filename-extensions` already use. A consuming
+    repo excluding every verb (its own plus any extra) is left with an empty
+    map.
+    """
+    table = _repostyle_table(pyproject)
+    extra = _string_list(table, "imperative-verbs-extra")
+    exclude = frozenset(_string_list(table, "imperative-verbs-exclude"))
+    if not extra and not exclude:
+        return IMPERATIVE_VERB_CONJUGATIONS
+    verbs = dict.fromkeys(
+        verb for verb in (*_IMPERATIVE_VERBS, *extra) if verb not in exclude
+    )
+    return {verb: _conjugate(verb) for verb in verbs}
 
 
 def check_docstring_terminal_punctuation(
@@ -404,6 +493,11 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
     return result
 
 
+def _docstring_summary_line(docstring: str) -> str:
+    """Returns a cleaned `docstring`'s first non-blank line, stripped."""
+    return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
+
+
 class _DocLine(NamedTuple):
     lineno: int
     """1-based source line of this docstring line."""
@@ -416,7 +510,7 @@ class _DocLine(NamedTuple):
 
 
 class _DocstringSegmenter:
-    """Group docstring lines into the prose units the rule grades.
+    """Groups docstring lines into the prose units the rule grades.
 
     Feed lines in order with `consume`, call `close` after the last, then read
     `units`. The first paragraph is the summary; later margin paragraphs are
