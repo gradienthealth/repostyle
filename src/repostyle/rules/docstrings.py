@@ -228,10 +228,11 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
         # Join the docstring's physical lines so a code span crossing a line
         # break pairs as one span; scanning each line alone would pair a
         # wrapped span's trailing backtick with the next span's opening one. A
-        # line the segmenter does not count as prose — a fenced block, an
-        # `Example:` section, a doctest — is blanked to its width so its
-        # backticks neither pair nor draw a finding, as RS030 and RS036 also
-        # skip those lines, while the blank preserves the column math below.
+        # line outside the segmenter's prose units — inside a fence or
+        # `Example:` section, or a doctest line — is blanked to its width so
+        # its backticks neither pair nor draw a finding, as RS030 and RS036
+        # also skip those lines, while the blank preserves the column math
+        # below.
         block = "\n".join(
             line if lineno in prose_lines else " " * len(line)
             for lineno, line in enumerate(source_lines[start - 1 : end], start)
