@@ -85,11 +85,7 @@ def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
         return
     source_lines = source.splitlines()
     for node in ast.walk(tree):
-        if not (
-            isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Constant)
-            and isinstance(node.value.value, str)
-        ):
+        if not _is_docstring_constant(node):
             continue
         lineno = node.value.lineno
         rendered = source_lines[lineno - 1].rstrip()
@@ -152,11 +148,7 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
     tree = _parse_python(path, source)
     if tree is not None:
         for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Expr)
-                and isinstance(node.value, ast.Constant)
-                and isinstance(node.value.value, str)
-            ):
+            if _is_docstring_constant(node):
                 end = node.value.end_lineno
                 if end is None or end == node.value.lineno:
                     continue
@@ -165,6 +157,15 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
                 )
     for block in _comment_blocks(path, source, source_lines):
         yield from _fill_units(block)
+
+
+def _is_docstring_constant(node: ast.AST) -> bool:
+    """Reports whether `node` is a bare string-literal expression statement."""
+    return (
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    )
 
 
 def _comment_blocks(
