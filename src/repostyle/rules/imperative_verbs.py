@@ -1,10 +1,10 @@
 """RS034's imperative-verb vocabulary and conjugation.
 
-Kept separate from `docstrings.py`'s docstring-form checks: this data (which
-bare-infinitive verbs to recognize, and how each conjugates) is a distinct
-"vocabulary" concern from the AST-walking check that consumes it, and this
-module's own top-level `IMPERATIVE_VERB_CONJUGATIONS` needs `_conjugate`
-defined above it, a constraint `docstrings.py`'s `_effective_conjugations`
+Kept separate from the docstring-form checks in `docstrings.py`: this data
+(which bare-infinitive verbs to recognize, and how each conjugates) is a
+distinct "vocabulary" concern from the AST-walking check that consumes it, and
+this module's own top-level `IMPERATIVE_VERB_CONJUGATIONS` needs `_conjugate`
+defined above it, a constraint the `_effective_conjugations` in `docstrings.py`
 (which also calls `_conjugate`) cannot satisfy from within the same file
 without an ordering conflict.
 """
@@ -300,8 +300,8 @@ _IMPERATIVE_OPENING_PATTERN = re.compile(
 # cannot derive by just appending `s` (an irregular stem, or the `-es`/`-ies`
 # suffix rules), so it stays a quick reference at the list's full size instead
 # of repeating ~200 mechanically obvious entries. Compares each conjugation
-# against the plain-suffix default rather than re-deriving `_conjugate`'s
-# branch conditions, so it cannot drift from what `_conjugate` actually does.
+# against the plain-suffix default rather than re-deriving the branch
+# conditions of `_conjugate`, so it cannot drift from what it actually does.
 NON_TRIVIAL_CONJUGATIONS: dict[str, str] = {
     verb: conjugated
     for verb, conjugated in IMPERATIVE_VERB_CONJUGATIONS.items()

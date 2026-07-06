@@ -104,7 +104,7 @@ class _ModuleFacts:
 
 
 def _collect_definitions(tree: ast.AST, facts: _ModuleFacts) -> None:
-    """Records `tree`'s top-level public defs and its `__all__` exports."""
+    """Records top-level public defs of `tree` and its `__all__` exports."""
     for node in tree.body:
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
             if not node.name.startswith("_"):

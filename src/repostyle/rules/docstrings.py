@@ -33,6 +33,7 @@ from repostyle.rules._shared import (
 from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -104,6 +105,9 @@ _IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # before scanning.
 _ENTRY_CAPTION_PATTERN = re.compile(r"^\S+(?:\s*\([^)]*\))?:\s*")
 _SENTENCE_ENDINGS = (".", "!", "?")
+_GLUED_SPAN_MESSAGE = (
+    "a code span carries a glued suffix; move the suffix outside the backticks"
+)
 
 
 def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
@@ -195,6 +199,93 @@ def _fix_double_backticks_md(source: str) -> str:
             source_lines[index] = rewritten
             changed = True
     return _join_source_lines(source, source_lines) if changed else source
+
+
+def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Violation]:
+    """Docstring prose may not glue an inflection to a code span.
+
+    A code span sets a name in code font, so an English suffix run straight
+    onto its closing backtick — a possessive apostrophe-s, a plural, or a verb
+    ending — reads as part of the identifier and breaks the span in rendered
+    Markdown. The check fires on a closing backtick followed at once by a
+    letter or an apostrophe, and leaves a hyphenated compound such as `-safe`
+    alone, since that keeps the span ending on a word boundary. The fix moves
+    the suffix outside the span.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        start = constant.lineno
+        end = constant.end_lineno or start
+        # Join the docstring's physical lines so a code span crossing a line
+        # break pairs as one span; scanning each line alone would pair a
+        # wrapped span's trailing backtick with the next span's opening one.
+        block = "\n".join(source_lines[start - 1 : end])
+        for offset in _glued_code_span_columns(block):
+            before = block[:offset]
+            yield Violation(
+                start + before.count("\n"),
+                offset - before.rfind("\n"),
+                RS_GLUED_CODE_SPAN,
+                _GLUED_SPAN_MESSAGE,
+            )
+
+
+def check_glued_code_span_in_comments(path: Path, source: str) -> Iterator[Violation]:
+    """A comment may not glue an inflection to a code span.
+
+    The convention `check_glued_code_span_in_docstrings` states holds for a
+    comment too: a suffix run onto a code span's closing backtick reads as part
+    of the identifier. A standalone and a trailing comment are covered alike.
+    """
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
+            if token.type != tokenize.COMMENT:
+                continue
+            lineno, column = token.start
+            for offset in _glued_code_span_columns(token.string):
+                yield Violation(
+                    lineno,
+                    column + offset + 1,
+                    RS_GLUED_CODE_SPAN,
+                    _GLUED_SPAN_MESSAGE,
+                )
+    except tokenize.TokenError:
+        return
+
+
+def check_glued_code_span_in_md(path: Path, source: str) -> Iterator[Violation]:
+    """Markdown prose may not glue an inflection to a code span."""
+    if path.suffix != ".md":
+        return
+    for index, line in _unfenced_md_lines(source):
+        for offset in _glued_code_span_columns(line):
+            yield Violation(
+                index + 1, offset + 1, RS_GLUED_CODE_SPAN, _GLUED_SPAN_MESSAGE
+            )
+
+
+def _glued_code_span_columns(text: str) -> Iterator[int]:
+    """Yields the 0-based column of each suffix glued to a code span in `text`.
+
+    Real spans are found with `finditer`, which consumes each span so backticks
+    pair left to right; matching the trailing character in the pattern instead
+    would let a failed match restart on a closing backtick and read the gap
+    between two spans as a span of its own. A letter or an apostrophe abutting
+    a span's closing backtick is the glued suffix; a hyphen (a compound like
+    `-typed`) and any other character are left alone.
+    """
+    for match in _BACKTICK_SPAN_PATTERN.finditer(text):
+        end = match.end()
+        if end - match.start() <= 2 or end >= len(text):
+            continue
+        if text[end].isalpha() or text[end] in "'’":
+            yield end
 
 
 def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Violation]:
@@ -591,7 +682,7 @@ def _begins_sentence(text: str, start: int) -> bool:
 
 
 def _docstring_constant(node: ast.AST) -> ast.Constant | None:
-    """Returns `node`'s docstring string-literal node, or `None`."""
+    """Returns the docstring string-literal node of `node`, or `None`."""
     body = getattr(node, "body", None)
     if not body:
         return None
@@ -640,7 +731,7 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
 
 
 def _docstring_summary_line(docstring: str) -> str:
-    """Returns a cleaned `docstring`'s first non-blank line, stripped."""
+    """Returns the first non-blank line of a cleaned `docstring`, stripped."""
     return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
 
 
@@ -807,7 +898,7 @@ def _leading_comment_line(
     comments: dict[int, tuple[int, str]],
     source_lines: list[str],
 ) -> int | None:
-    """Returns the line of `node`'s first-body-position standalone comment.
+    """Returns the line of the first-position standalone comment in `node`.
 
     The comment sits directly above the first body statement, with only blank
     lines between, below the definition header. A comment deeper in the body,

@@ -15,6 +15,7 @@ from repostyle.rules import (
     RS_DURATION_AS_TIMEDELTA,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
+    RS_GLUED_CODE_SPAN,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MAKE_IN_PRODUCTION,
@@ -39,6 +40,9 @@ from repostyle.rules import (
     check_duration_as_timedelta,
     check_exception_alias,
     check_excessive_mocking,
+    check_glued_code_span_in_comments,
+    check_glued_code_span_in_docstrings,
+    check_glued_code_span_in_md,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
@@ -366,6 +370,74 @@ class TestCheckUnbacktickedCodeReference:
     def test_NonPythonFile_NotChecked(self) -> None:
         assert (
             list(check_unbackticked_code_reference(Path("README.md"), "Returns None."))
+            == []
+        )
+
+
+class TestCheckGluedCodeSpanInDocstrings:
+    @pytest.mark.parametrize(
+        "docstring",
+        [
+            '"""Returns `patient.identifier`\'s value."""',
+            '"""Returns the `Observation`s in the bundle."""',
+            '"""Returns the bundle once `parse`d."""',
+            '"""Returns `x`’s value."""',
+        ],
+        ids=["possessive", "plural", "verb-suffix", "curly-apostrophe"],
+    )
+    def test_SuffixGluedToSpan_FlagsViolation(self, docstring: str) -> None:
+        source = f"def f():\n    {docstring}\n"
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_GLUED_CODE_SPAN
+
+    @pytest.mark.parametrize(
+        "docstring",
+        [
+            '"""Returns the value of `patient.identifier`."""',
+            '"""Builds a `str`-typed value."""',
+            '"""Returns `x`, then stops."""',
+            '"""Returns `x` (the id)."""',
+        ],
+        ids=["of-form", "hyphen-compound", "punctuation", "paren"],
+    )
+    def test_SpanEndsOnWordBoundary_NoViolation(self, docstring: str) -> None:
+        source = f"def f():\n    {docstring}\n"
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_GluedSuffix_ColumnAtSuffix(self) -> None:
+        source = 'def f():\n    """Uses `x`s here."""\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (2, 16)
+
+
+class TestCheckGluedCodeSpanInComments:
+    def test_SuffixGluedToSpanInComment_FlagsViolation(self) -> None:
+        source = "x = 1  # `retries`'s ceiling\n"
+        violations = list(check_glued_code_span_in_comments(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_GLUED_CODE_SPAN
+
+    def test_SpanEndsOnWordBoundaryInComment_NoViolation(self) -> None:
+        source = "x = 1  # the ceiling of `retries`\n"
+        assert list(check_glued_code_span_in_comments(Path("src/x.py"), source)) == []
+
+
+class TestCheckGluedCodeSpanInMd:
+    def test_SuffixGluedToSpanInMd_FlagsViolation(self) -> None:
+        violations = list(
+            check_glued_code_span_in_md(Path("README.md"), "The `Observation`s ship.")
+        )
+        assert len(violations) == 1
+        assert violations[0].rule == RS_GLUED_CODE_SPAN
+
+    def test_GluedSuffixInsideFence_NoViolation(self) -> None:
+        source = "```python\nxs = `Observation`s\n```"
+        assert list(check_glued_code_span_in_md(Path("README.md"), source)) == []
+
+    def test_NonMarkdownFile_NotChecked(self) -> None:
+        assert (
+            list(check_glued_code_span_in_md(Path("notes.txt"), "The `Observation`s."))
             == []
         )
 
