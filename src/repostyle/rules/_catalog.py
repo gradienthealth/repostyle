@@ -555,8 +555,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "all-caps word that also reads as English (`Path`, `WARNING`) are "
             "left to review, since no rule can tell the reference from the "
             "word. Grounding the match in the module's own names is what lets "
-            "a domain acronym like TOML or FHIR pass untouched: not a name the "
-            "code binds."
+            "a code-shaped word the module never binds — a proper noun, or a "
+            "name shown only in an example — pass untouched: the shape marks a "
+            "candidate, but only a name the code defines fires."
         ),
         examples=(
             Example(

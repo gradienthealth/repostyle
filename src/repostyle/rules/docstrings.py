@@ -577,15 +577,15 @@ def _reads_as_code_reference(name: str, text: str, start: int) -> bool:
     lowercase, Titlecase, or all-caps word could be English and is left alone.
     """
     if name in _LITERAL_CONSTANTS:
-        return not _at_sentence_start(text, start)
+        return not _begins_sentence(text, start)
     if "_" in name or any(character.isdigit() for character in name):
         return True
     has_interior_capital = any(character.isupper() for character in name[1:])
     return has_interior_capital and any(character.islower() for character in name)
 
 
-def _at_sentence_start(text: str, start: int) -> bool:
-    """Reports whether the token at `start` opens `text` or a new sentence."""
+def _begins_sentence(text: str, start: int) -> bool:
+    """Reports whether the token at `start` begins `text` or a new sentence."""
     before = text[:start].rstrip()
     return not before or before.endswith(_SENTENCE_ENDINGS)
 
