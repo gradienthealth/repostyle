@@ -35,9 +35,9 @@ _OVERRIDE_DECORATORS = frozenset({"override"})
 
 
 def check_too_many_positional_args(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a definition that takes more than the allowed positional arguments.
+    """Flags a definition with more than the allowed positional arguments.
 
-    Count a definition's positional-only and positional-or-keyword parameters;
+    Counts a definition's positional-only and positional-or-keyword parameters;
     keyword-only parameters (those after a `*`) never count, so a keyword-only
     dependency-injection builder is left alone however many it declares. The
     implicit `self`/`cls` of an instance or class method is not counted, and a
@@ -51,7 +51,7 @@ def check_too_many_positional_args(path: Path, source: str) -> Iterator[Violatio
 
 
 def _check_scope(node: ast.AST, is_within_class: bool) -> Iterator[Violation]:
-    """Walk one scope, tracking whether its definitions are class methods.
+    """Walks one scope, tracking whether its definitions are class methods.
 
     A function defined directly in a class body binds an implicit `self`/`cls`,
     so its first positional parameter is excluded; a nested function or a
@@ -89,7 +89,7 @@ def _check_function(
 def _positional_count(
     node: ast.FunctionDef | ast.AsyncFunctionDef, is_method: bool
 ) -> int:
-    """Count the positional parameters, excluding a method's `self`/`cls`."""
+    """Counts the positional parameters, excluding a method's `self`/`cls`."""
     positional = node.args.posonlyargs + node.args.args
     count = len(positional)
     if is_method and positional:

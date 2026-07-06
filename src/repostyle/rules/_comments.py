@@ -44,7 +44,7 @@ class _CommentToken(NamedTuple):
 # value is safe to iterate repeatedly.
 @lru_cache(maxsize=128)
 def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
-    """Return each `#` comment in `source`, dispatched by file type.
+    """Returns each `#` comment in `source`, dispatched by file type.
 
     A Python file is tokenized. A TOML or YAML file is scanned line by line
     under that language's string and block rules, so a `#` inside a string, a
@@ -64,7 +64,7 @@ def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
 
 
 def _python_comments(source: str) -> Iterator[_CommentToken]:
-    """Yield each comment token in Python `source` via the tokenizer.
+    """Yields each comment token in Python `source` via the tokenizer.
 
     Tokens are yielded as the tokenizer produces them, so a fault in the tail
     still surfaces the comments before it.
@@ -85,7 +85,7 @@ def _python_comments(source: str) -> Iterator[_CommentToken]:
 
 
 def _toml_comments(source: str) -> Iterator[_CommentToken]:
-    """Yield each `#` comment in TOML `source`, line by line.
+    """Yields each `#` comment in TOML `source`, line by line.
 
     A multi-line string spanning lines carries its closing delimiter forward in
     `open_delimiter`, so a `#` inside it is never a comment.
@@ -100,10 +100,10 @@ def _toml_comments(source: str) -> Iterator[_CommentToken]:
 def _toml_scan_line(
     line: str, open_delimiter: str | None
 ) -> tuple[int | None, str | None]:
-    """Find a `#` comment in one TOML line, tracking multi-line strings.
+    """Finds a `#` comment in one TOML line, tracking multi-line strings.
 
     `open_delimiter`, when set, is the triple-quote delimiter closing an open
-    multi-line string; the scan resumes after it closes on this line. Return
+    multi-line string; the scan resumes after it closes on this line. Returns
     the comment column (or `None`) and the delimiter still open at the line's
     end (or `None`).
     """
@@ -132,7 +132,7 @@ def _toml_scan_line(
 
 
 def _skip_toml_string(line: str, index: int) -> int:
-    """Return the index past the single-line string opening at `index`.
+    """Returns the index past the single-line string opening at `index`.
 
     A basic (`"`) string honours backslash escapes; a literal (`'`) string does
     not. An unterminated string consumes the rest of the line, so its content
@@ -151,7 +151,7 @@ def _skip_toml_string(line: str, index: int) -> int:
 
 
 def _yaml_comments(source: str) -> Iterator[_CommentToken]:
-    """Yield each `#` comment in YAML `source`, line by line.
+    """Yields each `#` comment in YAML `source`, line by line.
 
     A `|` or `>` block scalar records its introducer indent in `block_indent`;
     the deeper-indented lines that follow are literal, so a `#` among them is
@@ -171,27 +171,27 @@ def _yaml_comments(source: str) -> Iterator[_CommentToken]:
 
 
 def _inside_block(line: str, block_indent: int) -> bool:
-    """Report whether `line` is content of a block scalar at `block_indent`."""
+    """Reports whether `line` sits in a block scalar at `block_indent`."""
     return not line.strip() or _indent_of(line) > block_indent
 
 
 def _indent_of(line: str) -> int:
-    """Return the count of leading spaces on `line`."""
+    """Returns the count of leading spaces on `line`."""
     return len(line) - len(line.lstrip(" "))
 
 
 def _opens_block_scalar(content: str) -> bool:
-    """Report whether `content` is a YAML line opening a block scalar."""
+    """Reports whether `content` is a YAML line opening a block scalar."""
     return _BLOCK_SCALAR_PATTERN.search(content) is not None
 
 
 def _token(lineno: int, line: str, column: int) -> _CommentToken:
-    """Build a comment token for the `#` at `column` on `line`."""
+    """Builds a comment token for the `#` at `column` on `line`."""
     return _CommentToken(lineno, column, line[column:], bool(line[:column].strip()))
 
 
 def _yaml_comment_column(line: str) -> int | None:
-    """Return the column of a `#` comment in one YAML line, or `None`.
+    """Returns the column of a `#` comment in one YAML line, or `None`.
 
     A `#` opens a comment only at the line start or after whitespace, and never
     inside a quoted scalar. A double-quoted scalar honours backslash escapes; a
@@ -213,7 +213,7 @@ def _yaml_comment_column(line: str) -> int | None:
 
 
 def _skip_yaml_double(line: str, index: int) -> int:
-    """Return the index past the double-quoted scalar opening at `index`."""
+    """Returns the index past the double-quoted scalar opening at `index`."""
     index += 1
     while index < len(line):
         if line[index] == "\\":
@@ -226,7 +226,7 @@ def _skip_yaml_double(line: str, index: int) -> int:
 
 
 def _skip_yaml_single(line: str, index: int) -> int:
-    """Return the index past the single-quoted scalar opening at `index`."""
+    """Returns the index past the single-quoted scalar opening at `index`."""
     index += 1
     while index < len(line):
         if line[index] == "'":

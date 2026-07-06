@@ -1,4 +1,4 @@
-"""Resolve the enabled-rule set from config and lint paths with it."""
+"""Resolves the enabled-rule set from config and lints paths with it."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ LINTABLE_SUFFIXES = COMMENT_SUFFIXES | {".md"}
 
 
 def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
-    """Discover config from the first path's directory and resolve rules."""
+    """Discovers config from the first path's directory and resolves rules."""
     paths = list(paths)
     if not paths:
         return set(ALL_RULE_IDS)
@@ -62,7 +62,7 @@ def resolve_enabled_rules_for_paths(paths: Iterable[Path]) -> set[str]:
 
 
 def load_config(pyproject: Path) -> dict | None:
-    """Read the `[tool.repostyle]` table from a pyproject file."""
+    """Reads the `[tool.repostyle]` table from a pyproject file."""
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
@@ -71,7 +71,7 @@ def load_config(pyproject: Path) -> dict | None:
 
 
 def resolve_enabled_rules(config: dict | None) -> set[str]:
-    """Resolve enabled rule ids from a `[tool.repostyle]` table.
+    """Resolves enabled rule ids from a `[tool.repostyle]` table.
 
     `select` defaults to every rule; `ignore` defaults to none. The enabled set
     is `select` minus `ignore`. A missing or empty table enables all rules. An
@@ -95,7 +95,7 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
 
 
 def expand_paths(paths: Iterable[Path]) -> list[Path]:
-    """Replace each directory argument with the lintable files beneath it.
+    """Replaces each directory argument with the lintable files beneath it.
 
     Recurses each directory for files matching `LINTABLE_SUFFIXES`, skipping
     dot-directories and `_SKIPPED_DIRS`, and drops a duplicate resolved path
@@ -141,7 +141,7 @@ def lint_package(
     *,
     root_paths: Iterable[Path] | None = None,
 ) -> dict[Path, list[Violation]]:
-    """Run the enabled whole-package rules, scoped to the given paths.
+    """Runs the enabled whole-package rules, scoped to the given paths.
 
     A package rule sees every first-party file under the repo root so its
     cross-module view is whole, but findings are reported only on the paths
@@ -178,7 +178,7 @@ def lint_package(
 
 
 def _package_files(root: Path) -> list[tuple[Path, str]]:
-    """Read every first-party Python file under `root`."""
+    """Reads every first-party Python file under `root`."""
     root = root.resolve()
     base = root if root.is_dir() else root.parent
     files: list[tuple[Path, str]] = []
@@ -199,7 +199,7 @@ def _walk_matching(root: Path, suffixes: frozenset[str]) -> Iterator[Path]:
 
 
 def _is_skipped_entry(path: Path, base: Path) -> bool:
-    """Report whether `path` sits under a dot-directory or `_SKIPPED_DIRS`.
+    """Reports whether `path` sits under a dot-directory or `_SKIPPED_DIRS`.
 
     Tests the parts below `base`, not the absolute ancestors: a repo checked
     out under a dot-directory (`.claude/worktrees/...`) must not have its whole
@@ -210,7 +210,7 @@ def _is_skipped_entry(path: Path, base: Path) -> bool:
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:
-    """Apply every enabled fixable rule to `path` in place, reporting a change.
+    """Applies each enabled fixable rule to `path` in place, reports a change.
 
     A no-op unless a fixable rule is enabled and `path` is a Python, markdown,
     TOML, or YAML file. The fixers run in `_FIXERS` order, each handed the

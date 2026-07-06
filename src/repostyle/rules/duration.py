@@ -16,7 +16,7 @@ SECONDS_CONSTANT_PATTERN = re.compile(r"^_?[A-Z][A-Z0-9_]*_SECONDS$")
 def check_duration_as_timedelta(path: Path, source: str) -> Iterator[Violation]:
     """Module-level duration constants must be `timedelta`, not raw seconds.
 
-    Flag module-level assignments whose name matches `*_SECONDS` (with an
+    Flags module-level assignments whose name matches `*_SECONDS` (with an
     optional leading underscore) and whose value is a numeric literal. The
     convention is `timedelta(seconds=N)`; raw seconds constants are reserved
     for boundaries where the wire format requires an integer (DB columns, JSON
@@ -51,9 +51,9 @@ def check_duration_as_timedelta(path: Path, source: str) -> Iterator[Violation]:
 def _assignment_targets_and_value(
     stmt: ast.stmt,
 ) -> tuple[list[ast.expr], ast.expr | None]:
-    """Return the targets and value of `stmt` if it is an assignment.
+    """Returns the targets and value of `stmt` if it is an assignment.
 
-    Resolve an `Assign` or `AnnAssign` to its targets and value, and return
+    Resolves an `Assign` or `AnnAssign` to its targets and value, and returns
     `([], None)` for any other statement.
     """
     if isinstance(stmt, ast.Assign):

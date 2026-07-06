@@ -1,10 +1,10 @@
 """Docstring and markdown prose rules.
 
 The placement rules move a summary that documents a unit into the docstring
-slot ruff D401 grades, and reject docstring openings that restate the
-identifier instead of stating the contract: no `Attributes:` block, no double
-backticks, no leading summary comment, no field comment standing in for a field
-docstring, and no filler opening.
+slot this package's own doc-content rules can see, and reject docstring
+openings that restate the identifier instead of stating the contract: no
+`Attributes:` block, no double backticks, no leading summary comment, no field
+comment standing in for a field docstring, and no filler opening.
 """
 
 from __future__ import annotations
@@ -126,11 +126,11 @@ def check_no_double_backticks_in_docstrings(
 def fix_double_backticks(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
-    """Rewrite double backticks to single in `source`, the RS005 fix.
+    """Rewrites double backticks to single in `source`, the RS005 fix.
 
     A markdown file's prose lines and a Python file's docstring lines are
     rewritten; a fenced markdown block and a docstring whose owner line is in
-    `skip_lines` are left untouched. Return the source unchanged when nothing
+    `skip_lines` are left untouched. Returns the source unchanged when nothing
     rewrites.
     """
     if path.suffix == ".md":
@@ -154,7 +154,7 @@ def fix_double_backticks(
 
 
 def _fix_double_backticks_md(source: str) -> str:
-    """Rewrite double backticks to single in a markdown file's prose."""
+    """Rewrites double backticks to single in a markdown file's prose."""
     source_lines = source.splitlines()
     changed = False
     for index, line in _unfenced_md_lines(source):
@@ -169,8 +169,8 @@ def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Viol
     """A leading summary comment should be a docstring.
 
     A module, class, or function with no docstring whose first body position is
-    a standalone prose comment carries a summary that ruff D401's mood check
-    cannot see; move it into the docstring slot.
+    a standalone prose comment carries a summary that this package's own
+    docstring-content rules cannot see; move it into the docstring slot.
     """
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
@@ -282,12 +282,12 @@ def check_docstring_terminal_punctuation(
 def fix_docstring_terminal_punctuation(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
-    """Append a period to each unterminated docstring prose unit, the RS030 fix.
+    """Appends a period to each unterminated docstring prose unit, the RS030 fix.
 
     A summary, body paragraph, or section entry that the rule flags as missing
     terminal punctuation gains a trailing `.` after its content, before the
     closing quote when the quote shares the line. A unit whose line is in
-    `skip_lines` is left untouched. Return the source unchanged when nothing
+    `skip_lines` is left untouched. Returns the source unchanged when nothing
     appends.
     """
     tree = _parse_python(path, source)
@@ -324,7 +324,7 @@ def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
 
 
 def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, str]]:
-    """Split a source's comments into the standalone and trailing maps.
+    """Splits a source's comments into the standalone and trailing maps.
 
     The first map keys each whole-line comment's line to its column and text;
     the second keys each line whose comment trails code to that comment's text.
@@ -349,14 +349,14 @@ def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, s
 
 
 def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
-    """Yield every `@dataclass`-decorated class in `tree`."""
+    """Yields every `@dataclass`-decorated class in `tree`."""
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and _has_dataclass_decorator(node):
             yield node
 
 
 def _docstring_constant(node: ast.AST) -> ast.Constant | None:
-    """Return `node`'s docstring string-literal node, or `None`."""
+    """Returns `node`'s docstring string-literal node, or `None`."""
     body = getattr(node, "body", None)
     if not body:
         return None
@@ -371,7 +371,7 @@ def _docstring_constant(node: ast.AST) -> ast.Constant | None:
 
 
 def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
-    """Group a docstring's lines into summary, body, and entry units."""
+    """Groups a docstring's lines into summary, body, and entry units."""
     segmenter = _DocstringSegmenter()
     for line in _doc_lines(constant):
         segmenter.consume(line)
@@ -380,7 +380,7 @@ def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
 
 
 def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
-    """Split a docstring literal into structure-tagged source lines.
+    """Splits a docstring literal into structure-tagged source lines.
 
     The first line abuts the opening quote, so it anchors its column at the
     literal and the body margin is taken from the first following non-blank
@@ -435,7 +435,7 @@ class _DocstringSegmenter:
         self._summary_done = False
 
     def close(self) -> None:
-        """Finish the open unit, appending it to `units` if non-empty."""
+        """Finishes the open unit, appending it to `units` if non-empty."""
         if not self._open:
             return
         if self._open_kind == "summary":
@@ -448,7 +448,7 @@ class _DocstringSegmenter:
         self._open = []
 
     def consume(self, line: _DocLine) -> None:
-        """Route `line` to its unit, ending the open unit as needed."""
+        """Routes `line` to its unit, ending the open unit as needed."""
         if self._consume_structural(line):
             return
         if self._section == "code":
@@ -462,7 +462,7 @@ class _DocstringSegmenter:
             self._consume_paragraph(line)
 
     def _consume_entry(self, line: _DocLine) -> None:
-        """Start a new entry on a caption line, or extend the open one.
+        """Starts a new entry on a caption line, or extends the open one.
 
         An entry opens on a `name:`-style caption at the entry margin; a line
         that carries no caption continues the open entry, whether it wraps at a
@@ -483,7 +483,7 @@ class _DocstringSegmenter:
             self._open.append(line)
 
     def _consume_paragraph(self, line: _DocLine) -> None:
-        """Extend the open summary or body paragraph, or start a new one."""
+        """Extends the open summary or body paragraph, or starts a new one."""
         if self._open and self._open_kind in ("summary", "body"):
             self._open.append(line)
             return
@@ -492,7 +492,7 @@ class _DocstringSegmenter:
         self._open_kind = "summary" if not self._summary_done else "body"
 
     def _consume_structural(self, line: _DocLine) -> bool:
-        """Handle a blank, fence, doctest, header, or section-exit line.
+        """Handles a blank, fence, doctest, header, or section-exit line.
 
         Return whether `line` was structural and yields no prose unit.
         """
@@ -519,7 +519,7 @@ class _DocstringSegmenter:
         return False
 
     def _enter_section(self, header: str) -> None:
-        """Open the section a header introduces, closing the open unit."""
+        """Opens the section a header introduces, closing the open unit."""
         self.close()
         self._summary_done = True
         self._entry_indent = None
@@ -543,7 +543,7 @@ class _ProseUnit(NamedTuple):
 
 
 def _field_has_docstring(body: list[ast.stmt], index: int) -> bool:
-    """Report whether the statement after a field is a string-literal docstring."""
+    """Reports whether the statement after a field is a string-literal docstring."""
     following = body[index + 1] if index + 1 < len(body) else None
     return (
         isinstance(following, ast.Expr)
@@ -567,7 +567,7 @@ def _leading_comment_line(
     comments: dict[int, tuple[int, str]],
     source_lines: list[str],
 ) -> int | None:
-    """Return the line of `node`'s first-body-position standalone comment.
+    """Returns the line of `node`'s first-body-position standalone comment.
 
     The comment sits directly above the first body statement, with only blank
     lines between, below the definition header. A comment deeper in the body,
@@ -588,7 +588,7 @@ def _leading_comment_line(
 def _module_summary_comment(
     tree: ast.Module, comments: dict[int, tuple[int, str]]
 ) -> Iterator[Violation]:
-    """Flag a module whose first prose line is a comment, not a docstring.
+    """Flags a module whose first prose line is a comment, not a docstring.
 
     A leading shebang, coding, or tool-directive line is skipped, so the
     summary comment beneath it is still reached; the first non-directive
@@ -617,14 +617,14 @@ def _module_summary_comment(
 def _summary_comment_owners(
     tree: ast.Module,
 ) -> Iterator[ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef]:
-    """Yield every class and function definition in `tree`."""
+    """Yields every class and function definition in `tree`."""
     for node in ast.walk(tree):
         if isinstance(node, ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef):
             yield node
 
 
 def _terminal_insert_index(line: str, lineno: int, constant: ast.Constant) -> int:
-    """Return the column on `line` just past a prose unit's last content.
+    """Returns the column on `line` just past a prose unit's last content.
 
     When the closing quote shares the unit's last line, the index lands before
     it; otherwise it lands after the line's last non-space character.
@@ -640,7 +640,7 @@ def _terminal_insert_index(line: str, lineno: int, constant: ast.Constant) -> in
 
 
 def _terminal_punctuation_message(kind: str) -> str:
-    """Return the fix message for a missing terminal mark on `kind`."""
+    """Returns the fix message for a missing terminal mark on `kind`."""
     subject = {
         "summary": "docstring summary",
         "body": "docstring body paragraph",
@@ -650,7 +650,7 @@ def _terminal_punctuation_message(kind: str) -> str:
 
 
 def _unfenced_md_lines(source: str) -> Iterator[tuple[int, str]]:
-    """Yield `(index, line)` for each line outside a fenced code block."""
+    """Yields `(index, line)` for each line outside a fenced code block."""
     in_fence = False
     for index, line in enumerate(source.splitlines()):
         if line.lstrip().startswith("```"):

@@ -23,7 +23,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
 
 These are the general conventions from fhir-ingestor's `docs/code-style.md` and `docs/testing.md` (the deeper rationale lives there) — the subset that applies to this package's own code. Several are rules this package itself defines, so it holds itself to them too.
 
-- Imperative Google-style docstrings stating the unit's own contract — no caller postulation, no implementation mechanics, no narration of rejected alternatives. Comments only where the *why* is non-obvious.
+- Descriptive Google-style docstrings stating the unit's own contract in the third person (`Returns the lease.`, not `Return the lease.`) — no caller postulation, no implementation mechanics, no narration of rejected alternatives. Comments only where the *why* is non-obvious.
 - Line length 88; docstring and comment paragraphs fill to 79 columns (RS009).
 - Single backticks in docstrings and prose, never double (RS005).
 - Every docstring prose unit — the summary, a body paragraph, and an `Args:`/`Returns:`/`Raises:`/`Yields:` entry — ends with terminal punctuation (`.`, `!`, or `?`), per PEP 257 (RS030, warning). A comment, by contrast, takes no trailing period on a single-line fragment but punctuates multi-line or multi-sentence prose.

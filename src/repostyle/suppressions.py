@@ -23,7 +23,7 @@ _LINE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore\b(?!-file)(?:\[([\sA-Z0-9,]*)
 def filter_suppressed(
     path: Path, violations: Iterable[Violation], source: str
 ) -> list[Violation]:
-    """Drop violations waived by a `# style: ignore` directive in `source`."""
+    """Drops violations waived by a `# style: ignore` directive in `source`."""
     file_suppressed, lines = _parse(path, source)
     if file_suppressed:
         return []
@@ -31,7 +31,7 @@ def filter_suppressed(
 
 
 def suppressed_lines(path: Path, source: str, rule: str) -> tuple[bool, frozenset[int]]:
-    """Report whole-file suppression and the lines waiving `rule`.
+    """Reports whole-file suppression and the lines waiving `rule`.
 
     An autofixer consults this to leave waived lines untouched.
 
@@ -73,19 +73,19 @@ class _LineSuppressions:
         self._by_rule: dict[int, set[str]] = {}
 
     def add_all(self, line: int) -> None:
-        """Suppress every rule on `line`."""
+        """Suppresses every rule on `line`."""
         self._all.add(line)
 
     def add_rules(self, line: int, rules: set[str]) -> None:
-        """Suppress the named rules on `line`."""
+        """Suppresses the named rules on `line`."""
         self._by_rule.setdefault(line, set()).update(rules)
 
     def lines_waiving(self, rule: str) -> set[int]:
-        """Return every line on which `rule` is suppressed."""
+        """Returns every line on which `rule` is suppressed."""
         return self._all | {
             line for line, rules in self._by_rule.items() if rule in rules
         }
 
     def suppresses(self, line: int, rule: str) -> bool:
-        """Report whether `rule` on `line` is suppressed."""
+        """Reports whether `rule` on `line` is suppressed."""
         return line in self._all or rule in self._by_rule.get(line, set())

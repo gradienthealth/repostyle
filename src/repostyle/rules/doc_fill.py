@@ -71,15 +71,15 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
 def reflow_doc_fill(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
-    """Rewrap docstring and comment paragraphs in `source` to 79 columns.
+    """Rewraps docstring and comment paragraphs in `source` to 79 columns.
 
     Each fillable unit is greedily refilled at its hanging indent; the verbatim
     structures RS009 exempts (code fences, doctests, table and rule lines,
     section headers) are left untouched, as are units on a line in `skip_lines`
     and units with a backtick span hard-wrapped across source lines. The
-    source's line ending is preserved. Return the source unchanged when nothing
-    reflows. Docstrings reflow in Python; comments reflow in Python, TOML, and
-    YAML alike.
+    source's line ending is preserved. Returns the source unchanged when
+    nothing reflows. Docstrings reflow in Python; comments reflow in Python,
+    TOML, and YAML alike.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return source
@@ -105,7 +105,7 @@ def reflow_doc_fill(
 
 
 def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
-    """Yield every fillable docstring and comment unit in `source`.
+    """Yields every fillable docstring and comment unit in `source`.
 
     Both the check and the reflow consume this, so they agree on which
     docstrings and comments are in scope. A Python file contributes docstrings
@@ -133,7 +133,7 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
 def _comment_blocks(
     path: Path, source: str, source_lines: list[str]
 ) -> Iterator[list[_FillLine]]:
-    """Yield runs of adjacent own-line comments at the same column.
+    """Yields runs of adjacent own-line comments at the same column.
 
     A directive comment, or a gap in line or column, closes the open run and
     starts a new one.
@@ -190,7 +190,7 @@ def _fill_units(lines: list[_FillLine]) -> Iterator[list[_FillLine]]:
 
 
 class _UnitAccumulator:
-    """Group docstring or comment lines into fillable paragraph units.
+    """Groups docstring or comment lines into fillable paragraph units.
 
     Feed lines in order with `consume`, call `close` after the last line, then
     read the gathered paragraphs from `units`. A verbatim or blank line closes
@@ -209,14 +209,14 @@ class _UnitAccumulator:
         self._entry_indent: int | None = None
 
     def close(self) -> None:
-        """Finish the open unit, appending it to `units` if non-empty."""
+        """Finishes the open unit, appending it to `units` if non-empty."""
         if self._unit:
             self.units.append(self._unit)
         self._unit = []
         self._cont_indent = None
 
     def consume(self, line: _FillLine) -> None:
-        """Route `line` to its handler, ending the open unit as needed."""
+        """Routes `line` to its handler, ending the open unit as needed."""
         if self._consume_verbatim(line):
             return
         self._exit_finished_section(line)
@@ -225,11 +225,11 @@ class _UnitAccumulator:
         self._consume_paragraph(line)
 
     def _consume_marker(self, line: _FillLine) -> bool:
-        """Open a fresh unit for a header, entry, bullet, or label line.
+        """Opens a fresh unit for a header, entry, bullet, or label line.
 
         A section header opens a new section and is not itself filled. A
-        section entry, bullet, or label line starts a hanging paragraph. Return
-        whether `line` was a marker and has been handled.
+        section entry, bullet, or label line starts a hanging paragraph.
+        Returns whether `line` was a marker and has been handled.
         """
         if line.text in _SECTION_HEADERS:
             self.close()
@@ -248,7 +248,7 @@ class _UnitAccumulator:
         return False
 
     def _consume_paragraph(self, line: _FillLine) -> None:
-        """Append `line` to the open unit or start a unit with it.
+        """Appends `line` to the open unit or starts a unit with it.
 
         A line indented past a one-line unit sets that unit's continuation
         indent; otherwise a line matching the established indent continues the
@@ -260,7 +260,7 @@ class _UnitAccumulator:
         self._first_indent = line.indent
 
     def _consume_verbatim(self, line: _FillLine) -> bool:
-        """Close the unit and report whether `line` is unfillable.
+        """Closes the unit and reports whether `line` is unfillable.
 
         Blank lines, code fences, doctests, and table or rule lines are
         verbatim: they never join a paragraph. A fence line also toggles
@@ -282,15 +282,15 @@ class _UnitAccumulator:
         return False
 
     def _exit_finished_section(self, line: _FillLine) -> None:
-        """Clear section tracking when `line` falls back to its margin."""
+        """Clears section tracking when `line` falls back to its margin."""
         if self._section_indent is not None and line.indent <= self._section_indent:
             self._section_indent = None
             self._entry_indent = None
 
     def _extend_open_unit(self, line: _FillLine) -> bool:
-        """Append `line` to the open unit when its indent fits, else end it.
+        """Appends `line` to the open unit when its indent fits, else ends it.
 
-        Return whether `line` joined the open unit.
+        Returns whether `line` joined the open unit.
         """
         if len(self._unit) == 1 and line.indent > self._first_indent:
             self._cont_indent = line.indent
@@ -306,9 +306,9 @@ class _UnitAccumulator:
         return False
 
     def _starts_entry(self, line: _FillLine) -> bool:
-        """Report whether `line` begins an entry within the open section.
+        """Reports whether `line` begins an entry within the open section.
 
-        Latch the section's entry indent to the first line examined, so later
+        Latches the section's entry indent to the first line examined, so later
         lines count as entries only when they align with it.
         """
         if self._section_indent is None:
@@ -346,7 +346,7 @@ def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
 
 
 def _has_break_before_limit(line: _FillLine) -> bool:
-    """Report whether a legal wrap break falls within the column limit.
+    """Reports whether a legal wrap break falls within the column limit.
 
     A space inside a backtick `...` span is not a legal break, as with a URL,
     so a line may pass the limit without one. Backticks that do not pair up
@@ -364,7 +364,7 @@ def _has_break_before_limit(line: _FillLine) -> bool:
 
 
 def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
-    """Return `unit` rewrapped to the column limit, or `None` to skip it.
+    """Returns `unit` rewrapped to the column limit, or `None` to skip it.
 
     A unit whose text contains a triple quote is skipped, since rewrapping
     would move the quote. A unit with a backtick span hard-wrapped across
@@ -393,7 +393,7 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
 
 
 def _atomic_tokens(text: str) -> list[str]:
-    """Split `text` into fill tokens, keeping each backtick span whole.
+    """Splits `text` into fill tokens, keeping each backtick span whole.
 
     Whitespace splits `text` into tokens, except inside a backtick `...` span,
     where spaces are kept so the span stays one unbreakable token the way a URL
@@ -421,7 +421,7 @@ def _atomic_tokens(text: str) -> list[str]:
 
 
 def _hanging_indent(unit: list[_FillLine]) -> int:
-    """Return the indent continuation lines of `unit` wrap to.
+    """Returns the indent continuation lines of `unit` wrap to.
 
     An established continuation indent (a unit already spanning lines) is
     reused. A single over-long line wraps under its own marker: two columns for
@@ -440,7 +440,7 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
 
 
 def _span_crosses_line(unit: list[_FillLine]) -> bool:
-    """Report whether a backtick span in `unit` opens and closes on different lines."""
+    """Reports whether a backtick span in `unit` opens and closes on different lines."""
     open_span = False
     for line in unit[:-1]:
         open_span ^= line.text.count("`") % 2 == 1

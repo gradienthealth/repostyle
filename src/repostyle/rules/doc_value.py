@@ -79,7 +79,7 @@ _RETURN_LEAD_PATTERN = re.compile(
 
 
 def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a parameter explained in the docstring body, not in `Args:`.
+    """Flags a parameter explained in the docstring body, not in `Args:`.
 
     A public function fires once per parameter that leads a sentence of the
     docstring's prose body as its backtick-wrapped subject while no `Args:`
@@ -106,7 +106,7 @@ def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]
 
 
 def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a return value described in the docstring body, not in `Returns:`.
+    """Flags a return value described in the docstring body, not in `Returns:`.
 
     A public function with a non-`None` return annotation and no `Returns:` or
     `Yields:` section fires once when a sentence in the docstring's prose body
@@ -139,7 +139,7 @@ def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violati
 
 
 def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
-    """Warn when a non-trivial public function is under-documented.
+    """Warns when a non-trivial public function is under-documented.
 
     A public function with no docstring earns a warning when it is complex or
     many-argumented; a documented public function earns one when it returns a
@@ -151,7 +151,7 @@ def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
 
 
 def _body_and_documented_args(docstring: str) -> tuple[str, set[str]]:
-    """Split a cleaned docstring into body prose and documented args.
+    """Splits a cleaned docstring into body prose and documented args.
 
     The body is the prose between the summary and the first Google-style
     section header; the documented args are the names entered under an `Args:`
@@ -207,7 +207,7 @@ def _check_function(
 
 
 def _describes_param_as_subject(body: str, name: str) -> bool:
-    """Report whether a body sentence documents the parameter as subject.
+    """Reports whether a body sentence documents the parameter as subject.
 
     A sentence describes the parameter when, after an optional leading article
     or `Takes`, the clause opens with the backtick-wrapped name.
@@ -219,7 +219,7 @@ def _describes_param_as_subject(body: str, name: str) -> bool:
 
 
 def _describes_return_up_front(body: str) -> bool:
-    """Report whether a body sentence narrates the return value up front.
+    """Reports whether a body sentence narrates the return value up front.
 
     A sentence narrates the return value when its clause opens with `Return` or
     `Returns` followed by a description, rather than the word appearing as an
@@ -231,7 +231,7 @@ def _describes_return_up_front(body: str) -> bool:
 
 
 def _any_clause_leads_with(body: str, leads_with: Callable[[str], bool]) -> bool:
-    """Report whether any clause of the body prose satisfies `leads_with`.
+    """Reports whether any clause of the body prose satisfies `leads_with`.
 
     Sentences split on `.` and `;` but not commas or line breaks, so a name or
     verb listed mid-clause is not read as a description and the verdict does
@@ -244,7 +244,7 @@ def _any_clause_leads_with(body: str, leads_with: Callable[[str], bool]) -> bool
 
 
 def _has_return_annotation(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Report whether the return annotation is present and not `None`."""
+    """Reports whether the return annotation is present and not `None`."""
     annotation = node.returns
     if annotation is None:
         return False
@@ -252,12 +252,12 @@ def _has_return_annotation(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool
 
 
 def _param_count(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
-    """Count a function's parameters, excluding a leading `self`/`cls`."""
+    """Counts a function's parameters, excluding a leading `self`/`cls`."""
     return len(_param_names(node))
 
 
 def _param_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
-    """List a function's parameter names, excluding a leading `self`/`cls`."""
+    """Lists a function's parameter names, excluding a leading `self`/`cls`."""
     args = node.args
     positional = args.posonlyargs + args.args
     names = [arg.arg for arg in positional + args.kwonlyargs]
@@ -273,7 +273,7 @@ def _param_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
 def _public_functions(
     path: Path, source: str
 ) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
-    """Yield each public, non-test function in a parseable source file.
+    """Yields each public, non-test function in a parseable source file.
 
     A definition is in scope when the file is not a test module and the
     function is neither underscore- nor `test_`-prefixed nor an `@overload`
@@ -295,7 +295,7 @@ def _public_functions(
 
 
 def _returns_multi_element_tuple(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Report whether the return annotation is a multi-element `tuple`.
+    """Reports whether the return annotation is a multi-element `tuple`.
 
     A multi-element `tuple` is an anonymous composite whose parts a single
     summary line cannot enumerate, so it warrants a `Returns:` section. The
