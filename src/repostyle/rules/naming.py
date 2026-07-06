@@ -1,4 +1,4 @@
-"""Identifier-naming rules: acronym casing, abbreviations, suffixes, booleans."""
+"""Identifier rules: acronym casing, abbreviations, suffixes, booleans."""
 
 from __future__ import annotations
 

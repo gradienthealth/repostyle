@@ -1,4 +1,4 @@
-"""Visibility rule: a public name used only in its own module should be private.
+"""Visibility rule: a public name used only in its module should be private.
 
 Unlike every other rule, this one reasons across the whole package: it catalogs
 each module's top-level public `def`/`class` and every module's references,
@@ -98,9 +98,9 @@ class _ModuleFacts:
     imported: set[str] = field(default_factory=set)
     """Names this module binds through an import (its re-export candidates)."""
     name_loads: set[str] = field(default_factory=set)
-    """Identifiers loaded by name in this module — a precise local-use signal."""
+    """Identifiers this module loads by name, a precise local-use signal."""
     broad_refs: set[str] = field(default_factory=set)
-    """Every identifier this module mentions — a generous cross-module signal."""
+    """Identifiers this module mentions, a generous cross-module signal."""
 
 
 def _collect_definitions(tree: ast.AST, facts: _ModuleFacts) -> None:
@@ -223,7 +223,7 @@ def _public_surface(modules: Sequence[_ModuleFacts], anchor: Path) -> set[str]:
 
 @lru_cache(maxsize=128)
 def _entry_point_names(anchor: Path) -> tuple[str, ...]:
-    """Returns the function names declared as `[project.scripts]` entry points."""
+    """Returns function names declared as `[project.scripts]` entry points."""
     pyproject = find_pyproject(anchor)
     if pyproject is None:
         return ()
@@ -243,7 +243,7 @@ def _public_names(pyproject: Path | None) -> tuple[str, ...]:
 
 @lru_cache(maxsize=128)
 def _string_list(pyproject: Path, key: str) -> tuple[str, ...]:
-    """Reads a `[tool.repostyle]` list-of-strings setting from a pyproject file."""
+    """Reads a `[tool.repostyle]` list-of-strings setting from `pyproject`."""
     data = _load_pyproject(pyproject)
     value = data.get("tool", {}).get("repostyle", {}).get(key, [])
     return tuple(str(entry) for entry in value) if isinstance(value, list) else ()

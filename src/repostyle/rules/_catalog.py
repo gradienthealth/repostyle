@@ -30,6 +30,7 @@ from repostyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
+    RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
@@ -456,6 +457,35 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 bad="my_config.yaml",
                 good="my-config.yaml",
                 note="The default `filename-case` of kebab.",
+            ),
+        ),
+    ),
+    RS_DOC_SUMMARY_OVERFLOW: RuleDoc(
+        name="doc-summary-overflow",
+        summary="A docstring summary line fills within 79 columns.",
+        rationale=(
+            "PEP 257 and Google style require a docstring summary to be "
+            "exactly one physical line, so unlike a body paragraph it has no "
+            "second line to spread overflow onto — `doc-fill`'s `--fix` "
+            "cannot rewrap it, only shrink or relocate the words by hand. "
+            "Move a detail that does not fit into the body or an `Args:`/"
+            "`Returns:` section instead of letting the summary run long."
+        ),
+        examples=(
+            Example(
+                bad=(
+                    '"""Builds the outbound claim payload from the encounter, the '
+                    'coverage, and the billing provider."""'
+                ),
+                good=(
+                    '"""Builds the outbound claim payload.\n\n'
+                    "    Builds the payload from the encounter, the coverage, and\n"
+                    '    the billing provider.\n    """'
+                ),
+                note=(
+                    "Keep the summary to one short line and move the rest into "
+                    "a body paragraph, which `doc-fill` can wrap."
+                ),
             ),
         ),
     ),

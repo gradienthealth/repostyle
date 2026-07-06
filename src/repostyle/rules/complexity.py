@@ -56,7 +56,7 @@ def _score_children(node: ast.AST, nesting: int) -> int:
 
 
 def _score_if(node: ast.If, nesting: int) -> int:
-    """Scores an `if`, treating an `elif` as a flat continuation, not deeper nesting.
+    """Scores an `if`, treating an `elif` as flat, not a deeper nesting level.
 
     An `elif` is a lone `If` in the `orelse`; scoring it at the same nesting
     keeps a dispatch chain of branches from reading as deeply nested code,
