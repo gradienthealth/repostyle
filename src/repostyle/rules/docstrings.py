@@ -14,7 +14,9 @@ import ast
 import io
 import re
 import tokenize
+import tomllib
 from collections.abc import Iterator
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -25,6 +27,7 @@ from repostyle.rules._shared import (
     _join_source_lines,
     _parse_python,
     _terminal_punctuation_fault,
+    find_pyproject,
 )
 from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
@@ -344,6 +347,59 @@ NON_TRIVIAL_CONJUGATIONS: dict[str, str] = {
     if conjugated != f"{verb}s"
 }
 
+
+@lru_cache(maxsize=128)
+def _repostyle_table(pyproject: Path | None) -> dict[str, object]:
+    """Reads the `[tool.repostyle]` table from a pyproject file, if any."""
+    if pyproject is None:
+        return {}
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+    return data.get("tool", {}).get("repostyle", {})
+
+
+def _configured_verbs(table: dict[str, object], key: str) -> tuple[str, ...]:
+    """Reads a list of verbs from the repostyle config table under `key`."""
+    configured = table.get(key, ())
+    if isinstance(configured, str):
+        configured = (configured,)
+    if not isinstance(configured, list | tuple):
+        return ()
+    return tuple(str(verb) for verb in configured)
+
+
+@lru_cache(maxsize=128)
+def _effective_conjugations(pyproject: Path | None) -> dict[str, str]:
+    """Returns the verb-to-conjugation map, adjusted for this repo's config.
+
+    A repo adds its own survey-backed verb via `imperative-verbs-extra`, or
+    drops a homograph too risky for its own domain via
+    `imperative-verbs-exclude`, tuning RS034 locally instead of forking
+    repostyle's curated list — the same override pattern RS017's
+    `banned-imports` and RS033's `filename-extensions` already use.
+    """
+    table = _repostyle_table(pyproject)
+    extra = _configured_verbs(table, "imperative-verbs-extra")
+    exclude = frozenset(_configured_verbs(table, "imperative-verbs-exclude"))
+    if not extra and not exclude:
+        return IMPERATIVE_VERB_CONJUGATIONS
+    verbs = dict.fromkeys(
+        verb for verb in (*_IMPERATIVE_VERBS, *extra) if verb not in exclude
+    )
+    return {verb: _conjugate(verb) for verb in verbs}
+
+
+@lru_cache(maxsize=128)
+def _effective_pattern(pyproject: Path | None) -> re.Pattern[str]:
+    """Returns the opening-verb regex built from this repo's effective verbs."""
+    conjugations = _effective_conjugations(pyproject)
+    if conjugations is IMPERATIVE_VERB_CONJUGATIONS:
+        return _IMPERATIVE_OPENING_PATTERN
+    return re.compile(r"^(" + "|".join(conjugations) + r")\b")
+
+
 # Google section headers, grouped by how their bodies are graded. An entry
 # section holds `name: description` items checked per entry; a prose section's
 # body is graded as prose; a code section is exempt.
@@ -552,17 +608,22 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
     third person (`Returns the lease.`), not as a command (`Return the
     lease.`), matching Google's own style guide rather than PEP 257's
     imperative recommendation. A summary whose first word is a known
-    bare-infinitive verb should conjugate it to third-person singular.
+    bare-infinitive verb should conjugate it to third-person singular. A repo
+    tunes the verb set for its own domain via `imperative-verbs-extra` and
+    `imperative-verbs-exclude` in `[tool.repostyle]`.
     """
     tree = _parse_python(path, source)
     if tree is None:
         return
+    pyproject = find_pyproject(path)
+    conjugations = _effective_conjugations(pyproject)
+    pattern = _effective_pattern(pyproject)
     for node in _walk_docstring_owners(tree):
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None:
             continue
         summary = _docstring_summary_line(docstring)
-        match = _IMPERATIVE_OPENING_PATTERN.match(summary)
+        match = pattern.match(summary)
         if match is None:
             continue
         verb = match.group(1)
@@ -571,7 +632,7 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
             getattr(node, "col_offset", 0) + 1,
             RS_IMPERATIVE_DOCSTRING_OPENING,
             f"docstring opens in imperative mood; use "
-            f"'{IMPERATIVE_VERB_CONJUGATIONS[verb]}', not '{verb}'",
+            f"'{conjugations[verb]}', not '{verb}'",
         )
 
 

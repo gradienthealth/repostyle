@@ -271,6 +271,20 @@ class TestCheckImperativeDocstringOpening:
         assert violations[0].line == 1
         assert expected_message_fragment in violations[0].message
 
+    def test_ConfiguredExtraVerb_FlagsViolation(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle]\nimperative-verbs-extra = ["Deploy"]\n'
+        source = 'def f():\n    """Deploy the release."""\n'
+        target = _target(tmp_path, source, table)
+        violations = list(check_imperative_docstring_opening(target, source))
+        assert len(violations) == 1
+        assert "'Deploys', not 'Deploy'" in violations[0].message
+
+    def test_ConfiguredExcludedVerb_NoViolation(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle]\nimperative-verbs-exclude = ["Check"]\n'
+        source = 'def f():\n    """Check constraint on the age column."""\n'
+        target = _target(tmp_path, source, table)
+        assert list(check_imperative_docstring_opening(target, source)) == []
+
     @pytest.mark.parametrize(
         ("source", "expected_line"),
         [
@@ -357,3 +371,11 @@ class TestImperativeVerbConjugations:
         assert NON_TRIVIAL_CONJUGATIONS["Fetch"] == "Fetches"
         assert "Return" not in NON_TRIVIAL_CONJUGATIONS
         assert set(NON_TRIVIAL_CONJUGATIONS) <= set(IMPERATIVE_VERB_CONJUGATIONS)
+
+
+def _target(tmp_path: Path, source: str, table: str = "") -> Path:
+    if table:
+        (tmp_path / "pyproject.toml").write_text(table, encoding="utf-8")
+    target = tmp_path / "module.py"
+    target.write_text(source, encoding="utf-8")
+    return target

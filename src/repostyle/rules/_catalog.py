@@ -486,7 +486,10 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "evidence alone, since it is not itself a pydocstyle entry. A "
             "handful of pydocstyle's own entries (`List`, `Query`, `Test`, "
             "...) are left out anyway because the noun reading dominates in "
-            "this codebase's own domain."
+            "this codebase's own domain. A consuming repo tunes the set for "
+            "its own domain via `imperative-verbs-extra`/"
+            "`imperative-verbs-exclude` in `[tool.repostyle]`, rather than "
+            "forking repostyle's source."
         ),
         examples=(
             Example(

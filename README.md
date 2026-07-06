@@ -43,7 +43,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS031 | Arg described in prose (warning): per-argument detail narrated in the docstring body belongs in an `Args:` section. |
 | RS032 | Return described in prose (warning): the return value narrated in the docstring body belongs in a `Returns:` section. |
 | RS033 | Filename convention (warning): a non-Python file's extension and casing follow the configured preference, defaulting to `.yaml` over `.yml` and kebab-case for a multi-word name (see below). |
-| RS034 | Imperative docstring opening (warning): a docstring summary opens with a known bare-infinitive verb (`Return`, `Build`, `Fetch`, ...) instead of its descriptive third-person conjugation (`Returns`, `Builds`, `Fetches`, ...). |
+| RS034 | Imperative docstring opening (warning): a docstring summary opens with a known bare-infinitive verb (`Return`, `Build`, `Fetch`, ...) instead of its descriptive third-person conjugation (`Returns`, `Builds`, `Fetches`, ...); the verb set is config-tunable (see below). |
 
 ### Repo-agnostic vs repo-specific
 
@@ -124,6 +124,18 @@ filename-ignore = ["README.md", "LICENSE"]   # globs exempted from both checks
 `filename-extensions` replaces the default mapping wholesale rather than merging into it — repeat `.yml = .yaml` alongside any extra entries, or declare the table empty to disable the check. `filename-case` and `filename-ignore` apply to both the extension and the casing check. `filename-ignore` globs (`fnmatch` semantics, matched against the path relative to the repo root) are the place for a fixed name a tool or convention mandates — `README.md`, a generated `CHANGELOG.md`, or `.github/workflows/*.yml` if the repo keeps GitHub Actions' own `.yml` convention — rather than renaming them. Both checks skip `.py` files, whose names are already governed by import-identifier conventions.
 
 RS033 only ever sees a file its invocation actually discovers: a bare directory argument and the shipped `repostyle` pre-commit hook both limit discovery to `.py`/`.toml`/`.yaml`/`.yml`/`.md`. An extensionless fixed name like `Dockerfile` or `LICENSE` only reaches the rule if the consuming repo widens its own hook's `types`/`files` to pass it, or names it as an explicit CLI argument.
+
+## Configure the imperative-verb list (RS034)
+
+RS034 matches a fixed, curated verb list, adapted from pydocstyle's own word list plus a handful of gradienthealth-specific exclusions. A repo whose own domain disagrees tunes the list without a repostyle source change:
+
+```toml
+[tool.repostyle]
+imperative-verbs-extra = ["Deploy"]      # a verb this repo's own docstrings use imperatively
+imperative-verbs-exclude = ["Cache"]     # a verb whose noun reading dominates in this repo's domain
+```
+
+`imperative-verbs-extra` adds to the shipped list rather than replacing it; `imperative-verbs-exclude` removes from the combined result, so it can drop a shipped verb, an added one, or both. Neither key needs the other configured.
 
 ## Suppress a finding
 
