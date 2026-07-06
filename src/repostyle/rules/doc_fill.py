@@ -478,7 +478,7 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
 
 
 def _span_crosses_line(unit: list[_FillLine]) -> bool:
-    """Reports whether a backtick span opens and closes on different lines."""
+    """Reports whether a backtick span in `unit` crosses a line."""
     open_span = False
     for line in unit[:-1]:
         open_span ^= line.text.count("`") % 2 == 1

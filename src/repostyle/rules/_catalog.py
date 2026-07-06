@@ -479,8 +479,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 ),
                 good=(
                     '"""Builds the outbound claim payload.\n\n'
-                    "    Assembles the payload from the encounter, the coverage,\n"
-                    '    and the billing provider.\n    """'
+                    "    Builds the payload from the encounter, the coverage, and\n"
+                    '    the billing provider.\n    """'
                 ),
                 note=(
                     "Keep the summary to one short line and move the rest into "
