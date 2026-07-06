@@ -210,8 +210,9 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
     ending — reads as part of the identifier and breaks the span in rendered
     Markdown. The check fires on a closing backtick followed at once by a
     letter or an apostrophe, and leaves a hyphenated compound such as `-safe`
-    alone, since that keeps the span ending on a word boundary. The rule warns;
-    the remedy is to move the suffix outside the span, and is not automatic.
+    alone, since that keeps the span ending on a word boundary. The rule warns
+    and has no automatic fix; the remedy is to move the suffix outside the
+    span.
     """
     tree = _parse_python(path, source)
     if tree is None:
