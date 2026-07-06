@@ -343,6 +343,7 @@ class TestCheckUnbacktickedCodeReference:
             "class Note:\n    pass\n\n\n"
             'def f():\n    """Returns it. Please Note the order."""\n',
             'def f() -> None:\n    """See https://x.com/api/None here."""\n',
+            'def f(skip_lines):\n    """Writes gs://bucket/skip_lines out."""\n',
         ],
         ids=[
             "backticked",
@@ -355,7 +356,8 @@ class TestCheckUnbacktickedCodeReference:
             "all-caps-english-at-sentence-start",
             "single-letter-name",
             "titlecase-english-word-mid-sentence",
-            "name-inside-url",
+            "name-inside-http-url",
+            "name-inside-gs-uri",
         ],
     )
     def test_ConformingProse_NoViolation(self, source: str) -> None:

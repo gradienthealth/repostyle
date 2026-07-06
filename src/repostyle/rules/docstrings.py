@@ -92,11 +92,11 @@ _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 # The Python literal constants read as code in prose just as a name does, so
 # RS036 treats them as always-known references beside the module's own names.
 _LITERAL_CONSTANTS = frozenset({"None", "True", "False"})
-# A backtick-delimited span or a URL, both dropped before RS036 scans a unit: a
-# name already in code font, or one sitting inside a link, is not a bare prose
-# reference.
+# A backtick-delimited span or a URI, both dropped before RS036 scans a unit: a
+# name already in code font, or one sitting inside a `gs://`, `https://`, or
+# other scheme's path, is not a bare prose reference.
 _BACKTICK_SPAN_PATTERN = re.compile(r"`[^`]*`")
-_URL_PATTERN = re.compile(r"https?://\S+")
+_URI_PATTERN = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
 # A Python identifier, the token RS036 tests against the known-name set
 _IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # An entry unit leads with its own `name:` or `name (type):` caption, which
@@ -402,7 +402,7 @@ def check_unbackticked_code_reference(path: Path, source: str) -> Iterator[Viola
     but not at a sentence start, where it could open an English clause. A
     plain-lowercase word (a `path` parameter), a Titlecase or all-caps word
     that also reads as English (`Path`, `Note`, `WARNING`), a backticked span,
-    a URL, and a doctest are all left alone.
+    a URI, and a doctest are all left alone.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -554,7 +554,7 @@ def _name_location(
 
 def _unbackticked_references(unit: _ProseUnit, known: frozenset[str]) -> list[str]:
     """Returns the distinct known names a prose unit uses without backticks."""
-    text = _URL_PATTERN.sub(" ", _BACKTICK_SPAN_PATTERN.sub(" ", unit.text))
+    text = _URI_PATTERN.sub(" ", _BACKTICK_SPAN_PATTERN.sub(" ", unit.text))
     if unit.kind == "entry":
         text = _ENTRY_CAPTION_PATTERN.sub("", text)
     found: list[str] = []
