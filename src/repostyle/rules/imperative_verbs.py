@@ -283,7 +283,7 @@ def _conjugate(verb: str) -> str:
         return _IRREGULAR_CONJUGATIONS[verb]
     if verb.endswith(_ES_CONJUGATION_SUFFIXES):
         return f"{verb}es"
-    if verb.endswith("y") and verb[-2].lower() not in "aeiou":
+    if len(verb) > 1 and verb.endswith("y") and verb[-2].lower() not in "aeiou":
         return f"{verb[:-1]}ies"
     return f"{verb}s"
 

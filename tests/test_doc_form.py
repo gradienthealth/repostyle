@@ -285,6 +285,15 @@ class TestCheckImperativeDocstringOpening:
         target = _target(tmp_path, source, table)
         assert list(check_imperative_docstring_opening(target, source)) == []
 
+    def test_ConfiguredSingleLetterExtraVerb_DoesNotCrash(
+        self, tmp_path: Path
+    ) -> None:
+        table = '[tool.repostyle]\nimperative-verbs-extra = ["y"]\n'
+        source = 'def f():\n    """y the thing."""\n'
+        target = _target(tmp_path, source, table)
+        violations = list(check_imperative_docstring_opening(target, source))
+        assert "'ys', not 'y'" in violations[0].message
+
     @pytest.mark.parametrize(
         ("source", "expected_line"),
         [
