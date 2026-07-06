@@ -54,6 +54,7 @@ from repostyle.rules._violation import (
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
+    RS_UNBACKTICKED_CODE_REFERENCE,
 )
 from repostyle.rules.imperative_verbs import NON_TRIVIAL_CONJUGATIONS
 
@@ -533,11 +534,43 @@ RULE_DOCS: dict[str, RuleDoc] = {
             ),
         ),
     ),
+    RS_UNBACKTICKED_CODE_REFERENCE: RuleDoc(
+        name="unbackticked-code-reference",
+        summary=(
+            "A docstring wraps a code name it references — a parameter, an "
+            "import, a class, `None`/`True`/`False` — in single backticks."
+        ),
+        rationale=(
+            "The house style sets a code token in single backticks so prose "
+            "reads apart from the identifiers it names. A linter cannot decide "
+            "this for an arbitrary word, so the check stays mechanical by "
+            "firing only where two signals agree: the word matches a name the "
+            "module itself binds (a parameter, import, function, class, or "
+            "accessed attribute) or a literal constant, and its shape rules "
+            "out plain English — an underscore, an interior capital, or a "
+            "digit, or a leading capital used away from a sentence start. A "
+            "lowercase name that doubles as an English word, such as a `path` "
+            "or `line` parameter, is left to review, since no rule can tell "
+            "the reference from the word. Grounding the match in the module's "
+            "own names is what lets a domain acronym like TOML or FHIR pass "
+            "untouched: code-shaped, but not a name the code binds."
+        ),
+        examples=(
+            Example(
+                bad='"""Returns None when skip_lines is empty."""',
+                good='"""Returns `None` when `skip_lines` is empty."""',
+                note=(
+                    "Backtick a literal and a code-shaped parameter; a plain "
+                    "word like `path` stays for review to judge."
+                ),
+            ),
+        ),
+    ),
 }
 
 
 def rule_doc(rule_id: str) -> RuleDoc | None:
-    """Returns a rule's metadata record, or None for an unknown id."""
+    """Returns a rule's metadata record, or `None` for an unknown id."""
     return RULE_DOCS.get(rule_id)
 
 

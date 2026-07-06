@@ -25,6 +25,7 @@ from repostyle.rules import (
     RS_SLEEPY_TEST,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
+    RS_UNBACKTICKED_CODE_REFERENCE,
     check_acronym_casing,
     check_banned_abbreviation,
     check_behavior_verification_only,
@@ -48,6 +49,7 @@ from repostyle.rules import (
     check_port_no_implementation,
     check_sleepy_test,
     check_test_naming,
+    check_unbackticked_code_reference,
 )
 
 # PEP 695 type-alias / type-parameter syntax only parses on Python 3.12+, so
@@ -275,6 +277,70 @@ class TestCheckNoDoubleBackticksInDocstrings:
                     Path("src/x.py"), '"""See `ClassName` for details."""'
                 )
             )
+            == []
+        )
+
+
+class TestCheckUnbacktickedCodeReference:
+    @pytest.mark.parametrize(
+        ("source", "token"),
+        [
+            ('def f() -> None:\n    """Returns None on a miss."""\n', "None"),
+            (
+                'def f(skip_lines):\n    """Drops skip_lines from the run."""\n',
+                "skip_lines",
+            ),
+            (
+                "from x import HttpClient\n\n\n"
+                'def f():\n    """Builds a HttpClient."""\n',
+                "HttpClient",
+            ),
+            (
+                'def f(node):\n    """Reads node col_offset."""\n'
+                "    return node.col_offset\n",
+                "col_offset",
+            ),
+        ],
+        ids=["literal", "snake-case-param", "camel-case-import", "attribute"],
+    )
+    def test_BareCodeNameInProse_FlagsViolation(self, source: str, token: str) -> None:
+        violations = list(check_unbackticked_code_reference(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_UNBACKTICKED_CODE_REFERENCE
+        assert f"`{token}`" in violations[0].message
+
+    def test_BareLiteral_ColumnAtProseUnit(self) -> None:
+        source = 'def f() -> None:\n    """Returns None on a miss."""\n'
+        violations = list(check_unbackticked_code_reference(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (2, 5)
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f() -> None:\n    """Returns `None` on a miss."""\n',
+            'def f(path):\n    """Reads the path config."""\n',
+            'def f() -> None:\n    """Does the thing. None marks a miss."""\n',
+            'def f() -> None:\n    """Does it.\n\n    >>> f() is None\n    """\n',
+            'def f(text):\n    """Parses TOML from text."""\n',
+            'def f(skip_lines):\n    """Does it.\n\n'
+            "    Args:\n        skip_lines: The lines to skip.\n    "
+            '"""\n',
+        ],
+        ids=[
+            "backticked",
+            "lowercase-english-word",
+            "sentence-initial-literal",
+            "doctest",
+            "acronym-not-bound",
+            "args-caption",
+        ],
+    )
+    def test_ConformingProse_NoViolation(self, source: str) -> None:
+        assert list(check_unbackticked_code_reference(Path("src/x.py"), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        assert (
+            list(check_unbackticked_code_reference(Path("README.md"), "Returns None."))
             == []
         )
 
