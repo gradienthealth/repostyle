@@ -243,8 +243,19 @@ class TestCheckImperativeDocstringOpening:
             ("Build the client.", "'Builds', not 'Build'"),
             ("Apply the patch.", "'Applies', not 'Apply'"),
             ("Do the work.", "'Does', not 'Do'"),
+            ("Go through the list.", "'Goes', not 'Go'"),
+            ("Have the value ready.", "'Has', not 'Have'"),
+            ("Fetch the record.", "'Fetches', not 'Fetch'"),
         ],
-        ids=["regular", "regular-second-verb", "consonant-y", "irregular"],
+        ids=[
+            "regular",
+            "regular-second-verb",
+            "consonant-y",
+            "irregular",
+            "irregular-o-ending",
+            "irregular-stem-change",
+            "es-suffix",
+        ],
     )
     def test_ImperativeOpening_FlagsViolation(
         self, summary: str, expected_message_fragment: str
@@ -282,8 +293,17 @@ class TestCheckImperativeDocstringOpening:
             "A test that returns the lease.",
             "Reads and returns the cached value.",
             "Returned the wrong lease before this fix.",
+            "Format of the exported record.",
+            "Set of ids excluded from the batch.",
         ],
-        ids=["descriptive", "not-first-word", "second-conjugated-verb", "past-tense"],
+        ids=[
+            "descriptive",
+            "not-first-word",
+            "second-conjugated-verb",
+            "past-tense",
+            "noun-phrase-format",
+            "noun-phrase-set",
+        ],
     )
     def test_DescriptiveOpening_NoViolation(self, summary: str) -> None:
         source = f'def f():\n    """{summary}"""\n    return 1\n'

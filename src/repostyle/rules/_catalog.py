@@ -471,9 +471,12 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "The house convention states a unit's contract in descriptive "
             "third person, matching Google's own style guide rather than "
             "PEP 257's imperative recommendation. The check matches a fixed "
-            "set of common bare-infinitive openings; an opening verb outside "
-            "that set is not flagged, so this is advisory rather than a "
-            "complete grammar check."
+            "set of common bare-infinitive openings, so it is advisory in "
+            "both directions: an opening verb outside that set is not "
+            "flagged, and a few entries (`Format`, `Set`, `Group`, ...) "
+            "double as nouns, so a genuinely descriptive `Format of the "
+            "record.` is excused only because it takes the `<verb> of ...` "
+            "shape the noun reading usually does."
         ),
         examples=(
             Example(

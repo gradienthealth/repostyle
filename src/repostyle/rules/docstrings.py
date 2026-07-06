@@ -49,82 +49,109 @@ _FILLER_OPENING_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# A bare-infinitive verb mapped to its third-person-singular conjugation, for
-# the common openings seen in a docstring summary. Regular verbs add "s";
-# "sh"/"ch"/"s"/"x"/"z" endings add "es"; a consonant-plus-"y" ending takes
-# "ies"; the rest are irregular. Keys are matched case-sensitively (a docstring
-# summary always capitalizes its first word) with a trailing `\b`, so
-# "Returned" or "Returning" does not false-match "Return".
+# Bare-infinitive verbs commonly seen opening a docstring summary, matched
+# case-sensitively (a docstring summary always capitalizes its first word) with
+# a trailing `\b`, so "Returned" or "Returning" does not false-match "Return".
+# A few of these double as common nouns ("Format", "Set", "Group");
+# `_NOUN_PHRASE_GUARD` below excuses the "Format of ..."/"Set of ..." shape
+# that reading usually takes.
+_IMPERATIVE_VERBS: frozenset[str] = frozenset(
+    {
+        "Add",
+        "Apply",
+        "Build",
+        "Check",
+        "Close",
+        "Collect",
+        "Combine",
+        "Compute",
+        "Confirm",
+        "Consume",
+        "Convert",
+        "Create",
+        "Delete",
+        "Detect",
+        "Determine",
+        "Discover",
+        "Dispatch",
+        "Do",
+        "Emit",
+        "Ensure",
+        "Enter",
+        "Extend",
+        "Extract",
+        "Fetch",
+        "Filter",
+        "Find",
+        "Finish",
+        "Flag",
+        "Format",
+        "Get",
+        "Go",
+        "Group",
+        "Handle",
+        "Have",
+        "Join",
+        "Load",
+        "Merge",
+        "Normalize",
+        "Open",
+        "Parse",
+        "Raise",
+        "Read",
+        "Register",
+        "Remove",
+        "Render",
+        "Replace",
+        "Report",
+        "Resolve",
+        "Return",
+        "Route",
+        "Sanitize",
+        "Save",
+        "Send",
+        "Set",
+        "Skip",
+        "Sort",
+        "Split",
+        "Start",
+        "Update",
+        "Validate",
+        "Verify",
+        "Walk",
+        "Wrap",
+        "Write",
+        "Yield",
+    }
+)
+# Every verb above conjugates by one of these two suffix rules except a genuine
+# stem change (Do, Go, Have), so the mapping is derived rather than hand-typed
+# — a future addition only needs the infinitive, not a hand-computed
+# conjugation to keep in sync with it.
+_IRREGULAR_CONJUGATIONS: dict[str, str] = {"Do": "Does", "Go": "Goes", "Have": "Has"}
+_ES_SUFFIXES = ("s", "x", "z", "ch", "sh")
+
+
+def _conjugate(verb: str) -> str:
+    """Conjugates a bare-infinitive verb to third-person singular."""
+    if verb in _IRREGULAR_CONJUGATIONS:
+        return _IRREGULAR_CONJUGATIONS[verb]
+    if verb.endswith(_ES_SUFFIXES):
+        return f"{verb}es"
+    if verb.endswith("y") and verb[-2].lower() not in "aeiou":
+        return f"{verb[:-1]}ies"
+    return f"{verb}s"
+
+
 IMPERATIVE_VERB_CONJUGATIONS: dict[str, str] = {
-    "Add": "Adds",
-    "Apply": "Applies",
-    "Build": "Builds",
-    "Check": "Checks",
-    "Close": "Closes",
-    "Collect": "Collects",
-    "Combine": "Combines",
-    "Compute": "Computes",
-    "Confirm": "Confirms",
-    "Consume": "Consumes",
-    "Convert": "Converts",
-    "Create": "Creates",
-    "Delete": "Deletes",
-    "Detect": "Detects",
-    "Determine": "Determines",
-    "Discover": "Discovers",
-    "Dispatch": "Dispatches",
-    "Do": "Does",
-    "Emit": "Emits",
-    "Ensure": "Ensures",
-    "Enter": "Enters",
-    "Extend": "Extends",
-    "Extract": "Extracts",
-    "Fetch": "Fetches",
-    "Filter": "Filters",
-    "Find": "Finds",
-    "Finish": "Finishes",
-    "Flag": "Flags",
-    "Format": "Formats",
-    "Get": "Gets",
-    "Go": "Goes",
-    "Group": "Groups",
-    "Handle": "Handles",
-    "Have": "Has",
-    "Join": "Joins",
-    "Load": "Loads",
-    "Merge": "Merges",
-    "Normalize": "Normalizes",
-    "Open": "Opens",
-    "Parse": "Parses",
-    "Raise": "Raises",
-    "Read": "Reads",
-    "Register": "Registers",
-    "Remove": "Removes",
-    "Render": "Renders",
-    "Replace": "Replaces",
-    "Report": "Reports",
-    "Resolve": "Resolves",
-    "Return": "Returns",
-    "Route": "Routes",
-    "Sanitize": "Sanitizes",
-    "Save": "Saves",
-    "Send": "Sends",
-    "Set": "Sets",
-    "Skip": "Skips",
-    "Sort": "Sorts",
-    "Split": "Splits",
-    "Start": "Starts",
-    "Update": "Updates",
-    "Validate": "Validates",
-    "Verify": "Verifies",
-    "Walk": "Walks",
-    "Wrap": "Wraps",
-    "Write": "Writes",
-    "Yield": "Yields",
+    verb: _conjugate(verb) for verb in sorted(_IMPERATIVE_VERBS)
 }
 _IMPERATIVE_OPENING_PATTERN = re.compile(
     r"^(" + "|".join(IMPERATIVE_VERB_CONJUGATIONS) + r")\b"
 )
+# A matched verb immediately followed by "of" is almost always its common-noun
+# reading ("Format of the record", "Set of ids"), not a command.
+_NOUN_PHRASE_GUARD = re.compile(r"^\s+of\b")
 
 # Google section headers, grouped by how their bodies are graded. An entry
 # section holds `name: description` items checked per entry; a prose section's
@@ -317,9 +344,7 @@ def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violatio
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None:
             continue
-        summary = next(
-            (line.strip() for line in docstring.splitlines() if line.strip()), ""
-        )
+        summary = _docstring_summary_line(docstring)
         if _FILLER_OPENING_PATTERN.match(summary):
             yield Violation(
                 getattr(node, "lineno", 1),
@@ -336,7 +361,8 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
     third person (`Returns the lease.`), not as a command (`Return the
     lease.`), matching Google's own style guide rather than PEP 257's
     imperative recommendation. A summary whose first word is a known
-    bare-infinitive verb should conjugate it to third-person singular.
+    bare-infinitive verb should conjugate it to third-person singular, unless
+    that word opens a "Format of ..."-shaped noun phrase instead.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -345,11 +371,9 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None:
             continue
-        summary = next(
-            (line.strip() for line in docstring.splitlines() if line.strip()), ""
-        )
+        summary = _docstring_summary_line(docstring)
         match = _IMPERATIVE_OPENING_PATTERN.match(summary)
-        if match is None:
+        if match is None or _NOUN_PHRASE_GUARD.match(summary[match.end() :]):
             continue
         verb = match.group(1)
         yield Violation(
@@ -488,6 +512,11 @@ def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
         segmenter.consume(line)
     segmenter.close()
     return segmenter.units
+
+
+def _docstring_summary_line(docstring: str) -> str:
+    """Returns a cleaned docstring's first non-blank line, stripped."""
+    return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
 
 
 def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
