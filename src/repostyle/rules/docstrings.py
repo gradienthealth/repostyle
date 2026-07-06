@@ -53,7 +53,7 @@ _FILLER_OPENING_PATTERN = re.compile(
 # case-sensitively (a docstring summary always capitalizes its first word) with
 # a trailing `\b`, so `Returned` or `Returning` does not false-match `Return`.
 # A common-noun reading is a real risk for some of these (`Check`, `Report`,
-# `Route`, `Format`, `Handle`, `Set`); a survey of gradienthealth's other
+# `Route`, `Format`, `Handle`, `Set`, ...); a survey of gradienthealth's other
 # Python repos (dicom-ingestor, fhir-ingestor) found real imperative-mood
 # openings for each and no noun-phrase false positive, so they stay in the list
 # — the occasional false positive is an accepted cost of a warning-severity,

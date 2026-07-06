@@ -302,17 +302,19 @@ class TestCheckImperativeDocstringOpening:
             "Returns the lease held by the client.",
             "A test that returns the lease.",
             "Returned the wrong lease before this fix.",
-            "return the count.",
         ],
         ids=[
             "descriptive",
             "not-first-word",
             "past-tense",
-            "lowercase-opening",
         ],
     )
     def test_DescriptiveOpening_NoViolation(self, summary: str) -> None:
         source = f'def f():\n    """{summary}"""\n    return 1\n'
+        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+
+    def test_ImperativeOpeningIsCaseSensitive_NoViolation(self) -> None:
+        source = 'def f():\n    """return the count."""\n    return 1\n'
         assert list(check_imperative_docstring_opening(_SRC, source)) == []
 
     def test_NoDocstring_NoViolation(self) -> None:
