@@ -110,9 +110,12 @@ def reflow_doc_fill(
     structures RS009 exempts (code fences, doctests, table and rule lines,
     section headers) are left untouched, as are units on a line in `skip_lines`
     and units with a backtick span hard-wrapped across source lines. The
-    source's line ending is preserved. Returns the source unchanged when
-    nothing reflows. Docstrings reflow in Python; comments reflow in Python,
-    TOML, and YAML alike.
+    source's line ending is preserved. Docstrings reflow in Python; comments
+    reflow in Python, TOML, and YAML alike.
+
+    Returns:
+        The source with fillable paragraphs rewrapped, unchanged when nothing
+        reflows.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return source
@@ -159,15 +162,6 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
         yield from _fill_units(block)
 
 
-def _is_bare_string_literal_statement(node: ast.AST) -> bool:
-    """Reports whether `node` is a bare string-literal expression statement."""
-    return (
-        isinstance(node, ast.Expr)
-        and isinstance(node.value, ast.Constant)
-        and isinstance(node.value.value, str)
-    )
-
-
 def _comment_blocks(
     path: Path, source: str, source_lines: list[str]
 ) -> Iterator[list[_FillLine]]:
@@ -210,6 +204,15 @@ def _docstring_fill_lines(
             continue
         lines.append(_FillLine(lineno, rendered, len(rendered) - len(text), text))
     return lines
+
+
+def _is_bare_string_literal_statement(node: ast.AST) -> bool:
+    """Reports whether `node` is a bare string-literal expression statement."""
+    return (
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    )
 
 
 class _FillLine(NamedTuple):
