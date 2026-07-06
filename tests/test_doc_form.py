@@ -12,7 +12,7 @@ from repostyle.rules import (
     check_imperative_docstring_opening,
     check_summary_comment_as_docstring,
 )
-from repostyle.rules.docstrings import (
+from repostyle.rules.imperative_verbs import (
     IMPERATIVE_VERB_CONJUGATIONS,
     NON_TRIVIAL_CONJUGATIONS,
 )
@@ -262,10 +262,10 @@ class TestCheckImperativeDocstringOpening:
         ],
     )
     def test_ImperativeOpening_FlagsViolation(
-        self, summary: str, expected_message_fragment: str
+        self, tmp_path: Path, summary: str, expected_message_fragment: str
     ) -> None:
         source = f'def f():\n    """{summary}"""\n    return 1\n'
-        violations = list(check_imperative_docstring_opening(_SRC, source))
+        violations = list(check_imperative_docstring_opening(tmp_path / "x.py", source))
         assert len(violations) == 1
         assert violations[0].rule == RS_IMPERATIVE_DOCSTRING_OPENING
         assert violations[0].line == 1
@@ -294,15 +294,18 @@ class TestCheckImperativeDocstringOpening:
         ids=["module", "class"],
     )
     def test_ImperativeOpeningOnNonFunctionOwner_FlagsViolation(
-        self, source: str, expected_line: int
+        self, tmp_path: Path, source: str, expected_line: int
     ) -> None:
-        violations = list(check_imperative_docstring_opening(_SRC, source))
+        violations = list(check_imperative_docstring_opening(tmp_path / "x.py", source))
         assert len(violations) == 1
         assert violations[0].line == expected_line
 
-    def test_ImperativeOpeningOnLaterSummaryLine_FlagsViolation(self) -> None:
+    def test_ImperativeOpeningOnLaterSummaryLine_FlagsViolation(
+        self, tmp_path: Path
+    ) -> None:
         source = 'def f():\n    """\n    Return the count.\n    """\n    return 1\n'
-        assert len(list(check_imperative_docstring_opening(_SRC, source))) == 1
+        target = tmp_path / "x.py"
+        assert len(list(check_imperative_docstring_opening(target, source))) == 1
 
     @pytest.mark.parametrize(
         "summary",
@@ -321,21 +324,21 @@ class TestCheckImperativeDocstringOpening:
             "excluded-not-a-verb",
         ],
     )
-    def test_DescriptiveOpening_NoViolation(self, summary: str) -> None:
+    def test_DescriptiveOpening_NoViolation(self, tmp_path: Path, summary: str) -> None:
         source = f'def f():\n    """{summary}"""\n    return 1\n'
-        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+        assert list(check_imperative_docstring_opening(tmp_path / "x.py", source)) == []
 
-    def test_ImperativeOpeningIsCaseSensitive_NoViolation(self) -> None:
+    def test_ImperativeOpeningIsCaseSensitive_NoViolation(self, tmp_path: Path) -> None:
         source = 'def f():\n    """return the count."""\n    return 1\n'
-        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+        assert list(check_imperative_docstring_opening(tmp_path / "x.py", source)) == []
 
-    def test_NoDocstring_NoViolation(self) -> None:
+    def test_NoDocstring_NoViolation(self, tmp_path: Path) -> None:
         source = "def f():\n    return 1\n"
-        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+        assert list(check_imperative_docstring_opening(tmp_path / "x.py", source)) == []
 
-    def test_UnparseableSource_NoViolation(self) -> None:
+    def test_UnparseableSource_NoViolation(self, tmp_path: Path) -> None:
         source = 'def (:\n    """Return the count."""\n'
-        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+        assert list(check_imperative_docstring_opening(tmp_path / "x.py", source)) == []
 
 
 class TestImperativeVerbConjugations:

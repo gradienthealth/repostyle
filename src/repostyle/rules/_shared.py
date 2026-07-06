@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import re
+import tomllib
 from functools import lru_cache
 from pathlib import Path
 
@@ -168,6 +169,28 @@ def _parse_python(path: Path, source: str) -> ast.AST | None:
 
 def _posix(path: Path) -> str:
     return str(path).replace("\\", "/")
+
+
+@lru_cache(maxsize=128)
+def _repostyle_table(pyproject: Path | None) -> dict[str, object]:
+    """Reads the `[tool.repostyle]` table from a pyproject file, if any."""
+    if pyproject is None:
+        return {}
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+    return data.get("tool", {}).get("repostyle", {})
+
+
+def _string_list(table: dict[str, object], key: str) -> tuple[str, ...]:
+    """Reads a list of strings from a repostyle config table under `key`."""
+    configured = table.get(key, ())
+    if isinstance(configured, str):
+        configured = (configured,)
+    if not isinstance(configured, list | tuple):
+        return ()
+    return tuple(str(item) for item in configured if str(item))
 
 
 def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:

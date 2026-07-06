@@ -54,7 +54,7 @@ from repostyle.rules._violation import (
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
 )
-from repostyle.rules.docstrings import NON_TRIVIAL_CONJUGATIONS
+from repostyle.rules.imperative_verbs import NON_TRIVIAL_CONJUGATIONS
 
 
 class Example(NamedTuple):

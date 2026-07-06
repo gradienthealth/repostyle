@@ -8,13 +8,17 @@ nothing.
 from __future__ import annotations
 
 import ast
-import tomllib
 from collections.abc import Iterator
 from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
-from repostyle.rules._shared import _parse_python, _posix, find_pyproject
+from repostyle.rules._shared import (
+    _parse_python,
+    _posix,
+    _repostyle_table,
+    find_pyproject,
+)
 from repostyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
 
 
@@ -56,11 +60,7 @@ def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
 @lru_cache(maxsize=128)
 def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
     """Reads the `banned-imports` glob-to-sources table from a pyproject file."""
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return ()
-    table = data.get("tool", {}).get("repostyle", {}).get("banned-imports", {})
+    table = _repostyle_table(pyproject).get("banned-imports", {})
     return tuple((glob, frozenset(sources)) for glob, sources in table.items())
 
 

@@ -15,13 +15,16 @@ fixed-name file a tool mandates (a generated `CHANGELOG.md`) exempts it via
 from __future__ import annotations
 
 import re
-import tomllib
 from collections.abc import Iterator
 from fnmatch import fnmatch
-from functools import lru_cache
 from pathlib import Path
 
-from repostyle.rules._shared import _posix, find_pyproject
+from repostyle.rules._shared import (
+    _posix,
+    _repostyle_table,
+    _string_list,
+    find_pyproject,
+)
 from repostyle.rules._violation import RS_FILENAME_CONVENTION, Violation
 
 # yaml.org's FAQ has recommended `.yaml` as the extension since 2006; `.yml`
@@ -115,20 +118,11 @@ def _resolve_table(path: Path) -> dict[str, object] | None:
 
 
 def _is_ignored(path: Path, pyproject: Path | None, table: dict[str, object]) -> bool:
-    globs = _ignore_globs(table)
+    globs = _string_list(table, "filename-ignore")
     if not globs:
         return False
     relative = _relative_to_pyproject(path, pyproject)
     return any(fnmatch(relative, glob) for glob in globs)
-
-
-def _ignore_globs(table: dict[str, object]) -> tuple[str, ...]:
-    configured = table.get("filename-ignore", ())
-    if isinstance(configured, str):
-        configured = (configured,)
-    if not isinstance(configured, list | tuple):
-        return ()
-    return tuple(str(glob) for glob in configured)
 
 
 def _name_segments(stem: str) -> list[str]:
@@ -143,15 +137,3 @@ def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:
         return _posix(path.resolve().relative_to(pyproject.parent))
     except ValueError:
         return _posix(path)
-
-
-@lru_cache(maxsize=128)
-def _repostyle_table(pyproject: Path | None) -> dict[str, object]:
-    """Reads the `[tool.repostyle]` table from a pyproject file, if any."""
-    if pyproject is None:
-        return {}
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return {}
-    return data.get("tool", {}).get("repostyle", {})

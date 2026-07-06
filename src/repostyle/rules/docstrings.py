@@ -14,7 +14,6 @@ import ast
 import io
 import re
 import tokenize
-import tomllib
 from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
@@ -26,6 +25,8 @@ from repostyle.rules._shared import (
     _is_prose_comment,
     _join_source_lines,
     _parse_python,
+    _repostyle_table,
+    _string_list,
     _terminal_punctuation_fault,
     find_pyproject,
 )
@@ -39,6 +40,12 @@ from repostyle.rules._violation import (
     RS_TERMINAL_PUNCTUATION,
     Violation,
 )
+from repostyle.rules.imperative_verbs import (
+    _IMPERATIVE_OPENING_PATTERN,
+    _IMPERATIVE_VERBS,
+    IMPERATIVE_VERB_CONJUGATIONS,
+    _conjugate,
+)
 
 ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
 DOUBLE_BACKTICK_PATTERN = re.compile(r"(?<!`)``(?!`)")
@@ -51,354 +58,6 @@ _FILLER_OPENING_PATTERN = re.compile(
     r"|simply\b|just\b)",
     re.IGNORECASE,
 )
-
-# Bare-infinitive verbs commonly seen opening a docstring summary, matched
-# case-sensitively (a docstring summary always capitalizes its first word) with
-# a trailing `\b`, so `Returned` or `Returning` does not false-match `Return`.
-#
-# Base list adapted from pydocstyle's own `imperatives.txt` (the word list
-# behind ruff/pydocstyle's D401, which checks the opposite convention — a
-# docstring opening should be imperative, not descriptive). MIT licensed;
-# Copyright (c) 2012 GreenSteam, 2014-2020 Amir Rachum, 2020 Sambhav Kothari.
-# https://github.com/PyCQA/pydocstyle/blob/master/src/pydocstyle/data/imperatives.txt
-#
-# A common-noun reading is a real risk for many of these (`Check`, `Report`,
-# `Format`, `Handle`, `Set`, `Group`, `Flag`, `Filter`, ...); pydocstyle's own
-# comment on that file accepts the risk wholesale rather than excluding every
-# homograph, since blacklisting them would itself false-positive on their many
-# genuinely correct imperative uses. This list takes the same trade-off,
-# reinforced for `Check`, `Report`, `Format`, `Handle`, and `Set` by a survey
-# of gradienthealth's other Python repos (dicom-ingestor, fhir-ingestor) that
-# independently found real imperative-mood openings for each with no
-# noun-phrase false positive. `Route` carries the same risk but is not itself a
-# pydocstyle entry; it stays in the list solely on that survey's evidence.
-#
-# A handful of pydocstyle's entries are dropped anyway because the noun reading
-# dominates in this codebase's own domain rather than software generally:
-# `List` (Python's `list`), `Query` (a database query), `Post` (an HTTP
-# `POST`), `Test` (a test-heavy repo), `Import` (a FHIR/DICOM import job),
-# `View` (a database view), `Map` (a `dict`-like map), `Store` (a data store),
-# `Log` (a log record), `Process` (a process id or pipeline step), and `Match`
-# (a regex match object). `Partial`, `Rollback`, and `Init` are dropped as not
-# real standalone verbs (`functools.partial`, the two-word phrasal "roll back",
-# and an abbreviation, respectively).
-_IMPERATIVE_VERBS: tuple[str, ...] = (
-    "Accept",
-    "Access",
-    "Add",
-    "Adjust",
-    "Aggregate",
-    "Allow",
-    "Append",
-    "Apply",
-    "Archive",
-    "Assert",
-    "Assign",
-    "Attempt",
-    "Authenticate",
-    "Authorize",
-    "Break",
-    "Build",
-    "Cache",
-    "Calculate",
-    "Call",
-    "Cancel",
-    "Capture",
-    "Change",
-    "Check",
-    "Clean",
-    "Clear",
-    "Close",
-    "Collect",
-    "Combine",
-    "Commit",
-    "Compare",
-    "Compute",
-    "Configure",
-    "Confirm",
-    "Connect",
-    "Construct",
-    "Consume",
-    "Control",
-    "Convert",
-    "Copy",
-    "Count",
-    "Create",
-    "Customize",
-    "Declare",
-    "Decode",
-    "Decorate",
-    "Define",
-    "Delegate",
-    "Delete",
-    "Deprecate",
-    "Derive",
-    "Describe",
-    "Detect",
-    "Determine",
-    "Discover",
-    "Dispatch",
-    "Display",
-    "Do",
-    "Download",
-    "Drop",
-    "Dump",
-    "Emit",
-    "Empty",
-    "Enable",
-    "Encapsulate",
-    "Encode",
-    "End",
-    "Ensure",
-    "Enter",
-    "Enumerate",
-    "Establish",
-    "Evaluate",
-    "Examine",
-    "Execute",
-    "Exit",
-    "Expand",
-    "Expect",
-    "Export",
-    "Extend",
-    "Extract",
-    "Feed",
-    "Fetch",
-    "Fill",
-    "Filter",
-    "Finalize",
-    "Find",
-    "Finish",
-    "Fire",
-    "Fix",
-    "Flag",
-    "Force",
-    "Format",
-    "Forward",
-    "Generate",
-    "Get",
-    "Give",
-    "Go",
-    "Group",
-    "Handle",
-    "Have",
-    "Help",
-    "Hold",
-    "Identify",
-    "Implement",
-    "Indicate",
-    "Initialise",
-    "Initialize",
-    "Initiate",
-    "Input",
-    "Insert",
-    "Instantiate",
-    "Intercept",
-    "Invoke",
-    "Iterate",
-    "Join",
-    "Keep",
-    "Launch",
-    "Listen",
-    "Load",
-    "Look",
-    "Make",
-    "Manage",
-    "Manipulate",
-    "Mark",
-    "Merge",
-    "Mock",
-    "Modify",
-    "Monitor",
-    "Move",
-    "Normalize",
-    "Note",
-    "Obtain",
-    "Open",
-    "Output",
-    "Override",
-    "Overwrite",
-    "Package",
-    "Pad",
-    "Parse",
-    "Pass",
-    "Perform",
-    "Persist",
-    "Pick",
-    "Plot",
-    "Poll",
-    "Populate",
-    "Prepare",
-    "Print",
-    "Produce",
-    "Provide",
-    "Publish",
-    "Pull",
-    "Put",
-    "Raise",
-    "Read",
-    "Record",
-    "Refer",
-    "Refresh",
-    "Register",
-    "Reload",
-    "Remove",
-    "Rename",
-    "Render",
-    "Replace",
-    "Reply",
-    "Report",
-    "Represent",
-    "Request",
-    "Require",
-    "Reset",
-    "Resolve",
-    "Retrieve",
-    "Return",
-    "Roll",
-    "Round",
-    "Route",
-    "Run",
-    "Sample",
-    "Sanitize",
-    "Save",
-    "Scan",
-    "Search",
-    "Select",
-    "Send",
-    "Serialise",
-    "Serialize",
-    "Serve",
-    "Set",
-    "Show",
-    "Simulate",
-    "Skip",
-    "Sort",
-    "Source",
-    "Specify",
-    "Split",
-    "Start",
-    "Step",
-    "Stop",
-    "Strip",
-    "Submit",
-    "Subscribe",
-    "Sum",
-    "Swap",
-    "Sync",
-    "Synchronise",
-    "Synchronize",
-    "Take",
-    "Tear",
-    "Time",
-    "Transform",
-    "Translate",
-    "Transmit",
-    "Truncate",
-    "Try",
-    "Turn",
-    "Tweak",
-    "Update",
-    "Upload",
-    "Use",
-    "Validate",
-    "Verify",
-    "Wait",
-    "Walk",
-    "Wrap",
-    "Write",
-    "Yield",
-)
-# Every verb above conjugates by the suffix rule below except a genuine stem
-# change (`Have`), so the mapping is derived rather than hand-typed — a future
-# addition needs only the infinitive.
-_IRREGULAR_CONJUGATIONS: dict[str, str] = {"Have": "Has"}
-_ES_CONJUGATION_SUFFIXES = ("s", "x", "z", "ch", "sh", "o")
-
-
-def _conjugate(verb: str) -> str:
-    """Conjugates a bare-infinitive `verb` to third-person singular."""
-    if verb in _IRREGULAR_CONJUGATIONS:
-        return _IRREGULAR_CONJUGATIONS[verb]
-    if verb.endswith(_ES_CONJUGATION_SUFFIXES):
-        return f"{verb}es"
-    if verb.endswith("y") and verb[-2].lower() not in "aeiou":
-        return f"{verb[:-1]}ies"
-    return f"{verb}s"
-
-
-IMPERATIVE_VERB_CONJUGATIONS: dict[str, str] = {
-    verb: _conjugate(verb) for verb in _IMPERATIVE_VERBS
-}
-_IMPERATIVE_OPENING_PATTERN = re.compile(
-    r"^(" + "|".join(IMPERATIVE_VERB_CONJUGATIONS) + r")\b"
-)
-
-
-# The `explain RS034` card's reference table: only the conjugations a reader
-# cannot derive by just appending `s` (an irregular stem, or the `-es`/`-ies`
-# suffix rules), so it stays a quick reference at the list's full size instead
-# of repeating ~200 mechanically obvious entries. Compares each conjugation
-# against the plain-suffix default rather than re-deriving `_conjugate`'s
-# branch conditions, so it cannot drift from what `_conjugate` actually does.
-NON_TRIVIAL_CONJUGATIONS: dict[str, str] = {
-    verb: conjugated
-    for verb, conjugated in IMPERATIVE_VERB_CONJUGATIONS.items()
-    if conjugated != f"{verb}s"
-}
-
-
-@lru_cache(maxsize=128)
-def _repostyle_table(pyproject: Path | None) -> dict[str, object]:
-    """Reads the `[tool.repostyle]` table from a pyproject file, if any."""
-    if pyproject is None:
-        return {}
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return {}
-    return data.get("tool", {}).get("repostyle", {})
-
-
-def _configured_verbs(table: dict[str, object], key: str) -> tuple[str, ...]:
-    """Reads a list of verbs from the repostyle config table under `key`."""
-    configured = table.get(key, ())
-    if isinstance(configured, str):
-        configured = (configured,)
-    if not isinstance(configured, list | tuple):
-        return ()
-    return tuple(str(verb) for verb in configured)
-
-
-@lru_cache(maxsize=128)
-def _effective_conjugations(pyproject: Path | None) -> dict[str, str]:
-    """Returns the verb-to-conjugation map, adjusted for this repo's config.
-
-    A repo adds its own survey-backed verb via `imperative-verbs-extra`, or
-    drops a homograph too risky for its own domain via
-    `imperative-verbs-exclude`, tuning RS034 locally instead of forking
-    repostyle's curated list — the same override pattern RS017's
-    `banned-imports` and RS033's `filename-extensions` already use.
-    """
-    table = _repostyle_table(pyproject)
-    extra = _configured_verbs(table, "imperative-verbs-extra")
-    exclude = frozenset(_configured_verbs(table, "imperative-verbs-exclude"))
-    if not extra and not exclude:
-        return IMPERATIVE_VERB_CONJUGATIONS
-    verbs = dict.fromkeys(
-        verb for verb in (*_IMPERATIVE_VERBS, *extra) if verb not in exclude
-    )
-    return {verb: _conjugate(verb) for verb in verbs}
-
-
-@lru_cache(maxsize=128)
-def _effective_pattern(pyproject: Path | None) -> re.Pattern[str]:
-    """Returns the opening-verb regex built from this repo's effective verbs."""
-    conjugations = _effective_conjugations(pyproject)
-    if conjugations is IMPERATIVE_VERB_CONJUGATIONS:
-        return _IMPERATIVE_OPENING_PATTERN
-    return re.compile(r"^(" + "|".join(conjugations) + r")\b")
-
 
 # Google section headers, grouped by how their bodies are graded. An entry
 # section holds `name: description` items checked per entry; a prose section's
@@ -634,6 +293,51 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
             f"docstring opens in imperative mood; use "
             f"'{conjugations[verb]}', not '{verb}'",
         )
+
+
+@lru_cache(maxsize=128)
+def _effective_pattern(pyproject: Path | None) -> re.Pattern[str]:
+    """Returns the opening-verb regex built from this repo's effective verbs.
+
+    Each verb is escaped before joining: `imperative-verbs-extra` comes from
+    repo config, not this module's own hardcoded list, so a configured entry
+    containing a regex metacharacter must match itself literally rather than be
+    interpreted as one. An empty effective verb set (every verb excluded)
+    compiles to a pattern that matches nothing, not one that matches everything
+    — `re.compile("^()\\b")` would otherwise match the empty string at the
+    start of every summary.
+    """
+    conjugations = _effective_conjugations(pyproject)
+    if conjugations is IMPERATIVE_VERB_CONJUGATIONS:
+        return _IMPERATIVE_OPENING_PATTERN
+    if not conjugations:
+        return re.compile(r"(?!)")
+    escaped = (re.escape(verb) for verb in conjugations)
+    return re.compile(r"^(" + "|".join(escaped) + r")\b")
+
+
+@lru_cache(maxsize=128)
+def _effective_conjugations(pyproject: Path | None) -> dict[str, str]:
+    """Returns the verb-to-conjugation map, adjusted for this repo's config.
+
+    A repo adds its own survey-backed verb via `imperative-verbs-extra`, or
+    drops a homograph too risky for its own domain via
+    `imperative-verbs-exclude`, tuning RS034 locally instead of forking
+    repostyle's curated list — the same override pattern RS017's
+    `banned-imports` and RS033's `filename-extensions` already use. A consuming
+    repo excluding every verb (its own plus any extra) is left with an empty
+    map; `_effective_pattern` handles that by matching nothing, rather than
+    this function papering over it with a fallback list.
+    """
+    table = _repostyle_table(pyproject)
+    extra = _string_list(table, "imperative-verbs-extra")
+    exclude = frozenset(_string_list(table, "imperative-verbs-exclude"))
+    if not extra and not exclude:
+        return IMPERATIVE_VERB_CONJUGATIONS
+    verbs = dict.fromkeys(
+        verb for verb in (*_IMPERATIVE_VERBS, *extra) if verb not in exclude
+    )
+    return {verb: _conjugate(verb) for verb in verbs}
 
 
 def check_docstring_terminal_punctuation(
