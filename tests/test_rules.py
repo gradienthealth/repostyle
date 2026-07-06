@@ -11,6 +11,7 @@ from repostyle.rules import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
+    RS_DOC_SUMMARY_OVERFLOW,
     RS_DURATION_AS_TIMEDELTA,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
@@ -32,6 +33,7 @@ from repostyle.rules import (
     check_conditional_test_logic,
     check_discouraged_class_suffix,
     check_doc_fill,
+    check_doc_summary_overflow,
     check_docstring_terminal_punctuation,
     check_duration_as_timedelta,
     check_exception_alias,
@@ -552,6 +554,58 @@ class TestCheckDocFill:
         # stays silent because --fix cannot rewrap it.
         source = "def f(:\n# " + "abcde " * 13 + "end\n"
         assert list(check_doc_fill(Path("src/x.py"), source)) == []
+
+
+class TestCheckDocSummaryOverflow:
+    @pytest.mark.parametrize(
+        ("source", "line"),
+        [
+            ('"""' + "abcde " * 13 + 'end."""', 1),
+            (
+                '"""' + "abcde " * 13 + 'end summary.\n\nBody.\n"""',
+                1,
+            ),
+            (
+                'def f():\n    """' + "abcde " * 12 + 'end."""',
+                2,
+            ),
+        ],
+        ids=[
+            "single_line_docstring",
+            "multiline_docstring_summary",
+            "indented_opening_line",
+        ],
+    )
+    def test_OverlongSummaryLine_FlagsViolation(self, source: str, line: int) -> None:
+        violations = list(check_doc_summary_overflow(Path("src/x.py"), source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_DOC_SUMMARY_OVERFLOW, line)
+        ]
+
+    def test_SummaryLineAtExactly79Columns_NoViolation(self) -> None:
+        source = '"""' + "a" * 73 + '"""'
+        assert len(source) == 79
+        assert list(check_doc_summary_overflow(Path("src/x.py"), source)) == []
+
+    def test_SummaryLineAt80Columns_FlagsViolation(self) -> None:
+        source = '"""' + "a" * 74 + '"""'
+        assert len(source) == 80
+        violations = list(check_doc_summary_overflow(Path("src/x.py"), source))
+        assert [v.rule for v in violations] == [RS_DOC_SUMMARY_OVERFLOW]
+
+    def test_OverlongBodyParagraphOnly_NoViolation(self) -> None:
+        # A short summary with an overlong body paragraph is RS009's rule to
+        # enforce, not RS035's — the summary line itself fits.
+        source = '"""Summary.\n\n' + "abcde " * 13 + 'end\n"""'
+        assert list(check_doc_summary_overflow(Path("src/x.py"), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        source = "# " + "a" * 90
+        assert list(check_doc_summary_overflow(Path("config.toml"), source)) == []
+
+    def test_UnparseablePython_NotChecked(self) -> None:
+        source = "def f(:\n" + '"""' + "a" * 90 + '"""\n'
+        assert list(check_doc_summary_overflow(Path("src/x.py"), source)) == []
 
 
 class TestCheckBannedAbbreviation:

@@ -55,7 +55,7 @@ def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
 
 @lru_cache(maxsize=128)
 def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
-    """Reads the `banned-imports` glob-to-sources table from a pyproject file."""
+    """Reads the `banned-imports` glob-to-sources table from `pyproject`."""
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):

@@ -11,7 +11,7 @@ from typing import NamedTuple
 
 from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._shared import _join_source_lines, _parse_python
-from repostyle.rules._violation import RS_DOC_FILL, Violation
+from repostyle.rules._violation import RS_DOC_FILL, RS_DOC_SUMMARY_OVERFLOW, Violation
 
 DOC_FILL_COLUMNS = 79
 
@@ -66,6 +66,43 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
         if _span_crosses_line(unit):
             continue
         yield from _unit_violations(unit)
+
+
+def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a docstring summary line that overflows 79 columns.
+
+    PEP 257 and Google style require a docstring's summary to be exactly one
+    physical line, so unlike a body paragraph it has no second line to spread
+    overflow onto: `check_doc_fill` excludes it for exactly that reason, and
+    this rule covers the line `check_doc_fill` leaves out — the whole line of a
+    single-line docstring, or the opening line of a multi-line one. There is no
+    mechanical fix; the summary must be shortened by hand.
+    """
+    if path.suffix != ".py":
+        return
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in ast.walk(tree):
+        if not (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            continue
+        lineno = node.value.lineno
+        rendered = source_lines[lineno - 1].rstrip()
+        if len(rendered) <= DOC_FILL_COLUMNS:
+            continue
+        indent = len(rendered) - len(rendered.lstrip())
+        yield Violation(
+            lineno,
+            indent + 1,
+            RS_DOC_SUMMARY_OVERFLOW,
+            f"docstring summary line exceeds {DOC_FILL_COLUMNS} columns; "
+            "shorten it by hand, since a one-line summary cannot be rewrapped",
+        )
 
 
 def reflow_doc_fill(
@@ -440,7 +477,7 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
 
 
 def _span_crosses_line(unit: list[_FillLine]) -> bool:
-    """Reports whether a backtick span in `unit` opens and closes on different lines."""
+    """Reports whether a backtick span opens and closes on different lines."""
     open_span = False
     for line in unit[:-1]:
         open_span ^= line.text.count("`") % 2 == 1

@@ -17,6 +17,7 @@ from repostyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
+    RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
@@ -47,7 +48,7 @@ from repostyle.rules.comments import (
     check_comment_terminal_punctuation,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
-from repostyle.rules.doc_fill import check_doc_fill
+from repostyle.rules.doc_fill import check_doc_fill, check_doc_summary_overflow
 from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
@@ -135,6 +136,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_ARG_DESCRIBED_IN_PROSE: (check_arg_described_in_prose,),
     RS_RETURN_DESCRIBED_IN_PROSE: (check_return_described_in_prose,),
     RS_FILENAME_CONVENTION: (check_filename_extension, check_filename_casing),
+    RS_DOC_SUMMARY_OVERFLOW: (check_doc_summary_overflow,),
 }
 
 
@@ -165,6 +167,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_ARG_DESCRIBED_IN_PROSE: Severity.WARNING,
     RS_RETURN_DESCRIBED_IN_PROSE: Severity.WARNING,
     RS_FILENAME_CONVENTION: Severity.WARNING,
+    RS_DOC_SUMMARY_OVERFLOW: Severity.WARNING,
 }
 
 
