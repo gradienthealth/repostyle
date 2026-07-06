@@ -147,7 +147,7 @@ def _report_path(
     options: argparse.Namespace,
     extra: list[Violation],
 ) -> tuple[bool, set[str]]:
-    """Prints a path's findings, returning whether any failed and which rules fired.
+    """Prints a path's findings, returning pass/fail and the rules that fired.
 
     `extra` carries whole-package findings already scoped to this path, merged
     with the per-file findings before diff-filtering and printing. The returned

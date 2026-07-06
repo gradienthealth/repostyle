@@ -343,12 +343,12 @@ class TestCheckImperativeDocstringOpening:
 
 class TestImperativeVerbConjugations:
     def test_SurveyedHomographs_StayInVerbList(self) -> None:
-        """Keeps homographs a gradienthealth-repo survey found genuinely imperative."""
+        """Keeps homographs a repo survey found genuinely imperative."""
         kept = {"Check", "Report", "Route", "Format", "Handle", "Set"}
         assert kept <= set(IMPERATIVE_VERB_CONJUGATIONS)
 
     def test_PydocstyleAcceptedHomographs_StayInVerbList(self) -> None:
-        """Keeps homographs pydocstyle's own list accepts with no repo survey."""
+        """Keeps homographs pydocstyle's list accepts with no repo survey."""
         pydocstyle_backed = {"Group", "Flag", "Filter"}
         assert pydocstyle_backed <= set(IMPERATIVE_VERB_CONJUGATIONS)
 

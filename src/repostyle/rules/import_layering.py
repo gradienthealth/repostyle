@@ -59,7 +59,7 @@ def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
 
 @lru_cache(maxsize=128)
 def _banned_imports(pyproject: Path) -> tuple[tuple[str, frozenset[str]], ...]:
-    """Reads the `banned-imports` glob-to-sources table from a pyproject file."""
+    """Reads the `banned-imports` glob-to-sources table from `pyproject`."""
     table = _repostyle_table(pyproject).get("banned-imports", {})
     return tuple((glob, frozenset(sources)) for glob, sources in table.items())
 

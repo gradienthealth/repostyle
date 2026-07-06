@@ -372,7 +372,7 @@ def check_docstring_terminal_punctuation(
 def fix_docstring_terminal_punctuation(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
-    """Appends a period to each unterminated docstring prose unit, the RS030 fix.
+    """Appends a period to each unterminated docstring prose unit, RS030's fix.
 
     A summary, body paragraph, or section entry that the rule flags as missing
     terminal punctuation gains a trailing `.` after its content, before the
@@ -638,7 +638,7 @@ class _ProseUnit(NamedTuple):
 
 
 def _field_has_docstring(body: list[ast.stmt], index: int) -> bool:
-    """Reports whether the statement after a field is a string-literal docstring."""
+    """Reports whether the statement after a field is a string docstring."""
     following = body[index + 1] if index + 1 < len(body) else None
     return (
         isinstance(following, ast.Expr)

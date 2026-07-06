@@ -1,4 +1,4 @@
-"""The `Violation` record, rule severities, and the `RSnnn` rule id constants."""
+"""The `Violation` record, rule severities, and `RSnnn` id constants."""
 
 from __future__ import annotations
 
@@ -62,3 +62,4 @@ RS_ARG_DESCRIBED_IN_PROSE = "RS031"
 RS_RETURN_DESCRIBED_IN_PROSE = "RS032"
 RS_FILENAME_CONVENTION = "RS033"
 RS_IMPERATIVE_DOCSTRING_OPENING = "RS034"
+RS_DOC_SUMMARY_OVERFLOW = "RS035"
