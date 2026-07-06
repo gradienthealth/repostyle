@@ -75,12 +75,11 @@ select = [
     "UP",      # pyupgrade
     "W",       # pycodestyle warnings
 ]
-# D401 (non-imperative-mood summary) is disabled by the google convention's
-# default ignore, so it must be re-enabled explicitly. It enforces the
-# imperative one-line summary PEP 257 calls for ("Return the lease", not
-# "Returns the lease"). A property whose summary legitimately reads as a noun
-# phrase takes an inline `# noqa: D401`.
-extend-select = ["D401"]
+# D401 enforces PEP 257's imperative one-line summary ("Return the lease", not
+# "Returns the lease"). The house convention is the opposite — a descriptive
+# third-person summary, matching Google's own style guide rather than PEP 257 —
+# so D401 stays off. The google convention's default ignore already excludes
+# it.
 
 [lint.pycodestyle]
 # Docstring and comment prose fills to 79 (PEP 8), matching RS009's fill

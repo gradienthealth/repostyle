@@ -103,20 +103,20 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
 
 
 def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern[str]:
-    """Build the regex a canonical `TAG(TICKET): message` comment matches."""
+    """Builds the regex a canonical `TAG(TICKET): message` comment matches."""
     tag_group = "|".join(re.escape(tag) for tag in tags)
     return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
 
 
 def _own_line_comments(path: Path, source: str) -> Iterator[tuple[int, int, str]]:
-    """Yield `(line, column, string)` for each comment that owns its line."""
+    """Yields `(line, column, string)` for each comment that owns its line."""
     for comment in extract_comments(path, source):
         if not comment.is_trailing:
             yield comment.lineno, comment.column, comment.string
 
 
 def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
-    """Return the allowed tags and ticket pattern for `path`'s repo."""
+    """Returns the allowed tags and ticket pattern for `path`'s repo."""
     pyproject = find_pyproject(path)
     if pyproject is None:
         return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
@@ -125,9 +125,9 @@ def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
 
 @lru_cache(maxsize=128)
 def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
-    """Read the allowed tags and ticket pattern from a pyproject file.
+    """Reads the allowed tags and ticket pattern from a pyproject file.
 
-    Return the configured allowed tag tuple and ticket-pattern regex, each
+    Returns the configured allowed tag tuple and ticket-pattern regex, each
     falling back to its default when the table omits it.
     """
     try:
@@ -164,14 +164,14 @@ def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Viol
 def fix_comment_terminal_punctuation(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
-    """Repair each flagged comment's terminal punctuation, the RS030 fix.
+    """Repairs each flagged comment's terminal punctuation, the RS030 fix.
 
     A prose comment missing terminal punctuation gains a trailing `.`; a
     fragment carrying one drops it, including a period sitting before trailing
     closers (`note.)`), so the repair matches what the rule flags. A comment
     whose line is in `skip_lines` is left untouched. The fix runs on Python
-    only, though the check spans TOML and YAML too. Return the source unchanged
-    when nothing repairs.
+    only, though the check spans TOML and YAML too. Returns the source
+    unchanged when nothing repairs.
     """
     if path.suffix != ".py":
         return source
@@ -193,7 +193,7 @@ def fix_comment_terminal_punctuation(
 
 
 def _comment_terminal_faults(path: Path, source: str) -> Iterator[tuple[int, int, str]]:
-    """Yield `(line, column, fault)` for each mispunctuated prose comment.
+    """Yields `(line, column, fault)` for each mispunctuated prose comment.
 
     Trailing comments and standalone blocks are both covered, so the check and
     its fixer see the same flagged locations. Comments are read across Python,
@@ -221,7 +221,7 @@ def _comment_terminal_faults(path: Path, source: str) -> Iterator[tuple[int, int
 
 
 def _comment_terminal_message(fault: str) -> str:
-    """Return the fix message for a comment terminal-punctuation `fault`."""
+    """Returns the fix message for a comment terminal-punctuation `fault`."""
     if fault == "missing":
         return "comment reads as prose; end it with terminal punctuation"
     return "comment reads as a fragment; drop the trailing period"
@@ -230,7 +230,7 @@ def _comment_terminal_message(fault: str) -> str:
 def _standalone_comment_blocks(
     path: Path, source: str
 ) -> Iterator[list[tuple[int, int, str]]]:
-    """Group own-line comments into adjacent same-column blocks.
+    """Groups own-line comments into adjacent same-column blocks.
 
     A directive line, a trailing comment, a blank gap, or a column shift closes
     the open block, so each yielded block is one contiguous prose comment a

@@ -25,12 +25,13 @@ from repostyle.runner import (
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Lint the given paths, or explain a rule, and return the exit code.
+    """Lints the given paths, or explains a rule, and returns the exit code.
 
-    Dispatch to the `explain` subcommand when it leads the arguments; otherwise
-    lint. Linting returns 2 when a path does not exist or the rule set cannot
-    be resolved, 1 when an error-severity finding remains or a file was fixed,
-    and 0 otherwise. `explain` returns 2 for an unknown id and 0 otherwise.
+    Dispatches to the `explain` subcommand when it leads the arguments;
+    otherwise lints. Linting returns 2 when a path does not exist or the rule
+    set cannot be resolved, 1 when an error-severity finding remains or a file
+    was fixed, and 0 otherwise. `explain` returns 2 for an unknown id and 0
+    otherwise.
     """
     args = sys.argv[1:] if argv is None else argv
     if args and args[0] == "explain":
@@ -39,10 +40,10 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run_explain(argv: list[str]) -> int:
-    """Print the explanation card for each named rule, or every rule.
+    """Prints the explanation card for each named rule, or every rule.
 
-    Return 2 when any named id is unknown, after printing the cards for the ids
-    that resolve.
+    Returns 2 when any named id is unknown, after printing the cards for the
+    ids that resolve.
     """
     parser = argparse.ArgumentParser(prog="repostyle explain")
     parser.add_argument("rules", nargs="*", metavar="RSnnn")
@@ -70,7 +71,7 @@ def _run_explain(argv: list[str]) -> int:
 
 
 def _run_lint(argv: list[str]) -> int:
-    """Resolve the rule set, optionally fix, and report each path.
+    """Resolves the rule set, optionally fixes, and reports each path.
 
     A directory argument is expanded to the lintable files beneath it before
     reporting, so a directory recurses instead of silently linting nothing.
@@ -146,7 +147,7 @@ def _report_path(
     options: argparse.Namespace,
     extra: list[Violation],
 ) -> tuple[bool, set[str]]:
-    """Print a path's findings, returning whether any failed and which rules fired.
+    """Prints a path's findings, returning whether any failed and which rules fired.
 
     `extra` carries whole-package findings already scoped to this path, merged
     with the per-file findings before diff-filtering and printing. The returned

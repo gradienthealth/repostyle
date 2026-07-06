@@ -1,4 +1,4 @@
-"""Render a rule's metadata record into an agent-facing explanation card.
+"""Renders a rule's metadata record into an agent-facing explanation card.
 
 The `explain` subcommand and the discovery hint both render from the `RuleDoc`
 catalog here, so the rich surfaces stay one source. The card is plain text
@@ -25,7 +25,7 @@ _CODE_INDENT = "      "
 
 
 def explain_rule(rule_id: str) -> str | None:
-    """Render a rule's full explanation card, or None for an unknown id."""
+    """Renders a rule's full explanation card, or None for an unknown id."""
     doc = rule_doc(rule_id)
     if doc is None:
         return None
@@ -33,12 +33,12 @@ def explain_rule(rule_id: str) -> str | None:
 
 
 def discovery_hint(rule_id: str) -> str:
-    """Return the one-line pointer to a rule's card for the failure stream."""
+    """Returns the one-line pointer to a rule's card for the failure stream."""
     return f"→ run 'repostyle explain {rule_id}' for guidance and examples"
 
 
 def _render_card(rule_id: str, doc: RuleDoc) -> str:
-    """Assemble a rule's card from its metadata record."""
+    """Assembles a rule's card from its metadata record."""
     severity = severity_of(rule_id).value
     blocks = [f"{rule_id}  {doc.name}  ({severity})", _wrap(doc.summary)]
     if doc.rationale:
@@ -54,7 +54,7 @@ def _render_card(rule_id: str, doc: RuleDoc) -> str:
 
 
 def _bullets(items: tuple[str, ...]) -> str:
-    """Wrap each item as a hanging-indented bullet."""
+    """Wraps each item as a hanging-indented bullet."""
     return "\n".join(
         textwrap.fill(
             item,
@@ -67,7 +67,7 @@ def _bullets(items: tuple[str, ...]) -> str:
 
 
 def _examples(examples: tuple[Example, ...]) -> str:
-    """Render each before/after pair, leaving its code unwrapped."""
+    """Renders each before/after pair, leaving its code unwrapped."""
     rendered: list[str] = []
     for example in examples:
         parts = [
@@ -90,19 +90,19 @@ def _examples(examples: tuple[Example, ...]) -> str:
 
 
 def _code(snippet: str) -> str:
-    """Indent a code snippet's lines so it reads as a verbatim block."""
+    """Indents a code snippet's lines so it reads as a verbatim block."""
     return "\n".join(f"{_CODE_INDENT}{line}" for line in snippet.splitlines())
 
 
 def _fixable_line(rule_id: str) -> str:
-    """State whether the rule is autofixable, and how."""
+    """States whether the rule is autofixable, and how."""
     if rule_id in FIXABLE_RULES:
         return "Fixable: yes — rerun with `repostyle --fix`."
     return "Fixable: no."
 
 
 def _wrap(text: str) -> str:
-    """Fill prose to the house width under the standard indent."""
+    """Fills prose to the house width under the standard indent."""
     return textwrap.fill(
         text, width=_WIDTH, initial_indent=_INDENT, subsequent_indent=_INDENT
     )

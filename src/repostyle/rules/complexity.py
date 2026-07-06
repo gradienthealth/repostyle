@@ -23,7 +23,7 @@ _NESTING_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
 
 
 def check_cognitive_complexity(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a function whose cognitive complexity exceeds the limit.
+    """Flags a function whose cognitive complexity exceeds the limit.
 
     Each branch (`if`, `for`, `while`, `except`, conditional expression) and
     each boolean-operator sequence adds to the score, and a branch nested
@@ -56,7 +56,7 @@ def _score_children(node: ast.AST, nesting: int) -> int:
 
 
 def _score_if(node: ast.If, nesting: int) -> int:
-    """Score an `if`, treating an `elif` as a flat continuation, not deeper nesting.
+    """Scores an `if`, treating an `elif` as a flat continuation, not deeper nesting.
 
     An `elif` is a lone `If` in the `orelse`; scoring it at the same nesting
     keeps a dispatch chain of branches from reading as deeply nested code,
@@ -72,7 +72,7 @@ def _score_if(node: ast.If, nesting: int) -> int:
 
 
 def _score_node(node: ast.AST, nesting: int) -> int:
-    """Return the nesting-weighted cost of one node and its descendants."""
+    """Returns the nesting-weighted cost of one node and its descendants."""
     if isinstance(node, ast.If):
         return _score_if(node, nesting)
     if isinstance(node, _NESTING_STRUCTURES):

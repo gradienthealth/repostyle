@@ -86,7 +86,7 @@ class TestExtractComments:
 
 
 def _comments(path: Path, source: str) -> list[tuple[int, int, bool, str]]:
-    """Collect each comment as `(line, column, is_trailing, stripped text)`."""
+    """Collects comments as `(line, column, is_trailing, stripped text)`."""
     return [
         (c.lineno, c.column, c.is_trailing, c.string.lstrip("#").strip())
         for c in extract_comments(path, source)

@@ -309,11 +309,12 @@ RULE_DOCS: dict[str, RuleDoc] = {
         rationale=(
             "The rule fires only where a docstring earns its keep, so the fix is "
             "a real docstring, not boilerplate. State the function's own "
-            "contract in the imperative; do not narrate its mechanics."
+            "contract descriptively, in the third person; do not narrate its "
+            "mechanics."
         ),
         signals=(
-            "No docstring on a complex or many-argumented function: add an "
-            "imperative summary of its contract.",
+            "No docstring on a complex or many-argumented function: add a "
+            "descriptive summary of its contract.",
             "A multi-element tuple return: add a `Returns:` section naming each "
             "element in order, which one summary line cannot.",
         ),
@@ -462,12 +463,12 @@ RULE_DOCS: dict[str, RuleDoc] = {
 
 
 def rule_doc(rule_id: str) -> RuleDoc | None:
-    """Return a rule's metadata record, or None for an unknown id."""
+    """Returns a rule's metadata record, or None for an unknown id."""
     return RULE_DOCS.get(rule_id)
 
 
 def has_guidance(rule_id: str) -> bool:
-    """Report whether a rule carries detail past its one-line summary.
+    """Reports whether a rule carries detail past its one-line summary.
 
     True when the rule has examples, heuristic signals, or a reference table —
     the rules whose card is worth fetching, so the discovery hint points only

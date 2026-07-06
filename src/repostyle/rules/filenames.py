@@ -44,7 +44,7 @@ _WORD_PATTERNS = {
 
 
 def check_filename_extension(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a file extension the configured mapping prefers replaced.
+    """Flags a file extension the configured mapping prefers replaced.
 
     The mapping is a disallowed-extension-to-preferred-extension table read
     from `[tool.repostyle.filename-extensions]`, defaulting to `.yml` ->
@@ -66,7 +66,7 @@ def check_filename_extension(path: Path, source: str) -> Iterator[Violation]:
 
 
 def check_filename_casing(path: Path, source: str) -> Iterator[Violation]:
-    """Flag a filename stem whose segments don't match the configured case.
+    """Flags a filename stem whose segments don't match the configured case.
 
     The casing (`"kebab"` or `"snake"`) is read from `filename-case`,
     defaulting to kebab-case; any other value, including the documented
@@ -104,7 +104,7 @@ def _filename_case(table: dict[str, object]) -> str:
 
 
 def _resolve_table(path: Path) -> dict[str, object] | None:
-    """Return `path`'s `[tool.repostyle]` table, or None if `path` is exempt."""
+    """Returns `path`'s `[tool.repostyle]` table, or None if `path` is exempt."""
     if path.suffix == ".py":
         return None
     pyproject = find_pyproject(path)
@@ -132,7 +132,7 @@ def _ignore_globs(table: dict[str, object]) -> tuple[str, ...]:
 
 
 def _name_segments(stem: str) -> list[str]:
-    """Split a stem on `.` into its words, dropping any empty segment."""
+    """Splits a stem on `.` into its words, dropping any empty segment."""
     return [segment for segment in stem.split(".") if segment]
 
 
@@ -147,7 +147,7 @@ def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:
 
 @lru_cache(maxsize=128)
 def _repostyle_table(pyproject: Path | None) -> dict[str, object]:
-    """Read the `[tool.repostyle]` table from a pyproject file, if any."""
+    """Reads the `[tool.repostyle]` table from a pyproject file, if any."""
     if pyproject is None:
         return {}
     try:
