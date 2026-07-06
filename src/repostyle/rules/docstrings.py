@@ -326,8 +326,7 @@ def _effective_conjugations(pyproject: Path | None) -> dict[str, str]:
     shared verb list every repo inherits — the same override pattern RS017's
     `banned-imports` and RS033's `filename-extensions` already use. A consuming
     repo excluding every verb (its own plus any extra) is left with an empty
-    map; `_effective_pattern` handles that by matching nothing, rather than
-    this function papering over it with a fallback list.
+    map.
     """
     table = _repostyle_table(pyproject)
     extra = _string_list(table, "imperative-verbs-extra")
