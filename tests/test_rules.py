@@ -436,6 +436,21 @@ class TestCheckGluedCodeSpanInDocstrings:
         source = 'def f():\n    """text ``s here."""\n'
         assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
 
+    def test_GluedSuffixInsideFence_NoViolation(self) -> None:
+        # A fenced code block holds code, not prose; its backticks must not
+        # pair with a prose span's and draw a false finding, as the Markdown
+        # check also excludes a fence.
+        source = (
+            "def f():\n"
+            '    """Doc.\n'
+            "\n"
+            "    ```\n"
+            "    xs = `Observation`s\n"
+            "    ```\n"
+            '    """\n'
+        )
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
 
 class TestCheckGluedCodeSpanInComments:
     def test_SuffixGluedToSpanInComment_FlagsViolation(self) -> None:
