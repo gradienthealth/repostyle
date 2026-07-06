@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.12.0...repostyle-v0.13.0) (2026-07-06)
+
+
+### Features
+
+* **NO-ISSUE:** add RS034 to flag an imperative-mood docstring opening ([#81](https://github.com/gradienthealth/repostyle/issues/81)) ([a37c7cd](https://github.com/gradienthealth/repostyle/commit/a37c7cd063b50454884f2deffffbd82817e6bdc1))
+* **NO-ISSUE:** add RS035 to flag an overlong docstring summary line ([#82](https://github.com/gradienthealth/repostyle/issues/82)) ([24ab894](https://github.com/gradienthealth/repostyle/commit/24ab894c16f15c70d94fb734550a5c37a5884482))
+* **NO-ISSUE:** add RS036 to flag an unbackticked code reference in a docstring ([#84](https://github.com/gradienthealth/repostyle/issues/84)) ([1643d96](https://github.com/gradienthealth/repostyle/commit/1643d96d5d7f419dcc3ac0be4dd85342b11037ca))
+* **NO-ISSUE:** add RS037 to flag a suffix glued to a code span ([#85](https://github.com/gradienthealth/repostyle/issues/85)) ([3dd9824](https://github.com/gradienthealth/repostyle/commit/3dd982456be386461345b77c09bedb62e3d95aac))
+* **NO-ISSUE:** switch docstrings to descriptive mood ([#79](https://github.com/gradienthealth/repostyle/issues/79)) ([642383f](https://github.com/gradienthealth/repostyle/commit/642383fa94bbc94cd51cbc063c01442a97b42eb2))
+
 ## [0.12.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.11.0...repostyle-v0.12.0) (2026-07-05)
 
 
