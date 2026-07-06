@@ -301,7 +301,8 @@ _IMPERATIVE_OPENING_PATTERN = re.compile(
 # suffix rules), so it stays a quick reference at the list's full size instead
 # of repeating ~200 mechanically obvious entries. Compares each conjugation
 # against the plain-suffix default rather than re-deriving the branch
-# conditions of `_conjugate`, so it cannot drift from what it actually does.
+# conditions of `_conjugate`, so the table cannot drift from what `_conjugate`
+# computes.
 NON_TRIVIAL_CONJUGATIONS: dict[str, str] = {
     verb: conjugated
     for verb, conjugated in IMPERATIVE_VERB_CONJUGATIONS.items()

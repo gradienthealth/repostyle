@@ -19,6 +19,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
+from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._shared import (
     _comment_text,
     _is_directive_comment,
@@ -209,8 +210,8 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
     ending — reads as part of the identifier and breaks the span in rendered
     Markdown. The check fires on a closing backtick followed at once by a
     letter or an apostrophe, and leaves a hyphenated compound such as `-safe`
-    alone, since that keeps the span ending on a word boundary. The fix moves
-    the suffix outside the span.
+    alone, since that keeps the span ending on a word boundary. The rule warns;
+    the remedy is to move the suffix outside the span, and is not automatic.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -237,26 +238,24 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
 
 
 def check_glued_code_span_in_comments(path: Path, source: str) -> Iterator[Violation]:
-    """A comment may not glue an inflection to a code span.
+    """A comment may not glue an English suffix onto a code span.
 
-    The convention `check_glued_code_span_in_docstrings` states holds for a
-    comment too: a suffix run onto a code span's closing backtick reads as part
-    of the identifier. A standalone and a trailing comment are covered alike.
+    The same rule the docstring check applies holds for a comment: a suffix run
+    onto a code span's closing backtick reads as part of the identifier. A
+    standalone and a trailing comment are covered alike, across the Python,
+    TOML, and YAML comments `extract_comments` handles — tokenizing a
+    non-Python file as Python here would raise on its first irregular indent.
     """
-    try:
-        for token in tokenize.generate_tokens(io.StringIO(source).readline):
-            if token.type != tokenize.COMMENT:
-                continue
-            lineno, column = token.start
-            for offset in _glued_code_span_columns(token.string):
-                yield Violation(
-                    lineno,
-                    column + offset + 1,
-                    RS_GLUED_CODE_SPAN,
-                    _GLUED_SPAN_MESSAGE,
-                )
-    except tokenize.TokenError:
+    if path.suffix not in COMMENT_SUFFIXES:
         return
+    for comment in extract_comments(path, source):
+        for offset in _glued_code_span_columns(comment.string):
+            yield Violation(
+                comment.lineno,
+                comment.column + offset + 1,
+                RS_GLUED_CODE_SPAN,
+                _GLUED_SPAN_MESSAGE,
+            )
 
 
 def check_glued_code_span_in_md(path: Path, source: str) -> Iterator[Violation]:

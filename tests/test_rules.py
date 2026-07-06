@@ -410,6 +410,32 @@ class TestCheckGluedCodeSpanInDocstrings:
         violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
         assert (violations[0].line, violations[0].col) == (2, 16)
 
+    def test_TwoSpansWithGapBetween_NoViolation(self) -> None:
+        # The gap between two spans must not be read as a span of its own, the
+        # regression the finditer pairing exists to prevent.
+        source = 'def f():\n    """Uses `a` and `b` here."""\n'
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_TwoGluedSpans_FlagsEach(self) -> None:
+        source = 'def f():\n    """Uses `a`s and `b`s here."""\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert len(violations) == 2
+
+    def test_GluedSuffixOnLaterLine_MapsToThatLineAndColumn(self) -> None:
+        source = 'def f():\n    """Summary.\n\n    Uses `x`s in the body.\n    """\n'
+        violations = list(check_glued_code_span_in_docstrings(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (4, 13)
+
+    def test_SpanCrossingLineBreak_NoFalsePositive(self) -> None:
+        # A span whose backticks sit on different physical lines pairs as one
+        # span; its trailing backtick must not pair with a later opening one.
+        source = 'def f():\n    """Returns the `long\n    reference` value."""\n'
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_EmptySpanBeforeLetter_NoViolation(self) -> None:
+        source = 'def f():\n    """text ``s here."""\n'
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
 
 class TestCheckGluedCodeSpanInComments:
     def test_SuffixGluedToSpanInComment_FlagsViolation(self) -> None:
@@ -421,6 +447,29 @@ class TestCheckGluedCodeSpanInComments:
     def test_SpanEndsOnWordBoundaryInComment_NoViolation(self) -> None:
         source = "x = 1  # the ceiling of `retries`\n"
         assert list(check_glued_code_span_in_comments(Path("src/x.py"), source)) == []
+
+    def test_GluedSuffixInComment_ColumnAtSuffix(self) -> None:
+        source = "x = 1  # `retries`'s ceiling\n"
+        violations = list(check_glued_code_span_in_comments(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (1, 19)
+
+    def test_YamlComment_FlagsViolation(self) -> None:
+        source = "key: 1  # `retries`'s cap\n"
+        violations = list(check_glued_code_span_in_comments(Path("cfg.yaml"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_GLUED_CODE_SPAN
+
+    def test_MarkdownFile_NotCheckedAsComment(self) -> None:
+        # `.md` is not a comment-bearing suffix; a heading is the md check's,
+        # not the comment check's, so it is not tokenized or double-reported.
+        source = "# `Observation`s heading\n"
+        assert list(check_glued_code_span_in_comments(Path("README.md"), source)) == []
+
+    def test_MalformedPythonIndentation_DoesNotRaise(self) -> None:
+        source = "def f():\n    x = 1\n  y = 2  # `x`'s note\n"
+        assert isinstance(
+            list(check_glued_code_span_in_comments(Path("bad.py"), source)), list
+        )
 
 
 class TestCheckGluedCodeSpanInMd:
@@ -434,6 +483,12 @@ class TestCheckGluedCodeSpanInMd:
     def test_GluedSuffixInsideFence_NoViolation(self) -> None:
         source = "```python\nxs = `Observation`s\n```"
         assert list(check_glued_code_span_in_md(Path("README.md"), source)) == []
+
+    def test_SpanAtEndOfLine_NoViolation(self) -> None:
+        assert (
+            list(check_glued_code_span_in_md(Path("README.md"), "See `Observation`"))
+            == []
+        )
 
     def test_NonMarkdownFile_NotChecked(self) -> None:
         assert (

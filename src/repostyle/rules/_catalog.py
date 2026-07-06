@@ -592,8 +592,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 bad='"""Returns the `Observation`s in the bundle."""',
                 good='"""Returns the `Observation` resources in the bundle."""',
                 note=(
-                    "A possessive glues the same way: end the span and write "
-                    "the value of `patient.identifier`, not the glued form."
+                    "A possessive glues the same way: write the value of "
+                    "`patient.identifier`, not `patient.identifier`'s value."
                 ),
             ),
         ),
