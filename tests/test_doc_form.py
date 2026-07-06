@@ -12,7 +12,10 @@ from repostyle.rules import (
     check_imperative_docstring_opening,
     check_summary_comment_as_docstring,
 )
-from repostyle.rules.docstrings import _IMPERATIVE_VERBS
+from repostyle.rules.docstrings import (
+    IMPERATIVE_VERB_CONJUGATIONS,
+    NON_TRIVIAL_CONJUGATIONS,
+)
 
 _SRC = Path("src/x.py")
 
@@ -271,7 +274,13 @@ class TestCheckImperativeDocstringOpening:
     def test_SurveyedHomographs_StayInVerbList(self) -> None:
         kept = {"Check", "Report", "Route", "Format", "Handle", "Set"}
         pydocstyle_backed = {"Group", "Flag", "Filter"}
-        assert (kept | pydocstyle_backed) <= set(_IMPERATIVE_VERBS)
+        assert (kept | pydocstyle_backed) <= set(IMPERATIVE_VERB_CONJUGATIONS)
+
+    def test_NonTrivialConjugations_KeepsOnlyIrregularAndSuffixChanges(self) -> None:
+        assert NON_TRIVIAL_CONJUGATIONS["Have"] == "Has"
+        assert NON_TRIVIAL_CONJUGATIONS["Fetch"] == "Fetches"
+        assert "Return" not in NON_TRIVIAL_CONJUGATIONS
+        assert set(NON_TRIVIAL_CONJUGATIONS) <= set(IMPERATIVE_VERB_CONJUGATIONS)
 
     @pytest.mark.parametrize(
         ("source", "expected_line"),
@@ -328,7 +337,7 @@ class TestCheckImperativeDocstringOpening:
             "Match",
         }
         not_real_verbs = {"Partial", "Rollback", "Init"}
-        assert not (domain_nouns | not_real_verbs) & set(_IMPERATIVE_VERBS)
+        assert not (domain_nouns | not_real_verbs) & set(IMPERATIVE_VERB_CONJUGATIONS)
 
     def test_ImperativeOpeningIsCaseSensitive_NoViolation(self) -> None:
         source = 'def f():\n    """return the count."""\n    return 1\n'
