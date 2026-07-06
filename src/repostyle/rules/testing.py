@@ -231,7 +231,7 @@ def _is_zero_sleep(node: ast.Call) -> bool:
 
 
 def _mock_construct_name(func: ast.expr) -> str | None:
-    """Returns the mock constructor a call target names, or None."""
+    """Returns the mock constructor a call target names, or `None`."""
     if isinstance(func, ast.Name):
         return func.id if func.id in MOCK_CONSTRUCTORS else None
     if isinstance(func, ast.Attribute):
@@ -243,7 +243,7 @@ def _mock_construct_name(func: ast.expr) -> str | None:
 
 
 def _offending_mock_import(node: ast.AST) -> str | None:
-    """Returns the rendered forbidden mock import a node makes, or None."""
+    """Returns the rendered forbidden mock import a node makes, or `None`."""
     if isinstance(node, ast.Import):
         return _offending_plain_import(node)
     if isinstance(node, ast.ImportFrom):
@@ -252,7 +252,7 @@ def _offending_mock_import(node: ast.AST) -> str | None:
 
 
 def _offending_from_import(node: ast.ImportFrom) -> str | None:
-    """Returns the rendered forbidden `from` import a node makes, or None."""
+    """Returns the rendered forbidden `from` import a node makes, or `None`."""
     if node.module in FORBIDDEN_MOCK_MODULES:
         return f"from {node.module} import ..."
     if node.module == "unittest" and any(alias.name == "mock" for alias in node.names):
@@ -261,7 +261,7 @@ def _offending_from_import(node: ast.ImportFrom) -> str | None:
 
 
 def _offending_plain_import(node: ast.Import) -> str | None:
-    """Returns the rendered forbidden plain import a node makes, or None."""
+    """Returns the rendered forbidden plain import a node makes, or `None`."""
     for alias in node.names:
         root = alias.name.split(".", 1)[0]
         if alias.name in FORBIDDEN_MOCK_MODULES or root == "mock":

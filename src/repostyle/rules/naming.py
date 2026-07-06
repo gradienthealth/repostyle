@@ -266,8 +266,8 @@ def _acronym_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yields the at-most-one casing-checked name a node introduces.
 
     Resolves a class name, PEP 695 alias or type parameter, or a TypeVar-family
-    factory assignment to its (name, lineno, col_offset) triple; yields nothing
-    for any other node.
+    factory assignment to its `(name, lineno, col_offset)` triple; yields
+    nothing for any other node.
     """
     if isinstance(node, ast.ClassDef):
         yield (node.name, node.lineno, node.col_offset)
@@ -299,7 +299,7 @@ def _banned_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yields the at-most-one abbreviation-checked name a node introduces.
 
     Resolves a class, function, or parameter name, an aliased import, or a
-    store-context `Name` target to its (name, lineno, col_offset) triple;
+    store-context `Name` target to its `(name, lineno, col_offset)` triple;
     yields nothing for any other node.
     """
     if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
@@ -316,7 +316,7 @@ def _boolean_prefix_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yields the at-most-one annotated boolean name a node introduces.
 
     Resolves a `bool`-annotated parameter or a `bool`-annotated variable or
-    attribute target to its (name, lineno, col_offset) triple; yields nothing
+    attribute target to its `(name, lineno, col_offset)` triple; yields nothing
     for any other node.
     """
     if isinstance(node, ast.arg) and _is_bool_annotation(node.annotation):
@@ -354,7 +354,7 @@ def _negated_boolean_named_targets(node: ast.AST) -> Iterator[tuple[str, int, in
     """Yields the at-most-one boolean-checked name a node introduces.
 
     Resolves a function or method name, a parameter, or a store-context `Name`
-    target to its (name, lineno, col_offset) triple; yields nothing for any
+    target to its `(name, lineno, col_offset)` triple; yields nothing for any
     other node. Class names, attributes, and imports are out of scope.
     """
     if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
