@@ -224,12 +224,18 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
             continue
         start = constant.lineno
         end = constant.end_lineno or start
+        prose_lines = _docstring_prose_line_numbers(constant)
         # Join the docstring's physical lines so a code span crossing a line
         # break pairs as one span; scanning each line alone would pair a
         # wrapped span's trailing backtick with the next span's opening one. A
-        # fenced code block is blanked first so its backticks don't pair with a
-        # prose span's, the way the Markdown check drops a fence.
-        block = "\n".join(_unfenced_docstring_lines(source_lines[start - 1 : end]))
+        # line the segmenter does not count as prose — a fenced block, an
+        # `Example:` section, a doctest — is blanked to its width so its
+        # backticks neither pair nor draw a finding, as RS030 and RS036 also
+        # skip those lines, while the blank preserves the column math below.
+        block = "\n".join(
+            line if lineno in prose_lines else " " * len(line)
+            for lineno, line in enumerate(source_lines[start - 1 : end], start)
+        )
         for offset in _glued_code_span_columns(block):
             before = block[:offset]
             yield Violation(
@@ -272,6 +278,19 @@ def check_glued_code_span_in_md(path: Path, source: str) -> Iterator[Violation]:
             )
 
 
+def _docstring_prose_line_numbers(constant: ast.Constant) -> frozenset[int]:
+    """Returns the source lines the docstring's prose units occupy.
+
+    The segmenter that groups a docstring into summary, body, and entry units
+    already drops a fenced block, an `Example:` section, a doctest, a bullet,
+    and a verbatim line, so the union of its units' source lines is exactly the
+    prose the glued-span check should scan.
+    """
+    return frozenset(
+        lineno for unit in _docstring_prose_units(constant) for lineno in unit.linenos
+    )
+
+
 def _glued_code_span_columns(text: str) -> Iterator[int]:
     """Yields the 0-based column of each suffix glued to a code span in `text`.
 
@@ -288,24 +307,6 @@ def _glued_code_span_columns(text: str) -> Iterator[int]:
             continue
         if text[end].isalpha() or text[end] in "'’":
             yield end
-
-
-def _unfenced_docstring_lines(lines: list[str]) -> Iterator[str]:
-    """Yields each docstring line, blanking a fenced code block to its width.
-
-    A fenced code block inside a docstring holds code, not prose, so its
-    backticks must not pair with a prose span's — a fenced example would
-    otherwise draw a false glued-span finding. Replacing a fenced line with an
-    equal-width run of spaces drops its backticks yet preserves the offset the
-    caller maps back to a line and column.
-    """
-    in_fence = False
-    for line in lines:
-        if line.lstrip().startswith("```"):
-            in_fence = not in_fence
-            yield " " * len(line)
-            continue
-        yield " " * len(line) if in_fence else line
 
 
 def check_summary_comment_as_docstring(path: Path, source: str) -> Iterator[Violation]:
@@ -793,8 +794,9 @@ class _DocstringSegmenter:
             self._summary_done = True
         last = self._open[-1]
         text = " ".join(line.text for line in self._open)
+        linenos = tuple(line.lineno for line in self._open)
         self.units.append(
-            _ProseUnit(self._open_kind, last.lineno, last.column + 1, text)
+            _ProseUnit(self._open_kind, last.lineno, last.column + 1, text, linenos)
         )
         self._open = []
 
@@ -891,6 +893,8 @@ class _ProseUnit(NamedTuple):
     """1-based column the violation points at."""
     text: str
     """The unit's lines joined into one string."""
+    linenos: tuple[int, ...]
+    """The source lines the unit's prose occupies."""
 
 
 def _field_has_docstring(body: list[ast.stmt], index: int) -> bool:

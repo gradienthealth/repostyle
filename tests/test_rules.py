@@ -451,6 +451,19 @@ class TestCheckGluedCodeSpanInDocstrings:
         )
         assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
 
+    def test_GluedSuffixInExampleSection_NoViolation(self) -> None:
+        # An `Example:` section holds code, not prose, whether or not it is
+        # fenced; the segmenter excludes it as it does for the other doc rules.
+        source = (
+            "def f():\n"
+            '    """Parses input.\n'
+            "\n"
+            "    Example:\n"
+            "        result = `parse`d output\n"
+            '    """\n'
+        )
+        assert list(check_glued_code_span_in_docstrings(Path("src/x.py"), source)) == []
+
 
 class TestCheckGluedCodeSpanInComments:
     def test_SuffixGluedToSpanInComment_FlagsViolation(self) -> None:
