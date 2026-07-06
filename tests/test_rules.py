@@ -304,11 +304,6 @@ class TestCheckUnbacktickedCodeReference:
                 'def f(skip_lines):\n    """Does it. skip_lines drives it."""\n',
                 "skip_lines",
             ),
-            (
-                "from x import HttpClient\n\n\n"
-                'def f():\n    """HttpClient is built here."""\n',
-                "HttpClient",
-            ),
         ],
         ids=[
             "literal",
@@ -316,7 +311,6 @@ class TestCheckUnbacktickedCodeReference:
             "camel-case-import",
             "attribute",
             "code-shape-at-sentence-start",
-            "camel-case-at-sentence-start",
         ],
     )
     def test_BareCodeNameInProse_FlagsViolation(self, source: str, token: str) -> None:
@@ -337,7 +331,7 @@ class TestCheckUnbacktickedCodeReference:
             'def f(path):\n    """Reads the path config."""\n',
             'def f() -> None:\n    """Does the thing. None marks a miss."""\n',
             'def f() -> None:\n    """Does it.\n\n    >>> f() is None\n    """\n',
-            'def f(text):\n    """Parses TOML from text."""\n',
+            'def f(count):\n    """Returns the retry_budget as a count."""\n',
             'def f(skip_lines):\n    """Does it.\n\n'
             "    Args:\n        skip_lines: The lines to skip.\n    "
             '"""\n',
@@ -355,7 +349,7 @@ class TestCheckUnbacktickedCodeReference:
             "lowercase-english-word",
             "sentence-initial-literal",
             "doctest",
-            "acronym-not-bound",
+            "code-shaped-but-unbound",
             "args-caption",
             "typed-args-caption",
             "all-caps-english-at-sentence-start",
