@@ -1,4 +1,4 @@
-"""Visibility rule: a public name used only in its own module is private.
+"""Visibility rule: a public name used only in its module should be private.
 
 Unlike every other rule, this one reasons across the whole package: it catalogs
 each module's top-level public `def`/`class` and every module's references,
@@ -243,7 +243,7 @@ def _public_names(pyproject: Path | None) -> tuple[str, ...]:
 
 @lru_cache(maxsize=128)
 def _string_list(pyproject: Path, key: str) -> tuple[str, ...]:
-    """Reads a `[tool.repostyle]` list setting from `pyproject`."""
+    """Reads a `[tool.repostyle]` list-of-strings setting from `pyproject`."""
     data = _load_pyproject(pyproject)
     value = data.get("tool", {}).get("repostyle", {}).get(key, [])
     return tuple(str(entry) for entry in value) if isinstance(value, list) else ()
