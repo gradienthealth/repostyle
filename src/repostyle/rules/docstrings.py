@@ -38,6 +38,7 @@ from repostyle.rules._violation import (
     RS_NO_DOUBLE_BACKTICKS,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TERMINAL_PUNCTUATION,
+    RS_UNBACKTICKED_CODE_REFERENCE,
     Violation,
 )
 from repostyle.rules.imperative_verbs import (
@@ -87,6 +88,22 @@ _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
 # A markdown table row or a line made only of rule characters opens verbatim
 # content whose terminal character is not prose punctuation.
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
+
+# The Python literal constants read as code in prose just as a name does, so
+# RS036 treats them as always-known references beside the module's own names.
+_LITERAL_CONSTANTS = frozenset({"None", "True", "False"})
+# A backtick-delimited span or a URI, both dropped before RS036 scans a unit: a
+# name already in code font, or one sitting inside a `gs://`, `https://`, or
+# other scheme's path, is not a bare prose reference.
+_BACKTICK_SPAN_PATTERN = re.compile(r"`[^`]*`")
+_URI_PATTERN = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
+# A Python identifier, the token RS036 tests against the known-name set
+_IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# An entry unit leads with its own `name:` or `name (type):` caption, which
+# documents the name rather than referencing it, so RS036 strips the caption
+# before scanning.
+_ENTRY_CAPTION_PATTERN = re.compile(r"^\S+(?:\s*\([^)]*\))?:\s*")
+_SENTENCE_ENDINGS = (".", "!", "?")
 
 
 def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
@@ -371,6 +388,47 @@ def check_docstring_terminal_punctuation(
             )
 
 
+def check_unbackticked_code_reference(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a code name in docstring prose left without backticks.
+
+    A word in docstring prose that matches a name the module itself binds — a
+    parameter, an import, a function or class, an accessed attribute — or one
+    of the literals `None`, `True`, and `False` reads as a code reference, and
+    the house style sets a code token in single backticks. To stay mechanical
+    the check fires only where a word cannot be ordinary English: an
+    underscore, a digit, or an interior capital beside a lowercase letter
+    (`skip_lines`, `col_offset`, `HttpClient`) marks it as code wherever it
+    sits. A literal fires mid-sentence, where a capital `None` is unambiguous,
+    but not at a sentence start, where it could open an English clause. A
+    plain-lowercase word (a `path` parameter), a Titlecase or all-caps word
+    that also reads as English (`Path`, `Note`, `WARNING`), a backticked span,
+    a URI, and a doctest are all left alone.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    known = _module_bound_names(tree) | _LITERAL_CONSTANTS
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        names: list[str] = []
+        for unit in _docstring_prose_units(constant):
+            for name in _unbackticked_references(unit, known):
+                if name not in names:
+                    names.append(name)
+        for name in names:
+            lineno, col = _name_location(source_lines, constant, name)
+            yield Violation(
+                lineno,
+                col,
+                RS_UNBACKTICKED_CODE_REFERENCE,
+                f"`{name}` in a docstring reads as a code reference but is not "
+                "backticked; wrap it in single backticks",
+            )
+
+
 def fix_docstring_terminal_punctuation(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
@@ -448,6 +506,88 @@ def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and _has_dataclass_decorator(node):
             yield node
+
+
+def _module_bound_names(tree: ast.Module) -> frozenset[str]:
+    """Returns every name the module binds, reads, or accesses as an attribute.
+
+    Imports, function and class names, parameters, assignment targets, and
+    accessed attributes together over-approximate the names a docstring in the
+    module might reference, so a prose word matching one is a candidate for a
+    missing backtick. The shape test in `_reads_as_code_reference` drops the
+    plain-English collisions this wide net catches.
+    """
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            names.add(node.name)
+        elif isinstance(node, ast.arg):
+            names.add(node.arg)
+        elif isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, ast.Attribute):
+            names.add(node.attr)
+        elif isinstance(node, ast.alias):
+            names.add(node.asname or node.name.split(".")[0])
+    return frozenset(names)
+
+
+def _name_location(
+    source_lines: list[str], constant: ast.Constant, name: str
+) -> tuple[int, int]:
+    """Returns the source position of the first bare `name` in the docstring.
+
+    The scan walks the docstring's own physical lines, dropping backtick spans
+    so a backticked mention is skipped, and points the violation at the token
+    itself rather than the prose unit that contains it, so the finding lands on
+    the right line under `--diff`.
+    """
+    pattern = re.compile(rf"(?<![\w`]){re.escape(name)}(?![\w`])")
+    end = constant.end_lineno or constant.lineno
+    for lineno in range(constant.lineno, end + 1):
+        stripped = _BACKTICK_SPAN_PATTERN.sub(" ", source_lines[lineno - 1])
+        match = pattern.search(stripped)
+        if match is not None:
+            return lineno, match.start() + 1
+    return constant.lineno, constant.col_offset + 1
+
+
+def _unbackticked_references(unit: _ProseUnit, known: frozenset[str]) -> list[str]:
+    """Returns the distinct known names a prose unit uses without backticks."""
+    text = _URI_PATTERN.sub(" ", _BACKTICK_SPAN_PATTERN.sub(" ", unit.text))
+    if unit.kind == "entry":
+        text = _ENTRY_CAPTION_PATTERN.sub("", text)
+    found: list[str] = []
+    for match in _IDENTIFIER_PATTERN.finditer(text):
+        name = match.group()
+        if name not in known or name in found:
+            continue
+        if _reads_as_code_reference(name, text, match.start()):
+            found.append(name)
+    return found
+
+
+def _reads_as_code_reference(name: str, text: str, start: int) -> bool:
+    """Reports whether `name` at `start` reads as code rather than English.
+
+    A literal reads as code mid-sentence, but at a sentence start its capital
+    could open an English clause, so it is exempt there. Any other name fires
+    only when its shape rules out an English word: an underscore, a digit, or
+    an interior capital beside a lowercase letter (CamelCase). A plain
+    lowercase, Titlecase, or all-caps word could be English and is left alone.
+    """
+    if name in _LITERAL_CONSTANTS:
+        return not _begins_sentence(text, start)
+    if "_" in name or any(character.isdigit() for character in name):
+        return True
+    has_interior_capital = any(character.isupper() for character in name[1:])
+    return has_interior_capital and any(character.islower() for character in name)
+
+
+def _begins_sentence(text: str, start: int) -> bool:
+    """Reports whether the token at `start` begins `text` or a new sentence."""
+    before = text[:start].rstrip()
+    return not before or before.endswith(_SENTENCE_ENDINGS)
 
 
 def _docstring_constant(node: ast.AST) -> ast.Constant | None:

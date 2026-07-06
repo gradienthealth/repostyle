@@ -60,7 +60,7 @@ def _enum_member_order(node: ast.ClassDef) -> Iterator[Violation]:
 def _enum_member_names(node: ast.ClassDef) -> list[str] | None:
     """Returns an enum's member names if every value is an explicit literal.
 
-    Returns None when the class is not an enum or any member takes a computed
+    Returns `None` when the class is not an enum or any member takes a computed
     value (`auto()`, an expression), since reordering would then change the
     values it assigns.
     """
@@ -317,7 +317,7 @@ def _local_alphabetical(
 
 
 def _alpha_kind(stmt: ast.stmt) -> str | None:
-    """Returns the alphabetised kind of a statement, or None to leave it free.
+    """Returns a statement's alphabetised kind, or `None` to leave it free.
 
     Private helper functions and classes are alphabetised where the dependency
     graph allows; public functions, constants, and pytest test classes (ordered

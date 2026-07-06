@@ -25,7 +25,7 @@ _CODE_INDENT = "      "
 
 
 def explain_rule(rule_id: str) -> str | None:
-    """Renders a rule's full explanation card, or None for an unknown id."""
+    """Renders a rule's full explanation card, or `None` for an unknown id."""
     doc = rule_doc(rule_id)
     if doc is None:
         return None

@@ -62,6 +62,7 @@ from repostyle.rules._violation import (
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
+    RS_UNBACKTICKED_CODE_REFERENCE,
     Severity,
     Violation,
 )
@@ -91,6 +92,7 @@ from repostyle.rules.docstrings import (
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
     check_summary_comment_as_docstring,
+    check_unbackticked_code_reference,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
 )
@@ -167,6 +169,7 @@ __all__ = [
     "RS_TERMINAL_PUNCTUATION",
     "RS_TEST_NAMING",
     "RS_TOO_MANY_POSITIONAL_ARGS",
+    "RS_UNBACKTICKED_CODE_REFERENCE",
     "Example",
     "RuleDoc",
     "Severity",
@@ -210,6 +213,7 @@ __all__ = [
     "check_summary_comment_as_docstring",
     "check_test_naming",
     "check_too_many_positional_args",
+    "check_unbackticked_code_reference",
     "fix_comment_terminal_punctuation",
     "fix_docstring_terminal_punctuation",
     "fix_double_backticks",
