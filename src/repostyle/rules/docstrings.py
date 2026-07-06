@@ -52,13 +52,13 @@ _FILLER_OPENING_PATTERN = re.compile(
 # Bare-infinitive verbs commonly seen opening a docstring summary, matched
 # case-sensitively (a docstring summary always capitalizes its first word) with
 # a trailing `\b`, so `Returned` or `Returning` does not false-match `Return`.
-# A common-noun reading is a real risk for some of these; the ones rarely seen
-# as a genuine imperative opening (`Format`, `Set`, `Group`, `Flag`, `Handle`,
-# `Filter`, `Report`, `Route`) are left out of this list entirely. `Check` is
-# kept despite the same risk (`Check constraint enforced on the age column.`)
-# because it is by far the most common genuine imperative opening among them;
-# the occasional false positive is an accepted cost of a warning-severity,
-# advisory rule.
+# A common-noun reading is a real risk for some of these (`Check`, `Report`,
+# `Route`, `Format`, `Handle`, `Set`); a survey of gradienthealth's other
+# Python repos (dicom-ingestor, fhir-ingestor) found real imperative-mood
+# openings for each and no noun-phrase false positive, so they stay in the list
+# — the occasional false positive is an accepted cost of a warning-severity,
+# advisory rule. `Group`, `Flag`, and `Filter` are left out entirely: that same
+# survey found no genuine imperative use of them to justify the same risk.
 _IMPERATIVE_VERBS: tuple[str, ...] = (
     "Add",
     "Apply",
@@ -86,8 +86,10 @@ _IMPERATIVE_VERBS: tuple[str, ...] = (
     "Fetch",
     "Find",
     "Finish",
+    "Format",
     "Get",
     "Go",
+    "Handle",
     "Have",
     "Join",
     "Load",
@@ -101,11 +103,14 @@ _IMPERATIVE_VERBS: tuple[str, ...] = (
     "Remove",
     "Render",
     "Replace",
+    "Report",
     "Resolve",
     "Return",
+    "Route",
     "Sanitize",
     "Save",
     "Send",
+    "Set",
     "Skip",
     "Sort",
     "Split",

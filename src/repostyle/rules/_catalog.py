@@ -473,14 +473,14 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "PEP 257's imperative recommendation. The check matches a fixed "
             "set of common bare-infinitive openings, so it is advisory in "
             "both directions: an opening verb outside that set is not "
-            "flagged, and a verb that commonly doubles as a noun but is "
-            "rarely a genuine imperative opening (`Report`, `Route`, "
-            "`Format`, ...) is left out of the set entirely rather than "
-            "risk flagging a genuinely descriptive opening like `Report "
-            "card issued to students.`. `Check` keeps the same noun-reading "
-            "risk (`Check constraint enforced on the age column.`) despite "
-            "being in the set, since it is by far the more common genuine "
-            "imperative opening of the two readings."
+            "flagged, and a verb that commonly doubles as a noun (`Check`, "
+            "`Report`, `Route`, `Format`, `Handle`, `Set`, ...) still stays "
+            "in the set because a survey of real gradienthealth repos found "
+            "a genuine imperative opening for each and no noun-phrase false "
+            "positive; the occasional false positive (`Check constraint "
+            "enforced on the age column.`) is an accepted cost. A verb with "
+            "no such evidence (`Group`, `Flag`, `Filter`) is left out "
+            "entirely rather than risk one."
         ),
         examples=(
             Example(
