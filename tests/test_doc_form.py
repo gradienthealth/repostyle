@@ -295,6 +295,7 @@ class TestCheckImperativeDocstringOpening:
             "Returned the wrong lease before this fix.",
             "Report of the incident.",
             "Route of the request.",
+            "return the count.",
         ],
         ids=[
             "descriptive",
@@ -303,6 +304,7 @@ class TestCheckImperativeDocstringOpening:
             "past-tense",
             "noun-phrase-report",
             "noun-phrase-route",
+            "lowercase-opening",
         ],
     )
     def test_DescriptiveOpening_NoViolation(self, summary: str) -> None:
