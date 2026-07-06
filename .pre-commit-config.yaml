@@ -34,7 +34,13 @@ repos:
     hooks:
       - id: repostyle
         name: repostyle
-        entry: repostyle
+        # Run the working-tree package off `src/` so a fresh checkout lints
+        # without a prior `pip install -e .`, and every run reflects the rules
+        # being edited. A `repo: local` python hook can't install this package
+        # (it builds a placeholder in its own temp dir), so `language: system`
+        # reaches the working tree instead; being stdlib-only, the ambient
+        # `python3` (3.11+) needs nothing installed.
+        entry: env PYTHONPATH=src python3 -m repostyle.cli
         language: system
         types_or: [python, markdown, toml, yaml]
         exclude: ^CHANGELOG\.md$
