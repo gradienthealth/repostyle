@@ -481,10 +481,10 @@ class TestCheckGluedCodeSpanInComments:
         assert list(check_glued_code_span_in_comments(Path("README.md"), source)) == []
 
     def test_MalformedPythonIndentation_DoesNotRaise(self) -> None:
+        # An untokenizable file yields nothing rather than aborting the run;
+        # the finding on the malformed line is dropped, not reported.
         source = "def f():\n    x = 1\n  y = 2  # `x`'s note\n"
-        assert isinstance(
-            list(check_glued_code_span_in_comments(Path("bad.py"), source)), list
-        )
+        assert list(check_glued_code_span_in_comments(Path("bad.py"), source)) == []
 
 
 class TestCheckGluedCodeSpanInMd:
