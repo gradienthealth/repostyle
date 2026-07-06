@@ -52,84 +52,78 @@ _FILLER_OPENING_PATTERN = re.compile(
 # Bare-infinitive verbs commonly seen opening a docstring summary, matched
 # case-sensitively (a docstring summary always capitalizes its first word) with
 # a trailing `\b`, so "Returned" or "Returning" does not false-match "Return".
-# A few of these double as common nouns ("Format", "Set", "Group");
-# `_NOUN_PHRASE_GUARD` below excuses the "Format of ..."/"Set of ..." shape
-# that reading usually takes.
-_IMPERATIVE_VERBS: frozenset[str] = frozenset(
-    {
-        "Add",
-        "Apply",
-        "Build",
-        "Check",
-        "Close",
-        "Collect",
-        "Combine",
-        "Compute",
-        "Confirm",
-        "Consume",
-        "Convert",
-        "Create",
-        "Delete",
-        "Detect",
-        "Determine",
-        "Discover",
-        "Dispatch",
-        "Do",
-        "Emit",
-        "Ensure",
-        "Enter",
-        "Extend",
-        "Extract",
-        "Fetch",
-        "Filter",
-        "Find",
-        "Finish",
-        "Flag",
-        "Format",
-        "Get",
-        "Go",
-        "Group",
-        "Handle",
-        "Have",
-        "Join",
-        "Load",
-        "Merge",
-        "Normalize",
-        "Open",
-        "Parse",
-        "Raise",
-        "Read",
-        "Register",
-        "Remove",
-        "Render",
-        "Replace",
-        "Report",
-        "Resolve",
-        "Return",
-        "Route",
-        "Sanitize",
-        "Save",
-        "Send",
-        "Set",
-        "Skip",
-        "Sort",
-        "Split",
-        "Start",
-        "Update",
-        "Validate",
-        "Verify",
-        "Walk",
-        "Wrap",
-        "Write",
-        "Yield",
-    }
+# A common-noun reading is a real risk for some of these ("Report", "Route",
+# "Check"); the strongest homographs ("Format", "Set", "Group", "Flag",
+# "Handle", "Filter") are left out of this list entirely, and
+# `_NOUN_PHRASE_GUARD` below excuses the remaining "Report of ..."/"Route of
+# ..." shape a noun reading usually takes.
+_IMPERATIVE_VERBS: tuple[str, ...] = (
+    "Add",
+    "Apply",
+    "Build",
+    "Check",
+    "Close",
+    "Collect",
+    "Combine",
+    "Compute",
+    "Confirm",
+    "Consume",
+    "Convert",
+    "Create",
+    "Delete",
+    "Detect",
+    "Determine",
+    "Discover",
+    "Dispatch",
+    "Do",
+    "Emit",
+    "Ensure",
+    "Enter",
+    "Extend",
+    "Extract",
+    "Fetch",
+    "Find",
+    "Finish",
+    "Get",
+    "Go",
+    "Have",
+    "Join",
+    "Load",
+    "Merge",
+    "Normalize",
+    "Open",
+    "Parse",
+    "Raise",
+    "Read",
+    "Register",
+    "Remove",
+    "Render",
+    "Replace",
+    "Report",
+    "Resolve",
+    "Return",
+    "Route",
+    "Sanitize",
+    "Save",
+    "Send",
+    "Skip",
+    "Sort",
+    "Split",
+    "Start",
+    "Update",
+    "Validate",
+    "Verify",
+    "Walk",
+    "Wrap",
+    "Write",
+    "Yield",
 )
-# Every verb above conjugates by one of these two suffix rules except a genuine
-# stem change (Do, Go, Have), so the mapping is derived rather than hand-typed
-# — a future addition only needs the infinitive, not a hand-computed
-# conjugation to keep in sync with it.
-_IRREGULAR_CONJUGATIONS: dict[str, str] = {"Do": "Does", "Go": "Goes", "Have": "Has"}
-_ES_SUFFIXES = ("s", "x", "z", "ch", "sh")
+# Every verb above conjugates by the suffix rule below except a genuine stem
+# change (Have), so the mapping is derived rather than hand-typed — a future
+# addition only needs the infinitive, not a hand-computed conjugation to keep
+# in sync with it.
+_IRREGULAR_CONJUGATIONS: dict[str, str] = {"Have": "Has"}
+_ES_SUFFIXES = ("s", "x", "z", "ch", "sh", "o")
 
 
 def _conjugate(verb: str) -> str:
@@ -144,13 +138,13 @@ def _conjugate(verb: str) -> str:
 
 
 IMPERATIVE_VERB_CONJUGATIONS: dict[str, str] = {
-    verb: _conjugate(verb) for verb in sorted(_IMPERATIVE_VERBS)
+    verb: _conjugate(verb) for verb in _IMPERATIVE_VERBS
 }
 _IMPERATIVE_OPENING_PATTERN = re.compile(
     r"^(" + "|".join(IMPERATIVE_VERB_CONJUGATIONS) + r")\b"
 )
 # A matched verb immediately followed by "of" is almost always its common-noun
-# reading ("Format of the record", "Set of ids"), not a command.
+# reading ("Report of the incident", "Route of the request"), not a command.
 _NOUN_PHRASE_GUARD = re.compile(r"^\s+of\b")
 
 # Google section headers, grouped by how their bodies are graded. An entry
@@ -514,11 +508,6 @@ def _docstring_prose_units(constant: ast.Constant) -> list[_ProseUnit]:
     return segmenter.units
 
 
-def _docstring_summary_line(docstring: str) -> str:
-    """Returns a cleaned docstring's first non-blank line, stripped."""
-    return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
-
-
 def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
     """Splits a docstring literal into structure-tagged source lines.
 
@@ -542,6 +531,11 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
         relative = 0 if index == 0 else max(0, column - margin)
         result.append(_DocLine(lineno, column, relative, line.strip()))
     return result
+
+
+def _docstring_summary_line(docstring: str) -> str:
+    """Returns a cleaned docstring's first non-blank line, stripped."""
+    return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
 
 
 class _DocLine(NamedTuple):

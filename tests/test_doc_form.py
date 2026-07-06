@@ -293,16 +293,16 @@ class TestCheckImperativeDocstringOpening:
             "A test that returns the lease.",
             "Reads and returns the cached value.",
             "Returned the wrong lease before this fix.",
-            "Format of the exported record.",
-            "Set of ids excluded from the batch.",
+            "Report of the incident.",
+            "Route of the request.",
         ],
         ids=[
             "descriptive",
             "not-first-word",
             "second-conjugated-verb",
             "past-tense",
-            "noun-phrase-format",
-            "noun-phrase-set",
+            "noun-phrase-report",
+            "noun-phrase-route",
         ],
     )
     def test_DescriptiveOpening_NoViolation(self, summary: str) -> None:

@@ -473,9 +473,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "PEP 257's imperative recommendation. The check matches a fixed "
             "set of common bare-infinitive openings, so it is advisory in "
             "both directions: an opening verb outside that set is not "
-            "flagged, and a few entries (`Format`, `Set`, `Group`, ...) "
-            "double as nouns, so a genuinely descriptive `Format of the "
-            "record.` is excused only because it takes the `<verb> of ...` "
+            "flagged, and a few entries (`Report`, `Route`, `Check`, ...) "
+            "double as nouns, so a genuinely descriptive `Report of the "
+            "incident.` is excused only because it takes the `<verb> of ...` "
             "shape the noun reading usually does."
         ),
         examples=(
