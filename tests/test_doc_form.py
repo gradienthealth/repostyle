@@ -5,9 +5,11 @@ import pytest
 from repostyle.rules import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
+    check_imperative_docstring_opening,
     check_summary_comment_as_docstring,
 )
 
@@ -231,3 +233,66 @@ class TestCheckFillerDocstringOpening:
     def test_UnparseableSource_NoViolation(self) -> None:
         source = 'def (:\n    """This function does X."""\n'
         assert list(check_filler_docstring_opening(_SRC, source)) == []
+
+
+class TestCheckImperativeDocstringOpening:
+    @pytest.mark.parametrize(
+        ("summary", "expected_message_fragment"),
+        [
+            ("Return the lease.", "'Returns', not 'Return'"),
+            ("Build the client.", "'Builds', not 'Build'"),
+            ("Apply the patch.", "'Applies', not 'Apply'"),
+            ("Do the work.", "'Does', not 'Do'"),
+        ],
+        ids=["regular", "regular-second-verb", "consonant-y", "irregular"],
+    )
+    def test_ImperativeOpening_FlagsViolation(
+        self, summary: str, expected_message_fragment: str
+    ) -> None:
+        source = f'def f():\n    """{summary}"""\n    return 1\n'
+        violations = list(check_imperative_docstring_opening(_SRC, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_IMPERATIVE_DOCSTRING_OPENING
+        assert violations[0].line == 1
+        assert expected_message_fragment in violations[0].message
+
+    @pytest.mark.parametrize(
+        ("source", "expected_line"),
+        [
+            ('"""Return the version string."""\nx = 1\n', 1),
+            ('class C:\n    """Return the cached state."""\n    x = 1\n', 1),
+        ],
+        ids=["module", "class"],
+    )
+    def test_ImperativeOpeningOnNonFunctionOwner_FlagsViolation(
+        self, source: str, expected_line: int
+    ) -> None:
+        violations = list(check_imperative_docstring_opening(_SRC, source))
+        assert len(violations) == 1
+        assert violations[0].line == expected_line
+
+    def test_ImperativeOpeningOnLaterSummaryLine_FlagsViolation(self) -> None:
+        source = 'def f():\n    """\n    Return the count.\n    """\n    return 1\n'
+        assert len(list(check_imperative_docstring_opening(_SRC, source))) == 1
+
+    @pytest.mark.parametrize(
+        "summary",
+        [
+            "Returns the lease held by the client.",
+            "A test that returns the lease.",
+            "Reads and returns the cached value.",
+            "Returned the wrong lease before this fix.",
+        ],
+        ids=["descriptive", "not-first-word", "second-conjugated-verb", "past-tense"],
+    )
+    def test_DescriptiveOpening_NoViolation(self, summary: str) -> None:
+        source = f'def f():\n    """{summary}"""\n    return 1\n'
+        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+
+    def test_NoDocstring_NoViolation(self) -> None:
+        source = "def f():\n    return 1\n"
+        assert list(check_imperative_docstring_opening(_SRC, source)) == []
+
+    def test_UnparseableSource_NoViolation(self) -> None:
+        source = 'def (:\n    """Return the count."""\n'
+        assert list(check_imperative_docstring_opening(_SRC, source)) == []

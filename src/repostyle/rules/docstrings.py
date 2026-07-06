@@ -4,7 +4,8 @@ The placement rules move a summary that documents a unit into the docstring
 slot this package's own doc-content rules can see, and reject docstring
 openings that restate the identifier instead of stating the contract: no
 `Attributes:` block, no double backticks, no leading summary comment, no field
-comment standing in for a field docstring, and no filler opening.
+comment standing in for a field docstring, no filler opening, and no
+imperative-mood opening verb.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from repostyle.rules._shared import (
 from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
@@ -45,6 +47,83 @@ _FILLER_OPENING_PATTERN = re.compile(
     r"^(this (function|method|class|module)\b|helper (to|for)\b|used to\b"
     r"|simply\b|just\b)",
     re.IGNORECASE,
+)
+
+# A bare-infinitive verb mapped to its third-person-singular conjugation, for
+# the common openings seen in a docstring summary. Regular verbs add "s";
+# "sh"/"ch"/"s"/"x"/"z" endings add "es"; a consonant-plus-"y" ending takes
+# "ies"; the rest are irregular. Keys are matched case-sensitively (a docstring
+# summary always capitalizes its first word) with a trailing `\b`, so
+# "Returned" or "Returning" does not false-match "Return".
+IMPERATIVE_VERB_CONJUGATIONS: dict[str, str] = {
+    "Add": "Adds",
+    "Apply": "Applies",
+    "Build": "Builds",
+    "Check": "Checks",
+    "Close": "Closes",
+    "Collect": "Collects",
+    "Combine": "Combines",
+    "Compute": "Computes",
+    "Confirm": "Confirms",
+    "Consume": "Consumes",
+    "Convert": "Converts",
+    "Create": "Creates",
+    "Delete": "Deletes",
+    "Detect": "Detects",
+    "Determine": "Determines",
+    "Discover": "Discovers",
+    "Dispatch": "Dispatches",
+    "Do": "Does",
+    "Emit": "Emits",
+    "Ensure": "Ensures",
+    "Enter": "Enters",
+    "Extend": "Extends",
+    "Extract": "Extracts",
+    "Fetch": "Fetches",
+    "Filter": "Filters",
+    "Find": "Finds",
+    "Finish": "Finishes",
+    "Flag": "Flags",
+    "Format": "Formats",
+    "Get": "Gets",
+    "Go": "Goes",
+    "Group": "Groups",
+    "Handle": "Handles",
+    "Have": "Has",
+    "Join": "Joins",
+    "Load": "Loads",
+    "Merge": "Merges",
+    "Normalize": "Normalizes",
+    "Open": "Opens",
+    "Parse": "Parses",
+    "Raise": "Raises",
+    "Read": "Reads",
+    "Register": "Registers",
+    "Remove": "Removes",
+    "Render": "Renders",
+    "Replace": "Replaces",
+    "Report": "Reports",
+    "Resolve": "Resolves",
+    "Return": "Returns",
+    "Route": "Routes",
+    "Sanitize": "Sanitizes",
+    "Save": "Saves",
+    "Send": "Sends",
+    "Set": "Sets",
+    "Skip": "Skips",
+    "Sort": "Sorts",
+    "Split": "Splits",
+    "Start": "Starts",
+    "Update": "Updates",
+    "Validate": "Validates",
+    "Verify": "Verifies",
+    "Walk": "Walks",
+    "Wrap": "Wraps",
+    "Write": "Writes",
+    "Yield": "Yields",
+}
+_IMPERATIVE_OPENING_PATTERN = re.compile(
+    r"^(" + "|".join(IMPERATIVE_VERB_CONJUGATIONS) + r")\b"
 )
 
 # Google section headers, grouped by how their bodies are graded. An entry
@@ -250,6 +329,38 @@ def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violatio
             )
 
 
+def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Violation]:
+    """A docstring summary must open in descriptive, not imperative, mood.
+
+    The house convention states a unit's own contract descriptively, in the
+    third person (`Returns the lease.`), not as a command (`Return the
+    lease.`), matching Google's own style guide rather than PEP 257's
+    imperative recommendation. A summary whose first word is a known
+    bare-infinitive verb should conjugate it to third-person singular.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        docstring = ast.get_docstring(node, clean=True)
+        if docstring is None:
+            continue
+        summary = next(
+            (line.strip() for line in docstring.splitlines() if line.strip()), ""
+        )
+        match = _IMPERATIVE_OPENING_PATTERN.match(summary)
+        if match is None:
+            continue
+        verb = match.group(1)
+        yield Violation(
+            getattr(node, "lineno", 1),
+            getattr(node, "col_offset", 0) + 1,
+            RS_IMPERATIVE_DOCSTRING_OPENING,
+            f"docstring opens in imperative mood; use "
+            f"'{IMPERATIVE_VERB_CONJUGATIONS[verb]}', not '{verb}'",
+        )
+
+
 def check_docstring_terminal_punctuation(
     path: Path, source: str
 ) -> Iterator[Violation]:
@@ -416,7 +527,7 @@ class _DocLine(NamedTuple):
 
 
 class _DocstringSegmenter:
-    """Group docstring lines into the prose units the rule grades.
+    """Groups docstring lines into the prose units the rule grades.
 
     Feed lines in order with `consume`, call `close` after the last, then read
     `units`. The first paragraph is the summary; later margin paragraphs are

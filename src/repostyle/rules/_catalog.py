@@ -38,6 +38,7 @@ from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MAKE_IN_PRODUCTION,
@@ -53,6 +54,7 @@ from repostyle.rules._violation import (
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
 )
+from repostyle.rules.docstrings import IMPERATIVE_VERB_CONJUGATIONS
 
 
 class Example(NamedTuple):
@@ -457,6 +459,32 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 good="my-config.yaml",
                 note="The default `filename-case` of kebab.",
             ),
+        ),
+    ),
+    RS_IMPERATIVE_DOCSTRING_OPENING: RuleDoc(
+        name="imperative-docstring-opening",
+        summary=(
+            "A docstring summary opens descriptively (`Returns the lease.`), "
+            "not imperatively (`Return the lease.`)."
+        ),
+        rationale=(
+            "The house convention states a unit's contract in descriptive "
+            "third person, matching Google's own style guide rather than "
+            "PEP 257's imperative recommendation. The check matches a fixed "
+            "set of common bare-infinitive openings; an opening verb outside "
+            "that set is not flagged, so this is advisory rather than a "
+            "complete grammar check."
+        ),
+        examples=(
+            Example(
+                bad='"""Return the lease held by `client_id`."""',
+                good='"""Returns the lease held by `client_id`."""',
+                note="Conjugate the opening verb to third-person singular.",
+            ),
+        ),
+        reference=tuple(
+            f"{verb} -> {conjugated}"
+            for verb, conjugated in sorted(IMPERATIVE_VERB_CONJUGATIONS.items())
         ),
     ),
 }
