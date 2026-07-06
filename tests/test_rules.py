@@ -569,11 +569,13 @@ class TestCheckDocSummaryOverflow:
                 'def f():\n    """' + "abcde " * 12 + 'end."""',
                 2,
             ),
+            ('"""' + "a" * 74 + '"""', 1),
         ],
         ids=[
             "single_line_docstring",
             "multiline_docstring_summary",
             "indented_opening_line",
+            "boundary_80_columns",
         ],
     )
     def test_OverlongSummaryLine_FlagsViolation(self, source: str, line: int) -> None:
@@ -582,16 +584,15 @@ class TestCheckDocSummaryOverflow:
             (RS_DOC_SUMMARY_OVERFLOW, line)
         ]
 
+    def test_IndentedSummaryLine_ColumnAtDocstringIndent(self) -> None:
+        source = 'def f():\n    """' + "abcde " * 12 + 'end."""'
+        violations = list(check_doc_summary_overflow(Path("src/x.py"), source))
+        assert (violations[0].line, violations[0].col) == (2, 5)
+
     def test_SummaryLineAtExactly79Columns_NoViolation(self) -> None:
         source = '"""' + "a" * 73 + '"""'
         assert len(source) == 79
         assert list(check_doc_summary_overflow(Path("src/x.py"), source)) == []
-
-    def test_SummaryLineAt80Columns_FlagsViolation(self) -> None:
-        source = '"""' + "a" * 74 + '"""'
-        assert len(source) == 80
-        violations = list(check_doc_summary_overflow(Path("src/x.py"), source))
-        assert [v.rule for v in violations] == [RS_DOC_SUMMARY_OVERFLOW]
 
     def test_OverlongBodyParagraphOnly_NoViolation(self) -> None:
         # A short summary with an overlong body paragraph is RS009's rule to
