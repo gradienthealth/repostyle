@@ -52,16 +52,14 @@ _FILLER_OPENING_PATTERN = re.compile(
 # Bare-infinitive verbs commonly seen opening a docstring summary, matched
 # case-sensitively (a docstring summary always capitalizes its first word) with
 # a trailing `\b`, so `Returned` or `Returning` does not false-match `Return`.
-# A common-noun reading is a real risk for some of these (`Report`, `Route`,
-# `Check`); the strongest homographs (`Format`, `Set`, `Group`, `Flag`,
-# `Handle`, `Filter`) are left out of this list entirely, and
-# `_NOUN_PHRASE_PATTERN` below excuses the remaining `Report of ...`/`Route of
-# ...` shape a noun reading usually takes.
+# A common-noun reading is a real risk for some verbs (`Format`, `Set`,
+# `Group`, `Flag`, `Handle`, `Filter`, `Report`, `Route`, `Check`); rather than
+# guard each shape a noun reading can take, this list leaves all of them out
+# entirely.
 _IMPERATIVE_VERBS: tuple[str, ...] = (
     "Add",
     "Apply",
     "Build",
-    "Check",
     "Close",
     "Collect",
     "Combine",
@@ -99,10 +97,8 @@ _IMPERATIVE_VERBS: tuple[str, ...] = (
     "Remove",
     "Render",
     "Replace",
-    "Report",
     "Resolve",
     "Return",
-    "Route",
     "Sanitize",
     "Save",
     "Send",
@@ -142,9 +138,6 @@ IMPERATIVE_VERB_CONJUGATIONS: dict[str, str] = {
 _IMPERATIVE_OPENING_PATTERN = re.compile(
     r"^(" + "|".join(IMPERATIVE_VERB_CONJUGATIONS) + r")\b"
 )
-# A matched verb immediately followed by "of" is almost always its common-noun
-# reading (`Report of the incident`, `Route of the request`), not a command.
-_NOUN_PHRASE_PATTERN = re.compile(r"^\s+of\b")
 
 # Google section headers, grouped by how their bodies are graded. An entry
 # section holds `name: description` items checked per entry; a prose section's
@@ -354,8 +347,7 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
     third person (`Returns the lease.`), not as a command (`Return the
     lease.`), matching Google's own style guide rather than PEP 257's
     imperative recommendation. A summary whose first word is a known
-    bare-infinitive verb should conjugate it to third-person singular, unless
-    that word opens a `Report of ...`-shaped noun phrase instead.
+    bare-infinitive verb should conjugate it to third-person singular.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -366,7 +358,7 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
             continue
         summary = _docstring_summary_line(docstring)
         match = _IMPERATIVE_OPENING_PATTERN.match(summary)
-        if match is None or _NOUN_PHRASE_PATTERN.match(summary[match.end() :]):
+        if match is None:
             continue
         verb = match.group(1)
         yield Violation(

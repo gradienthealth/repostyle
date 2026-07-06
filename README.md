@@ -43,7 +43,7 @@ Each rule is identified by an `RSnnn` id and can be selected or ignored per repo
 | RS031 | Arg described in prose (warning): per-argument detail narrated in the docstring body belongs in an `Args:` section. |
 | RS032 | Return described in prose (warning): the return value narrated in the docstring body belongs in a `Returns:` section. |
 | RS033 | Filename convention (warning): a non-Python file's extension and casing follow the configured preference, defaulting to `.yaml` over `.yml` and kebab-case for a multi-word name (see below). |
-| RS034 | Imperative docstring opening (warning): a docstring summary opens with a known bare-infinitive verb (`Return`, `Build`, `Check`, ...) instead of its descriptive third-person conjugation (`Returns`, `Builds`, `Checks`, ...). |
+| RS034 | Imperative docstring opening (warning): a docstring summary opens with a known bare-infinitive verb (`Return`, `Build`, `Fetch`, ...) instead of its descriptive third-person conjugation (`Returns`, `Builds`, `Fetches`, ...). |
 
 ### Repo-agnostic vs repo-specific
 
