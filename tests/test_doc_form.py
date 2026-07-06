@@ -249,12 +249,12 @@ class TestCheckImperativeDocstringOpening:
         ],
         ids=[
             "regular",
-            "regular-second-verb",
+            "regular-other-verb",
             "consonant-y",
+            "es-suffix-o",
+            "es-suffix-o-other-verb",
             "irregular",
-            "irregular-o-ending",
-            "irregular-stem-change",
-            "es-suffix",
+            "es-suffix-ch",
         ],
     )
     def test_ImperativeOpening_FlagsViolation(

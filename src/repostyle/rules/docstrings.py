@@ -51,12 +51,12 @@ _FILLER_OPENING_PATTERN = re.compile(
 
 # Bare-infinitive verbs commonly seen opening a docstring summary, matched
 # case-sensitively (a docstring summary always capitalizes its first word) with
-# a trailing `\b`, so "Returned" or "Returning" does not false-match "Return".
-# A common-noun reading is a real risk for some of these ("Report", "Route",
-# "Check"); the strongest homographs ("Format", "Set", "Group", "Flag",
-# "Handle", "Filter") are left out of this list entirely, and
-# `_NOUN_PHRASE_GUARD` below excuses the remaining "Report of ..."/"Route of
-# ..." shape a noun reading usually takes.
+# a trailing `\b`, so `Returned` or `Returning` does not false-match `Return`.
+# A common-noun reading is a real risk for some of these (`Report`, `Route`,
+# `Check`); the strongest homographs (`Format`, `Set`, `Group`, `Flag`,
+# `Handle`, `Filter`) are left out of this list entirely, and
+# `_NOUN_PHRASE_PATTERN` below excuses the remaining `Report of ...`/`Route of
+# ...` shape a noun reading usually takes.
 _IMPERATIVE_VERBS: tuple[str, ...] = (
     "Add",
     "Apply",
@@ -119,18 +119,17 @@ _IMPERATIVE_VERBS: tuple[str, ...] = (
     "Yield",
 )
 # Every verb above conjugates by the suffix rule below except a genuine stem
-# change (Have), so the mapping is derived rather than hand-typed — a future
-# addition only needs the infinitive, not a hand-computed conjugation to keep
-# in sync with it.
+# change (`Have`), so the mapping is derived rather than hand-typed — a future
+# addition needs only the infinitive.
 _IRREGULAR_CONJUGATIONS: dict[str, str] = {"Have": "Has"}
-_ES_SUFFIXES = ("s", "x", "z", "ch", "sh", "o")
+_ES_CONJUGATION_SUFFIXES = ("s", "x", "z", "ch", "sh", "o")
 
 
 def _conjugate(verb: str) -> str:
-    """Conjugates a bare-infinitive verb to third-person singular."""
+    """Conjugates a bare-infinitive `verb` to third-person singular."""
     if verb in _IRREGULAR_CONJUGATIONS:
         return _IRREGULAR_CONJUGATIONS[verb]
-    if verb.endswith(_ES_SUFFIXES):
+    if verb.endswith(_ES_CONJUGATION_SUFFIXES):
         return f"{verb}es"
     if verb.endswith("y") and verb[-2].lower() not in "aeiou":
         return f"{verb[:-1]}ies"
@@ -144,8 +143,8 @@ _IMPERATIVE_OPENING_PATTERN = re.compile(
     r"^(" + "|".join(IMPERATIVE_VERB_CONJUGATIONS) + r")\b"
 )
 # A matched verb immediately followed by "of" is almost always its common-noun
-# reading ("Report of the incident", "Route of the request"), not a command.
-_NOUN_PHRASE_GUARD = re.compile(r"^\s+of\b")
+# reading (`Report of the incident`, `Route of the request`), not a command.
+_NOUN_PHRASE_PATTERN = re.compile(r"^\s+of\b")
 
 # Google section headers, grouped by how their bodies are graded. An entry
 # section holds `name: description` items checked per entry; a prose section's
@@ -356,7 +355,7 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
     lease.`), matching Google's own style guide rather than PEP 257's
     imperative recommendation. A summary whose first word is a known
     bare-infinitive verb should conjugate it to third-person singular, unless
-    that word opens a "Format of ..."-shaped noun phrase instead.
+    that word opens a `Report of ...`-shaped noun phrase instead.
     """
     tree = _parse_python(path, source)
     if tree is None:
@@ -367,7 +366,7 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
             continue
         summary = _docstring_summary_line(docstring)
         match = _IMPERATIVE_OPENING_PATTERN.match(summary)
-        if match is None or _NOUN_PHRASE_GUARD.match(summary[match.end() :]):
+        if match is None or _NOUN_PHRASE_PATTERN.match(summary[match.end() :]):
             continue
         verb = match.group(1)
         yield Violation(
@@ -534,7 +533,7 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
 
 
 def _docstring_summary_line(docstring: str) -> str:
-    """Returns a cleaned docstring's first non-blank line, stripped."""
+    """Returns a cleaned `docstring`'s first non-blank line, stripped."""
     return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
 
 
