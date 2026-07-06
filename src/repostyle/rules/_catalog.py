@@ -547,13 +547,16 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "firing only where two signals agree: the word matches a name the "
             "module itself binds (a parameter, import, function, class, or "
             "accessed attribute) or a literal constant, and its shape rules "
-            "out plain English — an underscore, an interior capital, or a "
-            "digit, or a leading capital used away from a sentence start. A "
-            "lowercase name that doubles as an English word, such as a `path` "
-            "or `line` parameter, is left to review, since no rule can tell "
-            "the reference from the word. Grounding the match in the module's "
-            "own names is what lets a domain acronym like TOML or FHIR pass "
-            "untouched: code-shaped, but not a name the code binds."
+            "out plain English — an underscore, a digit, or an interior "
+            "capital beside a lowercase letter (`skip_lines`, `HttpClient`). A "
+            "literal (`None`/`True`/`False`) fires mid-sentence but not at a "
+            "sentence start, where its capital could open an English clause. A "
+            "plain-lowercase name (a `path` parameter) and a Titlecase or "
+            "all-caps word that also reads as English (`Path`, `WARNING`) are "
+            "left to review, since no rule can tell the reference from the "
+            "word. Grounding the match in the module's own names is what lets "
+            "a domain acronym like TOML or FHIR pass untouched: not a name the "
+            "code binds."
         ),
         examples=(
             Example(

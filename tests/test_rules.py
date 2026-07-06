@@ -300,8 +300,24 @@ class TestCheckUnbacktickedCodeReference:
                 "    return node.col_offset\n",
                 "col_offset",
             ),
+            (
+                'def f(skip_lines):\n    """Does it. skip_lines drives it."""\n',
+                "skip_lines",
+            ),
+            (
+                "from x import HttpClient\n\n\n"
+                'def f():\n    """HttpClient is built here."""\n',
+                "HttpClient",
+            ),
         ],
-        ids=["literal", "snake-case-param", "camel-case-import", "attribute"],
+        ids=[
+            "literal",
+            "snake-case-param",
+            "camel-case-import",
+            "attribute",
+            "code-shape-at-sentence-start",
+            "camel-case-at-sentence-start",
+        ],
     )
     def test_BareCodeNameInProse_FlagsViolation(self, source: str, token: str) -> None:
         violations = list(check_unbackticked_code_reference(Path("src/x.py"), source))
@@ -309,10 +325,10 @@ class TestCheckUnbacktickedCodeReference:
         assert violations[0].rule == RS_UNBACKTICKED_CODE_REFERENCE
         assert f"`{token}`" in violations[0].message
 
-    def test_BareLiteral_ColumnAtProseUnit(self) -> None:
+    def test_BareLiteral_ColumnAtToken(self) -> None:
         source = 'def f() -> None:\n    """Returns None on a miss."""\n'
         violations = list(check_unbackticked_code_reference(Path("src/x.py"), source))
-        assert (violations[0].line, violations[0].col) == (2, 5)
+        assert (violations[0].line, violations[0].col) == (2, 16)
 
     @pytest.mark.parametrize(
         "source",
@@ -325,6 +341,14 @@ class TestCheckUnbacktickedCodeReference:
             'def f(skip_lines):\n    """Does it.\n\n'
             "    Args:\n        skip_lines: The lines to skip.\n    "
             '"""\n',
+            'def f(config_path):\n    """Does it.\n\n'
+            "    Args:\n        config_path (str): the path.\n    "
+            '"""\n',
+            'WARNING = 1\n\n\ndef f():\n    """Does it. WARNING resets state."""\n',
+            'A = 1\n\n\ndef f():\n    """A result is returned."""\n',
+            "class Note:\n    pass\n\n\n"
+            'def f():\n    """Returns it. Please Note the order."""\n',
+            'def f() -> None:\n    """See https://x.com/api/None here."""\n',
         ],
         ids=[
             "backticked",
@@ -333,6 +357,11 @@ class TestCheckUnbacktickedCodeReference:
             "doctest",
             "acronym-not-bound",
             "args-caption",
+            "typed-args-caption",
+            "all-caps-english-at-sentence-start",
+            "single-letter-name",
+            "titlecase-english-word-mid-sentence",
+            "name-inside-url",
         ],
     )
     def test_ConformingProse_NoViolation(self, source: str) -> None:
