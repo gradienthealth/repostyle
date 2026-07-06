@@ -54,7 +54,7 @@ from repostyle.rules._violation import (
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
 )
-from repostyle.rules.docstrings import IMPERATIVE_VERB_CONJUGATIONS
+from repostyle.rules.docstrings import NON_TRIVIAL_CONJUGATIONS
 
 
 class Example(NamedTuple):
@@ -476,16 +476,17 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "enforces the opposite convention), so it is advisory in both "
             "directions: an opening verb outside that set is not flagged, "
             "and a verb that commonly doubles as a noun (`Check`, `Report`, "
-            "`Route`, `Format`, `Handle`, `Set`, ...) still stays in the set "
-            "because pydocstyle's own data accepts that risk wholesale, "
-            "reinforced for several of these by a survey of real "
-            "gradienthealth repos that found a genuine imperative opening "
-            "for each and no noun-phrase false positive; the occasional "
-            "false positive (`Check constraint enforced on the age "
-            "column.`) is an accepted cost. A handful of pydocstyle's own "
-            "entries (`List`, `Query`, `Test`, ...) are left out anyway "
-            "because the noun reading dominates in this codebase's own "
-            "domain."
+            "`Format`, `Handle`, `Set`, ...) still stays in the set because "
+            "pydocstyle's own data accepts that risk wholesale, reinforced "
+            "for several of these by a survey of real gradienthealth repos "
+            "that found a genuine imperative opening for each and no "
+            "noun-phrase false positive; the occasional false positive "
+            "(`Check constraint enforced on the age column.`) is an "
+            "accepted cost. `Route` carries the same risk on that survey's "
+            "evidence alone, since it is not itself a pydocstyle entry. A "
+            "handful of pydocstyle's own entries (`List`, `Query`, `Test`, "
+            "...) are left out anyway because the noun reading dominates in "
+            "this codebase's own domain."
         ),
         examples=(
             Example(
@@ -496,7 +497,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         ),
         reference=tuple(
             f"{verb} -> {conjugated}"
-            for verb, conjugated in sorted(IMPERATIVE_VERB_CONJUGATIONS.items())
+            for verb, conjugated in sorted(NON_TRIVIAL_CONJUGATIONS.items())
         ),
     ),
 }

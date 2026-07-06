@@ -60,21 +60,23 @@ _FILLER_OPENING_PATTERN = re.compile(
 # https://github.com/PyCQA/pydocstyle/blob/master/src/pydocstyle/data/imperatives.txt
 #
 # A common-noun reading is a real risk for many of these (`Check`, `Report`,
-# `Route`, `Format`, `Handle`, `Set`, `Group`, `Flag`, `Filter`, ...);
-# pydocstyle's own comment on that file accepts the risk wholesale rather than
-# excluding every homograph, since blacklisting them would itself
-# false-positive on their many genuinely correct imperative uses. This list
-# takes the same trade-off, reinforced for `Check`, `Report`, `Route`,
-# `Format`, `Handle`, and `Set` by a survey of gradienthealth's other Python
-# repos (dicom-ingestor, fhir-ingestor) that independently found real
-# imperative-mood openings for each with no noun-phrase false positive.
+# `Format`, `Handle`, `Set`, `Group`, `Flag`, `Filter`, ...); pydocstyle's own
+# comment on that file accepts the risk wholesale rather than excluding every
+# homograph, since blacklisting them would itself false-positive on their many
+# genuinely correct imperative uses. This list takes the same trade-off,
+# reinforced for `Check`, `Report`, `Format`, `Handle`, and `Set` by a survey
+# of gradienthealth's other Python repos (dicom-ingestor, fhir-ingestor) that
+# independently found real imperative-mood openings for each with no
+# noun-phrase false positive. `Route` carries the same risk but is not itself a
+# pydocstyle entry; it stays in the list solely on that survey's evidence.
 #
 # A handful of pydocstyle's entries are dropped anyway because the noun reading
 # dominates in this codebase's own domain rather than software generally:
-# `List`, `Query`, `Post`, `Test`, `Import`, `View`, `Map`, `Store`, `Log`,
-# `Process`, and `Match` (Python's `list`, an HTTP `POST`, a test-heavy repo, a
-# FHIR/DICOM import job, a database view/query, a `dict`-like map, a data
-# store, a log record). `Partial`, `Rollback`, and `Init` are dropped as not
+# `List` (Python's `list`), `Query` (a database query), `Post` (an HTTP
+# `POST`), `Test` (a test-heavy repo), `Import` (a FHIR/DICOM import job),
+# `View` (a database view), `Map` (a `dict`-like map), `Store` (a data store),
+# `Log` (a log record), `Process` (a process id or pipeline step), and `Match`
+# (a regex match object). `Partial`, `Rollback`, and `Init` are dropped as not
 # real standalone verbs (`functools.partial`, the two-word phrasal "roll back",
 # and an abbreviation, respectively).
 _IMPERATIVE_VERBS: tuple[str, ...] = (
@@ -328,6 +330,26 @@ IMPERATIVE_VERB_CONJUGATIONS: dict[str, str] = {
 _IMPERATIVE_OPENING_PATTERN = re.compile(
     r"^(" + "|".join(IMPERATIVE_VERB_CONJUGATIONS) + r")\b"
 )
+
+
+def _is_trivial_conjugation(verb: str) -> bool:
+    """States whether `verb` conjugates by plain suffix `s`, no special rule."""
+    return (
+        verb not in _IRREGULAR_CONJUGATIONS
+        and not verb.endswith(_ES_CONJUGATION_SUFFIXES)
+        and not (verb.endswith("y") and verb[-2].lower() not in "aeiou")
+    )
+
+
+# The `explain RS034` card's reference table: only the conjugations a reader
+# cannot derive by just appending `s` (an irregular stem, or the `-es`/`-ies`
+# suffix rules), so it stays a quick reference at the list's full size instead
+# of repeating ~200 mechanically obvious entries.
+NON_TRIVIAL_CONJUGATIONS: dict[str, str] = {
+    verb: conjugated
+    for verb, conjugated in IMPERATIVE_VERB_CONJUGATIONS.items()
+    if not _is_trivial_conjugation(verb)
+}
 
 # Google section headers, grouped by how their bodies are graded. An entry
 # section holds `name: description` items checked per entry; a prose section's
