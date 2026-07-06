@@ -332,23 +332,16 @@ _IMPERATIVE_OPENING_PATTERN = re.compile(
 )
 
 
-def _is_trivial_conjugation(verb: str) -> bool:
-    """States whether `verb` conjugates by plain suffix `s`, no special rule."""
-    return (
-        verb not in _IRREGULAR_CONJUGATIONS
-        and not verb.endswith(_ES_CONJUGATION_SUFFIXES)
-        and not (verb.endswith("y") and verb[-2].lower() not in "aeiou")
-    )
-
-
 # The `explain RS034` card's reference table: only the conjugations a reader
 # cannot derive by just appending `s` (an irregular stem, or the `-es`/`-ies`
 # suffix rules), so it stays a quick reference at the list's full size instead
-# of repeating ~200 mechanically obvious entries.
+# of repeating ~200 mechanically obvious entries. Compares each conjugation
+# against the plain-suffix default rather than re-deriving `_conjugate`'s
+# branch conditions, so it cannot drift from what `_conjugate` actually does.
 NON_TRIVIAL_CONJUGATIONS: dict[str, str] = {
     verb: conjugated
     for verb, conjugated in IMPERATIVE_VERB_CONJUGATIONS.items()
-    if not _is_trivial_conjugation(verb)
+    if conjugated != f"{verb}s"
 }
 
 # Google section headers, grouped by how their bodies are graded. An entry

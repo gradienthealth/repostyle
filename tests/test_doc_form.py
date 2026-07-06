@@ -12,6 +12,7 @@ from repostyle.rules import (
     check_imperative_docstring_opening,
     check_summary_comment_as_docstring,
 )
+from repostyle.rules.docstrings import _IMPERATIVE_VERBS
 
 _SRC = Path("src/x.py")
 
@@ -241,14 +242,6 @@ class TestCheckImperativeDocstringOpening:
         [
             ("Return the lease.", "'Returns', not 'Return'"),
             ("Check whether the input is valid.", "'Checks', not 'Check'"),
-            ("Report the error to the monitoring service.", "'Reports', not 'Report'"),
-            ("Route the request to the correct handler.", "'Routes', not 'Route'"),
-            ("Format the timestamp as ISO 8601.", "'Formats', not 'Format'"),
-            ("Handle the exception and log it.", "'Handles', not 'Handle'"),
-            ("Set the timeout value.", "'Sets', not 'Set'"),
-            ("Group the records by key.", "'Groups', not 'Group'"),
-            ("Flag the record for review.", "'Flags', not 'Flag'"),
-            ("Filter the invalid entries.", "'Filters', not 'Filter'"),
             ("Apply the patch.", "'Applies', not 'Apply'"),
             ("Do the work.", "'Does', not 'Do'"),
             ("Have the value ready.", "'Has', not 'Have'"),
@@ -257,15 +250,7 @@ class TestCheckImperativeDocstringOpening:
         ],
         ids=[
             "regular",
-            "kept-homograph-check",
-            "kept-homograph-report",
-            "kept-homograph-route",
-            "kept-homograph-format",
-            "kept-homograph-handle",
-            "kept-homograph-set",
-            "kept-homograph-group",
-            "kept-homograph-flag",
-            "kept-homograph-filter",
+            "kept-homograph",
             "consonant-y",
             "es-suffix-o",
             "irregular",
@@ -282,6 +267,11 @@ class TestCheckImperativeDocstringOpening:
         assert violations[0].rule == RS_IMPERATIVE_DOCSTRING_OPENING
         assert violations[0].line == 1
         assert expected_message_fragment in violations[0].message
+
+    def test_SurveyedHomographs_StayInVerbList(self) -> None:
+        kept = {"Check", "Report", "Route", "Format", "Handle", "Set"}
+        pydocstyle_backed = {"Group", "Flag", "Filter"}
+        assert (kept | pydocstyle_backed) <= set(_IMPERATIVE_VERBS)
 
     @pytest.mark.parametrize(
         ("source", "expected_line"),
@@ -309,43 +299,36 @@ class TestCheckImperativeDocstringOpening:
             "A test that returns the lease.",
             "Returned the wrong lease before this fix.",
             "List of patient records returned by the query.",
-            "Query object for filtering results.",
-            "Post body sent to the webhook.",
-            "Test fixture for the parser.",
-            "Import job for the nightly batch.",
-            "View definition for active users.",
-            "Map of region to timezone.",
-            "Store for the cached responses.",
-            "Log entry written at startup.",
-            "Process id for the worker.",
-            "Match object for the compiled pattern.",
             "Partial application of the handler.",
-            "Rollback point before the migration.",
-            "Init parameters for the client.",
         ],
         ids=[
             "descriptive",
             "not-first-word",
             "past-tense",
-            "excluded-domain-noun-list",
-            "excluded-domain-noun-query",
-            "excluded-domain-noun-post",
-            "excluded-domain-noun-test",
-            "excluded-domain-noun-import",
-            "excluded-domain-noun-view",
-            "excluded-domain-noun-map",
-            "excluded-domain-noun-store",
-            "excluded-domain-noun-log",
-            "excluded-domain-noun-process",
-            "excluded-domain-noun-match",
-            "excluded-not-a-verb-partial",
-            "excluded-not-a-verb-rollback",
-            "excluded-not-a-verb-init",
+            "excluded-domain-noun",
+            "excluded-not-a-verb",
         ],
     )
     def test_DescriptiveOpening_NoViolation(self, summary: str) -> None:
         source = f'def f():\n    """{summary}"""\n    return 1\n'
         assert list(check_imperative_docstring_opening(_SRC, source)) == []
+
+    def test_ExcludedWords_AreNotInVerbList(self) -> None:
+        domain_nouns = {
+            "List",
+            "Query",
+            "Post",
+            "Test",
+            "Import",
+            "View",
+            "Map",
+            "Store",
+            "Log",
+            "Process",
+            "Match",
+        }
+        not_real_verbs = {"Partial", "Rollback", "Init"}
+        assert not (domain_nouns | not_real_verbs) & set(_IMPERATIVE_VERBS)
 
     def test_ImperativeOpeningIsCaseSensitive_NoViolation(self) -> None:
         source = 'def f():\n    """return the count."""\n    return 1\n'
