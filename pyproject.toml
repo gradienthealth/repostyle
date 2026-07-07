@@ -51,11 +51,3 @@ select = ["E", "F", "I"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-
-[tool.repostyle]
-# CLAUDE.md is a fixed name Claude Code's tooling looks up exactly; renaming it
-# risks the project instructions silently going unread on a case-sensitive
-# filesystem. README.md and CHANGELOG.md keep the Unix/GNU and GitHub
-# community-health-file convention of all-caps project metadata, which
-# overrides RS033's general kebab-case default.
-filename-ignore = ["CLAUDE.md", "README.md", "CHANGELOG.md"]
