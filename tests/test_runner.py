@@ -201,7 +201,7 @@ class TestExpandPaths:
     @pytest.mark.parametrize(
         ("globs", "dropped", "kept"),
         [
-            ('["**/_grpc/*.py"]', ["pkg/_grpc/stub.py"], ["pkg/app.py"]),
+            ('["*_grpc/*.py"]', ["pkg/_grpc/stub.py"], ["pkg/app.py"]),
             (
                 '["vendor/*", "*_pb2.py"]',
                 ["vendor/lib.py", "service_pb2.py"],

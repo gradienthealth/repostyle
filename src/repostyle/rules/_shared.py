@@ -42,26 +42,30 @@ _SENTENCE_ABBREVIATIONS = frozenset(
 )
 
 
-@lru_cache(maxsize=128)
 def find_pyproject(start: Path) -> Path | None:
-    """Walks up from `start` to find the nearest `pyproject.toml`.
-
-    Caches on `start` so the upward walk runs once per path, since scanning a
-    directory now resolves each file's config during path expansion and again
-    per rule.
-    """
+    """Walks up from `start` to find the nearest `pyproject.toml`."""
     start = start.resolve()
-    directory = start if start.is_dir() else start.parent
-    for candidate in (directory, *directory.parents):
-        pyproject = candidate / "pyproject.toml"
-        if pyproject.is_file():
-            return pyproject
-    return None
+    return _find_pyproject_from(start if start.is_dir() else start.parent)
 
 
 def _comment_text(comment: str) -> str:
     """Returns a comment's prose, stripped of its leading hashes and space."""
     return comment.lstrip("#").strip()
+
+
+@lru_cache(maxsize=128)
+def _find_pyproject_from(directory: Path) -> Path | None:
+    """Walks up from `directory` to the nearest `pyproject.toml`.
+
+    Caches on the directory rather than the file so a directory scan walks up
+    once for all its files, not once per file across path expansion and every
+    rule.
+    """
+    for candidate in (directory, *directory.parents):
+        pyproject = candidate / "pyproject.toml"
+        if pyproject.is_file():
+            return pyproject
+    return None
 
 
 def _has_decorator(
