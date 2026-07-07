@@ -18,13 +18,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from fnmatch import fnmatch
 from pathlib import Path
 
 from repostyle.rules._shared import (
-    _relative_to_pyproject,
+    _matches_config_glob,
     _repostyle_table,
-    _string_list,
     find_pyproject,
 )
 from repostyle.rules._violation import RS_FILENAME_CONVENTION, Violation
@@ -146,11 +144,7 @@ def _resolve_table(path: Path) -> dict[str, object] | None:
 
 
 def _is_ignored(path: Path, pyproject: Path | None, table: dict[str, object]) -> bool:
-    globs = _string_list(table, "filename-ignore")
-    if not globs:
-        return False
-    relative = _relative_to_pyproject(path, pyproject)
-    return any(fnmatch(relative, glob) for glob in globs)
+    return _matches_config_glob(path, pyproject, table, "filename-ignore")
 
 
 def _name_segments(stem: str) -> list[str]:

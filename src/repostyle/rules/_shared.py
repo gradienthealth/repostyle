@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 import re
 import tomllib
+from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
@@ -153,6 +154,23 @@ def _join_source_lines(source: str, lines: list[str]) -> str:
     newline = "\r\n" if "\r\n" in source else "\n"
     rejoined = newline.join(lines)
     return rejoined + newline if source.endswith("\n") else rejoined
+
+
+def _matches_config_glob(
+    path: Path, pyproject: Path | None, table: dict[str, object], key: str
+) -> bool:
+    """Reports whether `path` matches any glob configured under `key`.
+
+    Reads the glob list from `table[key]` and matches `path`, resolved to its
+    POSIX form relative to `pyproject`, against each glob with `fnmatch`.
+    Returns `False` when `key` configures no globs, so an absent key never
+    excludes anything.
+    """
+    globs = _string_list(table, key)
+    if not globs:
+        return False
+    relative = _relative_to_pyproject(path, pyproject)
+    return any(fnmatch(relative, glob) for glob in globs)
 
 
 # Cache on (path, source) so each file is parsed once and its tree shared

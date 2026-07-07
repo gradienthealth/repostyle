@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Callable, Iterable, Iterator
-from fnmatch import fnmatch
 from pathlib import Path
 
 from repostyle.rules import (
@@ -24,9 +23,8 @@ from repostyle.rules import (
 )
 from repostyle.rules._comments import COMMENT_SUFFIXES
 from repostyle.rules._shared import (
-    _relative_to_pyproject,
+    _matches_config_glob,
     _repostyle_table,
-    _string_list,
     find_pyproject,
 )
 from repostyle.suppressions import filter_suppressed, suppressed_lines
@@ -134,11 +132,7 @@ def _is_excluded(path: Path) -> bool:
     drops the file from all scanning.
     """
     pyproject = find_pyproject(path)
-    globs = _string_list(_repostyle_table(pyproject), "exclude")
-    if not globs:
-        return False
-    relative = _relative_to_pyproject(path, pyproject)
-    return any(fnmatch(relative, glob) for glob in globs)
+    return _matches_config_glob(path, pyproject, _repostyle_table(pyproject), "exclude")
 
 
 def _lintable_files(root: Path) -> Iterator[Path]:
