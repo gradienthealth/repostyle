@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.13.1...repostyle-v0.14.0) (2026-07-07)
+
+
+### Features
+
+* **NO-ISSUE:** exempt tool-mandated filenames from RS033 by default ([#90](https://github.com/gradienthealth/repostyle/issues/90)) ([3af93f1](https://github.com/gradienthealth/repostyle/commit/3af93f1f0ad766508c9f63d550a3edc6da78d5eb))
+
 ## [0.13.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.13.0...repostyle-v0.13.1) (2026-07-07)
 
 
