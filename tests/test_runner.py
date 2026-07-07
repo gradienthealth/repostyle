@@ -198,6 +198,38 @@ class TestExpandPaths:
         second = target if second_arg == "file" else nested
         assert expand_paths([tmp_path, second]) == [target]
 
+    @pytest.mark.parametrize(
+        ("globs", "dropped", "kept"),
+        [
+            ('["*_grpc/*.py"]', ["pkg/_grpc/stub.py"], ["pkg/app.py"]),
+            (
+                '["vendor/*", "*_pb2.py"]',
+                ["vendor/lib.py", "service_pb2.py"],
+                ["app.py"],
+            ),
+        ],
+        ids=["single_glob", "multiple_globs"],
+    )
+    def test_ExcludeGlobs_DropsMatchingFiles(
+        self, tmp_path: Path, globs: str, dropped: list[str], kept: list[str]
+    ) -> None:
+        _write_exclude_config(tmp_path, globs)
+        for relative in [*dropped, *kept]:
+            target = tmp_path / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("x = 1\n", encoding="utf-8")
+        expanded = expand_paths([tmp_path])
+        assert {tmp_path / relative for relative in dropped}.isdisjoint(expanded)
+        assert {tmp_path / relative for relative in kept} <= set(expanded)
+
+    def test_ExcludedFilePassedExplicitly_DropsFromScan(self, tmp_path: Path) -> None:
+        _write_exclude_config(tmp_path, '["_grpc/*.py"]')
+        generated = tmp_path / "_grpc"
+        generated.mkdir()
+        stub = generated / "stub.py"
+        stub.write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([stub]) == []
+
 
 class TestLintPackage:
     def test_RootPathsOverride_ScansTheOriginalArgumentsTree(
@@ -277,3 +309,9 @@ def test_EveryRuleIdRunnable_NoCrash(rule_id: str, tmp_path: Path) -> None:
     target = tmp_path / "probe.py"
     target.write_text("x = 1\n", encoding="utf-8")
     assert isinstance(lint_path(target, {rule_id}), list)
+
+
+def _write_exclude_config(tmp_path: Path, exclude: str) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.repostyle]\nexclude = {exclude}\n", encoding="utf-8"
+    )

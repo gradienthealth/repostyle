@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 import re
 import tomllib
+from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
@@ -44,17 +45,27 @@ _SENTENCE_ABBREVIATIONS = frozenset(
 def find_pyproject(start: Path) -> Path | None:
     """Walks up from `start` to find the nearest `pyproject.toml`."""
     start = start.resolve()
-    directory = start if start.is_dir() else start.parent
-    for candidate in (directory, *directory.parents):
-        pyproject = candidate / "pyproject.toml"
-        if pyproject.is_file():
-            return pyproject
-    return None
+    return _find_pyproject_from(start if start.is_dir() else start.parent)
 
 
 def _comment_text(comment: str) -> str:
     """Returns a comment's prose, stripped of its leading hashes and space."""
     return comment.lstrip("#").strip()
+
+
+@lru_cache(maxsize=128)
+def _find_pyproject_from(directory: Path) -> Path | None:
+    """Walks up from `directory` to the nearest `pyproject.toml`.
+
+    Caches on the directory rather than the file so a directory scan walks up
+    once for all its files, not once per file across path expansion and every
+    rule.
+    """
+    for candidate in (directory, *directory.parents):
+        pyproject = candidate / "pyproject.toml"
+        if pyproject.is_file():
+            return pyproject
+    return None
 
 
 def _has_decorator(
@@ -155,6 +166,22 @@ def _join_source_lines(source: str, lines: list[str]) -> str:
     return rejoined + newline if source.endswith("\n") else rejoined
 
 
+def _matches_config_glob(
+    path: Path, pyproject: Path | None, table: dict[str, object], key: str
+) -> bool:
+    """Reports whether `path` matches any glob configured under `key`.
+
+    Matches `path`, resolved to its POSIX form relative to `pyproject`, against
+    each glob configured under `key`. Returns `False` when `key` configures no
+    globs, so an absent key never excludes anything.
+    """
+    globs = _string_list(table, key)
+    if not globs:
+        return False
+    relative = _relative_to_pyproject(path, pyproject)
+    return any(fnmatch(relative, glob) for glob in globs)
+
+
 # Cache on (path, source) so each file is parsed once and its tree shared
 # across rules.
 @lru_cache(maxsize=128)
@@ -165,6 +192,20 @@ def _parse_python(path: Path, source: str) -> ast.AST | None:
         return ast.parse(source)
     except SyntaxError:
         return None
+
+
+def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:
+    """Returns `path` as a POSIX path relative to the pyproject's directory.
+
+    Falls back to the path as written when there is no pyproject or `path` lies
+    outside its directory, so the result is always a usable relative string.
+    """
+    if pyproject is None:
+        return _posix(path)
+    try:
+        return _posix(path.resolve().relative_to(pyproject.parent))
+    except ValueError:
+        return _posix(path)
 
 
 def _posix(path: Path) -> str:

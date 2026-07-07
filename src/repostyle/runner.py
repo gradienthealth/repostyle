@@ -22,7 +22,11 @@ from repostyle.rules import (
     run_rule,
 )
 from repostyle.rules._comments import COMMENT_SUFFIXES
-from repostyle.rules._shared import find_pyproject
+from repostyle.rules._shared import (
+    _matches_config_glob,
+    _repostyle_table,
+    find_pyproject,
+)
 from repostyle.suppressions import filter_suppressed, suppressed_lines
 
 # Each fixer rewrites one rule's findings, taking `(path, source,
@@ -100,7 +104,9 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
     Recurses each directory for files matching `LINTABLE_SUFFIXES`, skipping
     dot-directories and `_SKIPPED_DIRS`, and drops a duplicate resolved path
     reachable from more than one argument. A file argument passes through
-    unchanged regardless of suffix.
+    unchanged regardless of suffix. A file matching a
+    `[tool.repostyle] exclude` glob is dropped whether it was walked from a
+    directory or passed explicitly.
     """
     expanded: list[Path] = []
     seen: set[Path] = set()
@@ -108,11 +114,22 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
         candidates = sorted(_lintable_files(path)) if path.is_dir() else [path]
         for candidate in candidates:
             resolved = candidate.resolve()
-            if resolved in seen:
+            if resolved in seen or _is_excluded(candidate):
                 continue
             seen.add(resolved)
             expanded.append(candidate)
     return expanded
+
+
+def _is_excluded(path: Path) -> bool:
+    """Reports whether `path` is excluded from scanning by its config table.
+
+    Matches `path` against the `[tool.repostyle] exclude` globs of its nearest
+    `pyproject.toml`. An `exclude` match drops the file from every rule, not
+    just the RS033 filename rule that `filename-ignore` governs.
+    """
+    pyproject = find_pyproject(path)
+    return _matches_config_glob(path, pyproject, _repostyle_table(pyproject), "exclude")
 
 
 def _lintable_files(root: Path) -> Iterator[Path]:
