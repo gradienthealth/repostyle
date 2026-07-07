@@ -27,8 +27,7 @@ from pathlib import Path
 from repostyle.rules._shared import _has_decorator, _parse_python
 from repostyle.rules._violation import RS_TOO_MANY_POSITIONAL_ARGS, Violation
 
-# Matches ruff PLR0917's default `max-positional-args`. A definition with more
-# positional parameters than this is flagged.
+# Matches ruff PLR0917's default `max-positional-args`
 MAX_POSITIONAL_ARGS = 5
 
 _OVERRIDE_DECORATORS = frozenset({"override"})

@@ -53,9 +53,9 @@ _ARG_ENTRY_PATTERN = re.compile(r"^[ \t]+\*{0,2}(\w+)\s*(?:\([^)]*\))?\s*:")
 _ARGS_CAPTIONS = frozenset({"Args", "Arguments", "Keyword Args", "Keyword Arguments"})
 
 # A parameter counts as "described" only when it is the subject of a body
-# sentence — it leads the clause, after an optional article or "Takes" — not
-# merely referenced as an object inside contract prose that states when the
-# function returns or no-ops.
+# sentence — it leads the clause, after an optional article, `each`, or "Takes"
+# — not merely referenced as an object inside contract prose that states when
+# the function returns or no-ops.
 _SUBJECT_LEAD_PATTERN = re.compile(
     r"^(?:the|an?|each|takes(?:\s+an?)?)\s+", re.IGNORECASE
 )
@@ -209,8 +209,8 @@ def _check_function(
 def _describes_param_as_subject(body: str, name: str) -> bool:
     """Reports whether a body sentence documents the parameter as subject.
 
-    A sentence describes the parameter when, after an optional leading article
-    or `Takes`, the clause opens with the backtick-wrapped name.
+    A sentence describes the parameter when, after an optional leading article,
+    `each`, or `Takes`, the clause opens with the backtick-wrapped name.
     """
     token = f"`{name}`"
     return _any_clause_leads_with(

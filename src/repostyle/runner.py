@@ -15,9 +15,9 @@ from repostyle.rules import (
     RS_TERMINAL_PUNCTUATION,
     Violation,
     fix_comment_terminal_punctuation,
+    fix_doc_fill,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
-    reflow_doc_fill,
     run_package_rule,
     run_rule,
 )
@@ -26,7 +26,7 @@ from repostyle.rules._shared import find_pyproject
 from repostyle.suppressions import filter_suppressed, suppressed_lines
 
 # Each fixer rewrites one rule's findings, taking `(path, source,
-# waived_lines)` and returning the rewritten source. They run in this
+# skip_lines)` and returning the rewritten source. They run in this
 # order so the surface edits (backticks, terminal punctuation) settle
 # before the reflow rewraps the corrected prose; each re-parses the
 # source it is handed, so chaining their edits is safe.
@@ -35,7 +35,7 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_NO_DOUBLE_BACKTICKS, fix_double_backticks),
     (RS_TERMINAL_PUNCTUATION, fix_docstring_terminal_punctuation),
     (RS_TERMINAL_PUNCTUATION, fix_comment_terminal_punctuation),
-    (RS_DOC_FILL, reflow_doc_fill),
+    (RS_DOC_FILL, fix_doc_fill),
 )
 
 # Directories never holding first-party source, skipped when building the

@@ -199,9 +199,9 @@ class TestCheckArgDescribedInProse:
         assert _check_arg(source) == []
 
     def test_ParamOpeningWrappedLineMidSentence_NoViolation(self) -> None:
+        """The verdict does not shift with where the body prose wraps."""
         # `base` opens a wrapped continuation line but sits mid-sentence (a
-        # comma precedes it), so it is not the subject; the verdict must not
-        # shift with where the prose happens to wrap.
+        # comma precedes it), so it is not the subject.
         source = (
             "def diff(path, base):\n"
             '    """Return the changed lines.\n\n'
@@ -359,9 +359,11 @@ class TestCheckReturnDescribedInProse:
         assert _check_return(source) == []
 
     def test_PrivateDefinition_NoViolation(self) -> None:
-        # _public_functions' filtering (private/test-name/test-file/overload)
-        # is exhaustively covered by TestCheckArgDescribedInProse's identical
-        # case above; this is a smoke check that RS032 also routes through it.
+        """Smoke-checks that RS032 also routes through `_public_functions`.
+
+        The private/test-name/test-file/overload filtering is exhaustively
+        covered by the identical case in `TestCheckArgDescribedInProse` above.
+        """
         source = (
             "def _extract(raw: bytes) -> dict[int, bytes]:\n"
             '    """Extract fields.\n\n    Returns a dict of fields.\n    """\n'

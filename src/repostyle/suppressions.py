@@ -23,7 +23,7 @@ _LINE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore\b(?!-file)(?:\[([\sA-Z0-9,]*)
 def filter_suppressed(
     path: Path, violations: Iterable[Violation], source: str
 ) -> list[Violation]:
-    """Drops violations waived by a `# style: ignore` directive in `source`."""
+    """Drops violations suppressed by a `# style: ignore` in `source`."""
     file_suppressed, lines = _parse(path, source)
     if file_suppressed:
         return []
@@ -31,18 +31,16 @@ def filter_suppressed(
 
 
 def suppressed_lines(path: Path, source: str, rule: str) -> tuple[bool, frozenset[int]]:
-    """Reports whole-file suppression and the lines waiving `rule`.
-
-    An autofixer consults this to leave waived lines untouched.
+    """Reports whole-file suppression and the lines suppressing `rule`.
 
     Returns:
-        A tuple `(file_suppressed, waived_lines)`. `file_suppressed` is whether
-        a `# style: ignore-file` directive waives the entire file.
-        `waived_lines` is the set of lines on which `rule` is suppressed,
-        whether by an unscoped `# style: ignore` or one naming `rule`.
+        A tuple `(file_suppressed, suppressed)`. `file_suppressed` is whether a
+        `# style: ignore-file` directive suppresses the entire file.
+        `suppressed` is the set of lines on which `rule` is suppressed, whether
+        by an unscoped `# style: ignore` or one naming `rule`.
     """
     file_suppressed, lines = _parse(path, source)
-    return file_suppressed, frozenset(lines.lines_waiving(rule))
+    return file_suppressed, frozenset(lines.lines_suppressing(rule))
 
 
 def _parse(path: Path, source: str) -> tuple[bool, _LineSuppressions]:
@@ -80,7 +78,7 @@ class _LineSuppressions:
         """Suppresses the named rules on `line`."""
         self._by_rule.setdefault(line, set()).update(rules)
 
-    def lines_waiving(self, rule: str) -> set[int]:
+    def lines_suppressing(self, rule: str) -> set[int]:
         """Returns every line on which `rule` is suppressed."""
         return self._all | {
             line for line, rules in self._by_rule.items() if rule in rules

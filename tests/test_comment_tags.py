@@ -163,6 +163,7 @@ class TestCheckCommentTagFormat:
     def test_UntokenizableSource_NoCrash(self, tmp_path: Path) -> None:
         source = "x = (  # todo: unbalanced paren\n"
         target = _target(tmp_path, source)
+        # the tokenizer error is swallowed upstream, so the file yields nothing
         assert list(check_comment_tag_format(target, source)) == []
 
 

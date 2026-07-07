@@ -82,6 +82,7 @@ class TestExtractComments:
         ids=["indentation_error", "unterminated_string"],
     )
     def test_UnparseablePython_DoesNotRaise(self, source: str) -> None:
+        # tokenizing stops at the error, so comments before it still survive
         assert _comments(Path("m.py"), source) == [(1, 0, False, "lead")]
 
 

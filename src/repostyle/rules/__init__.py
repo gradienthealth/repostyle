@@ -77,7 +77,7 @@ from repostyle.rules.doc_fill import (
     DOC_FILL_COLUMNS,
     check_doc_fill,
     check_doc_summary_overflow,
-    reflow_doc_fill,
+    fix_doc_fill,
 )
 from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
@@ -226,7 +226,7 @@ __all__ = [
     "fix_docstring_terminal_punctuation",
     "fix_double_backticks",
     "has_guidance",
-    "reflow_doc_fill",
+    "fix_doc_fill",
     "rule_doc",
     "run_package_rule",
     "run_rule",

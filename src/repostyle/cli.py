@@ -151,7 +151,7 @@ def _report_path(
 
     `extra` carries whole-package findings already scoped to this path, merged
     with the per-file findings before diff-filtering and printing. The returned
-    rule set drives the per-rule discovery hint.
+    rule set is the rules that produced a finding on this path.
     """
     violations = sorted(set(lint_path(path, enabled)) | set(extra))
     if options.diff:

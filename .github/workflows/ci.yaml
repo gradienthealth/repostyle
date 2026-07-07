@@ -24,10 +24,9 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
 
-  # All checks run through pre-commit, so .pre-commit-config.yaml is the single
-  # source of truth: ruff format/lint, the hygiene hooks, mdformat, and the
-  # repostyle checker itself (dogfooding its own RSnnn rules). Installing the
-  # package puts the repostyle console script on PATH for its local hook.
+  # .pre-commit-config.yaml is the single source of truth for the lint and
+  # style checks. Installing the package first puts the repostyle console
+  # script on PATH for its local hook.
   lint:
     runs-on: ubuntu-latest
     steps:

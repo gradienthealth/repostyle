@@ -115,7 +115,7 @@ class TestFixPath:
             'def f():\n    """Use ``dict`` here\n\n'
             '    The body line has no mark\n    """\n'
         )
-        target = _project(tmp_path, source, '["RS005", "RS009", "RS030"]')
+        target = _write_project(tmp_path, source, '["RS005", "RS009", "RS030"]')
         assert fix_path(target, {"RS005", "RS009", "RS030"}) is True
         assert target.read_text(encoding="utf-8") == (
             'def f():\n    """Use `dict` here.\n\n'
@@ -124,35 +124,37 @@ class TestFixPath:
 
     def test_OnlyOneRuleEnabled_OtherFixersSkipped(self, tmp_path: Path) -> None:
         source = 'def f():\n    """Use ``dict`` here"""\n'
-        target = _project(tmp_path, source, '["RS005"]')
+        target = _write_project(tmp_path, source, '["RS005"]')
         fix_path(target, {"RS005"})
         assert target.read_text(encoding="utf-8") == (
             'def f():\n    """Use `dict` here"""\n'
         )
 
     def test_MarkdownFile_FixesBackticksOnly(self, tmp_path: Path) -> None:
-        target = _project(tmp_path, "See ``X``.\n", '["RS005"]', name="README.md")
+        target = _write_project(tmp_path, "See ``X``.\n", '["RS005"]', name="README.md")
         assert fix_path(target, {"RS005"}) is True
         assert target.read_text(encoding="utf-8") == "See `X`.\n"
 
     def test_FileLevelIgnore_LeavesFileUntouched(self, tmp_path: Path) -> None:
         source = '# style: ignore-file\ndef f():\n    """Use ``dict``"""\n'
-        target = _project(tmp_path, source, '["RS005", "RS030"]')
+        target = _write_project(tmp_path, source, '["RS005", "RS030"]')
         assert fix_path(target, {"RS005", "RS030"}) is False
         assert target.read_text(encoding="utf-8") == source
 
     def test_NoEnabledFixableRule_NoOp(self, tmp_path: Path) -> None:
         source = 'def f():\n    """Use ``dict``"""\n'
-        target = _project(tmp_path, source, '["RS001"]')
+        target = _write_project(tmp_path, source, '["RS001"]')
         assert fix_path(target, {"RS001"}) is False
         assert target.read_text(encoding="utf-8") == source
 
     def test_NonSourceSuffix_NoOp(self, tmp_path: Path) -> None:
-        target = _project(tmp_path, "See ``X``.\n", '["RS005"]', name="data.txt")
+        target = _write_project(tmp_path, "See ``X``.\n", '["RS005"]', name="data.txt")
         assert fix_path(target, {"RS005"}) is False
 
 
-def _project(tmp_path: Path, source: str, select: str, name: str = "x.py") -> Path:
+def _write_project(
+    tmp_path: Path, source: str, select: str, name: str = "x.py"
+) -> Path:
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\nselect = {select}\n", encoding="utf-8"
     )

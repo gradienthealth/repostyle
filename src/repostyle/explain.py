@@ -2,8 +2,8 @@
 
 The `explain` subcommand and the discovery hint both render from the `RuleDoc`
 catalog here, so the rich surfaces stay one source. The card is plain text
-wrapped to 79 columns, the width the house style fills prose to, with example
-code left unwrapped so it can be copied verbatim.
+wrapped to the `DOC_FILL_COLUMNS` width the house style fills prose to, with
+example code left unwrapped so it can be copied verbatim.
 """
 
 from __future__ import annotations
