@@ -7,9 +7,11 @@ governed by import-identifier conventions elsewhere. Each check reads its own
 is absent, rather than reporting nothing: the defaults reflect a documented,
 spec- or style-guide-level convention rather than a Gradient-specific house
 preference, so a repo that never configures this rule still gets a defensible
-baseline. A repo that disagrees overrides the relevant key; one with a
-fixed-name file a tool mandates (a generated `CHANGELOG.md`) exempts it via
-`filename-ignore` rather than renaming it.
+baseline. A repo that disagrees overrides the relevant key. A file whose name a
+tool or ecosystem convention fixes (`README.md`, `CLAUDE.md`) is exempt from
+both checks by default via `DEFAULT_EXEMPT_FILENAMES`; a repo extends that set
+through `filename-ignore` for any further fixed-name file rather than renaming
+it.
 """
 
 from __future__ import annotations
@@ -40,6 +42,30 @@ DEFAULT_EXTENSION_MAP: dict[str, str] = {".yml": ".yaml"}
 # check with any other value (`"none"` is the documented spelling).
 DEFAULT_FILENAME_CASE = "kebab"
 
+# Basenames whose spelling is fixed by an external tool or an ecosystem
+# convention rather than by the repo's own naming choice, so neither the casing
+# nor the extension check applies: renaming them to satisfy this rule would
+# break the tool that looks them up. GitHub resolves the community-health files
+# (`CONTRIBUTING`, `CODE_OF_CONDUCT`, `SECURITY`, `CODEOWNERS`) and `LICENSE`
+# by exact name; `README`/`CHANGELOG` follow the all-caps Unix/GNU metadata
+# convention; and `CLAUDE.md`/`AGENTS.md` are looked up verbatim by their
+# respective agent tooling. Matched case-sensitively on the basename, as the
+# ecosystem writes them. A repo extends this set through `filename-ignore`; it
+# never needs to re-list these.
+DEFAULT_EXEMPT_FILENAMES: frozenset[str] = frozenset(
+    {
+        "README.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        "SECURITY.md",
+        "LICENSE",
+        "CODEOWNERS",
+        "CLAUDE.md",
+        "AGENTS.md",
+    }
+)
+
 _WORD_PATTERNS = {
     "kebab": re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$"),
     "snake": re.compile(r"^[a-z0-9]+(_[a-z0-9]+)*$"),
@@ -51,7 +77,8 @@ def check_filename_extension(path: Path, source: str) -> Iterator[Violation]:
 
     The mapping is a disallowed-extension-to-preferred-extension table read
     from `[tool.repostyle.filename-extensions]`, defaulting to `.yml` ->
-    `.yaml`. A `.py` file and a path matched by `filename-ignore` are exempt.
+    `.yaml`. A `.py` file, a basename in `DEFAULT_EXEMPT_FILENAMES`, and a path
+    matched by `filename-ignore` are exempt.
     """
     table = _resolve_table(path)
     if table is None:
@@ -73,9 +100,10 @@ def check_filename_casing(path: Path, source: str) -> Iterator[Violation]:
 
     The casing (`"kebab"` or `"snake"`) is read from `filename-case`,
     defaulting to kebab-case; any other value, including the documented
-    `"none"`, disables the check. A `.py` file and a path matched by
-    `filename-ignore` are exempt. A leading dot marking a hidden file
-    (`.pre-commit-config.yaml`) is not itself a word boundary.
+    `"none"`, disables the check. A `.py` file, a basename in
+    `DEFAULT_EXEMPT_FILENAMES`, and a path matched by `filename-ignore` are
+    exempt. A leading dot marking a hidden file (`.pre-commit-config.yaml`) is
+    not itself a word boundary.
     """
     table = _resolve_table(path)
     if table is None:
@@ -108,7 +136,7 @@ def _filename_case(table: dict[str, object]) -> str:
 
 def _resolve_table(path: Path) -> dict[str, object] | None:
     """Returns the `[tool.repostyle]` table for `path`, or `None` if exempt."""
-    if path.suffix == ".py":
+    if path.suffix == ".py" or path.name in DEFAULT_EXEMPT_FILENAMES:
         return None
     pyproject = find_pyproject(path)
     table = _repostyle_table(pyproject)

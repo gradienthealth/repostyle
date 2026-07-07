@@ -7,6 +7,7 @@ from repostyle.rules import (
     check_filename_casing,
     check_filename_extension,
 )
+from repostyle.rules.filenames import DEFAULT_EXEMPT_FILENAMES
 
 _SOURCE = "irrelevant: true\n"
 
@@ -68,6 +69,11 @@ class TestCheckFilenameExtension:
         target = _target(tmp_path, "config.py", table=table)
         assert list(check_filename_extension(target, "x = 1\n")) == []
 
+    def test_DefaultExemptName_NoViolation(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle.filename-extensions]\n".md" = ".markdown"\n'
+        target = _target(tmp_path, "README.md", table=table)
+        assert list(check_filename_extension(target, _SOURCE)) == []
+
 
 class TestCheckFilenameCasing:
     @pytest.mark.parametrize(
@@ -115,13 +121,25 @@ class TestCheckFilenameCasing:
         assert list(check_filename_casing(target, _SOURCE)) == []
 
     def test_IgnoredGlob_NoViolation(self, tmp_path: Path) -> None:
-        table = '[tool.repostyle]\nfilename-ignore = ["README.md"]\n'
-        target = _target(tmp_path, "README.md", table=table)
+        table = '[tool.repostyle]\nfilename-ignore = ["Makefile"]\n'
+        target = _target(tmp_path, "Makefile", table=table)
         assert list(check_filename_casing(target, _SOURCE)) == []
 
     def test_PythonFile_NoViolation(self, tmp_path: Path) -> None:
         target = _target(tmp_path, "MyConfig.py")
         assert list(check_filename_casing(target, "x = 1\n")) == []
+
+    @pytest.mark.parametrize("name", sorted(DEFAULT_EXEMPT_FILENAMES))
+    def test_DefaultExemptName_NoViolation(self, tmp_path: Path, name: str) -> None:
+        target = _target(tmp_path, name)
+        assert list(check_filename_casing(target, _SOURCE)) == []
+
+    def test_UserIgnoreExtendsDefaults_ExemptsBoth(self, tmp_path: Path) -> None:
+        table = '[tool.repostyle]\nfilename-ignore = ["Makefile"]\n'
+        default = _target(tmp_path, "README.md", table=table)
+        added = _target(tmp_path, "Makefile", table=table)
+        assert list(check_filename_casing(default, _SOURCE)) == []
+        assert list(check_filename_casing(added, _SOURCE)) == []
 
 
 def _target(tmp_path: Path, name: str, table: str = "") -> Path:

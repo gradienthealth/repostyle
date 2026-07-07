@@ -117,14 +117,14 @@ RS033 checks a non-Python file's extension and casing, and ships a default for b
 
 ```toml
 [tool.repostyle]
-filename-case = "kebab"                      # or "snake", or "none" to disable
-filename-ignore = ["README.md", "LICENSE"]   # globs exempted from both checks
+filename-case = "kebab"                        # or "snake", or "none" to disable
+filename-ignore = [".github/workflows/*.yml"]  # globs exempted from both checks
 
 [tool.repostyle.filename-extensions]
 ".yml" = ".yaml"
 ```
 
-`filename-extensions` replaces the default mapping wholesale rather than merging into it — repeat `.yml = .yaml` alongside any extra entries, or declare the table empty to disable the check. `filename-case` and `filename-ignore` apply to both the extension and the casing check. `filename-ignore` globs (`fnmatch` semantics, matched against the path relative to the repo root) are the place for a fixed name a tool or convention mandates — `README.md`, a generated `CHANGELOG.md`, or `.github/workflows/*.yml` if the repo keeps GitHub Actions' own `.yml` convention — rather than renaming them. Both checks skip `.py` files, whose names are already governed by import-identifier conventions.
+A curated set of fixed names whose spelling a tool or ecosystem convention mandates — `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `LICENSE`, `CODEOWNERS`, `CLAUDE.md`, `AGENTS.md` — is exempt from both checks by default (matched case-sensitively on the basename), so a repo never has to re-list them. `filename-extensions` replaces the default mapping wholesale rather than merging into it — repeat `.yml = .yaml` alongside any extra entries, or declare the table empty to disable the check. `filename-case` and `filename-ignore` apply to both the extension and the casing check. `filename-ignore` globs (`fnmatch` semantics, matched against the path relative to the repo root) extend the built-in exempt set for any further fixed name a tool or convention mandates — `.github/workflows/*.yml` if the repo keeps GitHub Actions' own `.yml` convention — rather than renaming them. Both checks skip `.py` files, whose names are already governed by import-identifier conventions.
 
 RS033 only ever sees a file its invocation actually discovers: a bare directory argument and the shipped `repostyle` pre-commit hook both limit discovery to `.py`/`.toml`/`.yaml`/`.yml`/`.md`. An extensionless fixed name like `Dockerfile` or `LICENSE` only reaches the rule if the consuming repo widens its own hook's `types`/`files` to pass it, or names it as an explicit CLI argument.
 
