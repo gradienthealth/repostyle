@@ -250,6 +250,9 @@ class TestCheckImperativeDocstringOpening:
             ("Have the value ready.", "'Has', not 'Have'"),
             ("Fetch the record.", "'Fetches', not 'Fetch'"),
             ("Finish the report.", "'Finishes', not 'Finish'"),
+            ("Advance the cursor.", "'Advances', not 'Advance'"),
+            ("Upsert the cursor.", "'Upserts', not 'Upsert'"),
+            ("Reconcile the study.", "'Reconciles', not 'Reconcile'"),
         ],
         ids=[
             "regular",
@@ -259,6 +262,9 @@ class TestCheckImperativeDocstringOpening:
             "irregular",
             "es-suffix-ch",
             "es-suffix-sh",
+            "added-advance",
+            "added-upsert",
+            "added-reconcile",
         ],
     )
     def test_ImperativeOpening_FlagsViolation(
