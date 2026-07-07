@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.14.0...repostyle-v0.15.0) (2026-07-07)
+
+
+### Features
+
+* **NO-ISSUE:** add a native exclude path filter to repostyle ([#94](https://github.com/gradienthealth/repostyle/issues/94)) ([6aa102b](https://github.com/gradienthealth/repostyle/commit/6aa102b848c568a592aba47634d77dd36850d310))
+* **NO-ISSUE:** extend RS034's verb dictionary with missed imperative openers ([#92](https://github.com/gradienthealth/repostyle/issues/92)) ([570b766](https://github.com/gradienthealth/repostyle/commit/570b766f8a8eb017b3cd0445d8afcdb5c0cfd2a1))
+
 ## [0.14.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.13.1...repostyle-v0.14.0) (2026-07-07)
 
 
