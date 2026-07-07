@@ -210,7 +210,7 @@ class TestExpandPaths:
         ],
         ids=["single_glob", "multiple_globs"],
     )
-    def test_ExcludeGlobs_DroppedFromDirectoryScan(
+    def test_ExcludeGlobs_DropsMatchingFiles(
         self, tmp_path: Path, globs: str, dropped: list[str], kept: list[str]
     ) -> None:
         _write_exclude_config(tmp_path, globs)
@@ -222,7 +222,7 @@ class TestExpandPaths:
         assert {tmp_path / relative for relative in dropped}.isdisjoint(expanded)
         assert {tmp_path / relative for relative in kept} <= set(expanded)
 
-    def test_ExcludedFilePassedExplicitly_IsDropped(self, tmp_path: Path) -> None:
+    def test_ExcludedFilePassedExplicitly_DropsFromScan(self, tmp_path: Path) -> None:
         _write_exclude_config(tmp_path, '["_grpc/*.py"]')
         generated = tmp_path / "_grpc"
         generated.mkdir()

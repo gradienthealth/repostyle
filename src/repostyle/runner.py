@@ -106,8 +106,7 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
     reachable from more than one argument. A file argument passes through
     unchanged regardless of suffix. A file matching a
     `[tool.repostyle] exclude` glob is dropped whether it was walked from a
-    directory or passed explicitly, so a scan skips it entirely no matter how
-    it was reached.
+    directory or passed explicitly.
     """
     expanded: list[Path] = []
     seen: set[Path] = set()
@@ -123,13 +122,11 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
 
 
 def _is_excluded(path: Path) -> bool:
-    """Reports whether `path` matches an `exclude` glob in its config table.
+    """Reports whether `path` is excluded from scanning by its config table.
 
-    Resolves the nearest `pyproject.toml` for `path`, then matches its
-    repo-relative path against each `[tool.repostyle] exclude` glob with the
-    same `fnmatch` semantics `filename-ignore` uses. Unlike `filename-ignore`,
-    which only exempts a file from the RS033 filename rule, an `exclude` match
-    drops the file from all scanning.
+    Matches `path` against the `[tool.repostyle] exclude` globs of its nearest
+    `pyproject.toml`. An `exclude` match drops the file from every rule, not
+    just the RS033 filename rule that `filename-ignore` governs.
     """
     pyproject = find_pyproject(path)
     return _matches_config_glob(path, pyproject, _repostyle_table(pyproject), "exclude")
