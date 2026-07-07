@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.13.0...repostyle-v0.13.1) (2026-07-07)
+
+
+### Documentation
+
+* **NO-ISSUE:** unglue the RS026 code span in the judgment canon ([#87](https://github.com/gradienthealth/repostyle/issues/87)) ([7116912](https://github.com/gradienthealth/repostyle/commit/711691281dbdc7b4c8921a482d5bf61756f2b28f))
+
 ## [0.13.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.12.0...repostyle-v0.13.0) (2026-07-06)
 
 
