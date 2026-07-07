@@ -42,8 +42,14 @@ _SENTENCE_ABBREVIATIONS = frozenset(
 )
 
 
+@lru_cache(maxsize=128)
 def find_pyproject(start: Path) -> Path | None:
-    """Walks up from `start` to find the nearest `pyproject.toml`."""
+    """Walks up from `start` to find the nearest `pyproject.toml`.
+
+    Caches on `start` so the upward walk runs once per path, since scanning a
+    directory now resolves each file's config during path expansion and again
+    per rule.
+    """
     start = start.resolve()
     directory = start if start.is_dir() else start.parent
     for candidate in (directory, *directory.parents):
