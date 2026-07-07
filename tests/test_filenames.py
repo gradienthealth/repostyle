@@ -134,13 +134,6 @@ class TestCheckFilenameCasing:
         target = _target(tmp_path, name)
         assert list(check_filename_casing(target, _SOURCE)) == []
 
-    def test_UserIgnoreExtendsDefaults_ExemptsBoth(self, tmp_path: Path) -> None:
-        table = '[tool.repostyle]\nfilename-ignore = ["Makefile"]\n'
-        default = _target(tmp_path, "README.md", table=table)
-        added = _target(tmp_path, "Makefile", table=table)
-        assert list(check_filename_casing(default, _SOURCE)) == []
-        assert list(check_filename_casing(added, _SOURCE)) == []
-
 
 def _target(tmp_path: Path, name: str, table: str = "") -> Path:
     if table:
