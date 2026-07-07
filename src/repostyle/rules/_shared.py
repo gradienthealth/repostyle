@@ -171,10 +171,9 @@ def _matches_config_glob(
 ) -> bool:
     """Reports whether `path` matches any glob configured under `key`.
 
-    Reads the glob list from `table[key]` and matches `path`, resolved to its
-    POSIX form relative to `pyproject`, against each glob with `fnmatch`.
-    Returns `False` when `key` configures no globs, so an absent key never
-    excludes anything.
+    Matches `path`, resolved to its POSIX form relative to `pyproject`, against
+    each glob configured under `key`. Returns `False` when `key` configures no
+    globs, so an absent key never excludes anything.
     """
     globs = _string_list(table, key)
     if not globs:
@@ -199,8 +198,7 @@ def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:
     """Returns `path` as a POSIX path relative to the pyproject's directory.
 
     Falls back to the path as written when there is no pyproject or `path` lies
-    outside its directory, so a glob still has a stable repo-relative string to
-    match against.
+    outside its directory, so the result is always a usable relative string.
     """
     if pyproject is None:
         return _posix(path)
