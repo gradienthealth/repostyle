@@ -87,6 +87,17 @@ ignore = []
 
 Enabled rules are `select` minus `ignore`. If the table is missing or empty, all rules are enabled. The nearest `pyproject.toml` is discovered by walking up from the first target path's directory.
 
+## Exclude paths from scanning
+
+`exclude` drops a file from linting entirely — every rule, no findings — so generated or vendored code stays out of the scan without an editor integration or a bare `repostyle .` re-flagging it:
+
+```toml
+[tool.repostyle]
+exclude = ["**/_grpc/*.py", "vendor/*"]  # globs skipped by every rule
+```
+
+The globs use the same `fnmatch` semantics and repo-relative matching as `filename-ignore` (matched against the path relative to the discovered `pyproject.toml`). A match is dropped however it reaches repostyle: whether walked from a directory argument or passed explicitly, so a regenerated file the pre-commit hook passes by name is skipped too. With no `exclude` configured, every discovered file is scanned. This is a global discovery filter, distinct from `filename-ignore`, which only exempts a file from the RS033 filename-convention rule while leaving every other rule to scan it.
+
 ## Configure layering bans (RS017)
 
 RS017 takes its bans from config, so each repo expresses its own layering. Map a path glob (relative to the repo root, `fnmatch` semantics) to the import sources files under it may not import:

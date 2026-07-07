@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Callable, Iterable, Iterator
+from fnmatch import fnmatch
 from pathlib import Path
 
 from repostyle.rules import (
@@ -22,7 +23,12 @@ from repostyle.rules import (
     run_rule,
 )
 from repostyle.rules._comments import COMMENT_SUFFIXES
-from repostyle.rules._shared import find_pyproject
+from repostyle.rules._shared import (
+    _relative_to_pyproject,
+    _repostyle_table,
+    _string_list,
+    find_pyproject,
+)
 from repostyle.suppressions import filter_suppressed, suppressed_lines
 
 # Each fixer rewrites one rule's findings, taking `(path, source,
@@ -100,7 +106,10 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
     Recurses each directory for files matching `LINTABLE_SUFFIXES`, skipping
     dot-directories and `_SKIPPED_DIRS`, and drops a duplicate resolved path
     reachable from more than one argument. A file argument passes through
-    unchanged regardless of suffix.
+    unchanged regardless of suffix. A file matching a
+    `[tool.repostyle] exclude` glob is dropped whether it was walked from a
+    directory or passed explicitly, so a scan skips it entirely no matter how
+    it was reached.
     """
     expanded: list[Path] = []
     seen: set[Path] = set()
@@ -108,11 +117,28 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
         candidates = sorted(_lintable_files(path)) if path.is_dir() else [path]
         for candidate in candidates:
             resolved = candidate.resolve()
-            if resolved in seen:
+            if resolved in seen or _is_excluded(candidate):
                 continue
             seen.add(resolved)
             expanded.append(candidate)
     return expanded
+
+
+def _is_excluded(path: Path) -> bool:
+    """Reports whether `path` matches an `exclude` glob in its config table.
+
+    Resolves the nearest `pyproject.toml` for `path`, then matches its
+    repo-relative path against each `[tool.repostyle] exclude` glob with the
+    same `fnmatch` semantics `filename-ignore` uses. Unlike `filename-ignore`,
+    which only exempts a file from the RS033 filename rule, an `exclude` match
+    drops the file from all scanning.
+    """
+    pyproject = find_pyproject(path)
+    globs = _string_list(_repostyle_table(pyproject), "exclude")
+    if not globs:
+        return False
+    relative = _relative_to_pyproject(path, pyproject)
+    return any(fnmatch(relative, glob) for glob in globs)
 
 
 def _lintable_files(root: Path) -> Iterator[Path]:

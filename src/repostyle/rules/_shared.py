@@ -167,6 +167,21 @@ def _parse_python(path: Path, source: str) -> ast.AST | None:
         return None
 
 
+def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:
+    """Returns `path` as a POSIX path relative to the pyproject's directory.
+
+    Falls back to the path as written when there is no pyproject or `path` lies
+    outside its directory, so a glob still has a stable repo-relative string to
+    match against.
+    """
+    if pyproject is None:
+        return _posix(path)
+    try:
+        return _posix(path.resolve().relative_to(pyproject.parent))
+    except ValueError:
+        return _posix(path)
+
+
 def _posix(path: Path) -> str:
     return str(path).replace("\\", "/")
 

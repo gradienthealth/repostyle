@@ -22,7 +22,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from repostyle.rules._shared import (
-    _posix,
+    _relative_to_pyproject,
     _repostyle_table,
     _string_list,
     find_pyproject,
@@ -156,12 +156,3 @@ def _is_ignored(path: Path, pyproject: Path | None, table: dict[str, object]) ->
 def _name_segments(stem: str) -> list[str]:
     """Splits a stem on `.` into its segments, dropping any empty segment."""
     return [segment for segment in stem.split(".") if segment]
-
-
-def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:
-    if pyproject is None:
-        return _posix(path)
-    try:
-        return _posix(path.resolve().relative_to(pyproject.parent))
-    except ValueError:
-        return _posix(path)

@@ -198,6 +198,50 @@ class TestExpandPaths:
         second = target if second_arg == "file" else nested
         assert expand_paths([tmp_path, second]) == [target]
 
+    def test_ExcludedFileUnderDirectory_IsDropped(self, tmp_path: Path) -> None:
+        _write_exclude_config(tmp_path, '["**/_grpc/*.py"]')
+        generated = tmp_path / "pkg" / "_grpc"
+        generated.mkdir(parents=True)
+        stub = generated / "stub.py"
+        stub.write_text("x = 1\n", encoding="utf-8")
+        kept = tmp_path / "pkg" / "app.py"
+        kept.write_text("x = 1\n", encoding="utf-8")
+        expanded = expand_paths([tmp_path])
+        assert stub not in expanded
+        assert kept in expanded
+
+    def test_ExcludedFilePassedExplicitly_IsDropped(self, tmp_path: Path) -> None:
+        _write_exclude_config(tmp_path, '["_grpc/*.py"]')
+        generated = tmp_path / "_grpc"
+        generated.mkdir()
+        stub = generated / "stub.py"
+        stub.write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([stub]) == []
+
+    def test_MultipleExcludeGlobs_DropEachMatch(self, tmp_path: Path) -> None:
+        _write_exclude_config(tmp_path, '["vendor/*", "*_pb2.py"]')
+        (tmp_path / "vendor").mkdir()
+        vendored = tmp_path / "vendor" / "lib.py"
+        vendored.write_text("x = 1\n", encoding="utf-8")
+        generated = tmp_path / "service_pb2.py"
+        generated.write_text("x = 1\n", encoding="utf-8")
+        kept = tmp_path / "app.py"
+        kept.write_text("x = 1\n", encoding="utf-8")
+        expanded = expand_paths([tmp_path])
+        assert vendored not in expanded
+        assert generated not in expanded
+        assert kept in expanded
+
+    def test_NoExcludeConfigured_ScansEverything(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text("[tool.repostyle]\n", encoding="utf-8")
+        first = tmp_path / "a.py"
+        first.write_text("x = 1\n", encoding="utf-8")
+        second = tmp_path / "b.py"
+        second.write_text("x = 1\n", encoding="utf-8")
+        expanded = expand_paths([tmp_path])
+        assert first in expanded
+        assert second in expanded
+
 
 class TestLintPackage:
     def test_RootPathsOverride_ScansTheOriginalArgumentsTree(
@@ -277,3 +321,9 @@ def test_EveryRuleIdRunnable_NoCrash(rule_id: str, tmp_path: Path) -> None:
     target = tmp_path / "probe.py"
     target.write_text("x = 1\n", encoding="utf-8")
     assert isinstance(lint_path(target, {rule_id}), list)
+
+
+def _write_exclude_config(tmp_path: Path, exclude: str) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.repostyle]\nexclude = {exclude}\n", encoding="utf-8"
+    )

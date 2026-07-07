@@ -111,6 +111,23 @@ class TestMain:
         assert exit_code == 0
         assert capsys.readouterr().out == ""
 
+    @pytest.mark.parametrize("argument", ["directory", "explicit"], ids=["dir", "file"])
+    def test_ExcludedFile_ProducesNoFindings(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], argument: str
+    ) -> None:
+        (tmp_path / "pyproject.toml").write_text(
+            '[tool.repostyle]\nselect = ["RS001"]\nexclude = ["_grpc/*.py"]\n',
+            encoding="utf-8",
+        )
+        generated = tmp_path / "_grpc"
+        generated.mkdir()
+        stub = generated / "stub.py"
+        stub.write_text(_ACRONYM_SOURCE, encoding="utf-8")
+        argv = str(tmp_path) if argument == "directory" else str(stub)
+        exit_code = main([argv])
+        assert exit_code == 0
+        assert capsys.readouterr().out == ""
+
     def test_NonexistentPathArgument_ReturnsTwoAndReportsError(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
