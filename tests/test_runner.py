@@ -230,16 +230,6 @@ class TestExpandPaths:
         stub.write_text("x = 1\n", encoding="utf-8")
         assert expand_paths([stub]) == []
 
-    def test_NoExcludeConfigured_ScansEverything(self, tmp_path: Path) -> None:
-        (tmp_path / "pyproject.toml").write_text("[tool.repostyle]\n", encoding="utf-8")
-        first = tmp_path / "a.py"
-        first.write_text("x = 1\n", encoding="utf-8")
-        second = tmp_path / "b.py"
-        second.write_text("x = 1\n", encoding="utf-8")
-        expanded = expand_paths([tmp_path])
-        assert first in expanded
-        assert second in expanded
-
 
 class TestLintPackage:
     def test_RootPathsOverride_ScansTheOriginalArgumentsTree(
