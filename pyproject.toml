@@ -51,9 +51,3 @@ select = ["E", "F", "I"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-
-[tool.repostyle]
-# CLAUDE.md, README.md, and CHANGELOG.md are fixed names a tool or ecosystem
-# convention mandates, so RS033 exempts them from its kebab-case default
-# through its built-in DEFAULT_EXEMPT_FILENAMES set; this repo needs no
-# filename-ignore of its own to re-list them.

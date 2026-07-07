@@ -46,12 +46,12 @@ DEFAULT_FILENAME_CASE = "kebab"
 # convention rather than by the repo's own naming choice, so neither the casing
 # nor the extension check applies: renaming them to satisfy this rule would
 # break the tool that looks them up. GitHub resolves the community-health files
-# (`CONTRIBUTING`, `CODE_OF_CONDUCT`, `SECURITY`, `CODEOWNERS`) and `LICENSE`
-# by exact name; `README`/`CHANGELOG` follow the all-caps Unix/GNU metadata
-# convention; and `CLAUDE.md`/`AGENTS.md` are looked up verbatim by their
-# respective agent tooling. Matched case-sensitively on the basename, as the
-# ecosystem writes them. A repo extends this set through `filename-ignore`; it
-# never needs to re-list these.
+# (`CONTRIBUTING`, `CODE_OF_CONDUCT`, `SECURITY`) plus `CODEOWNERS` and
+# `LICENSE` by exact name; `README`/`CHANGELOG` follow the all-caps Unix/GNU
+# metadata convention; and `CLAUDE.md`/`AGENTS.md` are looked up verbatim by
+# their respective agent tooling. Matched case-sensitively on the basename, as
+# the ecosystem writes them. A repo extends this set through `filename-ignore`;
+# it never needs to re-list these.
 DEFAULT_EXEMPT_FILENAMES: frozenset[str] = frozenset(
     {
         "README.md",
