@@ -126,7 +126,7 @@ def _is_ignored(path: Path, pyproject: Path | None, table: dict[str, object]) ->
 
 
 def _name_segments(stem: str) -> list[str]:
-    """Splits a stem on `.` into its words, dropping any empty segment."""
+    """Splits a stem on `.` into its segments, dropping any empty segment."""
     return [segment for segment in stem.split(".") if segment]
 
 

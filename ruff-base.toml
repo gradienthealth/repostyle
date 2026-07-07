@@ -12,6 +12,10 @@ indent-style = "space"
 quote-style = "double"
 
 [lint]
+# E501 (line-too-long) is off because the formatter owns code line length and
+# W505/max-doc-length (79, below) governs docstring and comment width; a
+# duplicate E501 report would only add noise.
+#
 # D100-D107 require docstrings on every module/class/function. The convention
 # is no docstring over a low-content one (docstring minimalism). The remaining
 # D rules still enforce shape and content when a docstring exists. D203/D213

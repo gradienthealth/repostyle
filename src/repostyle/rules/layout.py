@@ -296,7 +296,9 @@ def _definition_time_nodes(stmt: ast.stmt) -> list[ast.AST]:
 def _local_alphabetical(
     tree: ast.Module, reach: dict[str, set[str]]
 ) -> Iterator[Violation]:
-    """Flags adjacent same-kind definitions left unordered yet out of order."""
+    """Flags adjacent same-kind definitions the dependency graph leaves free
+    but that are not in alphabetical order.
+    """
     nodes = _top_level_names(tree.body)
     names = list(nodes)
     for earlier, later in zip(names, names[1:], strict=False):

@@ -1,6 +1,6 @@
 # repostyle
 
-Shared repo-style lint rules for gradienthealth repos, plus a base ruff config. The rules are a stdlib-only AST/token/line linter that catches conventions ruff does not cover; consuming repos select the subset they want and run it as a pre-commit remote hook. Most rules are Python-specific, but the comment-convention rules (RS009 wrapping, RS030 terminal punctuation) also apply to TOML and YAML comments.
+Shared repo-style lint rules for gradienthealth repos, plus a base ruff config. The rules are a stdlib-only AST/token/line linter that catches conventions ruff does not cover; consuming repos select the subset they want and run it as a pre-commit remote hook. Most rules are Python-specific, but the comment-convention rules (RS009 wrapping, RS022 tag format, RS030 terminal punctuation) also apply to TOML and YAML comments.
 
 These rules are the *mechanical* half of the house style. The *judgment* half — conventions a linter cannot decide — lives in [`docs/judgment-conventions.md`](docs/judgment-conventions.md), the canonical source each repo references and the `python-style-review` skill distills.
 
@@ -55,7 +55,7 @@ Most rules are repo-agnostic and safe to enable anywhere. Two are tied to the fh
 - **RS002** assumes PascalCase test naming under `tests/unit/`. Repos with a different test-naming convention should not select it.
 - **RS006** bans concrete implementation libraries inside a `src/fhir_ingestor/application/ports/` path. The path fragment and the hexagonal `ports` layering are fhir-ingestor-specific.
 
-RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. The rest (RS001, RS004, RS005, RS007, RS008, RS009, RS010, RS011, RS024, RS025, RS026, RS027, RS028, RS033, RS034, RS035, RS036, RS037) are general style rules.
+RS003 (mock ban) is also somewhat opinionated, since it presumes a `tests/fakes/` directory; enable it only where that convention holds. Every other rule (RS001, RS004, RS005, and RS007 through RS037) is a general style rule, repo-agnostic and safe to enable anywhere; the paragraphs below note which of them warn rather than hard-fail.
 
 The test-quality rules (RS013–RS016) apply only to `test`-prefixed functions in test files, so they are inert elsewhere. RS012, RS015, RS016, RS018, RS019, RS020, and RS021 are advisory: they emit a `warning` and do not fail the run, since their signals are heuristics that mark where to look rather than assert a defect. RS027 warns too, matching how the repo's other threshold rule (RS012) is treated; note that ruff's `PLR0917`, which it stands in for, is a hard error, so adopting it later raises the severity. The boolean-naming rules RS024 and RS026 are advisory too, warning rather than failing until their false-positive rate on the existing repos is measured. RS033 is advisory too: its casing default is an industry-wide convention, not a Gradient-measured one, and a repo's existing files may need a batch of `filename-ignore` entries before it is worth hard-failing. RS034 is advisory too: it matches only a fixed, curated verb list, so it neither catches every imperative opening nor is guaranteed free of a false match on an unmeasured repo. RS035 is advisory too, since its fix is "shorten this by hand" rather than a mechanical rewrite. RS036 is advisory too: it deliberately under-flags, matching only code-shaped names to keep its false-positive rate near zero, so the lowercase references it skips are left to review. RS037 is advisory too: the possessive and verb-suffix cases are crisp, but the plural case is mildly contestable, so it warns rather than failing until its false-positive rate on the existing repos is measured. RS013, RS014, RS022, RS023, RS025, and RS028 are mechanical and hard-fail. The documentation-form rules (RS020, RS021, and RS023) are general style rules.
 
@@ -73,7 +73,7 @@ repos:
       - id: repostyle
 ```
 
-The hook runs the `repostyle` console script over the staged Python, markdown, TOML, and YAML files. Most rules act on Python only; the comment-convention rules (RS009, RS030) also act on TOML and YAML comments.
+The hook runs the `repostyle` console script over the staged Python, markdown, TOML, and YAML files. Most rules act on Python only; the comment-convention rules (RS009, RS022, RS030) also act on TOML and YAML comments.
 
 ## Select rules per repo
 
@@ -164,13 +164,13 @@ This scopes repostyle's own `RSnnn` rules. Ruff has no diff mode, so to scope th
 
 ## Rewrap docstrings and comments
 
-`RS009` flags docstring and comment paragraphs that are not filled to 79 columns. Run with `--fix` to rewrap them in place instead of only reporting:
+`RS009` flags docstring and comment paragraphs that are not filled to 79 columns. Run with `--fix` to rewrite the mechanically-fixable findings in place instead of only reporting:
 
 ```bash
 repostyle --fix $(git diff --name-only)
 ```
 
-`--fix` greedily refills each paragraph at its hanging indent, leaving verbatim structures (code fences, doctests, tables, rules, section headers) untouched and respecting `# style: ignore` directives. It exits non-zero when it changed a file, so a pre-commit run stops and you re-stage the rewrapped files. `RS009` is the only fixable rule today.
+`--fix` rewrites the fixable rules — `RS009` reflow, `RS005` double-to-single backticks, and `RS030` terminal punctuation (`_registry.FIXABLE_RULES`). For `RS009` it greedily refills each paragraph at its hanging indent, leaving verbatim structures (code fences, doctests, tables, rules, section headers) untouched and respecting `# style: ignore` directives. It exits non-zero when it changed a file, so a pre-commit run stops and you re-stage the rewritten files.
 
 ## Explain a rule
 
@@ -236,7 +236,7 @@ exclude = ["tests"]
 paths = ["src", "vulture_whitelist.py"]
 min_confidence = 80
 ignore_decorators = ["@pytest.fixture", "@pytest.mark.parametrize"]
-# Idioms vulture cannot see are dead; extend per repo with domain stubs.
+# vulture flags idioms it can't see used as dead; whitelist here, extend per repo.
 ignore_names = ["model_config", "exc_type", "exc_val", "exc_tb"]
 
 [tool.deptry]

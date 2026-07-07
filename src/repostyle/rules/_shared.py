@@ -198,7 +198,7 @@ def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
 
     A prose unit — one spanning lines, running multiple sentences, or standing
     as a docstring body paragraph — must close with `.`, `!`, or `?`; returns
-    `"missing"` when it does not. A single-line single- sentence fragment is a
+    `"missing"` when it does not. A single-line single-sentence fragment is a
     label and must not close with a period; returns `"extra"` when it does. A
     unit ending with a colon introduces a list, and one ending in a URL cannot
     take punctuation, so both are exempt. Returns `None` when the unit

@@ -1,4 +1,8 @@
-"""Identifier rules: acronym casing, abbreviations, suffixes, booleans."""
+"""Identifier rules.
+
+Acronym casing, banned abbreviations, vague class suffixes, boolean naming, the
+`make_`-in-production ban, and exception-alias naming.
+"""
 
 from __future__ import annotations
 
@@ -116,7 +120,7 @@ def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     for node in ast.walk(tree):
-        for name, lineno, col_offset in _banned_named_targets(node):
+        for name, lineno, col_offset in _abbreviation_named_targets(node):
             yield from _abbreviation_violations(name, lineno, col_offset)
 
 
@@ -184,7 +188,7 @@ def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation
     if tree is None:
         return
     for node in ast.walk(tree):
-        for name, lineno, col_offset in _boolean_prefix_targets(node):
+        for name, lineno, col_offset in _boolean_prefix_named_targets(node):
             yield from _boolean_prefix_violations(name, lineno, col_offset)
 
 
@@ -248,6 +252,23 @@ def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
             )
 
 
+def _abbreviation_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
+    """Yields the at-most-one abbreviation-checked name a node introduces.
+
+    Resolves a class, function, or parameter name, an aliased import, or a
+    store-context `Name` target to its `(name, lineno, col_offset)` triple;
+    yields nothing for any other node.
+    """
+    if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+        yield (node.name, node.lineno, node.col_offset)
+    elif isinstance(node, ast.arg):
+        yield (node.arg, node.lineno, node.col_offset)
+    elif isinstance(node, ast.alias) and node.asname is not None:
+        yield (node.asname, node.lineno, node.col_offset)
+    elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+        yield (node.id, node.lineno, node.col_offset)
+
+
 def _abbreviation_violations(
     name: str, lineno: int, col_offset: int
 ) -> Iterator[Violation]:
@@ -295,24 +316,7 @@ def _acronym_violations(name: str, lineno: int, col_offset: int) -> Iterator[Vio
         )
 
 
-def _banned_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
-    """Yields the at-most-one abbreviation-checked name a node introduces.
-
-    Resolves a class, function, or parameter name, an aliased import, or a
-    store-context `Name` target to its `(name, lineno, col_offset)` triple;
-    yields nothing for any other node.
-    """
-    if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-        yield (node.name, node.lineno, node.col_offset)
-    elif isinstance(node, ast.arg):
-        yield (node.arg, node.lineno, node.col_offset)
-    elif isinstance(node, ast.alias) and node.asname is not None:
-        yield (node.asname, node.lineno, node.col_offset)
-    elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-        yield (node.id, node.lineno, node.col_offset)
-
-
-def _boolean_prefix_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
+def _boolean_prefix_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yields the at-most-one annotated boolean name a node introduces.
 
     Resolves a `bool`-annotated parameter or a `bool`-annotated variable or

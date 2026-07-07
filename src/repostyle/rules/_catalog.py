@@ -84,10 +84,10 @@ class RuleDoc(NamedTuple):
     """A canonical lookup table the agent applies wholesale."""
 
 
-# `res` and `resp` both abbreviate response-shaped names; `res` is left to
-# `result` and `resp` to `response`, the two readings that recur. The keys are
-# exactly the banned set in `naming.BANNED_ABBREVIATIONS`, which a test pins so
-# the card never drifts from what the rule rejects.
+# `res` and `resp` are each ambiguous; the map picks the reading that recurs:
+# `res` to `result`, `resp` to `response`. The keys are exactly the banned set
+# in `naming.BANNED_ABBREVIATIONS`, which a test pins so the card never drifts
+# from what the rule rejects.
 ABBREVIATION_EXPANSIONS: dict[str, str] = {
     "btn": "button",
     "cfg": "configuration",

@@ -13,7 +13,7 @@ class TestMain:
     def test_ErrorViolation_PrintsSeverityLineAndFails(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
         exit_code = main([str(target)])
         out = capsys.readouterr().out
         assert exit_code == 1
@@ -26,7 +26,7 @@ class TestMain:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setitem(RULE_SEVERITY, RS_ACRONYM_CASING, Severity.WARNING)
-        target = _project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
         exit_code = main([str(target)])
         out = capsys.readouterr().out
         assert exit_code == 0
@@ -73,7 +73,7 @@ class TestMain:
     def test_CleanPath_ReturnsZeroAndPrintsNothing(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, "x = 1\n", '["RS001"]')
+        target = _write_project(tmp_path, "x = 1\n", '["RS001"]')
         exit_code = main([str(target)])
         assert exit_code == 0
         assert capsys.readouterr().out == ""
@@ -81,7 +81,7 @@ class TestMain:
     def test_DirectoryArgument_RecursesAndReportsFindings(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
         exit_code = main([str(tmp_path)])
         out = capsys.readouterr().out
         assert exit_code == 1
@@ -124,7 +124,7 @@ class TestMain:
     def test_UnknownRuleId_ReturnsTwoAndReportsError(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, "x = 1\n", '["RS999"]')
+        target = _write_project(tmp_path, "x = 1\n", '["RS999"]')
         exit_code = main([str(target)])
         assert exit_code == 2
         assert "RS999" in capsys.readouterr().err
@@ -137,7 +137,7 @@ class TestFix:
     def test_FixWithChanges_ExitsNonzeroAndReportsToStderr(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, _UNDERWRAPPED_DOCSTRING, '["RS009"]')
+        target = _write_project(tmp_path, _UNDERWRAPPED_DOCSTRING, '["RS009"]')
         exit_code = main(["--fix", str(target)])
         captured = capsys.readouterr()
         assert exit_code == 1
@@ -147,7 +147,7 @@ class TestFix:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         source = 'def f():\n    """Summary.\n\n    aaa bbb\n    """\n'
-        target = _project(tmp_path, source, '["RS009"]')
+        target = _write_project(tmp_path, source, '["RS009"]')
         exit_code = main(["--fix", str(target)])
         captured = capsys.readouterr()
         assert exit_code == 0
@@ -156,7 +156,7 @@ class TestFix:
     def test_WithoutFix_ReportsButDoesNotRewrite(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, _UNDERWRAPPED_DOCSTRING, '["RS009"]')
+        target = _write_project(tmp_path, _UNDERWRAPPED_DOCSTRING, '["RS009"]')
         exit_code = main([str(target)])
         assert exit_code == 1
         assert target.read_text(encoding="utf-8") == _UNDERWRAPPED_DOCSTRING
@@ -199,7 +199,7 @@ class TestDiscoveryHint:
     def test_FindingWithGuidance_PrintsTheExplainHintToStderr(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, "def f(cfg): ...\n", '["RS010"]')
+        target = _write_project(tmp_path, "def f(cfg): ...\n", '["RS010"]')
         exit_code = main([str(target)])
         captured = capsys.readouterr()
         assert exit_code == 1
@@ -208,19 +208,19 @@ class TestDiscoveryHint:
     def test_NoExplainHintFlag_SuppressesTheHint(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, "def f(cfg): ...\n", '["RS010"]')
+        target = _write_project(tmp_path, "def f(cfg): ...\n", '["RS010"]')
         main(["--no-explain-hint", str(target)])
         assert "explain RS010" not in capsys.readouterr().err
 
     def test_FindingWithoutGuidance_PrintsNoHint(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
         main([str(target)])
         assert "explain" not in capsys.readouterr().err
 
 
-def _project(tmp_path: Path, source: str, select: str) -> Path:
+def _write_project(tmp_path: Path, source: str, select: str) -> Path:
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\nselect = {select}\n", encoding="utf-8"
     )

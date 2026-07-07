@@ -1,11 +1,10 @@
 """Docstring and markdown prose rules.
 
-The placement rules move a summary that documents a unit into the docstring
-slot this package's own doc-content rules can see, and reject docstring
-openings that restate the identifier instead of stating the contract: no
-`Attributes:` block, no double backticks, no leading summary comment, no field
-comment standing in for a field docstring, no filler opening, and no
-imperative-mood opening verb.
+The placement rules move a summary or field comment that documents a unit into
+the docstring slot this package's own doc-content rules can see. The form rules
+hold a docstring to its own contract: no `Attributes:` block, single not double
+backticks, a backticked code reference with no suffix glued to it, no filler or
+imperative-mood opening, and terminal punctuation on every prose unit.
 """
 
 from __future__ import annotations

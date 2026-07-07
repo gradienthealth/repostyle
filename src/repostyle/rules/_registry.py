@@ -163,9 +163,10 @@ PACKAGE_RULES: dict[str, tuple[PackageCheck, ...]] = {
 }
 
 
-# A threshold- or judgment-adjacent rule registers Severity.WARNING here to
-# emit an advisory, non-blocking signal; the mechanical, low-false- positive
-# rules stay at the default ERROR and fail the run.
+# An advisory rule — a threshold, a judgment call, or a newer mechanical check
+# still proving out its false-positive rate — registers Severity.WARNING here
+# to emit a non-blocking signal; the settled, low-false-positive rules stay at
+# the default ERROR and fail the run.
 RULE_SEVERITY: dict[str, Severity] = {
     RS_COGNITIVE_COMPLEXITY: Severity.WARNING,
     RS_EXCESSIVE_MOCKING: Severity.WARNING,

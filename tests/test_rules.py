@@ -736,7 +736,7 @@ class TestCheckDocFill:
             "underwrapped_comment_before_directive",
         ],
     )
-    def test_LooselyFilledParagraph_FlagsViolation(
+    def test_MisfilledParagraph_FlagsViolation(
         self, source: str, fragment: str
     ) -> None:
         violations = list(check_doc_fill(Path("src/x.py"), source))

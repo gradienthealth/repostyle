@@ -114,7 +114,7 @@ class TestLintPathWithEnabledRules:
         assert [v.rule for v in lint_path(python, enabled)] == [RS_NO_DOUBLE_BACKTICKS]
 
 
-class TestConfigDiscovery:
+class TestLoadConfig:
     def test_ReadsRepostyleTable_FromPyproject(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text(
@@ -129,6 +129,8 @@ class TestConfigDiscovery:
         pyproject.write_text('[tool.other]\nfoo = "bar"\n', encoding="utf-8")
         assert load_config(pyproject) is None
 
+
+class TestResolveEnabledRulesForPaths:
     def test_NearestPyprojectResolvesSelection_WalkingUp(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[tool.repostyle]\nselect = ["RS001"]\n', encoding="utf-8")

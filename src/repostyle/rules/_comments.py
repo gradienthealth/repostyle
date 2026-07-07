@@ -1,9 +1,9 @@
 """The cross-language `#`-comment extractor shared by the comment rules.
 
-RS009 (paragraph wrapping), RS030 (terminal punctuation), and the suppression
-parser each read `#` comments from Python, TOML, and YAML. This module holds
-the one extractor they share: Python through the tokenizer, TOML and YAML
-through a string- and block-aware line scan.
+RS009 (paragraph wrapping), RS022 (tag format), RS030 (terminal punctuation),
+and the suppression parser each read `#` comments from Python, TOML, and YAML.
+This module holds the one extractor they share: Python through the tokenizer,
+TOML and YAML through a string- and block-aware line scan.
 """
 
 from __future__ import annotations
@@ -39,9 +39,9 @@ class _CommentToken(NamedTuple):
 
 
 # Cache on (path, source) so a file is scanned once and the result shared
-# across the rules that read it — RS009, RS030, and the suppression parser —
-# the way `_parse_python` caches the AST. A tuple is returned so the cached
-# value is safe to iterate repeatedly.
+# across the rules that read it — RS009, RS022, RS030, and the suppression
+# parser — the way `_parse_python` caches the AST. A tuple is returned so the
+# cached value is safe to iterate repeatedly.
 @lru_cache(maxsize=128)
 def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
     """Returns each `#` comment in `source`, dispatched by file type.

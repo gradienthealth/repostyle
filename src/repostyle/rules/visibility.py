@@ -235,9 +235,9 @@ def _entry_point_names(anchor: Path) -> tuple[str, ...]:
     )
 
 
-def _public_names(pyproject: Path | None) -> tuple[str, ...]:
-    """Reads the `public-names` allowlist from the file's pyproject."""
-    pyproject = find_pyproject(pyproject) if pyproject is not None else None
+def _public_names(anchor: Path | None) -> tuple[str, ...]:
+    """Reads the `public-names` allowlist from the anchor's pyproject."""
+    pyproject = find_pyproject(anchor) if anchor is not None else None
     return _string_list(pyproject, "public-names") if pyproject is not None else ()
 
 

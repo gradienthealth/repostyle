@@ -1,4 +1,4 @@
-"""Test-suite rules: test naming and the mock/patch ban."""
+"""Test-suite rules: test naming, the mock ban, and test-quality smells."""
 
 from __future__ import annotations
 
@@ -272,7 +272,7 @@ def _offending_plain_import(node: ast.Import) -> str | None:
 def _test_functions(
     tree: ast.AST,
 ) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:
-    """Yields the `test`-prefixed functions pytest would collect."""
+    """Yields the `test`-prefixed functions and methods defined in the tree."""
     for node in ast.walk(tree):
         if isinstance(
             node, ast.FunctionDef | ast.AsyncFunctionDef

@@ -1,4 +1,4 @@
-"""Paragraph-fill rule for docstrings and comments."""
+"""Paragraph-fill and summary-overflow rules for docstrings and comments."""
 
 from __future__ import annotations
 
@@ -55,8 +55,8 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
-    # An unparseable Python file is one `reflow_doc_fill` declines to rewrite,
-    # so the check skips it too rather than flag what `--fix` will not repair.
+    # An unparseable Python file is one `fix_doc_fill` declines to rewrite, so
+    # the check skips it too rather than flag what `--fix` will not repair.
     if path.suffix == ".py" and _parse_python(path, source) is None:
         return
     for unit in _fillable_units(path, source):
@@ -101,7 +101,7 @@ def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
         )
 
 
-def reflow_doc_fill(
+def fix_doc_fill(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
     """Rewraps docstring and comment paragraphs in `source` to 79 columns.
@@ -155,11 +155,11 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
                 end = node.value.end_lineno
                 if end is None or end == node.value.lineno:
                     continue
-                yield from _fill_units(
+                yield from _group_paragraphs(
                     _docstring_fill_lines(source_lines, node.value.lineno, end)
                 )
     for block in _comment_blocks(path, source, source_lines):
-        yield from _fill_units(block)
+        yield from _group_paragraphs(block)
 
 
 def _comment_blocks(
@@ -222,15 +222,15 @@ class _FillLine(NamedTuple):
     text: str
 
 
-def _fill_units(lines: list[_FillLine]) -> Iterator[list[_FillLine]]:
-    accumulator = _UnitAccumulator()
+def _group_paragraphs(lines: list[_FillLine]) -> Iterator[list[_FillLine]]:
+    accumulator = _ParagraphGrouper()
     for line in lines:
         accumulator.consume(line)
     accumulator.close()
     yield from accumulator.units
 
 
-class _UnitAccumulator:
+class _ParagraphGrouper:
     """Groups docstring or comment lines into fillable paragraph units.
 
     Feed lines in order with `consume`, call `close` after the last line, then

@@ -1,12 +1,12 @@
-"""Comment-tag format rule (RS022): standardize special comments.
+"""Comment rules (RS022, RS030): tag format and terminal punctuation.
 
-A special comment carries one of a small set of tags and points at a
-tracking ticket, so an agent reading the finding learns the canonical
-form rather than guessing one. The canonical form is `TAG(TICKET):
-message`, where the tag is one of a configured allowed set (`TODO`,
-`FIXME`, `NOTE`, `HACK` by default) and the ticket matches a configured
-pattern (the Linear-id shape `[A-Z]+-\\d+`, plus the literal `NO-ISSUE`,
-by default).
+RS022 standardizes special comments. A special comment carries one of a small
+set of tags and points at a tracking ticket, so an agent reading the finding
+learns the canonical form rather than guessing one. The canonical form is
+`TAG(TICKET): message`, where the tag is one of a configured allowed set
+(`TODO`, `FIXME`, `NOTE`, `HACK` by default) and the ticket matches a
+configured pattern (the Linear-id shape `[A-Z]+-\\d+`, plus the literal
+`NO-ISSUE`, by default).
 
 A comment whose leading token looks like a tag but deviates is flagged: a tag
 outside the allowed set (`XXX`, `BUG`), wrong casing (`# todo`), missing
@@ -15,6 +15,11 @@ a ticket (`TODO(sai)`), or a wrong separator after the parenthesized ticket.
 Both the allowed tag set and the ticket pattern are read from the
 `[tool.repostyle]` table, so a repo expresses its own ticket shape; with no
 config the defaults apply.
+
+RS030 holds a comment to the house terminal-punctuation rule: a prose comment
+ends with terminal punctuation, while a single-line fragment does not. The
+check spans Python, TOML, and YAML comments alike, and its `--fix` half repairs
+Python comments in place.
 """
 
 from __future__ import annotations
@@ -224,7 +229,7 @@ def _comment_terminal_faults(path: Path, source: str) -> Iterator[tuple[int, int
 
 
 def _comment_terminal_message(fault: str) -> str:
-    """Returns the fix message for a comment terminal-punctuation `fault`."""
+    """Returns the violation message for a terminal-punctuation `fault`."""
     if fault == "missing":
         return "comment reads as prose; end it with terminal punctuation"
     return "comment reads as a fragment; drop the trailing period"
