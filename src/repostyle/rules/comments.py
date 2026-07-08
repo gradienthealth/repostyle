@@ -1,4 +1,4 @@
-"""Comment rules (RS022, RS030): tag format and terminal punctuation.
+"""Comment rules (RS022, RS038, RS030): tag format, indent, punctuation.
 
 RS022 standardizes special comments. A special comment carries one of a small
 set of tags and points at a tracking ticket, so an agent reading the finding
@@ -15,6 +15,12 @@ a ticket (`TODO(sai)`), or a wrong separator after the parenthesized ticket.
 Both the allowed tag set and the ticket pattern are read from the
 `[tool.repostyle]` table, so a repo expresses its own ticket shape; with no
 config the defaults apply.
+
+RS038 keeps a wrapped tag comment readable as one unit: a continuation line of
+a `TODO(TICKET): ...` comment is indented past the tag, so the wrapped text
+reads as subordinate to it. A contiguous run of `#` comments at one column is
+the unit, so an independent note is set off by a blank line rather than folded
+into the tag.
 
 RS030 holds a comment to the house terminal-punctuation rule: a prose comment
 ends with terminal punctuation, while a single-line fragment does not. The
@@ -43,6 +49,7 @@ from repostyle.rules._shared import (
 )
 from repostyle.rules._violation import (
     RS_COMMENT_TAG_FORMAT,
+    RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TERMINAL_PUNCTUATION,
     Violation,
 )
@@ -82,17 +89,14 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     if path.suffix not in COMMENT_SUFFIXES:
         return
     tags, ticket_pattern = _resolve_config(path)
+    # No configured tags means no canonical form to steer a deviation toward
+    if not tags:
+        return
     allowed = {tag.upper() for tag in tags}
     canonical = _canonical_pattern(tags, ticket_pattern)
     for lineno, column, string in _own_line_comments(path, source):
-        leading = _LEADING_TOKEN_PATTERN.match(string)
-        if leading is None:
-            continue
-        word, follower = leading.group(1), leading.group(2)
-        if not follower and not word.isupper():
-            continue
-        word = word.upper()
-        if word not in allowed and word not in _KNOWN_ALIASES:
+        word = _leading_tag(string, allowed)
+        if word is None:
             continue
         if canonical.match(string):
             continue
@@ -107,10 +111,75 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
         )
 
 
+def check_tag_comment_continuation_indent(
+    path: Path, source: str
+) -> Iterator[Violation]:
+    """A wrapped tag comment indents its continuation past the tag.
+
+    A tag comment (`TODO(TICKET): ...` and the other RS022 tags) that runs onto
+    a further line reads as one unit only when the wrapped text is indented
+    past the tag, so a flush continuation line is flagged. A contiguous run of
+    `#` comments at one column is the unit: a blank line or a differing column
+    starts a separate one, so an independent note is set off by a blank line
+    rather than folded into the tag. A continuation that is itself a tag
+    comment is a new tag, not a wrap, and is left alone. The check runs over
+    Python, TOML, and YAML comments alike, since a `#` comment reads the same
+    in each.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    tags, _ = _resolve_config(path)
+    allowed = {tag.upper() for tag in tags}
+    for block in _standalone_comment_blocks(path, source):
+        if len(block) < 2 or _leading_tag(block[0][2], allowed) is None:
+            continue
+        base_column = _comment_text_column(block[0][2])
+        for lineno, column, string in block[1:]:
+            if not _comment_text(string) or _leading_tag(string, allowed):
+                continue
+            if _comment_text_column(string) <= base_column:
+                yield Violation(
+                    lineno,
+                    column + 1,
+                    RS_TAG_COMMENT_CONTINUATION_INDENT,
+                    "tag-comment continuation is not indented past the tag; "
+                    "indent it, or set it off with a blank line if it is a new "
+                    "comment",
+                )
+
+
 def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern[str]:
     """Builds the regex a canonical `TAG(TICKET): message` comment matches."""
     tag_group = "|".join(re.escape(tag) for tag in tags)
     return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
+
+
+def _comment_text_column(string: str) -> int:
+    """Returns the column of a comment's text past its opening `#`.
+
+    Counts the hashes and expands tabs, so a deeper hash run or a tab reads as
+    more indent than a single space.
+    """
+    body = string.lstrip("#")
+    hashes = len(string) - len(body)
+    indent = body.removesuffix(body.lstrip())
+    return hashes + len(indent.expandtabs())
+
+
+def _leading_tag(string: str, allowed: set[str]) -> str | None:
+    """Returns a comment's leading tag uppercased, or `None` if it has none.
+
+    A tag is a leading token in `allowed` or a known alias, used tag-style:
+    written in all caps or set off by a `(` or `:` separator.
+    """
+    leading = _LEADING_TOKEN_PATTERN.match(string)
+    if leading is None:
+        return None
+    word, follower = leading.group(1), leading.group(2)
+    if not follower and not word.isupper():
+        return None
+    word = word.upper()
+    return word if word in allowed or word in _KNOWN_ALIASES else None
 
 
 def _own_line_comments(path: Path, source: str) -> Iterator[tuple[int, int, str]]:

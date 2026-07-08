@@ -52,6 +52,7 @@ from repostyle.rules._violation import (
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
+    RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -358,6 +359,36 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 bad="# TODO: handle the empty case",
                 good="# TODO(PROC-1234): handle the empty case",
                 note="With no ticket, use `# TODO(NO-ISSUE): ...`.",
+            ),
+        ),
+    ),
+    RS_TAG_COMMENT_CONTINUATION_INDENT: RuleDoc(
+        name="tag-comment-continuation-indent",
+        summary=(
+            "A wrapped tag comment indents its continuation past the tag; a "
+            "separate note is set off by a blank line."
+        ),
+        rationale=(
+            "A `TODO(TICKET): ...` comment that wraps onto a further line reads "
+            "as one unit only when the wrapped text is indented past the tag. A "
+            "flush follow-on line is ambiguous: it could be the wrap or an "
+            "unrelated comment. The convention resolves it by column — a "
+            "continuation is indented, an independent comment is set off by a "
+            "blank line. A follow-on line that is itself a tag comment is a new "
+            "tag, not a wrap, and is left alone. The check spans Python, TOML, "
+            "and YAML comments."
+        ),
+        examples=(
+            Example(
+                bad=(
+                    "# TODO(PROC-1234): rework the retry path\n"
+                    "# once the client exposes a deadline"
+                ),
+                good=(
+                    "# TODO(PROC-1234): rework the retry path\n"
+                    "#     once the client exposes a deadline"
+                ),
+                note="A blank line instead makes the second line its own comment.",
             ),
         ),
     ),

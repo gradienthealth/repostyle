@@ -60,6 +60,7 @@ from repostyle.rules._violation import (
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
+    RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -70,6 +71,7 @@ from repostyle.rules._violation import (
 from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_terminal_punctuation,
+    check_tag_comment_continuation_indent,
     fix_comment_terminal_punctuation,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
@@ -171,6 +173,7 @@ __all__ = [
     "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
     "RS_SUMMARY_COMMENT_AS_DOCSTRING",
+    "RS_TAG_COMMENT_CONTINUATION_INDENT",
     "RS_TERMINAL_PUNCTUATION",
     "RS_TEST_NAMING",
     "RS_TOO_MANY_POSITIONAL_ARGS",
@@ -219,6 +222,7 @@ __all__ = [
     "check_should_be_private",
     "check_sleepy_test",
     "check_summary_comment_as_docstring",
+    "check_tag_comment_continuation_indent",
     "check_test_naming",
     "check_too_many_positional_args",
     "check_unbackticked_code_reference",
