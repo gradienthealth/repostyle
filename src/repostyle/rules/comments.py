@@ -89,6 +89,9 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     if path.suffix not in COMMENT_SUFFIXES:
         return
     tags, ticket_pattern = _resolve_config(path)
+    # No configured tags means no canonical form to steer a deviation toward
+    if not tags:
+        return
     allowed = {tag.upper() for tag in tags}
     canonical = _canonical_pattern(tags, ticket_pattern)
     for lineno, column, string in _own_line_comments(path, source):

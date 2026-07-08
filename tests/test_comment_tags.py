@@ -112,6 +112,12 @@ class TestCheckCommentTagFormat:
         target = _target(tmp_path, source, table=table)
         assert list(check_comment_tag_format(target, source)) == []
 
+    def test_EmptyConfiguredTags_NoViolation(self, tmp_path: Path) -> None:
+        table = "[tool.repostyle]\ncomment-tags = []\n"
+        source = "# XXX foo\n"
+        target = _target(tmp_path, source, table=table)
+        assert list(check_comment_tag_format(target, source)) == []
+
     @pytest.mark.parametrize(
         "suffix,source",
         [
