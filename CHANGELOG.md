@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.15.0...repostyle-v0.16.0) (2026-07-08)
+
+
+### Features
+
+* **NO-ISSUE:** add the RS038 tag-comment continuation-indent rule ([#95](https://github.com/gradienthealth/repostyle/issues/95)) ([70e7a35](https://github.com/gradienthealth/repostyle/commit/70e7a35773977ae96b13769395ddc19b892115cc))
+
 ## [0.15.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.14.0...repostyle-v0.15.0) (2026-07-07)
 
 
