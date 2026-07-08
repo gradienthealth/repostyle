@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from repostyle.rules import RS_COMMENT_TAG_FORMAT, check_comment_tag_format
+from repostyle.rules import (
+    RS_COMMENT_TAG_FORMAT,
+    RS_TAG_COMMENT_CONTINUATION_INDENT,
+    check_comment_tag_format,
+    check_tag_comment_continuation_indent,
+)
 
 
 class TestCheckCommentTagFormat:
@@ -165,6 +170,82 @@ class TestCheckCommentTagFormat:
         target = _target(tmp_path, source)
         # the tokenizer error is swallowed upstream, so the file yields nothing
         assert list(check_comment_tag_format(target, source)) == []
+
+
+class TestCheckTagCommentContinuationIndent:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "# TODO(PROC-1): rework retry\n#     wait for a deadline\n",
+            "# TODO(PROC-1): fix the thing\n",
+            "# TODO(PROC-1): first tag\n# TODO(PROC-2): next tag\n",
+            "# TODO(PROC-1): do it.\n\n# A separate note.\n",
+            "# This comment wraps\n# onto a flush line.\n",
+        ],
+        ids=[
+            "indented-continuation",
+            "single-line-tag",
+            "adjacent-tags-second-exempt",
+            "blank-line-separated-note",
+            "non-tag-block",
+        ],
+    )
+    def test_WellFormedOrNonContinuation_NoViolation(
+        self, tmp_path: Path, source: str
+    ) -> None:
+        target = _target(tmp_path, source)
+        assert list(check_tag_comment_continuation_indent(target, source)) == []
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "# TODO(PROC-1): rework retry\n# wait for a deadline\n",
+            "# FIXME(NO-ISSUE): drop this\n# after upstream lands\n",
+        ],
+        ids=["flush-continuation", "flush-continuation-fixme"],
+    )
+    def test_FlushContinuation_FlagsViolation(
+        self, tmp_path: Path, source: str
+    ) -> None:
+        target = _target(tmp_path, source)
+        violations = list(check_tag_comment_continuation_indent(target, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_TAG_COMMENT_CONTINUATION_INDENT
+        assert violations[0].line == 2
+
+    def test_MixedContinuation_FlagsOnlyFlushLine(self, tmp_path: Path) -> None:
+        source = (
+            "# TODO(PROC-1): a long tag comment\n"
+            "#     that indents its first wrap\n"
+            "# but not the second wrap line\n"
+        )
+        target = _target(tmp_path, source)
+        violations = list(check_tag_comment_continuation_indent(target, source))
+        assert len(violations) == 1
+        assert violations[0].line == 3
+
+    @pytest.mark.parametrize(
+        "suffix,source",
+        [
+            ("toml", '# TODO(PROC-1): fix\n# flush line\nkey = "value"\n'),
+            ("yaml", "# TODO(PROC-1): fix\n# flush line\nkey: value\n"),
+        ],
+        ids=["toml", "yaml"],
+    )
+    def test_FlushContinuationInConfigFile_FlagsViolation(
+        self, tmp_path: Path, suffix: str, source: str
+    ) -> None:
+        target = tmp_path / f"config.{suffix}"
+        target.write_text(source, encoding="utf-8")
+        violations = list(check_tag_comment_continuation_indent(target, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_TAG_COMMENT_CONTINUATION_INDENT
+
+    def test_UnsupportedFile_NoViolation(self, tmp_path: Path) -> None:
+        source = "# TODO(PROC-1): fix\n# flush line\n"
+        target = tmp_path / "notes.txt"
+        target.write_text(source, encoding="utf-8")
+        assert list(check_tag_comment_continuation_indent(target, source)) == []
 
 
 def _target(tmp_path: Path, source: str, table: str = "") -> Path:

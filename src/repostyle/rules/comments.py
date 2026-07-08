@@ -1,4 +1,4 @@
-"""Comment rules (RS022, RS030): tag format and terminal punctuation.
+"""Comment rules (RS022, RS030, RS038): tag format, punctuation, indent.
 
 RS022 standardizes special comments. A special comment carries one of a small
 set of tags and points at a tracking ticket, so an agent reading the finding
@@ -15,6 +15,12 @@ a ticket (`TODO(sai)`), or a wrong separator after the parenthesized ticket.
 Both the allowed tag set and the ticket pattern are read from the
 `[tool.repostyle]` table, so a repo expresses its own ticket shape; with no
 config the defaults apply.
+
+RS038 keeps a wrapped tag comment readable as one unit: a continuation line of
+a `TODO(TICKET): ...` comment is indented past the tag, so the wrapped text
+reads as subordinate to it. A contiguous run of `#` comments at one column is
+the unit, so an independent note is set off by a blank line rather than folded
+into the tag.
 
 RS030 holds a comment to the house terminal-punctuation rule: a prose comment
 ends with terminal punctuation, while a single-line fragment does not. The
@@ -43,6 +49,7 @@ from repostyle.rules._shared import (
 )
 from repostyle.rules._violation import (
     RS_COMMENT_TAG_FORMAT,
+    RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TERMINAL_PUNCTUATION,
     Violation,
 )
@@ -107,10 +114,65 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
         )
 
 
+def check_tag_comment_continuation_indent(
+    path: Path, source: str
+) -> Iterator[Violation]:
+    """A wrapped tag comment indents its continuation past the tag.
+
+    A tag comment (`TODO(TICKET): ...` and the other RS022 tags) that runs onto
+    a further line reads as one unit only when the wrapped text is indented
+    past the tag, so a flush continuation line is flagged. A contiguous run of
+    `#` comments at one column is the unit: a blank line or a differing column
+    starts a separate one, so an independent note is set off by a blank line
+    rather than folded into the tag. A continuation that is itself a tag
+    comment is a new tag, not a wrap, and is left alone. The check runs over
+    Python, TOML, and YAML comments alike, since a `#` comment reads the same
+    in each.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    tags, _ = _resolve_config(path)
+    allowed = {tag.upper() for tag in tags}
+    for block in _standalone_comment_blocks(path, source):
+        if len(block) < 2 or not _opens_with_tag(block[0][2], allowed):
+            continue
+        base_indent = _comment_body_indent(block[0][2])
+        for lineno, column, string in block[1:]:
+            if _opens_with_tag(string, allowed):
+                continue
+            if _comment_body_indent(string) <= base_indent:
+                yield Violation(
+                    lineno,
+                    column + 1,
+                    RS_TAG_COMMENT_CONTINUATION_INDENT,
+                    "tag-comment continuation is not indented past the tag; "
+                    "indent it, or set it off with a blank line if it is a new "
+                    "comment",
+                )
+
+
 def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern[str]:
     """Builds the regex a canonical `TAG(TICKET): message` comment matches."""
     tag_group = "|".join(re.escape(tag) for tag in tags)
     return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
+
+
+def _comment_body_indent(string: str) -> int:
+    """Returns the space count after a comment's hashes, before its text."""
+    body = string.lstrip("#")
+    return len(body) - len(body.lstrip())
+
+
+def _opens_with_tag(string: str, allowed: set[str]) -> bool:
+    """Reports whether a comment opens with an allowed tag or a known alias."""
+    leading = _LEADING_TOKEN_PATTERN.match(string)
+    if leading is None:
+        return False
+    word, follower = leading.group(1), leading.group(2)
+    if not follower and not word.isupper():
+        return False
+    word = word.upper()
+    return word in allowed or word in _KNOWN_ALIASES
 
 
 def _own_line_comments(path: Path, source: str) -> Iterator[tuple[int, int, str]]:

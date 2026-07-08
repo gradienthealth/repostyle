@@ -39,6 +39,7 @@ from repostyle.rules._violation import (
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
+    RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -49,6 +50,7 @@ from repostyle.rules._violation import (
 from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_terminal_punctuation,
+    check_tag_comment_continuation_indent,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
 from repostyle.rules.doc_fill import check_doc_fill, check_doc_summary_overflow
@@ -134,6 +136,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_SUMMARY_COMMENT_AS_DOCSTRING: (check_summary_comment_as_docstring,),
     RS_FIELD_COMMENT_AS_DOCSTRING: (check_field_comment_as_docstring,),
     RS_COMMENT_TAG_FORMAT: (check_comment_tag_format,),
+    RS_TAG_COMMENT_CONTINUATION_INDENT: (check_tag_comment_continuation_indent,),
     RS_FILLER_DOCSTRING_OPENING: (check_filler_docstring_opening,),
     RS_IMPERATIVE_DOCSTRING_OPENING: (check_imperative_docstring_opening,),
     RS_TOO_MANY_POSITIONAL_ARGS: (check_too_many_positional_args,),
@@ -187,6 +190,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_DOC_SUMMARY_OVERFLOW: Severity.WARNING,
     RS_UNBACKTICKED_CODE_REFERENCE: Severity.WARNING,
     RS_GLUED_CODE_SPAN: Severity.WARNING,
+    RS_TAG_COMMENT_CONTINUATION_INDENT: Severity.WARNING,
 }
 
 
