@@ -159,8 +159,8 @@ def _comment_text_column(string: str) -> int:
     """
     body = string.lstrip("#")
     hashes = len(string) - len(body)
-    whitespace = body[: len(body) - len(body.lstrip())]
-    return hashes + len(whitespace.expandtabs())
+    indent = body.removesuffix(body.lstrip())
+    return hashes + len(indent.expandtabs())
 
 
 def _leading_tag(string: str, allowed: set[str]) -> str | None:
