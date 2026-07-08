@@ -1,4 +1,4 @@
-"""Comment rules (RS022, RS030, RS038): tag format, punctuation, indent.
+"""Comment rules (RS022, RS038, RS030): tag format, indent, punctuation.
 
 RS022 standardizes special comments. A special comment carries one of a small
 set of tags and points at a tracking ticket, so an agent reading the finding
@@ -92,14 +92,8 @@ def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     allowed = {tag.upper() for tag in tags}
     canonical = _canonical_pattern(tags, ticket_pattern)
     for lineno, column, string in _own_line_comments(path, source):
-        leading = _LEADING_TOKEN_PATTERN.match(string)
-        if leading is None:
-            continue
-        word, follower = leading.group(1), leading.group(2)
-        if not follower and not word.isupper():
-            continue
-        word = word.upper()
-        if word not in allowed and word not in _KNOWN_ALIASES:
+        word = _leading_tag(string, allowed)
+        if word is None:
             continue
         if canonical.match(string):
             continue
@@ -134,13 +128,13 @@ def check_tag_comment_continuation_indent(
     tags, _ = _resolve_config(path)
     allowed = {tag.upper() for tag in tags}
     for block in _standalone_comment_blocks(path, source):
-        if len(block) < 2 or not _opens_with_tag(block[0][2], allowed):
+        if len(block) < 2 or _leading_tag(block[0][2], allowed) is None:
             continue
-        base_indent = _comment_body_indent(block[0][2])
+        base_column = _comment_text_column(block[0][2])
         for lineno, column, string in block[1:]:
-            if _opens_with_tag(string, allowed):
+            if not _comment_text(string) or _leading_tag(string, allowed):
                 continue
-            if _comment_body_indent(string) <= base_indent:
+            if _comment_text_column(string) <= base_column:
                 yield Violation(
                     lineno,
                     column + 1,
@@ -157,22 +151,32 @@ def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern
     return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
 
 
-def _comment_body_indent(string: str) -> int:
-    """Returns the space count after a comment's hashes, before its text."""
+def _comment_text_column(string: str) -> int:
+    """Returns the column of a comment's text past its opening `#`.
+
+    Counts the hashes and expands tabs, so a deeper hash run or a tab reads as
+    more indent than a single space.
+    """
     body = string.lstrip("#")
-    return len(body) - len(body.lstrip())
+    hashes = len(string) - len(body)
+    whitespace = body[: len(body) - len(body.lstrip())]
+    return hashes + len(whitespace.expandtabs())
 
 
-def _opens_with_tag(string: str, allowed: set[str]) -> bool:
-    """Reports whether a comment opens with an allowed tag or a known alias."""
+def _leading_tag(string: str, allowed: set[str]) -> str | None:
+    """Returns a comment's leading tag uppercased, or `None` if it has none.
+
+    A tag is a leading token in `allowed` or a known alias, used tag-style:
+    written in all caps or set off by a `(` or `:` separator.
+    """
     leading = _LEADING_TOKEN_PATTERN.match(string)
     if leading is None:
-        return False
+        return None
     word, follower = leading.group(1), leading.group(2)
     if not follower and not word.isupper():
-        return False
+        return None
     word = word.upper()
-    return word in allowed or word in _KNOWN_ALIASES
+    return word if word in allowed or word in _KNOWN_ALIASES else None
 
 
 def _own_line_comments(path: Path, source: str) -> Iterator[tuple[int, int, str]]:

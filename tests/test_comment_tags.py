@@ -181,6 +181,9 @@ class TestCheckTagCommentContinuationIndent:
             "# TODO(PROC-1): first tag\n# TODO(PROC-2): next tag\n",
             "# TODO(PROC-1): do it.\n\n# A separate note.\n",
             "# This comment wraps\n# onto a flush line.\n",
+            "# TODO(PROC-1): refactor.\n#\n#     A second paragraph.\n",
+            "# TODO(PROC-1): do it\n#\tindented with a tab\n",
+            "# TODO(PROC-1): do it\n## further-hashed line\n",
         ],
         ids=[
             "indented-continuation",
@@ -188,6 +191,9 @@ class TestCheckTagCommentContinuationIndent:
             "adjacent-tags-second-exempt",
             "blank-line-separated-note",
             "non-tag-block",
+            "blank-hash-separator-skipped",
+            "tab-indented-continuation",
+            "extra-hash-continuation",
         ],
     )
     def test_WellFormedOrNonContinuation_NoViolation(
