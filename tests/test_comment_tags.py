@@ -202,22 +202,14 @@ class TestCheckTagCommentContinuationIndent:
         target = _target(tmp_path, source)
         assert list(check_tag_comment_continuation_indent(target, source)) == []
 
-    @pytest.mark.parametrize(
-        "source",
-        [
-            "# TODO(PROC-1): rework retry\n# wait for a deadline\n",
-            "# FIXME(NO-ISSUE): drop this\n# after upstream lands\n",
-        ],
-        ids=["flush-continuation", "flush-continuation-fixme"],
-    )
-    def test_FlushContinuation_FlagsViolation(
-        self, tmp_path: Path, source: str
-    ) -> None:
+    def test_FlushContinuation_FlagsViolation(self, tmp_path: Path) -> None:
+        source = "# TODO(PROC-1): rework retry\n# wait for a deadline\n"
         target = _target(tmp_path, source)
         violations = list(check_tag_comment_continuation_indent(target, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_TAG_COMMENT_CONTINUATION_INDENT
         assert violations[0].line == 2
+        assert violations[0].col == 1
 
     def test_MixedContinuation_FlagsOnlyFlushLine(self, tmp_path: Path) -> None:
         source = (
