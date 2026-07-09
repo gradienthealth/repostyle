@@ -36,6 +36,7 @@ from repostyle.rules._violation import (
     RS_COGNITIVE_COMPLEXITY,
     RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
+    RS_DEEPLY_NESTED_TYPE,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
@@ -69,6 +70,7 @@ from repostyle.rules._violation import (
     Severity,
     Violation,
 )
+from repostyle.rules.annotations import check_deeply_nested_type
 from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_terminal_punctuation,
@@ -152,6 +154,7 @@ __all__ = [
     "RS_COGNITIVE_COMPLEXITY",
     "RS_COMMENT_TAG_FORMAT",
     "RS_CONDITIONAL_TEST_LOGIC",
+    "RS_DEEPLY_NESTED_TYPE",
     "RS_DISCOURAGED_CLASS_SUFFIX",
     "RS_DOC_FILL",
     "RS_DOC_SUMMARY_OVERFLOW",
@@ -197,6 +200,7 @@ __all__ = [
     "check_comment_tag_format",
     "check_comment_terminal_punctuation",
     "check_conditional_test_logic",
+    "check_deeply_nested_type",
     "check_discouraged_class_suffix",
     "check_doc_fill",
     "check_doc_summary_overflow",

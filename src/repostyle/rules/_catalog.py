@@ -28,6 +28,7 @@ from repostyle.rules._violation import (
     RS_COGNITIVE_COMPLEXITY,
     RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
+    RS_DEEPLY_NESTED_TYPE,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
@@ -670,6 +671,40 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     "`remote_aes` also appears in a SQL string elsewhere in the "
                     "file, so its bare mention beside the backticked "
                     "`ContinuousDiscoverySettings` is flagged."
+                ),
+            ),
+        ),
+    ),
+    RS_DEEPLY_NESTED_TYPE: RuleDoc(
+        name="deeply-nested-type",
+        summary=(
+            "A type annotation nests subscripted generics past two levels; name "
+            "the buried type."
+        ),
+        rationale=(
+            "A generic nested two deep inside others packs a data structure "
+            "into a signature the reader re-parses at every use, and the deeper "
+            "it goes the more it hides what the value actually models. Past two "
+            "levels the annotation is usually standing in for a type that wants "
+            "a name. A two-level `Iterator[tuple[...]]` or `dict[str, "
+            "list[...]]` is idiomatic and left alone; every subscript layer "
+            "beyond that counts the same — a `tuple` or a `Callable` is no "
+            "easier to read nested — so the remedy is to give the inner "
+            "shape a name, not to reformat the annotation. Reach for the "
+            "construct that fits what the shape is: a `TypeAlias` when it is "
+            "genuinely just an alias, a `NamedTuple` or dataclass when the "
+            "fields deserve names."
+        ),
+        examples=(
+            Example(
+                bad="def group(rows: list[tuple[str, list[Record]]]) -> None: ...",
+                good=(
+                    "KeyedRecords: TypeAlias = tuple[str, list[Record]]\n"
+                    "def group(rows: list[KeyedRecords]) -> None: ..."
+                ),
+                note=(
+                    "Naming the inner `tuple[str, list[Record]]` drops the "
+                    "annotation to one level and states what it holds."
                 ),
             ),
         ),
