@@ -374,9 +374,10 @@ def _effective_acronyms(pyproject: Path | None) -> frozenset[str]:
     A repo adds a domain acronym through `acronyms-extra` — a DICOM repo adds
     `UID`, `SCU`, `PACS` — or drops one too aggressive for its own names
     through `acronyms-exclude`, tuning RS001 locally instead of editing the
-    shared list every repo inherits, the same override pattern RS017's
-    `banned-imports` and RS034's `imperative-verbs-extra` already use. Entries
-    are matched uppercased, so their case in config does not matter.
+    shared list every repo inherits, the same extend-and-exclude pattern
+    RS034's `imperative-verbs-extra` and `imperative-verbs-exclude` use over
+    its own shipped set. Entries are matched uppercased, so their case in
+    config does not matter.
     """
     table = _repostyle_table(pyproject)
     extra = _string_list(table, "acronyms-extra")
