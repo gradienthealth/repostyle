@@ -74,6 +74,7 @@ from repostyle.rules.docstrings import (
     check_summary_comment_as_docstring,
     check_unbackticked_code_reference,
     check_unbackticked_sibling_symbol,
+    check_unbackticked_sibling_symbol_in_comments,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
@@ -157,7 +158,10 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
         check_glued_code_span_in_docstrings,
         check_glued_code_span_in_comments,
     ),
-    RS_UNBACKTICKED_SIBLING_SYMBOL: (check_unbackticked_sibling_symbol,),
+    RS_UNBACKTICKED_SIBLING_SYMBOL: (
+        check_unbackticked_sibling_symbol,
+        check_unbackticked_sibling_symbol_in_comments,
+    ),
 }
 
 

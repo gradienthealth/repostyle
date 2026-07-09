@@ -101,6 +101,7 @@ from repostyle.rules.docstrings import (
     check_summary_comment_as_docstring,
     check_unbackticked_code_reference,
     check_unbackticked_sibling_symbol,
+    check_unbackticked_sibling_symbol_in_comments,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
 )
@@ -230,6 +231,7 @@ __all__ = [
     "check_too_many_positional_args",
     "check_unbackticked_code_reference",
     "check_unbackticked_sibling_symbol",
+    "check_unbackticked_sibling_symbol_in_comments",
     "fix_comment_terminal_punctuation",
     "fix_docstring_terminal_punctuation",
     "fix_double_backticks",

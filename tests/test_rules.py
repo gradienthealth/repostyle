@@ -56,6 +56,7 @@ from repostyle.rules import (
     check_test_naming,
     check_unbackticked_code_reference,
     check_unbackticked_sibling_symbol,
+    check_unbackticked_sibling_symbol_in_comments,
 )
 
 # PEP 695 type-alias / type-parameter syntax only parses on Python 3.12+, so
@@ -450,6 +451,64 @@ class TestCheckUnbacktickedSiblingSymbol:
     def test_NonPythonFile_NotChecked(self) -> None:
         source = '"""Uses `remote_aes`. Reads remote_aes."""\nx = "remote_aes"\n'
         assert list(check_unbackticked_sibling_symbol(Path("README.md"), source)) == []
+
+
+class TestCheckUnbacktickedSiblingSymbolInComments:
+    def test_TableBesideBacktickedClassInBlock_Flags(self) -> None:
+        source = (
+            "# `ContinuousDiscoverySettings` now rejects a value, so a\n"
+            "# remote_aes row below the floor fails to load.\n"
+            'op.execute("UPDATE remote_aes SET a = 1")\n'
+        )
+        violations = list(
+            check_unbackticked_sibling_symbol_in_comments(Path("src/x.py"), source)
+        )
+        assert [violation.rule for violation in violations] == [
+            RS_UNBACKTICKED_SIBLING_SYMBOL
+        ]
+        assert "`remote_aes`" in violations[0].message
+
+    def test_BoundNameSibling_LeftToRS036(self) -> None:
+        source = (
+            "# Backticks `min_study_age`. Reads col_offset and remote_aes.\n"
+            "def f():\n"
+            "    col_offset = 1\n"
+            '    return f"UPDATE remote_aes SET min_study_age = {col_offset}"\n'
+        )
+        violations = list(
+            check_unbackticked_sibling_symbol_in_comments(Path("src/x.py"), source)
+        )
+        assert len(violations) == 1
+        assert "`remote_aes`" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            '# Updates the remote_aes table.\nx = "UPDATE remote_aes SET y = 1"\n',
+            "# Uses `remote_aes` and `min_study_age`.\n"
+            'x = "UPDATE remote_aes SET min_study_age = 1"\n',
+            'x = 1  # `HttpClient` beside bare_field\ny = "bare_field"\n',
+        ],
+        ids=[
+            "no-backticked-trigger",
+            "already-backticked-sibling",
+            "trailing-comment-not-a-block",
+        ],
+    )
+    def test_ConformingComment_NoViolation(self, source: str) -> None:
+        assert (
+            list(
+                check_unbackticked_sibling_symbol_in_comments(Path("src/x.py"), source)
+            )
+            == []
+        )
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        source = "# Uses `remote_aes`. Reads remote_aes.\nx = 1\n"
+        assert (
+            list(check_unbackticked_sibling_symbol_in_comments(Path("x.toml"), source))
+            == []
+        )
 
 
 class TestCheckGluedCodeSpanInDocstrings:

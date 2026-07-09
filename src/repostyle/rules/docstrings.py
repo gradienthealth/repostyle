@@ -13,7 +13,7 @@ import ast
 import io
 import re
 import tokenize
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
@@ -26,6 +26,7 @@ from repostyle.rules._shared import (
     _join_source_lines,
     _parse_python,
     _repostyle_table,
+    _standalone_comment_blocks,
     _string_list,
     _terminal_punctuation_fault,
     find_pyproject,
@@ -571,17 +572,14 @@ def check_unbackticked_sibling_symbol(path: Path, source: str) -> Iterator[Viola
     tree = _parse_python(path, source)
     if tree is None:
         return
-    constants = [
-        constant
-        for node in _walk_docstring_owners(tree)
-        if (constant := _docstring_constant(node)) is not None
-    ]
-    docstring_ids = frozenset(id(constant) for constant in constants)
-    symbols = _string_literal_symbols(tree, docstring_ids) - _module_bound_names(tree)
+    symbols = _sibling_symbol_evidence(tree)
     if not symbols:
         return
     source_lines = source.splitlines()
-    for constant in constants:
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
         units = _docstring_prose_units(constant)
         if not _backticks_a_code_symbol(units):
             continue
@@ -596,6 +594,42 @@ def check_unbackticked_sibling_symbol(path: Path, source: str) -> Iterator[Viola
                 RS_UNBACKTICKED_SIBLING_SYMBOL,
                 f"`{name}` is left bare while a sibling code symbol in the same "
                 "docstring is backticked; wrap it in single backticks",
+            )
+
+
+def check_unbackticked_sibling_symbol_in_comments(
+    path: Path, source: str
+) -> Iterator[Violation]:
+    """Flags a bare code token beside a backticked sibling in a comment.
+
+    RS039's docstring rule carried to a contiguous run of `#` comment lines:
+    where the block already backticks a code-shaped token, a bare sibling token
+    left in it reads as an oversight rather than a choice. The two guards hold
+    unchanged: the bare token must be distinctive in shape and must recur
+    verbatim inside a string literal in the file, so the finding rests on
+    self-contained evidence rather than a guess. A name the module binds stays
+    RS036's. Only Python is scanned, since the string-literal proof is read
+    from the file's own AST.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    symbols = _sibling_symbol_evidence(tree)
+    if not symbols:
+        return
+    source_lines = source.splitlines()
+    for block in _standalone_comment_blocks(path, source):
+        unit = _comment_prose_unit(block)
+        if not _backticks_a_code_symbol([unit]):
+            continue
+        for name in dict.fromkeys(_unbackticked_references(unit, symbols)):
+            lineno, col = _comment_symbol_location(source_lines, block, name)
+            yield Violation(
+                lineno,
+                col,
+                RS_UNBACKTICKED_SIBLING_SYMBOL,
+                f"`{name}` is left bare while a sibling code symbol in the same "
+                "comment is backticked; wrap it in single backticks",
             )
 
 
@@ -689,11 +723,46 @@ def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, s
     return standalone, trailing
 
 
+def _comment_prose_unit(block: list[tuple[int, int, str]]) -> _ProseUnit:
+    """Joins a comment block's lines into one prose unit to scan."""
+    text = " ".join(_comment_text(string) for _, _, string in block)
+    lineno, column, _ = block[0]
+    linenos = tuple(line for line, _, _ in block)
+    return _ProseUnit("body", lineno, column + 1, text, linenos)
+
+
+def _comment_symbol_location(
+    source_lines: list[str], block: list[tuple[int, int, str]], name: str
+) -> tuple[int, int]:
+    """Returns the position of the first bare `name` in a comment block."""
+    linenos = [line for line, _, _ in block]
+    located = _first_bare_token(source_lines, linenos, name)
+    lineno, column, _ = block[0]
+    return located or (lineno, column + 1)
+
+
 def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
     """Yields every `@dataclass`-decorated class in `tree`."""
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and _has_dataclass_decorator(node):
             yield node
+
+
+def _sibling_symbol_evidence(tree: ast.AST) -> frozenset[str]:
+    """Returns the string-literal tokens proving a bare prose word is code.
+
+    A distinctive token carried verbatim inside a non-docstring string literal
+    is self-contained proof, in the file itself, that a matching bare word in a
+    docstring or comment names a real identifier. A name the module binds is
+    left to RS036, so subtracting the bound names keeps the two rules from
+    flagging one token.
+    """
+    docstring_ids = frozenset(
+        id(constant)
+        for node in _walk_docstring_owners(tree)
+        if (constant := _docstring_constant(node)) is not None
+    )
+    return _string_literal_symbols(tree, docstring_ids) - _module_bound_names(tree)
 
 
 def _module_bound_names(tree: ast.Module) -> frozenset[str]:
@@ -730,14 +799,9 @@ def _name_location(
     itself rather than the prose unit that contains it, so the finding lands on
     the right line under `--diff`.
     """
-    pattern = re.compile(rf"(?<![\w`]){re.escape(name)}(?![\w`])")
     end = constant.end_lineno or constant.lineno
-    for lineno in range(constant.lineno, end + 1):
-        stripped = _BACKTICK_SPAN_PATTERN.sub(" ", source_lines[lineno - 1])
-        match = pattern.search(stripped)
-        if match is not None:
-            return lineno, match.start() + 1
-    return constant.lineno, constant.col_offset + 1
+    located = _first_bare_token(source_lines, range(constant.lineno, end + 1), name)
+    return located or (constant.lineno, constant.col_offset + 1)
 
 
 def _string_literal_symbols(
@@ -851,6 +915,24 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
 def _docstring_summary_line(docstring: str) -> str:
     """Returns the first non-blank line of a cleaned `docstring`, stripped."""
     return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
+
+
+def _first_bare_token(
+    source_lines: list[str], linenos: Iterable[int], name: str
+) -> tuple[int, int] | None:
+    """Returns the line and 1-based column of the first unbackticked `name`.
+
+    Backtick spans are dropped before the search, so a mention already in code
+    font is skipped and the position points at the bare token a fix must wrap.
+    Returns `None` when no bare mention sits on the given lines.
+    """
+    pattern = re.compile(rf"(?<![\w`]){re.escape(name)}(?![\w`])")
+    for lineno in linenos:
+        stripped = _BACKTICK_SPAN_PATTERN.sub(" ", source_lines[lineno - 1])
+        match = pattern.search(stripped)
+        if match is not None:
+            return lineno, match.start() + 1
+    return None
 
 
 def _is_distinctive_code_token(name: str) -> bool:

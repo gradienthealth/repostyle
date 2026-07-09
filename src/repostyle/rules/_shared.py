@@ -9,9 +9,12 @@ from __future__ import annotations
 import ast
 import re
 import tomllib
+from collections.abc import Iterator
 from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
+
+from repostyle.rules._comments import extract_comments
 
 # A pytest-collected test class: `Test` followed by an uppercase letter or the
 # end of the name, so `Testimony` and `Tester` are not matched.
@@ -46,6 +49,33 @@ def find_pyproject(start: Path) -> Path | None:
     """Walks up from `start` to find the nearest `pyproject.toml`."""
     start = start.resolve()
     return _find_pyproject_from(start if start.is_dir() else start.parent)
+
+
+def _standalone_comment_blocks(
+    path: Path, source: str
+) -> Iterator[list[tuple[int, int, str]]]:
+    """Groups own-line comments into adjacent same-column blocks.
+
+    A directive line, a trailing comment, a blank gap, or a column shift closes
+    the open block, so each yielded block is one contiguous prose comment a
+    reader sees as a paragraph.
+    """
+    block: list[tuple[int, int, str]] = []
+    previous: tuple[int, int] | None = None
+    for comment in extract_comments(path, source):
+        lineno, column, string = comment.lineno, comment.column, comment.string
+        if comment.is_trailing or _is_directive_comment(_comment_text(string)):
+            if block:
+                yield block
+            block, previous = [], None
+            continue
+        if previous is not None and previous != (lineno - 1, column):
+            yield block
+            block = []
+        block.append((lineno, column, string))
+        previous = (lineno, column)
+    if block:
+        yield block
 
 
 def _comment_text(comment: str) -> str:
