@@ -44,6 +44,7 @@ from repostyle.rules._violation import (
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
     RS_UNBACKTICKED_CODE_REFERENCE,
+    RS_UNBACKTICKED_SIBLING_SYMBOL,
     Severity,
     Violation,
 )
@@ -72,6 +73,7 @@ from repostyle.rules.docstrings import (
     check_no_double_backticks_in_md,
     check_summary_comment_as_docstring,
     check_unbackticked_code_reference,
+    check_unbackticked_sibling_symbol,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
@@ -155,6 +157,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
         check_glued_code_span_in_docstrings,
         check_glued_code_span_in_comments,
     ),
+    RS_UNBACKTICKED_SIBLING_SYMBOL: (check_unbackticked_sibling_symbol,),
 }
 
 
@@ -191,6 +194,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_UNBACKTICKED_CODE_REFERENCE: Severity.WARNING,
     RS_GLUED_CODE_SPAN: Severity.WARNING,
     RS_TAG_COMMENT_CONTINUATION_INDENT: Severity.WARNING,
+    RS_UNBACKTICKED_SIBLING_SYMBOL: Severity.WARNING,
 }
 
 

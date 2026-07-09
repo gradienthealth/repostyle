@@ -286,9 +286,9 @@ def _abbreviation_violations(
 def _acronym_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
     """Yields the at-most-one casing-checked name a node introduces.
 
-    Resolves a class name, PEP 695 alias or type parameter, or a TypeVar-family
-    factory assignment to its `(name, lineno, col_offset)` triple; yields
-    nothing for any other node.
+    Resolves a class name, PEP 695 alias or type parameter, or a
+    `TypeVar`-family factory assignment to its `(name, lineno, col_offset)`
+    triple; yields nothing for any other node.
     """
     if isinstance(node, ast.ClassDef):
         yield (node.name, node.lineno, node.col_offset)

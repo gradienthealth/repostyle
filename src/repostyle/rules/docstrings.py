@@ -40,6 +40,7 @@ from repostyle.rules._violation import (
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TERMINAL_PUNCTUATION,
     RS_UNBACKTICKED_CODE_REFERENCE,
+    RS_UNBACKTICKED_SIBLING_SYMBOL,
     Violation,
 )
 from repostyle.rules.imperative_verbs import (
@@ -550,6 +551,56 @@ def check_unbackticked_code_reference(path: Path, source: str) -> Iterator[Viola
             )
 
 
+def check_unbackticked_sibling_symbol(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a bare code token beside a backticked sibling in one docstring.
+
+    Where a docstring already sets one code symbol in single backticks, a house
+    convention holds that its siblings are set the same way, so a bare token
+    left in prose reads as an oversight rather than a choice. This check fires
+    only on that inconsistency: a docstring must already backtick at least one
+    code-shaped token before any bare token in it is considered.
+
+    A bare token qualifies only when its shape rules out ordinary English — an
+    underscore, a digit, or an interior capital beside a lowercase letter
+    (`remote_aes`, `col_offset`, `HttpClient`) — and when the same file offers
+    self-contained proof it is a real identifier by carrying it verbatim inside
+    a string literal, such as a table or column name in an embedded SQL
+    statement. A name the module binds is left to RS036, which flags it whether
+    or not a sibling is backticked, so the two rules never fire on one token.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    constants = [
+        constant
+        for node in _walk_docstring_owners(tree)
+        if (constant := _docstring_constant(node)) is not None
+    ]
+    docstring_ids = frozenset(id(constant) for constant in constants)
+    known = _module_bound_names(tree) | _LITERAL_CONSTANTS
+    symbols = _string_literal_symbols(tree, docstring_ids) - known
+    if not symbols:
+        return
+    source_lines = source.splitlines()
+    for constant in constants:
+        if not _backticks_a_code_symbol(constant):
+            continue
+        bare = dict.fromkeys(
+            name
+            for unit in _docstring_prose_units(constant)
+            for name in _unbackticked_references(unit, symbols)
+        )
+        for name in bare:
+            lineno, col = _name_location(source_lines, constant, name)
+            yield Violation(
+                lineno,
+                col,
+                RS_UNBACKTICKED_SIBLING_SYMBOL,
+                f"`{name}` is left bare while a sibling code symbol in the same "
+                "docstring is backticked; wrap it in single backticks",
+            )
+
+
 def fix_docstring_terminal_punctuation(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
@@ -583,6 +634,20 @@ def fix_docstring_terminal_punctuation(
             source_lines[unit.lineno - 1] = f"{line[:index]}.{line[index:]}"
             changed = True
     return _join_source_lines(source, source_lines) if changed else source
+
+
+def _backticks_a_code_symbol(constant: ast.Constant) -> bool:
+    """Reports whether a docstring already backticks a code-shaped token.
+
+    A backticked span whose content holds a distinctive identifier is the
+    consistency trigger: it shows the author backticks code in this docstring,
+    so a bare sibling token is an inconsistency rather than deliberate prose.
+    """
+    for span in _BACKTICK_SPAN_PATTERN.finditer(constant.value):
+        for match in _IDENTIFIER_PATTERN.finditer(span.group().strip("`")):
+            if _is_distinctive_code_token(match.group()):
+                return True
+    return False
 
 
 def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
@@ -671,6 +736,43 @@ def _name_location(
         if match is not None:
             return lineno, match.start() + 1
     return constant.lineno, constant.col_offset + 1
+
+
+def _string_literal_symbols(
+    tree: ast.AST, docstring_ids: frozenset[int]
+) -> frozenset[str]:
+    """Returns the distinctive identifier tokens found in string literals.
+
+    Scans every string constant that is not itself a docstring — an embedded
+    SQL statement, a log line, a format string — and collects the identifier
+    tokens whose shape marks them as code. A token appearing here is proof, in
+    the file itself, that a matching bare word in a docstring names a real
+    identifier rather than reading as English.
+    """
+    symbols: set[str] = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in docstring_ids
+        ):
+            for match in _IDENTIFIER_PATTERN.finditer(node.value):
+                if _is_distinctive_code_token(match.group()):
+                    symbols.add(match.group())
+    return frozenset(symbols)
+
+
+def _is_distinctive_code_token(name: str) -> bool:
+    """Reports whether a token's shape rules out an ordinary English word.
+
+    An underscore, a digit, or an interior capital beside a lowercase letter
+    (CamelCase) marks a token as code wherever it sits. A plain lowercase,
+    Titlecase, or all-caps word could be English and is not distinctive.
+    """
+    if "_" in name or any(character.isdigit() for character in name):
+        return True
+    has_interior_capital = any(character.isupper() for character in name[1:])
+    return has_interior_capital and any(character.islower() for character in name)
 
 
 def _unbackticked_references(unit: _ProseUnit, known: frozenset[str]) -> list[str]:

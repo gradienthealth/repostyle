@@ -57,6 +57,7 @@ from repostyle.rules._violation import (
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
     RS_UNBACKTICKED_CODE_REFERENCE,
+    RS_UNBACKTICKED_SIBLING_SYMBOL,
 )
 from repostyle.rules.imperative_verbs import NON_TRIVIAL_CONJUGATIONS
 
@@ -628,6 +629,44 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 note=(
                     "A possessive glues the same way: write the value of "
                     "`patient.identifier`, not `patient.identifier`'s value."
+                ),
+            ),
+        ),
+    ),
+    RS_UNBACKTICKED_SIBLING_SYMBOL: RuleDoc(
+        name="unbackticked-sibling-symbol",
+        summary=(
+            "When a docstring backticks one code symbol, its sibling code "
+            "tokens in the same docstring are backticked too."
+        ),
+        rationale=(
+            "Once a docstring sets one code symbol in single backticks, leaving "
+            "a sibling token bare reads as an oversight, not a choice, so the "
+            "house style asks for the whole docstring to be consistent. This "
+            "check fires only on that inconsistency, which keeps it mechanical: "
+            "a docstring must already backtick at least one code-shaped token "
+            "before a bare token in it is weighed. A bare token qualifies only "
+            "when its shape rules out plain English — an underscore, a digit, "
+            "or an interior capital beside a lowercase letter — and when the "
+            "same file carries it verbatim inside a string literal, such as a "
+            "table or column name in an embedded SQL statement, which is "
+            "self-contained proof it names a real identifier. A name the module "
+            "binds is left to RS036, which fires on it whether or not a sibling "
+            "is backticked, so the two rules never flag one token."
+        ),
+        examples=(
+            Example(
+                bad=(
+                    '"""`ContinuousDiscoverySettings` rejects a value, so a '
+                    'remote_aes row fails to load."""'
+                ),
+                good=(
+                    '"""`ContinuousDiscoverySettings` rejects a value, so a '
+                    '`remote_aes` row fails to load."""'
+                ),
+                note=(
+                    "`remote_aes` appears in the migration's own SQL string, so "
+                    "its bare mention beside a backticked class is flagged."
                 ),
             ),
         ),
