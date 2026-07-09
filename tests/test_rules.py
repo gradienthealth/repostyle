@@ -132,9 +132,16 @@ class TestCheckAcronymCasing:
     def test_ConformingIdentifier_NoViolation(self, source: str) -> None:
         assert list(check_acronym_casing(Path("src/x.py"), source)) == []
 
-    def test_ConfiguredExtraAcronym_FlagsViolation(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "extra",
+        ['["UID"]', '["uid"]'],
+        ids=["uppercase-config", "lowercase-config"],
+    )
+    def test_ConfiguredExtraAcronym_FlagsViolation(
+        self, tmp_path: Path, extra: str
+    ) -> None:
         (tmp_path / "pyproject.toml").write_text(
-            '[tool.repostyle]\nacronyms-extra = ["UID"]\n', encoding="utf-8"
+            f"[tool.repostyle]\nacronyms-extra = {extra}\n", encoding="utf-8"
         )
         source = "class UidValidator: ...\n"
         target = tmp_path / "x.py"
