@@ -487,15 +487,22 @@ class TestCheckUnbacktickedSiblingSymbolInComments:
             '# Updates the remote_aes table.\nx = "UPDATE remote_aes SET y = 1"\n',
             "# Uses `remote_aes` and `min_study_age`.\n"
             'x = "UPDATE remote_aes SET min_study_age = 1"\n',
-            'x = 1  # `HttpClient` beside bare_field\ny = "bare_field"\n',
         ],
         ids=[
             "no-backticked-trigger",
             "already-backticked-sibling",
-            "trailing-comment-not-a-block",
         ],
     )
     def test_ConformingComment_NoViolation(self, source: str) -> None:
+        assert (
+            list(
+                check_unbackticked_sibling_symbol_in_comments(Path("src/x.py"), source)
+            )
+            == []
+        )
+
+    def test_TrailingComment_NotChecked(self) -> None:
+        source = 'x = 1  # `HttpClient` beside bare_field\ny = "bare_field"\n'
         assert (
             list(
                 check_unbackticked_sibling_symbol_in_comments(Path("src/x.py"), source)
