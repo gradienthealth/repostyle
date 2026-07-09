@@ -435,6 +435,7 @@ class TestCheckUnbacktickedSiblingSymbol:
             "    x = `HttpClient`\n"
             '"""\n'
             'x = "UPDATE remote_aes SET y = 1"\n',
+            '"""Imports study UIDs via `HttpClient`."""\nx = "load study UIDs"\n',
         ],
         ids=[
             "no-backticked-trigger",
@@ -443,6 +444,7 @@ class TestCheckUnbacktickedSiblingSymbol:
             "distinctive-token-without-in-file-evidence",
             "backticked-word-is-not-a-code-symbol",
             "backtick-only-in-example-block",
+            "pluralized-acronym-not-a-code-symbol",
         ],
     )
     def test_ConformingDocstring_NoViolation(self, source: str) -> None:

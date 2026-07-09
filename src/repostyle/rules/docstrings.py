@@ -106,6 +106,10 @@ _IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # documents the name rather than referencing it, so RS036 strips the caption
 # before scanning.
 _ENTRY_CAPTION_PATTERN = re.compile(r"^\S+(?:\s*\([^)]*\))?:\s*")
+# A pluralized all-caps acronym (`UIDs`, `URLs`, `IDs`): an acronym reads as
+# English whether bare (`URL`) or plural, so the trailing `s` — its only
+# lowercase letter — must not make the token look like code.
+_PLURAL_ACRONYM_PATTERN = re.compile(r"[A-Z]{2,}s")
 _SENTENCE_ENDINGS = (".", "!", "?")
 _GLUED_SPAN_MESSAGE = (
     "a code span carries a glued suffix; move the suffix outside the backticks"
@@ -940,10 +944,14 @@ def _is_distinctive_code_token(name: str) -> bool:
 
     An underscore, a digit, or an interior capital beside a lowercase letter
     (CamelCase) marks a token as code wherever it sits. A plain lowercase,
-    Titlecase, or all-caps word could be English and is not distinctive.
+    Titlecase, or all-caps word could be English and is not distinctive, and
+    neither is a pluralized all-caps acronym (`UIDs`, `URLs`), whose only
+    lowercase letter is the trailing `s`.
     """
     if "_" in name or any(character.isdigit() for character in name):
         return True
+    if _PLURAL_ACRONYM_PATTERN.fullmatch(name):
+        return False
     has_interior_capital = any(character.isupper() for character in name[1:])
     return has_interior_capital and any(character.islower() for character in name)
 
