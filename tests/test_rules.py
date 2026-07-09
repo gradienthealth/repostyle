@@ -387,13 +387,16 @@ class TestCheckUnbacktickedSiblingSymbol:
         source = (
             '"""Bumps rows below the new floor.\n\n'
             "`ContinuousDiscoverySettings` now rejects a value, so a remote_aes\n"
-            "row with continuous_min_study_age below it fails to construct.\n"
+            "row with continuous_min_study_age below it fails to construct; the\n"
+            "remote_aes rows are bumped to the new floor.\n"
             '"""\n'
             "op.execute(\n"
             '    "UPDATE remote_aes SET continuous_min_study_age = 1"\n'
             ")\n"
         )
         violations = list(check_unbackticked_sibling_symbol(Path("src/x.py"), source))
+        # `remote_aes` is named twice in the prose but flagged once, so the two
+        # flags are one per distinct name, not one per mention.
         assert [violation.rule for violation in violations] == [
             RS_UNBACKTICKED_SIBLING_SYMBOL,
             RS_UNBACKTICKED_SIBLING_SYMBOL,
