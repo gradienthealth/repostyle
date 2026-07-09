@@ -132,6 +132,26 @@ class TestCheckAcronymCasing:
     def test_ConformingIdentifier_NoViolation(self, source: str) -> None:
         assert list(check_acronym_casing(Path("src/x.py"), source)) == []
 
+    def test_ConfiguredExtraAcronym_FlagsViolation(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text(
+            '[tool.repostyle]\nacronyms-extra = ["UID"]\n', encoding="utf-8"
+        )
+        source = "class UidValidator: ...\n"
+        target = tmp_path / "x.py"
+        target.write_text(source, encoding="utf-8")
+        violations = list(check_acronym_casing(target, source))
+        assert len(violations) == 1
+        assert "'UID' must stay uppercase in 'UidValidator'" in violations[0].message
+
+    def test_ConfiguredExcludedAcronym_NoViolation(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text(
+            '[tool.repostyle]\nacronyms-exclude = ["URL"]\n', encoding="utf-8"
+        )
+        source = "class UrlBuilder: ...\n"
+        target = tmp_path / "x.py"
+        target.write_text(source, encoding="utf-8")
+        assert list(check_acronym_casing(target, source)) == []
+
     def test_NonPythonFile_NotChecked(self) -> None:
         assert list(check_acronym_casing(Path("README.md"), "class FhirClient")) == []
 

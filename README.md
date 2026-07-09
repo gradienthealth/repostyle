@@ -100,6 +100,18 @@ exclude = ["*_pb2.py", "*_pb2_grpc.py", "vendor/*"]  # globs skipped by every ru
 
 The globs use the same `fnmatch` semantics and repo-relative matching as `filename-ignore` (matched against the path relative to the discovered `pyproject.toml`). `fnmatch`'s `*` spans `/`, so a name glob like `*_pb2.py` matches at any depth and there is no recursive `**` operator — to exclude a `_grpc` directory wherever it sits, write `*_grpc/*.py`, not `**/_grpc/*.py`. A match is dropped however it reaches repostyle: whether walked from a directory argument or passed explicitly, so a regenerated file the pre-commit hook passes by name is skipped too. With no `exclude` configured, every discovered file is scanned. This is a global discovery filter, distinct from `filename-ignore`, which only exempts a file from the RS033 filename-convention rule while leaving every other rule to scan it.
 
+## Configure the acronym list (RS001)
+
+RS001 checks a fixed set of acronyms (`API`, `FHIR`, `HTTP`, `ID`, `JWT`, `URL`, ...) for uppercase casing in CapWords names. A repo whose domain carries its own acronyms tunes the set without a repostyle source change:
+
+```toml
+[tool.repostyle]
+acronyms-extra = ["UID", "SCU", "SCP", "PACS"]   # domain acronyms this repo's names use
+acronyms-exclude = ["DOB"]                        # a shipped acronym too aggressive for this repo
+```
+
+`acronyms-extra` adds to the shipped set rather than replacing it; `acronyms-exclude` removes from the combined result, so it can drop a shipped acronym, an added one, or both. Entries are matched uppercased, so their case here does not matter. Neither key needs the other configured.
+
 ## Configure layering bans (RS017)
 
 RS017 takes its bans from config, so each repo expresses its own layering. Map a path glob (relative to the repo root, `fnmatch` semantics) to the import sources files under it may not import:

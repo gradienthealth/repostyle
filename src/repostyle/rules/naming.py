@@ -9,9 +9,17 @@ from __future__ import annotations
 import ast
 import re
 from collections.abc import Iterator
+from functools import lru_cache
 from pathlib import Path
 
-from repostyle.rules._shared import TEST_CLASS_PATTERN, _is_test_file, _parse_python
+from repostyle.rules._shared import (
+    TEST_CLASS_PATTERN,
+    _is_test_file,
+    _parse_python,
+    _repostyle_table,
+    _string_list,
+    find_pyproject,
+)
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_BANNED_ABBREVIATION,
@@ -94,14 +102,17 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
     Scope: class names, PEP 695 `type` aliases, PEP 695 type parameters
     (`class C[T]`, `def f[T]`), and `TypeVar`/`NewType`/`ParamSpec`/
     `TypeVarTuple` factory calls in either `Name` or `typing.TypeVar` attribute
-    form.
+    form. A repo extends the acronym set for its own domain via
+    `acronyms-extra` and drops one via `acronyms-exclude` in
+    `[tool.repostyle]`.
     """
     tree = _parse_python(path, source)
     if tree is None:
         return
+    acronyms = _effective_acronyms(find_pyproject(path))
     for node in ast.walk(tree):
         for name, lineno, col_offset in _acronym_named_targets(node):
-            yield from _acronym_violations(name, lineno, col_offset)
+            yield from _acronym_violations(name, lineno, col_offset, acronyms)
 
 
 def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
@@ -300,14 +311,16 @@ def _acronym_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
         yield from _typevar_factory_targets(node)
 
 
-def _acronym_violations(name: str, lineno: int, col_offset: int) -> Iterator[Violation]:
+def _acronym_violations(
+    name: str, lineno: int, col_offset: int, acronyms: frozenset[str]
+) -> Iterator[Violation]:
     """Yields a casing violation for each miscased acronym in a CapWords name.
 
     A name not starting with an uppercase letter is left alone.
     """
     if not name[:1].isupper():
         return
-    for acronym in _capwords_acronym_violations(name):
+    for acronym in _capwords_acronym_violations(name, acronyms):
         yield Violation(
             lineno,
             col_offset + 1,
@@ -347,11 +360,33 @@ def _boolean_prefix_violations(
         )
 
 
-def _capwords_acronym_violations(name: str) -> Iterator[str]:
+def _capwords_acronym_violations(name: str, acronyms: frozenset[str]) -> Iterator[str]:
     for word in _CAPWORDS_WORD.findall(name):
         upper = word.upper()
-        if upper in _ACRONYM_SET and word != upper:
+        if upper in acronyms and word != upper:
             yield upper
+
+
+@lru_cache(maxsize=128)
+def _effective_acronyms(pyproject: Path | None) -> frozenset[str]:
+    """Returns the acronym set, adjusted for this repo's config.
+
+    A repo adds a domain acronym through `acronyms-extra` — a DICOM repo adds
+    `UID`, `SCU`, `PACS` — or drops one too aggressive for its own names
+    through `acronyms-exclude`, tuning RS001 locally instead of editing the
+    shared list every repo inherits, the same override pattern RS017's
+    `banned-imports` and RS034's `imperative-verbs-extra` already use. Entries
+    are matched uppercased, so their case in config does not matter.
+    """
+    table = _repostyle_table(pyproject)
+    extra = _string_list(table, "acronyms-extra")
+    exclude = _string_list(table, "acronyms-exclude")
+    if not extra and not exclude:
+        return _ACRONYM_SET
+    excluded = frozenset(word.upper() for word in exclude)
+    return frozenset(
+        word.upper() for word in (*ACRONYMS, *extra) if word.upper() not in excluded
+    )
 
 
 def _negated_boolean_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:
