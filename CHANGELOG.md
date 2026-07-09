@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.17.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.16.0...repostyle-v0.17.0) (2026-07-09)
+
+
+### Features
+
+* **NO-ISSUE:** add RS039 for unbackticked sibling code symbols ([#97](https://github.com/gradienthealth/repostyle/issues/97)) ([ab28653](https://github.com/gradienthealth/repostyle/commit/ab2865338c7cd2537bfb597959db31626bc7324a))
+* **NO-ISSUE:** add the deeply-nested-type rule (RS040) ([#98](https://github.com/gradienthealth/repostyle/issues/98)) ([92d9734](https://github.com/gradienthealth/repostyle/commit/92d9734304cb708fc9099ac5e0da3231e0f96306))
+* **NO-ISSUE:** make RS001's acronym set per-repo configurable ([#100](https://github.com/gradienthealth/repostyle/issues/100)) ([3bacd64](https://github.com/gradienthealth/repostyle/commit/3bacd6431361b505b893d0e130b5ade61d4ffdef))
+
 ## [0.16.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.15.0...repostyle-v0.16.0) (2026-07-08)
 
 
