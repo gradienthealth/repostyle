@@ -37,6 +37,12 @@ class TestCheckDeeplyNestedType:
         assert len(violations) == 1
         assert violations[0].rule == RS_DEEPLY_NESTED_TYPE
 
+    def test_DeeperNesting_ReportsItsDepth(self) -> None:
+        source = "def f() -> list[list[dict[str, list[list]]]]: ...\n"
+        violations = list(check_deeply_nested_type(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert "4 levels" in violations[0].message
+
     @pytest.mark.skipif(
         sys.version_info < (3, 12),
         reason="the PEP 695 `type` statement parses only on 3.12+",
@@ -46,12 +52,6 @@ class TestCheckDeeplyNestedType:
         violations = list(check_deeply_nested_type(Path("src/x.py"), source))
         assert len(violations) == 1
         assert violations[0].rule == RS_DEEPLY_NESTED_TYPE
-
-    def test_DeeperNesting_ReportsItsDepth(self) -> None:
-        source = "def f() -> list[list[dict[str, list[list]]]]: ...\n"
-        violations = list(check_deeply_nested_type(Path("src/x.py"), source))
-        assert len(violations) == 1
-        assert "4 levels" in violations[0].message
 
     @pytest.mark.parametrize(
         "source",
