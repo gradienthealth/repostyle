@@ -9,8 +9,8 @@ from repostyle.rules import (
 )
 from repostyle.rules.naming import BANNED_ABBREVIATIONS
 
-_RICH_RULES = ["RS010", "RS012", "RS015", "RS016", "RS017", "RS018", "RS022"]
-_SUMMARY_ONLY_RULES = ["RS001", "RS002", "RS004"]
+_RICH_RULES = ["RS001", "RS010", "RS012", "RS015", "RS016", "RS017", "RS018", "RS022"]
+_SUMMARY_ONLY_RULES = ["RS002", "RS004"]
 
 
 class TestRuleDocs:
@@ -39,7 +39,7 @@ class TestExplainRule:
                 [],
             ),
             ("RS012", ["Likely causes and remedies:", "(warning)"], ["Examples:"]),
-            ("RS001", ["Fixable: no."], ["Why:", "Examples:", "Reference:"]),
+            ("RS002", ["Fixable: no."], ["Why:", "Examples:", "Reference:"]),
         ],
         ids=["rich-with-reference", "heuristic-warning", "summary-only"],
     )
