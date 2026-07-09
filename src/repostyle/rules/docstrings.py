@@ -577,18 +577,16 @@ def check_unbackticked_sibling_symbol(path: Path, source: str) -> Iterator[Viola
         if (constant := _docstring_constant(node)) is not None
     ]
     docstring_ids = frozenset(id(constant) for constant in constants)
-    known = _module_bound_names(tree) | _LITERAL_CONSTANTS
-    symbols = _string_literal_symbols(tree, docstring_ids) - known
+    symbols = _string_literal_symbols(tree, docstring_ids) - _module_bound_names(tree)
     if not symbols:
         return
     source_lines = source.splitlines()
     for constant in constants:
-        if not _backticks_a_code_symbol(constant):
+        units = _docstring_prose_units(constant)
+        if not _backticks_a_code_symbol(units):
             continue
         bare = dict.fromkeys(
-            name
-            for unit in _docstring_prose_units(constant)
-            for name in _unbackticked_references(unit, symbols)
+            name for unit in units for name in _unbackticked_references(unit, symbols)
         )
         for name in bare:
             lineno, col = _name_location(source_lines, constant, name)
@@ -636,22 +634,22 @@ def fix_docstring_terminal_punctuation(
     return _join_source_lines(source, source_lines) if changed else source
 
 
-def _backticks_a_code_symbol(constant: ast.Constant) -> bool:
+def _backticks_a_code_symbol(units: list[_ProseUnit]) -> bool:
     """Reports whether a docstring already backticks a code-shaped token.
 
     A backticked span whose content holds a distinctive identifier is the
     consistency trigger: it shows the author backticks code in this docstring,
     so a bare sibling token is an inconsistency rather than deliberate prose.
-    Only prose units count, the same regions the bare-token scan reads, so a
-    backtick that sits inside a doctest or an `Example:` block does not trip
-    the trigger for prose the rule would never flag.
+    Only the prose units the bare-token scan reads count, so a backtick that
+    sits inside a doctest or an `Example:` block does not trip the trigger for
+    prose the rule would never flag.
     """
-    for unit in _docstring_prose_units(constant):
-        for span in _BACKTICK_SPAN_PATTERN.finditer(unit.text):
-            for match in _IDENTIFIER_PATTERN.finditer(span.group().strip("`")):
-                if _is_distinctive_code_token(match.group()):
-                    return True
-    return False
+    return any(
+        _is_distinctive_code_token(match.group())
+        for unit in units
+        for span in _BACKTICK_SPAN_PATTERN.finditer(unit.text)
+        for match in _IDENTIFIER_PATTERN.finditer(span.group().strip("`"))
+    )
 
 
 def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
