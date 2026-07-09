@@ -5,7 +5,7 @@ str]]`) packs a data structure into a signature that a reader has to unpack in
 their head every time they meet it. Past two levels of nesting the annotation is
 usually standing in for a type that wants a name — a `TypeAlias`, a
 `NamedTuple`, or a dataclass — so the depth is a smell worth a second look
-rather than a defect, and the rule warns rather than fails. A single-level
+rather than a defect, and the rule warns rather than fails. A two-level
 `Iterator[tuple[...]]` or `Callable[..., Iterator[...]]` is idiomatic and left
 alone.
 """
