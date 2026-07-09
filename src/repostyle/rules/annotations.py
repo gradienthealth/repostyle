@@ -22,8 +22,9 @@ from repostyle.rules._violation import RS_DEEPLY_NESTED_TYPE, Violation
 # Two levels of subscripting (`Iterator[tuple[Path, str]]`, `dict[str,
 # list[int]]`) is idiomatic and reads at a glance; the warning fires only once a
 # third subscript nests inside the second. Every `ast.Subscript` layer counts
-# the same — there is no exemption for `tuple`, `Callable`, or a `X | Y` union,
-# since a nested generic is as hard to read whatever wraps it.
+# the same — there is no exemption for `tuple` or `Callable`, since a nested
+# generic is as hard to read whatever wraps it. A PEP 604 `X | Y` union is an
+# `ast.BinOp` rather than a subscript, so it adds no level of its own.
 TYPE_NESTING_LIMIT = 2
 
 # The old-style spelling `X: TypeAlias = <type>` puts the aliased type in the
