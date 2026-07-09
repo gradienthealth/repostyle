@@ -13,7 +13,7 @@ import ast
 import io
 import re
 import tokenize
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
@@ -26,6 +26,7 @@ from repostyle.rules._shared import (
     _join_source_lines,
     _parse_python,
     _repostyle_table,
+    _standalone_comment_blocks,
     _string_list,
     _terminal_punctuation_fault,
     find_pyproject,
@@ -40,6 +41,7 @@ from repostyle.rules._violation import (
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TERMINAL_PUNCTUATION,
     RS_UNBACKTICKED_CODE_REFERENCE,
+    RS_UNBACKTICKED_SIBLING_SYMBOL,
     Violation,
 )
 from repostyle.rules.imperative_verbs import (
@@ -104,6 +106,10 @@ _IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # documents the name rather than referencing it, so RS036 strips the caption
 # before scanning.
 _ENTRY_CAPTION_PATTERN = re.compile(r"^\S+(?:\s*\([^)]*\))?:\s*")
+# A pluralized all-caps acronym (`UIDs`, `URLs`, `IDs`): an acronym reads as
+# English whether bare (`URL`) or plural, so the trailing `s` — its only
+# lowercase letter — must not make the token look like code.
+_PLURAL_ACRONYM_PATTERN = re.compile(r"[A-Z]{2,}s")
 _SENTENCE_ENDINGS = (".", "!", "?")
 _GLUED_SPAN_MESSAGE = (
     "a code span carries a glued suffix; move the suffix outside the backticks"
@@ -550,6 +556,87 @@ def check_unbackticked_code_reference(path: Path, source: str) -> Iterator[Viola
             )
 
 
+def check_unbackticked_sibling_symbol(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a bare code token beside a backticked sibling in one docstring.
+
+    Where a docstring already sets one code symbol in single backticks, a house
+    convention holds that its siblings are set the same way, so a bare token
+    left in prose reads as an oversight rather than a choice. This check fires
+    only on that inconsistency: a docstring must already backtick at least one
+    code-shaped token before any bare token in it is considered.
+
+    A bare token qualifies only when its shape rules out ordinary English — an
+    underscore, a digit, or an interior capital beside a lowercase letter
+    (`remote_aes`, `col_offset`, `HttpClient`) — and when the same file offers
+    self-contained proof it is a real identifier by carrying it verbatim inside
+    a string literal, such as a table or column name in an embedded SQL
+    statement. A name the module binds is left to RS036, which flags it whether
+    or not a sibling is backticked, so the two rules never fire on one token.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    symbols = _sibling_symbol_evidence(tree)
+    if not symbols:
+        return
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        units = _docstring_prose_units(constant)
+        if not _backticks_a_code_symbol(units):
+            continue
+        bare = dict.fromkeys(
+            name for unit in units for name in _unbackticked_references(unit, symbols)
+        )
+        for name in bare:
+            lineno, col = _name_location(source_lines, constant, name)
+            yield Violation(
+                lineno,
+                col,
+                RS_UNBACKTICKED_SIBLING_SYMBOL,
+                f"`{name}` is left bare while a sibling code symbol in the same "
+                "docstring is backticked; wrap it in single backticks",
+            )
+
+
+def check_unbackticked_sibling_symbol_in_comments(
+    path: Path, source: str
+) -> Iterator[Violation]:
+    """Flags a bare code token beside a backticked sibling in a comment.
+
+    RS039's docstring rule carried to a contiguous run of `#` comment lines:
+    where the block already backticks a code-shaped token, a bare sibling token
+    left in it reads as an oversight rather than a choice. The two guards hold
+    unchanged: the bare token must be distinctive in shape and must recur
+    verbatim inside a string literal in the file, so the finding rests on
+    self-contained evidence rather than a guess. A name the module binds stays
+    RS036's. Only Python is scanned, since the string-literal proof is read
+    from the file's own AST.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    symbols = _sibling_symbol_evidence(tree)
+    if not symbols:
+        return
+    source_lines = source.splitlines()
+    for block in _standalone_comment_blocks(path, source):
+        unit = _comment_prose_unit(block)
+        if not _backticks_a_code_symbol([unit]):
+            continue
+        for name in dict.fromkeys(_unbackticked_references(unit, symbols)):
+            lineno, col = _comment_symbol_location(source_lines, block, name)
+            yield Violation(
+                lineno,
+                col,
+                RS_UNBACKTICKED_SIBLING_SYMBOL,
+                f"`{name}` is left bare while a sibling code symbol in the same "
+                "comment is backticked; wrap it in single backticks",
+            )
+
+
 def fix_docstring_terminal_punctuation(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
@@ -583,6 +670,24 @@ def fix_docstring_terminal_punctuation(
             source_lines[unit.lineno - 1] = f"{line[:index]}.{line[index:]}"
             changed = True
     return _join_source_lines(source, source_lines) if changed else source
+
+
+def _backticks_a_code_symbol(units: list[_ProseUnit]) -> bool:
+    """Reports whether a docstring already backticks a code-shaped token.
+
+    A backticked span whose content holds a distinctive identifier is the
+    consistency trigger: it shows the author backticks code in this docstring,
+    so a bare sibling token is an inconsistency rather than deliberate prose.
+    The caller passes only the prose units the bare-token scan reads, so a
+    backtick inside a doctest or `Example:` block, which the scan skips, never
+    trips the trigger.
+    """
+    return any(
+        _is_distinctive_code_token(match.group())
+        for unit in units
+        for span in _BACKTICK_SPAN_PATTERN.finditer(unit.text)
+        for match in _IDENTIFIER_PATTERN.finditer(span.group().strip("`"))
+    )
 
 
 def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
@@ -622,11 +727,46 @@ def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, s
     return standalone, trailing
 
 
+def _comment_prose_unit(block: list[tuple[int, int, str]]) -> _ProseUnit:
+    """Joins a comment block's lines into one prose unit to scan."""
+    text = " ".join(_comment_text(string) for _, _, string in block)
+    lineno, column, _ = block[0]
+    linenos = tuple(line for line, _, _ in block)
+    return _ProseUnit("body", lineno, column + 1, text, linenos)
+
+
+def _comment_symbol_location(
+    source_lines: list[str], block: list[tuple[int, int, str]], name: str
+) -> tuple[int, int]:
+    """Returns the position of the first bare `name` in a comment block."""
+    linenos = [line for line, _, _ in block]
+    located = _first_bare_token(source_lines, linenos, name)
+    lineno, column, _ = block[0]
+    return located or (lineno, column + 1)
+
+
 def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
     """Yields every `@dataclass`-decorated class in `tree`."""
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and _has_dataclass_decorator(node):
             yield node
+
+
+def _sibling_symbol_evidence(tree: ast.AST) -> frozenset[str]:
+    """Returns the string-literal tokens proving a bare prose word is code.
+
+    A distinctive token carried verbatim inside a non-docstring string literal
+    is self-contained proof, in the file itself, that a matching bare word in a
+    docstring or comment names a real identifier. A name the module binds is
+    left to RS036, so subtracting the bound names keeps the two rules from
+    flagging one token.
+    """
+    docstring_ids = frozenset(
+        id(constant)
+        for node in _walk_docstring_owners(tree)
+        if (constant := _docstring_constant(node)) is not None
+    )
+    return _string_literal_symbols(tree, docstring_ids) - _module_bound_names(tree)
 
 
 def _module_bound_names(tree: ast.Module) -> frozenset[str]:
@@ -663,14 +803,33 @@ def _name_location(
     itself rather than the prose unit that contains it, so the finding lands on
     the right line under `--diff`.
     """
-    pattern = re.compile(rf"(?<![\w`]){re.escape(name)}(?![\w`])")
     end = constant.end_lineno or constant.lineno
-    for lineno in range(constant.lineno, end + 1):
-        stripped = _BACKTICK_SPAN_PATTERN.sub(" ", source_lines[lineno - 1])
-        match = pattern.search(stripped)
-        if match is not None:
-            return lineno, match.start() + 1
-    return constant.lineno, constant.col_offset + 1
+    located = _first_bare_token(source_lines, range(constant.lineno, end + 1), name)
+    return located or (constant.lineno, constant.col_offset + 1)
+
+
+def _string_literal_symbols(
+    tree: ast.AST, docstring_ids: frozenset[int]
+) -> frozenset[str]:
+    """Returns the distinctive identifier tokens found in string literals.
+
+    Scans every string constant that is not itself a docstring — an embedded
+    SQL statement, a log line, a format string — and collects the identifier
+    tokens whose shape marks them as code. A token appearing here is proof, in
+    the file itself, that a matching bare word in a docstring names a real
+    identifier rather than reading as English.
+    """
+    symbols: set[str] = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in docstring_ids
+        ):
+            for match in _IDENTIFIER_PATTERN.finditer(node.value):
+                if _is_distinctive_code_token(match.group()):
+                    symbols.add(match.group())
+    return frozenset(symbols)
 
 
 def _unbackticked_references(unit: _ProseUnit, known: frozenset[str]) -> list[str]:
@@ -699,10 +858,7 @@ def _reads_as_code_reference(name: str, text: str, start: int) -> bool:
     """
     if name in _LITERAL_CONSTANTS:
         return not _begins_sentence(text, start)
-    if "_" in name or any(character.isdigit() for character in name):
-        return True
-    has_interior_capital = any(character.isupper() for character in name[1:])
-    return has_interior_capital and any(character.islower() for character in name)
+    return _is_distinctive_code_token(name)
 
 
 def _begins_sentence(text: str, start: int) -> bool:
@@ -763,6 +919,41 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
 def _docstring_summary_line(docstring: str) -> str:
     """Returns the first non-blank line of a cleaned `docstring`, stripped."""
     return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
+
+
+def _first_bare_token(
+    source_lines: list[str], linenos: Iterable[int], name: str
+) -> tuple[int, int] | None:
+    """Returns the line and 1-based column of the first unbackticked `name`.
+
+    Backtick spans are dropped before the search, so a mention already in code
+    font is skipped and the position points at the bare token a fix must wrap.
+    Returns `None` when no bare mention sits on the given lines.
+    """
+    pattern = re.compile(rf"(?<![\w`]){re.escape(name)}(?![\w`])")
+    for lineno in linenos:
+        stripped = _BACKTICK_SPAN_PATTERN.sub(" ", source_lines[lineno - 1])
+        match = pattern.search(stripped)
+        if match is not None:
+            return lineno, match.start() + 1
+    return None
+
+
+def _is_distinctive_code_token(name: str) -> bool:
+    """Reports whether a token's shape rules out an ordinary English word.
+
+    An underscore, a digit, or an interior capital beside a lowercase letter
+    (CamelCase) marks a token as code wherever it sits. A plain lowercase,
+    Titlecase, or all-caps word could be English and is not distinctive, and
+    neither is a pluralized all-caps acronym (`UIDs`, `URLs`), whose only
+    lowercase letter is the trailing `s`.
+    """
+    if "_" in name or any(character.isdigit() for character in name):
+        return True
+    if _PLURAL_ACRONYM_PATTERN.fullmatch(name):
+        return False
+    has_interior_capital = any(character.isupper() for character in name[1:])
+    return has_interior_capital and any(character.islower() for character in name)
 
 
 class _DocLine(NamedTuple):
