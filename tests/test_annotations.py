@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pytest
@@ -16,15 +17,32 @@ class TestCheckDeeplyNestedType:
             pytest.param(
                 "def f() -> dict[str, tuple[int, list[str]]]: ...\n", id="return"
             ),
-            pytest.param("cache: list[tuple[int, int, list[str]]] = []\n", id="variable"),
+            pytest.param(
+                "cache: list[tuple[int, int, list[str]]] = []\n", id="variable"
+            ),
             pytest.param(
                 "from typing import TypeAlias\n"
                 "Alias: TypeAlias = dict[str, tuple[int, list[str]]]\n",
                 id="type-alias-value",
             ),
+            pytest.param(
+                "import typing\n"
+                "Alias: typing.TypeAlias = dict[str, tuple[int, list[str]]]\n",
+                id="dotted-type-alias-value",
+            ),
         ],
     )
     def test_NestedAnnotation_FlagsViolation(self, source: str) -> None:
+        violations = list(check_deeply_nested_type(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_DEEPLY_NESTED_TYPE
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="the PEP 695 `type` statement parses only on 3.12+",
+    )
+    def test_Pep695TypeAlias_FlagsViolation(self) -> None:
+        source = "type Alias = dict[str, tuple[int, list[str]]]\n"
         violations = list(check_deeply_nested_type(Path("src/x.py"), source))
         assert len(violations) == 1
         assert violations[0].rule == RS_DEEPLY_NESTED_TYPE
