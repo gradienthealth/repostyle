@@ -380,12 +380,13 @@ def _effective_acronyms(pyproject: Path | None) -> frozenset[str]:
     """
     table = _repostyle_table(pyproject)
     extra = _string_list(table, "acronyms-extra")
-    exclude = _string_list(table, "acronyms-exclude")
+    exclude = frozenset(
+        word.upper() for word in _string_list(table, "acronyms-exclude")
+    )
     if not extra and not exclude:
         return _ACRONYM_SET
-    excluded = frozenset(word.upper() for word in exclude)
     return frozenset(
-        word.upper() for word in (*ACRONYMS, *extra) if word.upper() not in excluded
+        word.upper() for word in (*ACRONYMS, *extra) if word.upper() not in exclude
     )
 
 
