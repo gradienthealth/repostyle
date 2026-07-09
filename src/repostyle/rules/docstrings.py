@@ -642,11 +642,15 @@ def _backticks_a_code_symbol(constant: ast.Constant) -> bool:
     A backticked span whose content holds a distinctive identifier is the
     consistency trigger: it shows the author backticks code in this docstring,
     so a bare sibling token is an inconsistency rather than deliberate prose.
+    Only prose units count, the same regions the bare-token scan reads, so a
+    backtick that sits inside a doctest or an `Example:` block does not trip
+    the trigger for prose the rule would never flag.
     """
-    for span in _BACKTICK_SPAN_PATTERN.finditer(constant.value):
-        for match in _IDENTIFIER_PATTERN.finditer(span.group().strip("`")):
-            if _is_distinctive_code_token(match.group()):
-                return True
+    for unit in _docstring_prose_units(constant):
+        for span in _BACKTICK_SPAN_PATTERN.finditer(unit.text):
+            for match in _IDENTIFIER_PATTERN.finditer(span.group().strip("`")):
+                if _is_distinctive_code_token(match.group()):
+                    return True
     return False
 
 
@@ -801,10 +805,7 @@ def _reads_as_code_reference(name: str, text: str, start: int) -> bool:
     """
     if name in _LITERAL_CONSTANTS:
         return not _begins_sentence(text, start)
-    if "_" in name or any(character.isdigit() for character in name):
-        return True
-    has_interior_capital = any(character.isupper() for character in name[1:])
-    return has_interior_capital and any(character.islower() for character in name)
+    return _is_distinctive_code_token(name)
 
 
 def _begins_sentence(text: str, start: int) -> bool:

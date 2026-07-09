@@ -425,6 +425,12 @@ class TestCheckUnbacktickedSiblingSymbol:
             'x = "UPDATE remote_aes SET y = 1"\n',
             '"""Uses `status` here. Updates remote_aes too."""\n'
             'x = "UPDATE remote_aes SET y = 1"\n',
+            '"""Bumps rows below the new floor.\n\n'
+            "The remote_aes rows shift.\n\n"
+            "Example:\n"
+            "    x = `HttpClient`\n"
+            '"""\n'
+            'x = "UPDATE remote_aes SET y = 1"\n',
         ],
         ids=[
             "no-backticked-trigger",
@@ -432,6 +438,7 @@ class TestCheckUnbacktickedSiblingSymbol:
             "already-backticked-sibling",
             "distinctive-token-without-in-file-evidence",
             "backticked-word-is-not-a-code-symbol",
+            "backtick-only-in-example-block",
         ],
     )
     def test_ConformingDocstring_NoViolation(self, source: str) -> None:
