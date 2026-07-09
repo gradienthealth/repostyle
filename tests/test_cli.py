@@ -230,7 +230,8 @@ class TestDiscoveryHint:
     def test_FindingWithoutGuidance_PrintsNoHint(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        source = 'class C:\n    """Doc.\n\n    Attributes:\n        a: int.\n    """\n'
+        target = _write_project(tmp_path, source, '["RS004"]')
         main([str(target)])
         assert "explain" not in capsys.readouterr().err
 

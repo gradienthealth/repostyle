@@ -113,6 +113,24 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "A known acronym stays all-uppercase in a CapWords name "
             "(`FHIRClient`, not `FhirClient`)."
         ),
+        rationale=(
+            "The check holds a fixed set of known acronyms (`API`, `FHIR`, "
+            "`HTTP`, `ID`, `JWT`, `URL`, ...) to all-uppercase in a CapWords "
+            "name, since a mixed-case acronym reads as an ordinary word. The "
+            "set is general, so a domain repo extends it via `acronyms-extra` "
+            "and drops a member via `acronyms-exclude` in `[tool.repostyle]`, "
+            "rather than editing the shared list every repo inherits."
+        ),
+        examples=(
+            Example(
+                bad="class UidValidator: ...",
+                good="class UIDValidator: ...",
+                note=(
+                    "`UID` is not a built-in acronym; a DICOM repo teaches the "
+                    'rule with `acronyms-extra = ["UID"]`.'
+                ),
+            ),
+        ),
     ),
     RS_TEST_NAMING: RuleDoc(
         name="test-naming",
