@@ -665,8 +665,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     '`remote_aes` row fails to load."""'
                 ),
                 note=(
-                    "`remote_aes` appears in the migration's own SQL string, so "
-                    "its bare mention beside a backticked class is flagged."
+                    "`remote_aes` also appears in a SQL string elsewhere in the "
+                    "file, so its bare mention beside the backticked "
+                    "`ContinuousDiscoverySettings` is flagged."
                 ),
             ),
         ),

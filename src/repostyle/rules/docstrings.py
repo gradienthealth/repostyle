@@ -640,9 +640,9 @@ def _backticks_a_code_symbol(units: list[_ProseUnit]) -> bool:
     A backticked span whose content holds a distinctive identifier is the
     consistency trigger: it shows the author backticks code in this docstring,
     so a bare sibling token is an inconsistency rather than deliberate prose.
-    Only the prose units the bare-token scan reads count, so a backtick that
-    sits inside a doctest or an `Example:` block does not trip the trigger for
-    prose the rule would never flag.
+    The caller passes only the prose units the bare-token scan reads, so a
+    backtick inside a doctest or `Example:` block, which the scan skips, never
+    trips the trigger.
     """
     return any(
         _is_distinctive_code_token(match.group())
@@ -764,19 +764,6 @@ def _string_literal_symbols(
     return frozenset(symbols)
 
 
-def _is_distinctive_code_token(name: str) -> bool:
-    """Reports whether a token's shape rules out an ordinary English word.
-
-    An underscore, a digit, or an interior capital beside a lowercase letter
-    (CamelCase) marks a token as code wherever it sits. A plain lowercase,
-    Titlecase, or all-caps word could be English and is not distinctive.
-    """
-    if "_" in name or any(character.isdigit() for character in name):
-        return True
-    has_interior_capital = any(character.isupper() for character in name[1:])
-    return has_interior_capital and any(character.islower() for character in name)
-
-
 def _unbackticked_references(unit: _ProseUnit, known: frozenset[str]) -> list[str]:
     """Returns the distinct known names a prose unit uses without backticks."""
     text = _URI_PATTERN.sub(" ", _BACKTICK_SPAN_PATTERN.sub(" ", unit.text))
@@ -864,6 +851,19 @@ def _doc_lines(constant: ast.Constant) -> list[_DocLine]:
 def _docstring_summary_line(docstring: str) -> str:
     """Returns the first non-blank line of a cleaned `docstring`, stripped."""
     return next((line.strip() for line in docstring.splitlines() if line.strip()), "")
+
+
+def _is_distinctive_code_token(name: str) -> bool:
+    """Reports whether a token's shape rules out an ordinary English word.
+
+    An underscore, a digit, or an interior capital beside a lowercase letter
+    (CamelCase) marks a token as code wherever it sits. A plain lowercase,
+    Titlecase, or all-caps word could be English and is not distinctive.
+    """
+    if "_" in name or any(character.isdigit() for character in name):
+        return True
+    has_interior_capital = any(character.isupper() for character in name[1:])
+    return has_interior_capital and any(character.islower() for character in name)
 
 
 class _DocLine(NamedTuple):
