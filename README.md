@@ -106,8 +106,8 @@ RS001 checks a fixed set of acronyms (`API`, `FHIR`, `HTTP`, `ID`, `JWT`, `URL`,
 
 ```toml
 [tool.repostyle]
-acronyms-extra = ["UID", "SCU", "SCP", "PACS"]   # domain acronyms this repo's names use
-acronyms-exclude = ["DOB"]                        # a shipped acronym too aggressive for this repo
+acronyms-extra = ["UID", "SCU", "SCP", "PACS"]  # domain acronyms this repo's names use
+acronyms-exclude = ["DOB"]                      # a shipped acronym too aggressive for this repo
 ```
 
 `acronyms-extra` adds to the shipped set rather than replacing it; `acronyms-exclude` removes from the combined result, so it can drop a shipped acronym, an added one, or both. Entries are matched uppercased, so their case here does not matter. Neither key needs the other configured.
