@@ -15,6 +15,7 @@ from repostyle.rules._violation import (
     RS_COGNITIVE_COMPLEXITY,
     RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
+    RS_DEEPLY_NESTED_TYPE,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
@@ -48,6 +49,7 @@ from repostyle.rules._violation import (
     Severity,
     Violation,
 )
+from repostyle.rules.annotations import check_deeply_nested_type
 from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_terminal_punctuation,
@@ -162,6 +164,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
         check_unbackticked_sibling_symbol,
         check_unbackticked_sibling_symbol_in_comments,
     ),
+    RS_DEEPLY_NESTED_TYPE: (check_deeply_nested_type,),
 }
 
 
@@ -199,6 +202,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_GLUED_CODE_SPAN: Severity.WARNING,
     RS_TAG_COMMENT_CONTINUATION_INDENT: Severity.WARNING,
     RS_UNBACKTICKED_SIBLING_SYMBOL: Severity.WARNING,
+    RS_DEEPLY_NESTED_TYPE: Severity.WARNING,
 }
 
 
