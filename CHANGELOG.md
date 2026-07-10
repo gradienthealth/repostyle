@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.17.0...repostyle-v0.18.0) (2026-07-10)
+
+
+### Features
+
+* **NO-ISSUE:** add cryptographic verbs to RS034's imperative set ([#101](https://github.com/gradienthealth/repostyle/issues/101)) ([3e898d3](https://github.com/gradienthealth/repostyle/commit/3e898d3315fd71d54018dedbfe404379a3c0100f))
+
 ## [0.17.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.16.0...repostyle-v0.17.0) (2026-07-09)
 
 
