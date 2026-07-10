@@ -253,6 +253,10 @@ class TestCheckImperativeDocstringOpening:
             ("Advance the cursor.", "'Advances', not 'Advance'"),
             ("Upsert the cursor.", "'Upserts', not 'Upsert'"),
             ("Reconcile the study.", "'Reconciles', not 'Reconcile'"),
+            ("Sign the client assertion.", "'Signs', not 'Sign'"),
+            ("Encrypt the payload.", "'Encrypts', not 'Encrypt'"),
+            ("Decrypt the token.", "'Decrypts', not 'Decrypt'"),
+            ("Hash the file contents.", "'Hashes', not 'Hash'"),
         ],
         ids=[
             "regular",
@@ -265,6 +269,10 @@ class TestCheckImperativeDocstringOpening:
             "added-advance",
             "added-upsert",
             "added-reconcile",
+            "added-sign",
+            "added-encrypt",
+            "added-decrypt",
+            "added-hash",
         ],
     )
     def test_ImperativeOpening_FlagsViolation(
