@@ -33,6 +33,7 @@ jobs:
           - fhir-ingestor
           - hl7-ingestor
           - dicom-ingestor
+          - gradient-beam
     steps:
       - name: Check out the style sources
         uses: actions/checkout@v4
