@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.18.0...repostyle-v0.18.1) (2026-07-13)
+
+
+### Documentation
+
+* **NO-ISSUE:** clarify the W505 comment for diff-scoped consumers ([#104](https://github.com/gradienthealth/repostyle/issues/104)) ([f21b81c](https://github.com/gradienthealth/repostyle/commit/f21b81ca253efe89d1bfeb3eed24869f0072f6cc))
+
 ## [0.18.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.17.0...repostyle-v0.18.0) (2026-07-10)
 
 
