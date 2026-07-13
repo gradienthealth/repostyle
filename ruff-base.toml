@@ -86,9 +86,10 @@ select = [
 # it.
 
 [lint.pycodestyle]
-# Docstring and comment prose fills to 79 (PEP 8), matching RS009's fill
-# target. W505 enforces this ceiling across the whole file, so consumers wrap
-# existing prose to 79 when they adopt the baseline, not only on changed lines.
+# Docstring and comment prose fills to 79 (PEP 8), matching the RS009/RS035
+# fill target. W505 backs those RS rules with ruff's own doc-length check;
+# whether it runs tree-wide or only on a PR's changed lines follows how the
+# consuming repo scopes ruff (a full-tree `ruff check` vs a diff-scoped one).
 max-doc-length = 79
 
 [lint.mccabe]
