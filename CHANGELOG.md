@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.18.1...repostyle-v0.19.0) (2026-07-15)
+
+
+### Features
+
+* **NO-ISSUE:** add RS041 flagging a raise narrated in docstring prose ([#108](https://github.com/gradienthealth/repostyle/issues/108)) ([274cce2](https://github.com/gradienthealth/repostyle/commit/274cce251e4b3410562d1c627a279b975728ec60))
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** treat nosec and codespell comments as directives ([#106](https://github.com/gradienthealth/repostyle/issues/106)) ([f882eee](https://github.com/gradienthealth/repostyle/commit/f882eee4bbe4cb50ff6e94053e678637df451fc9))
+
 ## [0.18.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.18.0...repostyle-v0.18.1) (2026-07-13)
 
 
