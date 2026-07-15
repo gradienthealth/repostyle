@@ -31,7 +31,9 @@ _SECTION_HEADERS = frozenset(
 _LABEL_LINE_PATTERN = re.compile(r"^[A-Z][A-Za-z]*([ -][A-Z][A-Za-z]*)*:(\s|$)")
 _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
 _BULLET_PATTERN = re.compile(r"^[-*+] ")
-_COMMENT_DIRECTIVE_PATTERN = re.compile(r"^#+\s*(!|noqa\b|type:|ruff:|pragma\b)")
+_COMMENT_DIRECTIVE_PATTERN = re.compile(
+    r"^#+\s*(!|noqa\b|nosec\b|type:|ruff:|pragma\b|codespell:)"
+)
 # A markdown table row (`|...|`) or a line made only of pipe, dash, plus, and
 # equals characters (`+----+`, `====`, a `---` rule) opens content whose
 # alignment is meaningful, so it is verbatim: never filled and never reflowed.

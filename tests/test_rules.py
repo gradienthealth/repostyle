@@ -964,6 +964,8 @@ class TestCheckDocFill:
             "# aaa\n#\n# bbb\nx = 1",
             "# aaa\nx = 1\n# bbb\ny = 2",
             "# aaa  # noqa: E501 a very long suppression explanation here\nx = 1",
+            "# aaa\n# nosec\nx = 1",
+            "# aaa\n# codespell:ignore-begin\nx = 1",
             "x = 1  # " + "abcde " * 13 + "end",
         ],
         ids=[
@@ -984,6 +986,8 @@ class TestCheckDocFill:
             "blank_separated_comments",
             "code_separated_comment_blocks",
             "directive_comment",
+            "nosec_directive_splits_block",
+            "codespell_directive_splits_block",
             "trailing_comment",
         ],
     )
