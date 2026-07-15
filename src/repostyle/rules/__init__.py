@@ -57,6 +57,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -87,6 +88,7 @@ from repostyle.rules.doc_fill import (
 from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
+    check_raise_described_in_prose,
     check_return_described_in_prose,
 )
 from repostyle.rules.docstrings import (
@@ -175,6 +177,7 @@ __all__ = [
     "RS_NO_NEGATED_BOOLEAN",
     "RS_NO_PHI_SAFE_EXC_INFO",
     "RS_PORT_NO_IMPLEMENTATION",
+    "RS_RAISE_DESCRIBED_IN_PROSE",
     "RS_RETURN_DESCRIBED_IN_PROSE",
     "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
@@ -226,6 +229,7 @@ __all__ = [
     "check_no_negated_boolean",
     "check_no_phi_safe_with_exc_info",
     "check_port_no_implementation",
+    "check_raise_described_in_prose",
     "check_return_described_in_prose",
     "check_should_be_private",
     "check_sleepy_test",
