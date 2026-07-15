@@ -25,7 +25,8 @@ TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 # The shebang `#!` leads a module; the rest are tool directives that a prose
 # check must skip.
 _DIRECTIVE_COMMENT_PATTERN = re.compile(
-    r"^[ \t]*(!|type:|style:|noqa|pragma|pylint:|mypy:|ruff:|isort:|fmt:)",
+    r"^[ \t]*(!|type:|style:|noqa|nosec|pragma|pylint:|mypy:|ruff:|isort:|fmt:"
+    r"|codespell:)",
 )
 # A PEP 263 encoding declaration, in either the plain `coding:` form or the
 # Emacs `-*- coding: ... -*-` form, anywhere in the comment.

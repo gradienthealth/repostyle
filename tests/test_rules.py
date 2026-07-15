@@ -1618,6 +1618,9 @@ class TestCheckCommentTerminalPunctuation:
             "# -*- coding: utf-8 -*-\nx = 1\n",
             "# handles the retry path.\nx = 1\n",
             "# First standalone note\n\n# Second standalone note\nx = 1\n",
+            "# Rescue still fires without the apostrophe\n"
+            "# codespell:ignore-begin\nx = 1\n",
+            "# Spawns the subprocess with a fixed argv\n# nosec\nx = 1\n",
         ],
         ids=[
             "standalone-fragment",
@@ -1629,6 +1632,8 @@ class TestCheckCommentTerminalPunctuation:
             "coding-declaration",
             "lowercase-not-prose",
             "blank-gap-separate-blocks",
+            "codespell-directive-splits-block",
+            "nosec-directive-splits-block",
         ],
     )
     def test_ConformingComment_NoViolation(self, source: str) -> None:
