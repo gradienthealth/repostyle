@@ -419,12 +419,22 @@ class TestCheckRaiseDescribedInProse:
                 "    return {}\n",
                 "KeyError",
             ),
+            (
+                "def fetch(url: str) -> bytes:\n"
+                '    """Fetch the resource.\n'
+                "\n"
+                "    A timeout propagates the client's `pkg.mod.TimeoutError`.\n"
+                '    """\n'
+                "    return b''\n",
+                "pkg.mod.TimeoutError",
+            ),
         ],
         ids=[
             "re-raises-mid-clause",
             "raises-lead",
             "propagates",
             "raises-section-omits-it",
+            "dotted-name-in-prose",
         ],
     )
     def test_RaiseDescribedInBodyProse_FlagsException(
@@ -455,6 +465,15 @@ class TestCheckRaiseDescribedInProse:
             "\n"
             "    Raises:\n"
             "        errors.ParseError: when the input is empty.\n"
+            '    """\n'
+            "    return 0\n",
+            "def parse(raw: bytes) -> int:\n"
+            '    """Parse the header.\n'
+            "\n"
+            "    An empty input raises `errors.ParseError` on the first field.\n"
+            "\n"
+            "    Raises:\n"
+            "        ParseError: when the input is empty.\n"
             '    """\n'
             "    return 0\n",
             "def peek(queue) -> int:\n"
@@ -500,6 +519,7 @@ class TestCheckRaiseDescribedInProse:
         ids=[
             "documented-in-raises",
             "dotted-entry-matches",
+            "dotted-prose-matches-bare-entry",
             "negated-never",
             "negated-rather-than-raising",
             "verb-without-exception-name",

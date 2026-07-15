@@ -64,11 +64,6 @@ _ARGS_CAPTIONS = frozenset({"Args", "Arguments", "Keyword Args", "Keyword Argume
 _SUBJECT_LEAD_PATTERN = re.compile(
     r"^(?:the|an?|each|takes(?:\s+an?)?)\s+", re.IGNORECASE
 )
-# Body prose splits into clauses on sentence punctuation, but not commas or
-# line breaks, so a parameter listed mid-clause is not read as a subject and
-# the result does not shift when the prose is rewrapped to a different width.
-_CLAUSE_SPLIT_PATTERN = re.compile(r"[.;]")
-
 # A clause opening with `Return`/`Returns` restates the verb a `Returns:`
 # section already implies, so the same clause-lead test RS031 uses for a
 # parameter's backtick-wrapped name applies here to the bare verb instead. The
@@ -264,14 +259,10 @@ def _describes_return_up_front(body: str) -> bool:
 def _any_clause_leads_with(body: str, leads_with: Callable[[str], bool]) -> bool:
     """Reports whether any clause of the body prose satisfies `leads_with`.
 
-    Sentences split on `.` and `;` but not commas or line breaks, so a name or
-    verb listed mid-clause is not read as a description and the verdict does
-    not shift when the prose is rewrapped to a different width.
+    The clause is stripped of surrounding whitespace first, so a name or verb
+    is tested as a clause's leading token regardless of the prose's wrapping.
     """
-    flowing = body.replace("\n", " ")
-    return any(
-        leads_with(clause.strip()) for clause in _CLAUSE_SPLIT_PATTERN.split(flowing)
-    )
+    return any(leads_with(clause.strip()) for clause in _split_into_clauses(body))
 
 
 def _exceptions_raised_in_prose(body: str) -> list[str]:
@@ -280,12 +271,12 @@ def _exceptions_raised_in_prose(body: str) -> list[str]:
     A clause narrates a raise when it holds a non-negated raise verb together
     with a backticked exception-shaped name; the verb and the name pair only
     within one clause, so a raise mentioned in one sentence does not claim an
-    exception named in another. Each name is listed once, in first-mention
-    order.
+    exception named in another. A dotted name like `pkg.mod.TimeoutError` stays
+    whole, since the clause split keeps a backtick span intact. Each name is
+    listed once, in first-mention order.
     """
-    flowing = body.replace("\n", " ")
     names: list[str] = []
-    for clause in _CLAUSE_SPLIT_PATTERN.split(flowing):
+    for clause in _split_into_clauses(body):
         if not _has_positive_raise_verb(clause):
             continue
         for match in _EXCEPTION_REFERENCE_PATTERN.finditer(clause):
@@ -408,7 +399,7 @@ def _entries(
     captions: frozenset[str] | set[str],
     pattern: re.Pattern[str],
 ) -> set[str]:
-    """Collects the entry names `pattern` captures under the given `captions`."""
+    """Returns the entry names `pattern` captures under `captions`."""
     return {
         match.group(1)
         for caption in captions
@@ -437,6 +428,31 @@ def _group_by_section(docstring: str) -> dict[str | None, list[str]]:
         else:
             sections.setdefault(section, []).append(line)
     return sections
+
+
+def _split_into_clauses(body: str) -> list[str]:
+    """Splits docstring body prose into clauses on sentence punctuation.
+
+    Newlines fold to spaces first, so a clause does not shift when the prose is
+    rewrapped to a different width. A `.` or `;` ends a clause only outside a
+    backtick span — the dot of a dotted code reference like `pkg.mod.Error`
+    stays within its clause rather than fragmenting it — and a comma never
+    does, so a name or verb listed mid-clause is not read as a clause of its
+    own.
+    """
+    clauses: list[str] = []
+    current: list[str] = []
+    in_span = False
+    for char in body.replace("\n", " "):
+        if char == "`":
+            in_span = not in_span
+        if char in ".;" and not in_span:
+            clauses.append("".join(current))
+            current = []
+        else:
+            current.append(char)
+    clauses.append("".join(current))
+    return clauses
 
 
 def _violation(
