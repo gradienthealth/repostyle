@@ -274,6 +274,40 @@ def _any_clause_leads_with(body: str, leads_with: Callable[[str], bool]) -> bool
     )
 
 
+def _exceptions_raised_in_prose(body: str) -> list[str]:
+    """Lists the exception names the body prose narrates as raised.
+
+    A clause narrates a raise when it holds a non-negated raise verb together
+    with a backticked exception-shaped name; the verb and the name pair only
+    within one clause, so a raise mentioned in one sentence does not claim an
+    exception named in another. Each name is listed once, in first-mention
+    order.
+    """
+    flowing = body.replace("\n", " ")
+    names: list[str] = []
+    for clause in _CLAUSE_SPLIT_PATTERN.split(flowing):
+        if not _has_positive_raise_verb(clause):
+            continue
+        for match in _EXCEPTION_REFERENCE_PATTERN.finditer(clause):
+            name = match.group(1)
+            if name not in names:
+                names.append(name)
+    return names
+
+
+def _has_positive_raise_verb(clause: str) -> bool:
+    """Reports whether the clause holds a raise verb in a non-negated spot.
+
+    Each raise-verb occurrence is checked against the text directly before it,
+    so `never re-raises` reads as negated while a later, unqualified `raises`
+    in the same clause still counts.
+    """
+    return any(
+        not _RAISE_NEGATION_PATTERN.search(clause[: match.start()])
+        for match in _RAISE_VERB_PATTERN.finditer(clause)
+    )
+
+
 def _has_return_annotation(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Reports whether the return annotation is present and not `None`."""
     annotation = node.returns
@@ -323,40 +357,6 @@ def _public_functions(
         if _has_decorator(node, {"overload"}):
             continue
         yield node
-
-
-def _exceptions_raised_in_prose(body: str) -> list[str]:
-    """Lists the exception names the body prose narrates as raised.
-
-    A clause narrates a raise when it holds a non-negated raise verb together
-    with a backticked exception-shaped name; the verb and the name pair only
-    within one clause, so a raise mentioned in one sentence does not claim an
-    exception named in another. Each name is listed once, in first-mention
-    order.
-    """
-    flowing = body.replace("\n", " ")
-    names: list[str] = []
-    for clause in _CLAUSE_SPLIT_PATTERN.split(flowing):
-        if not _has_positive_raise_verb(clause):
-            continue
-        for match in _EXCEPTION_REFERENCE_PATTERN.finditer(clause):
-            name = match.group(1)
-            if name not in names:
-                names.append(name)
-    return names
-
-
-def _has_positive_raise_verb(clause: str) -> bool:
-    """Reports whether the clause holds a raise verb in a non-negated spot.
-
-    Each raise-verb occurrence is checked against the text directly before it,
-    so `never re-raises` reads as negated while a later, unqualified `raises`
-    in the same clause still counts.
-    """
-    return any(
-        not _RAISE_NEGATION_PATTERN.search(clause[: match.start()])
-        for match in _RAISE_VERB_PATTERN.finditer(clause)
-    )
 
 
 def _returns_multi_element_tuple(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
