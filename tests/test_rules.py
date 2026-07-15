@@ -964,6 +964,8 @@ class TestCheckDocFill:
             "# aaa\n#\n# bbb\nx = 1",
             "# aaa\nx = 1\n# bbb\ny = 2",
             "# aaa  # noqa: E501 a very long suppression explanation here\nx = 1",
+            "# aaa\n# codespell:ignore-begin\nx = 1",
+            "# aaa\n# nosec\nx = 1",
             "x = 1  # " + "abcde " * 13 + "end",
         ],
         ids=[
@@ -984,6 +986,8 @@ class TestCheckDocFill:
             "blank_separated_comments",
             "code_separated_comment_blocks",
             "directive_comment",
+            "codespell_directive_splits_block",
+            "nosec_directive_splits_block",
             "trailing_comment",
         ],
     )
@@ -1618,6 +1622,9 @@ class TestCheckCommentTerminalPunctuation:
             "# -*- coding: utf-8 -*-\nx = 1\n",
             "# handles the retry path.\nx = 1\n",
             "# First standalone note\n\n# Second standalone note\nx = 1\n",
+            "# Rescue still fires without the apostrophe\n"
+            "# codespell:ignore-begin\nx = 1\n",
+            "# Spawns the subprocess with a fixed argv\n# nosec\nx = 1\n",
         ],
         ids=[
             "standalone-fragment",
@@ -1629,6 +1636,8 @@ class TestCheckCommentTerminalPunctuation:
             "coding-declaration",
             "lowercase-not-prose",
             "blank-gap-separate-blocks",
+            "codespell-directive-splits-block",
+            "nosec-directive-splits-block",
         ],
     )
     def test_ConformingComment_NoViolation(self, source: str) -> None:
