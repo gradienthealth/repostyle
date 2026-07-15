@@ -139,8 +139,17 @@ class TestCheckArgDescribedInProse:
                 "    return left\n",
                 {"left", "right"},
             ),
+            (
+                "def read(count):\n"
+                '    """Read a chunk.\n'
+                "\n"
+                "    Sizes the `buffer in bytes. The `count` is the item total.\n"
+                '    """\n'
+                "    return count\n",
+                {"count"},
+            ),
         ],
-        ids=["single", "args-section-omits-it", "several"],
+        ids=["single", "args-section-omits-it", "several", "unbalanced-backtick"],
     )
     def test_ParamDescribedInBodyProse_FlagsEach(
         self, source: str, expected: set[str]
@@ -515,6 +524,13 @@ class TestCheckRaiseDescribedInProse:
             "def parse(raw: bytes) -> int:\n"
             '    """Raise `ValueError` when the input is empty."""\n'
             "    return 0\n",
+            "def parse(raw: bytes) -> int:\n"
+            '    """Parse the header.\n'
+            "\n"
+            "    Raises on any `malformed input. The `ValueError` from the pool "
+            "is logged, not propagated.\n"
+            '    """\n'
+            "    return 0\n",
         ],
         ids=[
             "documented-in-raises",
@@ -526,6 +542,7 @@ class TestCheckRaiseDescribedInProse:
             "name-without-raise-verb",
             "verb-and-name-in-separate-sentences",
             "only-in-summary",
+            "unbalanced-backtick-falls-back",
         ],
     )
     def test_RaiseNotDescribedInBodyProse_NoViolation(self, source: str) -> None:

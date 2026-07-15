@@ -57,6 +57,12 @@ _RAISES_ENTRY_PATTERN = re.compile(r"^[ \t]+([\w.]+)\s*:")
 # pattern agree on which sections hold `Args:` entries.
 _ARGS_CAPTIONS = frozenset({"Args", "Arguments", "Keyword Args", "Keyword Arguments"})
 
+# Body prose splits into clauses on sentence punctuation, but not commas, so a
+# name or verb listed mid-clause is not read as its subject. The clause
+# splitter steps over a backtick span before applying this; it is the fallback
+# split for a body whose backticks are unbalanced.
+_SENTENCE_PUNCTUATION = re.compile(r"[.;]")
+
 # A parameter counts as "described" only when it is the subject of a body
 # sentence — it leads the clause, after an optional article, `each`, or "Takes"
 # — not merely referenced as an object inside contract prose that states when
@@ -438,12 +444,17 @@ def _split_into_clauses(body: str) -> list[str]:
     backtick span — the dot of a dotted code reference like `pkg.mod.Error`
     stays within its clause rather than fragmenting it — and a comma never
     does, so a name or verb listed mid-clause is not read as a clause of its
-    own.
+    own. A body with an unbalanced backtick has no well-formed spans to
+    protect, so it falls back to a plain punctuation split rather than let one
+    stray backtick swallow every sentence boundary after it.
     """
+    flowing = body.replace("\n", " ")
+    if flowing.count("`") % 2:
+        return _SENTENCE_PUNCTUATION.split(flowing)
     clauses: list[str] = []
     current: list[str] = []
     in_span = False
-    for char in body.replace("\n", " "):
+    for char in flowing:
         if char == "`":
             in_span = not in_span
         if char in ".;" and not in_span:
