@@ -186,7 +186,7 @@ def check_raise_described_in_prose(path: Path, source: str) -> Iterator[Violatio
         if docstring is None:
             continue
         body, _, documented = _split_docstring(docstring)
-        for name in _raised_in_prose(body):
+        for name in _exceptions_raised_in_prose(body):
             if name.rpartition(".")[2] in documented:
                 continue
             yield _violation(
@@ -325,7 +325,7 @@ def _public_functions(
         yield node
 
 
-def _raised_in_prose(body: str) -> list[str]:
+def _exceptions_raised_in_prose(body: str) -> list[str]:
     """Lists the exception names the body prose narrates as raised.
 
     A clause narrates a raise when it holds a non-negated raise verb together
@@ -393,7 +393,7 @@ def _split_docstring(docstring: str) -> tuple[str, set[str], set[str]]:
     prose between the summary and the first Google-style section header; the
     summary itself is dropped so a name there does not read as prose.
     """
-    sections = _sectioned(docstring)
+    sections = _group_by_section(docstring)
     body = "\n".join(sections.get(None, ()))
     documented_args = _entries(sections, _ARGS_CAPTIONS, _ARG_ENTRY_PATTERN)
     documented_raises = {
@@ -408,7 +408,7 @@ def _entries(
     captions: frozenset[str] | set[str],
     pattern: re.Pattern[str],
 ) -> set[str]:
-    """Collects the entry names `pattern` captures under the given captions."""
+    """Collects the entry names `pattern` captures under the given `captions`."""
     return {
         match.group(1)
         for caption in captions
@@ -417,7 +417,7 @@ def _entries(
     }
 
 
-def _sectioned(docstring: str) -> dict[str | None, list[str]]:
+def _group_by_section(docstring: str) -> dict[str | None, list[str]]:
     """Groups a cleaned docstring's post-summary lines by their section.
 
     A line before the first Google-style header keys `None`; a later line keys
