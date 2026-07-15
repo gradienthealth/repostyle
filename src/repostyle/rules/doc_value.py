@@ -1,11 +1,12 @@
 """Documentation-value signals: warn where a docstring earns its keep.
 
-Three rules live here, all advising that documentation land where it is most
+Four rules live here, all advising that documentation land where it is most
 useful rather than demanding it everywhere. RS018 scores a function's
 documentation value and warns when a non-trivial public function is
 under-documented; RS031 warns when per-argument detail is narrated in the
 docstring body instead of a structured `Args:` section; RS032 warns when the
-return value is narrated there instead of a `Returns:` section.
+return value is narrated there instead of a `Returns:` section; RS041 warns
+when a raised exception is narrated there instead of a `Raises:` section.
 
 RS018 has two triggers. The presence trigger fires when a complex or
 many-argumented public function carries no docstring. The `Returns:` trigger
@@ -25,6 +26,7 @@ from repostyle.rules._shared import _has_decorator, _is_test_file, _parse_python
 from repostyle.rules._violation import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
+    RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RETURN_DESCRIBED_IN_PROSE,
     Violation,
 )
@@ -39,14 +41,17 @@ DOC_VALUE_PARAM_FLOOR = 4
 _RETURNS_SECTION_PATTERN = re.compile(r"^[ \t]*(Returns|Yields):\s*$", re.MULTILINE)
 
 # A Google-style section header is a known caption alone on its line. Anything
-# before the first header is the body prose RS031 scans; the `Args:` block's
-# entries are the parameters already documented there.
+# before the first header is the body prose RS031 and RS041 scan; the `Args:`
+# and `Raises:` blocks' entries are the names already documented there.
 _SECTION_HEADER_PATTERN = re.compile(
     r"^[ \t]*(Args|Arguments|Keyword Args|Keyword Arguments|Returns|Yields|"
     r"Raises|Attributes|Note|Notes|Example|Examples|Warning|Warnings|Todo|"
     r"See Also|References):\s*$"
 )
 _ARG_ENTRY_PATTERN = re.compile(r"^[ \t]+\*{0,2}(\w+)\s*(?:\([^)]*\))?\s*:")
+# A `Raises:` entry names one exception, possibly module-qualified, before its
+# colon.
+_RAISES_ENTRY_PATTERN = re.compile(r"^[ \t]+([\w.]+)\s*:")
 # The section captions whose entries name documented parameters, a subset of
 # the headers above. Kept as one set so the entry collector and the header
 # pattern agree on which sections hold `Args:` entries.
@@ -77,6 +82,28 @@ _RETURN_LEAD_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# RS041 anchors on the pairing of a raise verb and a backticked
+# exception-shaped name in one clause, rather than a clause-lead test: the
+# motivating prose ("... emits an audit event and re-raises the `FooError`")
+# narrates the raise mid-clause, so neither token reliably leads. `propagate`
+# is included because it is the house verb for an exception that escapes from a
+# callee rather than a `raise` statement of the function's own.
+_RAISE_VERB_PATTERN = re.compile(
+    r"\b(?:re-?)?rais(?:e[sd]?|ing)\b|\bpropagat(?:e[sd]?|ing)\b", re.IGNORECASE
+)
+# A raise verb directly preceded by a negator ("never raises", "without
+# raising", "rather than re-raising") states that the exception is *not* raised
+# — a legitimate body-prose claim no `Raises:` entry could carry.
+_RAISE_NEGATION_PATTERN = re.compile(
+    r"\b(?:never|not|cannot|without|instead\s+of|rather\s+than|no\s+longer)\s+"
+    r"(?:be(?:ing)?\s+)?$",
+    re.IGNORECASE,
+)
+# An exception reference is a whole backtick span holding one possibly-dotted
+# name with the conventional `Error`/`Exception` suffix; a non-conforming
+# exception name is left to review rather than guessed at.
+_EXCEPTION_REFERENCE_PATTERN = re.compile(r"`([A-Za-z_][\w.]*(?:Error|Exception))`")
+
 
 def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]:
     """Flags a parameter explained in the docstring body, not in `Args:`.
@@ -93,7 +120,7 @@ def check_arg_described_in_prose(path: Path, source: str) -> Iterator[Violation]
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None:
             continue
-        body, documented = _body_and_documented_args(docstring)
+        body, documented, _ = _split_docstring(docstring)
         for name in _param_names(node):
             if name in documented or not _describes_param_as_subject(body, name):
                 continue
@@ -127,7 +154,7 @@ def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violati
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None or _RETURNS_SECTION_PATTERN.search(docstring):
             continue
-        body, _ = _body_and_documented_args(docstring)
+        body, _, _ = _split_docstring(docstring)
         if not _describes_return_up_front(body):
             continue
         yield _violation(
@@ -136,6 +163,38 @@ def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violati
             f"the return value of '{node.name}' is described in the docstring "
             "body; move the description into a `Returns:`/`Yields:` entry",
         )
+
+
+def check_raise_described_in_prose(path: Path, source: str) -> Iterator[Violation]:
+    """Flags an exception narrated in the docstring body, not in `Raises:`.
+
+    A public function fires once per backticked `*Error`/`*Exception` name
+    sharing a body-prose sentence with a raise verb (`raises`, `re-raises`,
+    `propagates`, and their tenses) while no `Raises:` entry documents that
+    exception. Prose narrating a raise is a self-admission that the exception
+    is contract-worthy, and raise detail belongs in a structured `Raises:`
+    section, where readers and tools look for it, not in the body prose meant
+    to state the unit's own contract. The prose is also the one mechanical
+    signal available when the exception propagates from a callee with no
+    `raise` statement in the function itself, the case an AST-based checker
+    cannot see. A sentence whose raise verb is negated (`never raises ...`)
+    does not fire, and neither does an exception the docstring leaves
+    unmentioned.
+    """
+    for node in _public_functions(path, source):
+        docstring = ast.get_docstring(node, clean=True)
+        if docstring is None:
+            continue
+        body, _, documented = _split_docstring(docstring)
+        for name in _raised_in_prose(body):
+            if name.rpartition(".")[2] in documented:
+                continue
+            yield _violation(
+                node,
+                RS_RAISE_DESCRIBED_IN_PROSE,
+                f"exception '{name}' is described in the docstring body of "
+                f"'{node.name}'; move the description into a `Raises:` entry",
+            )
 
 
 def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
@@ -148,34 +207,6 @@ def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
     """
     for node in _public_functions(path, source):
         yield from _check_function(node)
-
-
-def _body_and_documented_args(docstring: str) -> tuple[str, set[str]]:
-    """Splits a cleaned docstring into body prose and documented args.
-
-    The body is the prose between the summary and the first Google-style
-    section header; the documented args are the names entered under an `Args:`
-    section. Trim the summary so a parameter named there does not read as
-    prose, and stop the body at the first section header.
-    """
-    lines = docstring.splitlines()
-    index = 0
-    while index < len(lines) and lines[index].strip():
-        index += 1
-    body: list[str] = []
-    documented: set[str] = set()
-    section: str | None = None
-    for line in lines[index:]:
-        header = _SECTION_HEADER_PATTERN.match(line)
-        if header is not None:
-            section = header.group(1)
-        elif section is None:
-            body.append(line)
-        elif section in _ARGS_CAPTIONS:
-            entry = _ARG_ENTRY_PATTERN.match(line)
-            if entry is not None:
-                documented.add(entry.group(1))
-    return "\n".join(body), documented
 
 
 def _check_function(
@@ -294,6 +325,40 @@ def _public_functions(
         yield node
 
 
+def _raised_in_prose(body: str) -> list[str]:
+    """Lists the exception names the body prose narrates as raised.
+
+    A clause narrates a raise when it holds a non-negated raise verb together
+    with a backticked exception-shaped name; the verb and the name pair only
+    within one clause, so a raise mentioned in one sentence does not claim an
+    exception named in another. Each name is listed once, in first-mention
+    order.
+    """
+    flowing = body.replace("\n", " ")
+    names: list[str] = []
+    for clause in _CLAUSE_SPLIT_PATTERN.split(flowing):
+        if not _has_positive_raise_verb(clause):
+            continue
+        for match in _EXCEPTION_REFERENCE_PATTERN.finditer(clause):
+            name = match.group(1)
+            if name not in names:
+                names.append(name)
+    return names
+
+
+def _has_positive_raise_verb(clause: str) -> bool:
+    """Reports whether the clause holds a raise verb in a non-negated spot.
+
+    Each raise-verb occurrence is checked against the text directly before it,
+    so `never re-raises` reads as negated while a later, unqualified `raises`
+    in the same clause still counts.
+    """
+    return any(
+        not _RAISE_NEGATION_PATTERN.search(clause[: match.start()])
+        for match in _RAISE_VERB_PATTERN.finditer(clause)
+    )
+
+
 def _returns_multi_element_tuple(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Reports whether the return annotation is a multi-element `tuple`.
 
@@ -316,6 +381,62 @@ def _returns_multi_element_tuple(node: ast.FunctionDef | ast.AsyncFunctionDef) -
     if isinstance(last, ast.Constant) and last.value is Ellipsis:
         return False
     return len(elements) >= 2
+
+
+def _split_docstring(docstring: str) -> tuple[str, set[str], set[str]]:
+    """Splits a cleaned docstring into body prose and documented names.
+
+    Returns the prose body, the parameters entered under an `Args:` section,
+    and the exceptions entered under a `Raises:` section, in that order. Each
+    exception is reduced to its final dotted segment so a prose mention and an
+    entry match whichever of the two qualifies the module. The body is the
+    prose between the summary and the first Google-style section header; the
+    summary itself is dropped so a name there does not read as prose.
+    """
+    sections = _sectioned(docstring)
+    body = "\n".join(sections.get(None, ()))
+    documented_args = _entries(sections, _ARGS_CAPTIONS, _ARG_ENTRY_PATTERN)
+    documented_raises = {
+        name.rpartition(".")[2]
+        for name in _entries(sections, {"Raises"}, _RAISES_ENTRY_PATTERN)
+    }
+    return body, documented_args, documented_raises
+
+
+def _entries(
+    sections: dict[str | None, list[str]],
+    captions: frozenset[str] | set[str],
+    pattern: re.Pattern[str],
+) -> set[str]:
+    """Collects the entry names `pattern` captures under the given captions."""
+    return {
+        match.group(1)
+        for caption in captions
+        for line in sections.get(caption, ())
+        if (match := pattern.match(line))
+    }
+
+
+def _sectioned(docstring: str) -> dict[str | None, list[str]]:
+    """Groups a cleaned docstring's post-summary lines by their section.
+
+    A line before the first Google-style header keys `None`; a later line keys
+    the caption of the section it falls under. The summary lines are excluded,
+    so the `None` group holds only the body prose after them.
+    """
+    lines = docstring.splitlines()
+    index = 0
+    while index < len(lines) and lines[index].strip():
+        index += 1
+    sections: dict[str | None, list[str]] = {}
+    section: str | None = None
+    for line in lines[index:]:
+        header = _SECTION_HEADER_PATTERN.match(line)
+        if header is not None:
+            section = header.group(1)
+        else:
+            sections.setdefault(section, []).append(line)
+    return sections
 
 
 def _violation(

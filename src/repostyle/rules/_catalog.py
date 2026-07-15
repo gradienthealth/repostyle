@@ -49,6 +49,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -725,6 +726,13 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     "annotation to one level and states what it holds."
                 ),
             ),
+        ),
+    ),
+    RS_RAISE_DESCRIBED_IN_PROSE: RuleDoc(
+        name="raise-described-in-prose",
+        summary=(
+            "A raised exception goes in a `Raises:` section, not narrated in "
+            "the docstring body."
         ),
     ),
 }

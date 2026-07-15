@@ -36,6 +36,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -60,6 +61,7 @@ from repostyle.rules.doc_fill import check_doc_fill, check_doc_summary_overflow
 from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
+    check_raise_described_in_prose,
     check_return_described_in_prose,
 )
 from repostyle.rules.docstrings import (
@@ -165,6 +167,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
         check_unbackticked_sibling_symbol_in_comments,
     ),
     RS_DEEPLY_NESTED_TYPE: (check_deeply_nested_type,),
+    RS_RAISE_DESCRIBED_IN_PROSE: (check_raise_described_in_prose,),
 }
 
 
@@ -203,6 +206,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_TAG_COMMENT_CONTINUATION_INDENT: Severity.WARNING,
     RS_UNBACKTICKED_SIBLING_SYMBOL: Severity.WARNING,
     RS_DEEPLY_NESTED_TYPE: Severity.WARNING,
+    RS_RAISE_DESCRIBED_IN_PROSE: Severity.WARNING,
 }
 
 

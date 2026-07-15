@@ -78,10 +78,12 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
     """Resolves enabled rule ids from a `[tool.repostyle]` table.
 
     `select` defaults to every rule; `ignore` defaults to none. The enabled set
-    is `select` minus `ignore`. A missing or empty table enables all rules. An
-    unknown id in `select` or `ignore` raises `ValueError`: silently dropping
-    it could resolve `select` to the empty set and make the linter pass
-    everything.
+    is `select` minus `ignore`. A missing or empty table enables all rules.
+
+    Raises:
+        ValueError: when `select` or `ignore` names an unknown id. Silently
+            dropping it could resolve `select` to the empty set and make the
+            linter pass everything.
     """
     if not config:
         return set(ALL_RULE_IDS)
