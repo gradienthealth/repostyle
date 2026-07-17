@@ -27,13 +27,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Consumer repos that vendor these files. Add a repo here once it
-        # vendors docs/judgment-conventions.md and ruff-base.toml.
+        # Consumer repos that vendor these files, kept alphabetical. Add a repo
+        # here once it vendors docs/judgment-conventions.md and ruff-base.toml.
         repo:
-          - fhir-ingestor
-          - hl7-ingestor
           - dicom-ingestor
+          - fhir-ingestor
           - gradient-beam
+          - gradient-pulumi-infrastructure
+          - hl7-ingestor
     steps:
       - name: Check out the style sources
         uses: actions/checkout@v4
