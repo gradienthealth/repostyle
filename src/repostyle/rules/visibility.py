@@ -24,7 +24,7 @@ from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
-from repostyle.rules._shared import _parse_python, _posix, find_pyproject
+from repostyle._shared import _parse_python, _posix, find_pyproject
 from repostyle.rules._violation import RS_SHOULD_BE_PRIVATE, Violation
 
 

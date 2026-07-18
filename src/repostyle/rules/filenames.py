@@ -20,7 +20,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import (
+from repostyle._shared import (
     _matches_config_glob,
     _repostyle_table,
     find_pyproject,

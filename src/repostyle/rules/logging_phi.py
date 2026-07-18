@@ -6,7 +6,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import _parse_python
+from repostyle._shared import _parse_python
 from repostyle.rules._violation import RS_NO_PHI_SAFE_EXC_INFO, Violation
 
 _LOGGING_CALL_NAMES = frozenset(

@@ -18,8 +18,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
-from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
-from repostyle.rules._shared import (
+from repostyle._comments import COMMENT_SUFFIXES, extract_comments
+from repostyle._shared import (
     _comment_text,
     _is_directive_comment,
     _is_prose_comment,
@@ -48,10 +48,10 @@ from repostyle.rules._violation import (
     Violation,
 )
 from repostyle.rules.imperative_verbs import (
-    _IMPERATIVE_OPENING_PATTERN,
-    _IMPERATIVE_VERBS,
+    IMPERATIVE_OPENING_PATTERN,
     IMPERATIVE_VERB_CONJUGATIONS,
-    _conjugate,
+    IMPERATIVE_VERBS,
+    conjugate,
 )
 
 ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
@@ -465,7 +465,7 @@ def _effective_pattern(pyproject: Path | None) -> re.Pattern[str]:
     """
     conjugations = _effective_conjugations(pyproject)
     if conjugations is IMPERATIVE_VERB_CONJUGATIONS:
-        return _IMPERATIVE_OPENING_PATTERN
+        return IMPERATIVE_OPENING_PATTERN
     if not conjugations:
         return re.compile(r"(?!)")
     escaped = (re.escape(verb) for verb in conjugations)
@@ -490,9 +490,9 @@ def _effective_conjugations(pyproject: Path | None) -> dict[str, str]:
     if not extra and not exclude:
         return IMPERATIVE_VERB_CONJUGATIONS
     verbs = dict.fromkeys(
-        verb for verb in (*_IMPERATIVE_VERBS, *extra) if verb not in exclude
+        verb for verb in (*IMPERATIVE_VERBS, *extra) if verb not in exclude
     )
-    return {verb: _conjugate(verb) for verb in verbs}
+    return {verb: conjugate(verb) for verb in verbs}
 
 
 def check_docstring_terminal_punctuation(

@@ -17,7 +17,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import _parse_python
+from repostyle._shared import _parse_python
 from repostyle.rules._violation import RS_EQ_HASH_PAIRING, Violation
 
 # A class decorated with one of these synthesizes both `__eq__` and `__hash__`

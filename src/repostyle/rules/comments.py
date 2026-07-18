@@ -41,8 +41,8 @@ from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
-from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
-from repostyle.rules._shared import (
+from repostyle._comments import COMMENT_SUFFIXES, extract_comments
+from repostyle._shared import (
     _comment_text,
     _has_sentence_boundary,
     _is_directive_comment,

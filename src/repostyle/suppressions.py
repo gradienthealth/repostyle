@@ -13,8 +13,8 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 
+from repostyle._comments import extract_comments
 from repostyle.rules import Violation
-from repostyle.rules._comments import extract_comments
 
 _FILE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore-file\b")
 _LINE_DIRECTIVE = re.compile(r"#\s*style:\s*ignore\b(?!-file)(?:\[([\sA-Z0-9,]*)\])?")
