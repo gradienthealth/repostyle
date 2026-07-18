@@ -351,7 +351,9 @@ def _raised_exception_types(
     name is listed once, in first-encounter order.
     """
     names: list[str] = []
-    stack: list[ast.AST] = list(node.body)
+    # Children are pushed reversed so the LIFO stack pops them in source order,
+    # keeping the listed names in first-encounter order.
+    stack: list[ast.AST] = list(reversed(node.body))
     while stack:
         child = stack.pop()
         if isinstance(
@@ -362,7 +364,7 @@ def _raised_exception_types(
             name = _exception_type_name(child.exc)
             if name is not None and name not in names:
                 names.append(name)
-        stack.extend(ast.iter_child_nodes(child))
+        stack.extend(reversed(list(ast.iter_child_nodes(child))))
     return names
 
 
