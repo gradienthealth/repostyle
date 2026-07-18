@@ -61,6 +61,7 @@ from repostyle.rules._violation import (
     RS_PREDICATE_FUNCTION_NAMING,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
+    RS_RANGE_LEN_REINDEX,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -119,6 +120,7 @@ from repostyle.rules.docstrings import (
 from repostyle.rules.duration import check_duration_as_timedelta
 from repostyle.rules.equality import check_eq_hash_pairing
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
+from repostyle.rules.idioms import check_range_len_reindex
 from repostyle.rules.import_layering import check_banned_import_by_path
 from repostyle.rules.layout import (
     check_class_member_order,
@@ -187,6 +189,7 @@ __all__ = [
     "RS_PREDICATE_FUNCTION_NAMING",
     "RS_RAISES_SECTION_INCOMPLETE",
     "RS_RAISE_DESCRIBED_IN_PROSE",
+    "RS_RANGE_LEN_REINDEX",
     "RS_RETURN_DESCRIBED_IN_PROSE",
     "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
@@ -248,6 +251,7 @@ __all__ = [
     "check_predicate_function_naming",
     "check_raise_described_in_prose",
     "check_raises_section_incomplete",
+    "check_range_len_reindex",
     "check_return_described_in_prose",
     "check_should_be_private",
     "check_sleepy_test",

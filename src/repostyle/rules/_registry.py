@@ -40,6 +40,7 @@ from repostyle.rules._violation import (
     RS_PREDICATE_FUNCTION_NAMING,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
+    RS_RANGE_LEN_REINDEX,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -90,6 +91,7 @@ from repostyle.rules.docstrings import (
 from repostyle.rules.duration import check_duration_as_timedelta
 from repostyle.rules.equality import check_eq_hash_pairing
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
+from repostyle.rules.idioms import check_range_len_reindex
 from repostyle.rules.import_layering import check_banned_import_by_path
 from repostyle.rules.layout import (
     check_class_member_order,
@@ -184,6 +186,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
         check_docstring_temporal_markers,
         check_comment_temporal_markers,
     ),
+    RS_RANGE_LEN_REINDEX: (check_range_len_reindex,),
 }
 
 
@@ -226,6 +229,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_RAISES_SECTION_INCOMPLETE: Severity.WARNING,
     RS_PREDICATE_FUNCTION_NAMING: Severity.WARNING,
     RS_TEMPORAL_MARKER: Severity.WARNING,
+    RS_RANGE_LEN_REINDEX: Severity.WARNING,
 }
 
 

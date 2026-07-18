@@ -53,6 +53,7 @@ from repostyle.rules._violation import (
     RS_PREDICATE_FUNCTION_NAMING,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
+    RS_RANGE_LEN_REINDEX,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -844,6 +845,36 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 note=(
                     "Replace the decision narration with the durable reason the "
                     "code is the way it is, or delete the comment."
+                ),
+            ),
+        ),
+    ),
+    RS_RANGE_LEN_REINDEX: RuleDoc(
+        name="range-len-reindex",
+        summary=(
+            "A `for i in range(len(seq))` that only indexes `seq[i]` should "
+            "iterate `seq` directly."
+        ),
+        rationale=(
+            "Looping over `range(len(seq))` to read `seq[i]` at each step spends "
+            "an index variable on what `for item in seq:` says directly, and the "
+            "indirection hides that the loop is a plain traversal. The check "
+            "fires only when the index is used for nothing but subscripting that "
+            "same sequence, so a loop that also needs the index — for "
+            "arithmetic, a second sequence, or a call — is left alone rather "
+            "than steered toward `enumerate`, the weaker suggestion this rule "
+            "deliberately does not make. No stable ruff rule expresses this: "
+            "pylint's `C0200` (`consider-using-enumerate`) covers the shape but "
+            "is not ported to ruff's rule set, so it stays a genuine gap this "
+            "rule fills."
+        ),
+        examples=(
+            Example(
+                bad="for i in range(len(rows)):\n    process(rows[i])",
+                good="for row in rows:\n    process(row)",
+                note=(
+                    "When the index is needed too — `rows[i]` beside `i + 1` or "
+                    "a bare `i` — the loop is left alone."
                 ),
             ),
         ),
