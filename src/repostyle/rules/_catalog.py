@@ -52,6 +52,7 @@ from repostyle.rules._violation import (
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
+    RS_PRIVATE_IMPORT,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RANGE_LEN_REINDEX,
@@ -909,6 +910,44 @@ RULE_DOCS: dict[str, RuleDoc] = {
             Example(
                 bad="Raises:\n    NotFoundError: if a foo is not found.",
                 good="Raises:\n    NotFoundError: If a foo is not found.",
+            ),
+        ),
+    ),
+    RS_PRIVATE_IMPORT: RuleDoc(
+        name="private-import",
+        summary=(
+            "A first-party import consumes another package's public surface, "
+            "not its `_`-private internals."
+        ),
+        rationale=(
+            "A single leading underscore marks a module or name internal to the "
+            "package that holds it, so reaching it from outside that package "
+            "relies on an implementation detail the author did not publish. The "
+            "supported way to use another package is the surface it re-exports "
+            "from its `__init__`; if a member is needed there, it should be "
+            "lifted onto that surface, not reached past. This is the dual of "
+            "RS029: RS029 asks a package to hide what only it uses, this asks "
+            "other code not to reach into what was hidden. The check scopes to "
+            "imports that share the importer's top-level package, so it governs "
+            "a repo's own layering and leaves a reach into a third-party "
+            "distribution — whose internals a repo cannot restructure — alone. "
+            "It follows PEP 8's `Public and internal interfaces`: an interface "
+            "is internal if any containing namespace is, and other modules must "
+            "not rely on indirect access to it except through a package's "
+            "documented `__init__`. A test module is exempt, since exercising a "
+            "unit under test's internals is expected."
+        ),
+        examples=(
+            Example(
+                bad="# in myapp/api/views.py\nfrom myapp.core._engine import run",
+                good="# in myapp/api/views.py\nfrom myapp.core import run",
+                note=(
+                    "`_engine` is internal to `myapp.core`, and `views` lives "
+                    "outside `core`, so it must go through `core`'s public "
+                    "surface. Re-export `run` from `core/__init__.py` rather "
+                    "than reaching past it. An import from within `myapp.core` "
+                    "itself is fine."
+                ),
             ),
         ),
     ),
