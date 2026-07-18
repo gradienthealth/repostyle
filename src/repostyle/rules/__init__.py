@@ -58,6 +58,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_PREDICATE_FUNCTION_NAMING,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RETURN_DESCRIBED_IN_PROSE,
@@ -129,6 +130,7 @@ from repostyle.rules.naming import (
     check_exception_alias,
     check_no_make_in_production,
     check_no_negated_boolean,
+    check_predicate_function_naming,
 )
 from repostyle.rules.ports import check_port_no_implementation
 from repostyle.rules.signatures import check_too_many_positional_args
@@ -182,6 +184,7 @@ __all__ = [
     "RS_NO_NEGATED_BOOLEAN",
     "RS_NO_PHI_SAFE_EXC_INFO",
     "RS_PORT_NO_IMPLEMENTATION",
+    "RS_PREDICATE_FUNCTION_NAMING",
     "RS_RAISE_DESCRIBED_IN_PROSE",
     "RS_RAISES_SECTION_INCOMPLETE",
     "RS_RETURN_DESCRIBED_IN_PROSE",
@@ -236,6 +239,7 @@ __all__ = [
     "check_no_negated_boolean",
     "check_no_phi_safe_with_exc_info",
     "check_port_no_implementation",
+    "check_predicate_function_naming",
     "check_raise_described_in_prose",
     "check_raises_section_incomplete",
     "check_return_described_in_prose",

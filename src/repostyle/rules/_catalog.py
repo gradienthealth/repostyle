@@ -50,6 +50,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_PREDICATE_FUNCTION_NAMING,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RETURN_DESCRIBED_IN_PROSE,
@@ -779,6 +780,32 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "all is the prose-side choice RS041 governs. Where an exception is "
             "both raised in code and narrated in the body, RS041 owns it and "
             "this rule stays silent."
+        ),
+    ),
+    RS_PREDICATE_FUNCTION_NAMING: RuleDoc(
+        name="predicate-function-naming",
+        summary=(
+            "A `-> bool` function named as a bare state word reads as a yes/no "
+            "question (`is_valid`, not `valid`)."
+        ),
+        rationale=(
+            "A boolean function should read as the question its call site asks, "
+            "so a single bare adjective or state noun (`valid`, `ready`, "
+            "`enabled`) takes a predicate prefix (`is_`/`has_`/`can_`/"
+            "`should_`). The check is deliberately narrow to stay near "
+            "zero-false-positive: it fires only on a single-word name, since a "
+            "multi-word name already carries a predicate somewhere "
+            "(`field_has_docstring`), and it accepts a third-person verb "
+            "(`matches`, `suppresses`), the idiomatic predicate-verb name a "
+            "`-> bool` function may take. A dunder, a property setter, and an "
+            "`@override`/`@overload` are exempt."
+        ),
+        examples=(
+            Example(
+                bad="def valid(self) -> bool: ...",
+                good="def is_valid(self) -> bool: ...",
+                note="A predicate verb (`matches`, `exists`) needs no prefix.",
+            ),
         ),
     ),
 }

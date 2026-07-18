@@ -24,6 +24,7 @@ from repostyle.rules import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_PREDICATE_FUNCTION_NAMING,
     RS_SLEEPY_TEST,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
@@ -54,6 +55,7 @@ from repostyle.rules import (
     check_no_negated_boolean,
     check_no_phi_safe_with_exc_info,
     check_port_no_implementation,
+    check_predicate_function_naming,
     check_sleepy_test,
     check_test_naming,
     check_unbackticked_code_reference,
@@ -1370,6 +1372,58 @@ class TestCheckEqHashPairing:
     def test_NonPythonFile_NotChecked(self) -> None:
         source = "class Money:\n    def __eq__(self, other): return True\n"
         assert list(check_eq_hash_pairing(Path("README.md"), source)) == []
+
+
+class TestCheckPredicateFunctionNaming:
+    @pytest.mark.parametrize(
+        "name",
+        ["valid", "ready", "enabled", "_valid"],
+        ids=["adjective", "state", "past-participle", "private-adjective"],
+    )
+    def test_BareStateWord_FlagsViolation(self, name: str) -> None:
+        source = f"def {name}(self) -> bool: ...\n"
+        violations = list(check_predicate_function_naming(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_PREDICATE_FUNCTION_NAMING
+        assert f"is_{name.lstrip('_')}" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def is_valid(self) -> bool: ...\n",
+            "def needs(self) -> bool: ...\n",
+            "def matches(self) -> bool: ...\n",
+            "def field_has_docstring() -> bool: ...\n",
+            "def valid(self): ...\n",
+            "def valid(self) -> int: ...\n",
+            "def __eq__(self, other) -> bool: ...\n",
+            "class C:\n    @x.setter\n    def valid(self, v) -> bool: ...\n",
+            "class C:\n    @override\n    def valid(self) -> bool: ...\n",
+        ],
+        ids=[
+            "prefixed",
+            "needs-prefix",
+            "third-person-verb",
+            "multi-word",
+            "no-annotation",
+            "non-bool-return",
+            "dunder",
+            "property-setter",
+            "override",
+        ],
+    )
+    def test_QuestionFormOrExempt_NoViolation(self, source: str) -> None:
+        assert list(check_predicate_function_naming(Path("src/x.py"), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        assert (
+            list(
+                check_predicate_function_naming(
+                    Path("README.md"), "def valid() -> bool: ..."
+                )
+            )
+            == []
+        )
 
 
 class TestCheckNoMakeInProduction:

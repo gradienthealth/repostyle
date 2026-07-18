@@ -37,6 +37,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_PREDICATE_FUNCTION_NAMING,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RETURN_DESCRIBED_IN_PROSE,
@@ -100,6 +101,7 @@ from repostyle.rules.naming import (
     check_exception_alias,
     check_no_make_in_production,
     check_no_negated_boolean,
+    check_predicate_function_naming,
 )
 from repostyle.rules.ports import check_port_no_implementation
 from repostyle.rules.signatures import check_too_many_positional_args
@@ -174,6 +176,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_RAISE_DESCRIBED_IN_PROSE: (check_raise_described_in_prose,),
     RS_EQ_HASH_PAIRING: (check_eq_hash_pairing,),
     RS_RAISES_SECTION_INCOMPLETE: (check_raises_section_incomplete,),
+    RS_PREDICATE_FUNCTION_NAMING: (check_predicate_function_naming,),
 }
 
 
@@ -214,6 +217,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_DEEPLY_NESTED_TYPE: Severity.WARNING,
     RS_RAISE_DESCRIBED_IN_PROSE: Severity.WARNING,
     RS_RAISES_SECTION_INCOMPLETE: Severity.WARNING,
+    RS_PREDICATE_FUNCTION_NAMING: Severity.WARNING,
 }
 
 

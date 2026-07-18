@@ -14,6 +14,7 @@ from pathlib import Path
 
 from repostyle.rules._shared import (
     TEST_CLASS_PATTERN,
+    _has_decorator,
     _is_test_file,
     _parse_python,
     _repostyle_table,
@@ -28,6 +29,7 @@ from repostyle.rules._violation import (
     RS_EXCEPTION_ALIAS,
     RS_NO_MAKE_IN_PRODUCTION,
     RS_NO_NEGATED_BOOLEAN,
+    RS_PREDICATE_FUNCTION_NAMING,
     Violation,
 )
 
@@ -84,6 +86,16 @@ BANNED_ABBREVIATIONS: frozenset[str] = frozenset(
 DISCOURAGED_CLASS_SUFFIXES: tuple[str, ...] = ("Helper", "Manager", "Util", "Utils")
 
 BOOLEAN_PREFIXES: frozenset[str] = frozenset({"can", "has", "is", "should"})
+
+# RS044's accepted openings: RS026's boolean prefixes, plus `needs`/`allows`,
+# which read as a yes/no question on a function (`needs_refresh`, `allows_x`)
+# though they are not among the noun/attribute prefixes RS026 checks.
+PREDICATE_PREFIXES: frozenset[str] = BOOLEAN_PREFIXES | frozenset({"allows", "needs"})
+
+# Decorators that leave a boolean function's name outside the author's control,
+# so RS044 leaves the name alone: an `@override`/`@overload` implements a name
+# a supertype or stub already fixed.
+_PREDICATE_ESCAPE_DECORATORS: frozenset[str] = frozenset({"override", "overload"})
 
 NEGATION_WORDS: frozenset[str] = frozenset({"no", "not"})
 
@@ -201,6 +213,57 @@ def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation
     for node in ast.walk(tree):
         for name, lineno, col_offset in _boolean_prefix_named_targets(node):
             yield from _boolean_prefix_violations(name, lineno, col_offset)
+
+
+def check_predicate_function_naming(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a `-> bool` function named as a bare state word, not a question.
+
+    A boolean function should read as the yes/no question its call site asks,
+    so a single-word name that is a bare adjective or state noun (`valid`,
+    `ready`, `enabled`) is flagged in favor of a predicate-prefixed form
+    (`is_valid`). The check stays narrow to keep its false-positive rate near
+    zero: it fires only on a single bare word, since a multi-word name already
+    carries a predicate somewhere (`field_has_docstring`,
+    `branch_asserts_directly`), and it accepts a third-person verb (a word
+    ending in `s`, like `matches` or `suppresses`), which RS026 already blesses
+    as the idiomatic predicate-verb name for a boolean function. A dunder, a
+    property setter, and an `@override`/`@overload` are exempt, since their
+    names are fixed elsewhere. Detection is by the bare `bool` return
+    annotation, so an unannotated or union-returning function is left alone.
+    Advisory: it marks a name to reconsider rather than failing the run.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            yield from _predicate_naming_violation(node)
+
+
+def _predicate_naming_violation(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> Iterator[Violation]:
+    """Yields a boolean function's predicate-naming violation, if any."""
+    if not _is_bool_annotation(node.returns):
+        return
+    if (
+        _is_dunder(node.name)
+        or _is_property_setter(node)
+        or _has_decorator(node, _PREDICATE_ESCAPE_DECORATORS)
+    ):
+        return
+    word = node.name.lstrip("_")
+    if "_" in word or not word:
+        return
+    if word in PREDICATE_PREFIXES or word.lower().endswith("s"):
+        return
+    yield Violation(
+        node.lineno,
+        node.col_offset + 1,
+        RS_PREDICATE_FUNCTION_NAMING,
+        f"boolean function '{node.name}' reads as a state, not a yes/no "
+        f"question; prefix it with is, has, can, or should (e.g. 'is_{word}')",
+    )
 
 
 def check_exception_alias(path: Path, source: str) -> Iterator[Violation]:
@@ -434,6 +497,23 @@ def _identifier_words(name: str) -> Iterator[str]:
 def _is_bool_annotation(annotation: ast.expr | None) -> bool:
     """Reports whether an annotation is the bare `bool` type."""
     return isinstance(annotation, ast.Name) and annotation.id == "bool"
+
+
+def _is_dunder(name: str) -> bool:
+    """Reports whether a name is a double-underscore special method."""
+    return name.startswith("__") and name.endswith("__")
+
+
+def _is_property_setter(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Reports whether a definition is a `@<property>.setter`.
+
+    A setter's name is fixed by the property it backs, so it is out of the
+    author's control the way an override's is.
+    """
+    return any(
+        isinstance(decorator, ast.Attribute) and decorator.attr == "setter"
+        for decorator in node.decorator_list
+    )
 
 
 def _name_and_position(target: ast.expr) -> Iterator[tuple[str, int, int]]:
