@@ -20,7 +20,7 @@ from repostyle.runner import (
     fix_path,
     lint_package,
     lint_path,
-    resolve_enabled_rules_for_paths,
+    resolve_rules_for_paths,
 )
 
 
@@ -90,7 +90,7 @@ def _run_lint(argv: list[str]) -> int:
     original_paths = options.paths
     paths = expand_paths(original_paths)
     try:
-        enabled = resolve_enabled_rules_for_paths(original_paths)
+        enabled, promoted = resolve_rules_for_paths(original_paths)
     except ValueError as error:
         print(f"repostyle: {error}", file=sys.stderr)
         return 2
@@ -102,7 +102,7 @@ def _run_lint(argv: list[str]) -> int:
         if options.fix and fix_path(path, enabled):
             fixed.append(path)
         extra = package.get(path.resolve(), [])
-        path_failed, path_rules = _report_path(path, enabled, options, extra)
+        path_failed, path_rules = _report_path(path, enabled, promoted, options, extra)
         failed = path_failed or failed
         fired |= path_rules
     if fixed:
@@ -144,13 +144,16 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def _report_path(
     path: Path,
     enabled: set[str],
+    promoted: set[str],
     options: argparse.Namespace,
     extra: list[Violation],
 ) -> tuple[bool, set[str]]:
     """Prints a path's findings, returning pass/fail and the rules that fired.
 
     `extra` carries whole-package findings already scoped to this path, merged
-    with the per-file findings before diff-filtering and printing. The returned
+    with the per-file findings before diff-filtering and printing. A rule in
+    `promoted` prints and fails as an error whatever its default severity, so a
+    repo hard-fails on a trusted subset of the advisory rules. The returned
     rule set is the rules that produced a finding on this path.
     """
     violations = sorted(set(lint_path(path, enabled)) | set(extra))
@@ -161,7 +164,7 @@ def _report_path(
     failed = False
     fired: set[str] = set()
     for line, col, rule, message in violations:
-        severity = severity_of(rule)
+        severity = Severity.ERROR if rule in promoted else severity_of(rule)
         print(f"{path}:{line}:{col}: {severity.value}: {rule} {message}")
         failed = failed or severity is Severity.ERROR
         fired.add(rule)
