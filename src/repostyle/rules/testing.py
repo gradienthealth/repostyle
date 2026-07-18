@@ -224,7 +224,7 @@ def _is_zero_sleep(node: ast.Call) -> bool:
     delay = node.args[0]
     return (
         isinstance(delay, ast.Constant)
-        and isinstance(delay.value, (int, float))
+        and isinstance(delay.value, int | float)
         and not isinstance(delay.value, bool)
         and delay.value == 0
     )

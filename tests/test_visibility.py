@@ -125,8 +125,9 @@ class TestLintPackage:
         assert lint_package([mod], set()) == {}
 
     def test_RepostyleOwnSource_HasNoLeakedInternalName(self) -> None:
-        """Dogfoods RS029 over repostyle's own source the way the hook does,
-        pinning that no public symbol leaks internal-only scope.
+        """Dogfoods RS029 over repostyle's own source the way the hook does.
+
+        Pins that no public symbol leaks internal-only scope.
         """
         package = Path(__file__).resolve().parents[1] / "src" / "repostyle"
         sources = [

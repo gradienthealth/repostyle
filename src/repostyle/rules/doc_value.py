@@ -1,12 +1,21 @@
 """Documentation-value signals: warn where a docstring earns its keep.
 
-Four rules live here, all advising that documentation land where it is most
+Five rules live here, all advising that documentation land where it is most
 useful rather than demanding it everywhere. RS018 scores a function's
 documentation value and warns when a non-trivial public function is
 under-documented; RS031 warns when per-argument detail is narrated in the
 docstring body instead of a structured `Args:` section; RS032 warns when the
 return value is narrated there instead of a `Returns:` section; RS041 warns
-when a raised exception is narrated there instead of a `Raises:` section.
+when a raised exception is narrated there instead of a `Raises:` section; RS043
+warns when a function has a `Raises:` section but an exception its body raises
+outright is missing from it.
+
+RS041 and RS043 are complementary halves of the same concern, split by their
+signal. RS041 is prose-driven — it fires on an exception narrated in the body
+with a raise verb, the only signal available when the exception propagates from
+a callee. RS043 is AST-driven — it fires on an explicit `raise SomeError(...)`
+statement absent from an existing `Raises:` section. Where both could reach one
+exception, RS043 yields, skipping any exception RS041 already narrates.
 
 RS018 has two triggers. The presence trigger fires when a complex or
 many-argumented public function carries no docstring. The `Returns:` trigger
@@ -27,6 +36,7 @@ from repostyle.rules._violation import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
     RS_RAISE_DESCRIBED_IN_PROSE,
+    RS_RAISES_SECTION_INCOMPLETE,
     RS_RETURN_DESCRIBED_IN_PROSE,
     Violation,
 )
@@ -39,6 +49,7 @@ DOC_VALUE_COMPLEXITY_FLOOR = 5
 DOC_VALUE_PARAM_FLOOR = 4
 
 _RETURNS_SECTION_PATTERN = re.compile(r"^[ \t]*(Returns|Yields):\s*$", re.MULTILINE)
+_RAISES_SECTION_PATTERN = re.compile(r"^[ \t]*Raises:\s*$", re.MULTILINE)
 
 # A Google-style section header is a known caption alone on its line. Anything
 # before the first header is the body prose RS031 and RS041 scan; the `Args:`
@@ -198,6 +209,40 @@ def check_raise_described_in_prose(path: Path, source: str) -> Iterator[Violatio
             )
 
 
+def check_raises_section_incomplete(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a `Raises:` section missing an exception the body raises outright.
+
+    A public function that already carries a `Raises:` section fires once per
+    specific exception type its own body raises with an explicit `raise
+    SomeError(...)` statement while no `Raises:` entry names it. Once a
+    function documents its exceptions at all, the section should be complete,
+    so a reader trusts it; a raise the section omits silently understates the
+    contract. A function with no `Raises:` section does not fire — whether to
+    document exceptions at all is a presence choice RS041 governs from the
+    prose side. A bare `raise` re-raising the caught exception and a `raise` of
+    a non-class expression are ignored, since neither names a specific type,
+    and an exception RS041 already narrates in the body prose is left to RS041
+    so the two rules never flag one exception twice.
+    """
+    for node in _public_functions(path, source):
+        docstring = ast.get_docstring(node, clean=True)
+        if docstring is None or not _RAISES_SECTION_PATTERN.search(docstring):
+            continue
+        body, _, documented = _split_docstring(docstring)
+        narrated = {
+            name.rpartition(".")[2] for name in _exceptions_raised_in_prose(body)
+        }
+        for raised in _raised_exception_types(node):
+            if raised in documented or raised in narrated:
+                continue
+            yield _violation(
+                node,
+                RS_RAISES_SECTION_INCOMPLETE,
+                f"'{node.name}' raises '{raised}' but its `Raises:` section "
+                f"does not list it; add a `Raises:` entry for it",
+            )
+
+
 def check_doc_value_signal(path: Path, source: str) -> Iterator[Violation]:
     """Warns when a non-trivial public function is under-documented.
 
@@ -290,6 +335,54 @@ def _exceptions_raised_in_prose(body: str) -> list[str]:
             if name not in names:
                 names.append(name)
     return names
+
+
+def _raised_exception_types(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[str]:
+    """Lists the specific exception types the function's own body raises.
+
+    Collects the class name of every `raise SomeError(...)` or `raise
+    SomeError` statement reachable in the body without crossing into a nested
+    function, lambda, or class, so a raise belonging to an inner scope is not
+    attributed here. A bare `raise` and a `raise` of a lowercase expression
+    (a caught alias, a factory call result) name no class and are skipped. A
+    dotted `raise pkg.mod.FooError()` is reduced to its final segment. Each
+    name is listed once, in first-encounter order.
+    """
+    names: list[str] = []
+    # Children are pushed reversed so the LIFO stack pops them in source order,
+    # keeping the listed names in first-encounter order.
+    stack: list[ast.AST] = list(reversed(node.body))
+    while stack:
+        child = stack.pop()
+        if isinstance(
+            child, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda | ast.ClassDef
+        ):
+            continue
+        if isinstance(child, ast.Raise) and child.exc is not None:
+            name = _exception_type_name(child.exc)
+            if name is not None and name not in names:
+                names.append(name)
+        stack.extend(reversed(list(ast.iter_child_nodes(child))))
+    return names
+
+
+def _exception_type_name(exc: ast.expr) -> str | None:
+    """Returns the class name a `raise` target names, or `None`.
+
+    A raised `Call` unwraps to its callee, so `raise FooError(...)` and `raise
+    FooError` both resolve to `FooError`; a dotted `pkg.FooError` resolves to
+    its final attribute. A target whose name does not start with a capital — a
+    re-raised alias like `exc`, or a lowercase factory call — is treated as not
+    naming a specific type and returns `None`.
+    """
+    call = exc.func if isinstance(exc, ast.Call) else exc
+    if isinstance(call, ast.Name) and call.id[:1].isupper():
+        return call.id
+    if isinstance(call, ast.Attribute) and call.attr[:1].isupper():
+        return call.attr
+    return None
 
 
 def _has_positive_raise_verb(clause: str) -> bool:

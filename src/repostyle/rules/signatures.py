@@ -49,7 +49,7 @@ def check_too_many_positional_args(path: Path, source: str) -> Iterator[Violatio
     yield from _check_scope(tree, is_within_class=False)
 
 
-def _check_scope(node: ast.AST, is_within_class: bool) -> Iterator[Violation]:
+def _check_scope(node: ast.AST, *, is_within_class: bool) -> Iterator[Violation]:
     """Walks one scope, tracking whether its definitions are class methods.
 
     A function defined directly in a class body binds an implicit `self`/`cls`,
@@ -59,21 +59,21 @@ def _check_scope(node: ast.AST, is_within_class: bool) -> Iterator[Violation]:
     """
     for child in ast.iter_child_nodes(node):
         if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
-            yield from _check_function(child, is_within_class)
+            yield from _check_function(child, is_within_class=is_within_class)
             yield from _check_scope(child, is_within_class=False)
         elif isinstance(child, ast.ClassDef):
             yield from _check_scope(child, is_within_class=True)
         else:
-            yield from _check_scope(child, is_within_class)
+            yield from _check_scope(child, is_within_class=is_within_class)
 
 
 def _check_function(
-    node: ast.FunctionDef | ast.AsyncFunctionDef, is_within_class: bool
+    node: ast.FunctionDef | ast.AsyncFunctionDef, *, is_within_class: bool
 ) -> Iterator[Violation]:
     if _has_decorator(node, _OVERRIDE_DECORATORS):
         return
     is_method = is_within_class and not _has_decorator(node, {"staticmethod"})
-    count = _positional_count(node, is_method)
+    count = _positional_count(node, is_method=is_method)
     if count > MAX_POSITIONAL_ARGS:
         yield Violation(
             node.lineno,
@@ -86,7 +86,7 @@ def _check_function(
 
 
 def _positional_count(
-    node: ast.FunctionDef | ast.AsyncFunctionDef, is_method: bool
+    node: ast.FunctionDef | ast.AsyncFunctionDef, *, is_method: bool
 ) -> int:
     """Counts the positional parameters, excluding a method's `self`/`cls`."""
     positional = node.args.posonlyargs + node.args.args

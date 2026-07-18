@@ -6,10 +6,12 @@ from repostyle.rules import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
     RS_RAISE_DESCRIBED_IN_PROSE,
+    RS_RAISES_SECTION_INCOMPLETE,
     RS_RETURN_DESCRIBED_IN_PROSE,
     check_arg_described_in_prose,
     check_doc_value_signal,
     check_raise_described_in_prose,
+    check_raises_section_incomplete,
     check_return_described_in_prose,
 )
 
@@ -565,6 +567,139 @@ class TestCheckRaiseDescribedInProse:
         assert _check_raise(source) == []
 
 
+class TestCheckRaisesSectionIncomplete:
+    @pytest.mark.parametrize(
+        ("source", "name"),
+        [
+            (
+                "def load(path: str) -> dict:\n"
+                '    """Load the config.\n'
+                "\n"
+                "    Raises:\n"
+                "        ValueError: when the file is not valid TOML.\n"
+                '    """\n'
+                "    if not path:\n"
+                '        raise KeyError("missing")\n'
+                "    return {}\n",
+                "KeyError",
+            ),
+            (
+                "def load(path: str) -> dict:\n"
+                '    """Load the config.\n'
+                "\n"
+                "    Raises:\n"
+                "        ValueError: when the file is not valid TOML.\n"
+                '    """\n'
+                '    raise errors.ParseError("bad")\n',
+                "ParseError",
+            ),
+            (
+                "def load(path: str) -> dict:\n"
+                '    """Load the config.\n'
+                "\n"
+                "    Raises:\n"
+                "        ValueError: when the file is not valid TOML.\n"
+                '    """\n'
+                "    raise ConfigError\n",
+                "ConfigError",
+            ),
+        ],
+        ids=["call-raise", "dotted-raise", "bare-class-raise"],
+    )
+    def test_RaisedTypeMissingFromSection_FlagsException(
+        self, source: str, name: str
+    ) -> None:
+        violations = _check_raises_incomplete(source)
+        assert len(violations) == 1
+        assert violations[0].rule == RS_RAISES_SECTION_INCOMPLETE
+        assert f"raises '{name}'" in violations[0].message
+        assert "`Raises:`" in violations[0].message
+
+    def test_TwoMissingTypes_FlagsEachInSourceOrder(self) -> None:
+        source = (
+            "def load(path: str) -> dict:\n"
+            '    """Load the config.\n'
+            "\n"
+            "    Raises:\n"
+            "        ValueError: when the file is not valid TOML.\n"
+            '    """\n'
+            "    if not path:\n"
+            '        raise KeyError("missing")\n'
+            '    raise RuntimeError("boom")\n'
+        )
+        violations = _check_raises_incomplete(source)
+        assert len(violations) == 2
+        assert "KeyError" in violations[0].message
+        assert "RuntimeError" in violations[1].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "def load(path: str) -> dict:\n"
+            '    """Load the config.\n'
+            "\n"
+            "    Raises:\n"
+            "        KeyError: when the key is missing.\n"
+            '    """\n'
+            '    raise KeyError("missing")\n',
+            "def load(path: str) -> dict:\n"
+            '    """Load the config.\n'
+            "\n"
+            "    Raises:\n"
+            "        errors.ParseError: on a malformed file.\n"
+            '    """\n'
+            '    raise errors.ParseError("bad")\n',
+            "def load(path: str) -> dict:\n"
+            '    """Load the config."""\n'
+            '    raise KeyError("missing")\n',
+            "def reraise() -> None:\n"
+            '    """Re-raise the caught error.\n'
+            "\n"
+            "    Raises:\n"
+            "        ValueError: always.\n"
+            '    """\n'
+            "    try:\n"
+            "        risky()\n"
+            "    except ValueError:\n"
+            "        raise\n",
+            "def rethrow(exc) -> None:\n"
+            '    """Re-raise the given error.\n'
+            "\n"
+            "    Raises:\n"
+            "        ValueError: always.\n"
+            '    """\n'
+            "    raise exc\n",
+            "def parse(raw: bytes) -> int:\n"
+            '    """Parse the header.\n'
+            "\n"
+            "    An empty input raises `KeyError` before any field is read.\n"
+            "\n"
+            "    Raises:\n"
+            "        ValueError: when the input is malformed.\n"
+            '    """\n'
+            '    raise KeyError("empty")\n',
+            "def _load(path: str) -> dict:\n"
+            '    """Load the config.\n'
+            "\n"
+            "    Raises:\n"
+            "        ValueError: when the file is not valid TOML.\n"
+            '    """\n'
+            '    raise KeyError("missing")\n',
+        ],
+        ids=[
+            "listed-in-section",
+            "dotted-entry-matches",
+            "no-raises-section",
+            "bare-reraise",
+            "lowercase-alias",
+            "narrated-yields-to-rs041",
+            "private-definition",
+        ],
+    )
+    def test_SectionCompleteOrOutOfScope_NoViolation(self, source: str) -> None:
+        assert _check_raises_incomplete(source) == []
+
+
 def _check(source: str, path: Path = _SRC) -> list:
     return list(check_doc_value_signal(path, source))
 
@@ -579,3 +714,7 @@ def _check_return(source: str, path: Path = _SRC) -> list:
 
 def _check_raise(source: str, path: Path = _SRC) -> list:
     return list(check_raise_described_in_prose(path, source))
+
+
+def _check_raises_incomplete(source: str, path: Path = _SRC) -> list:
+    return list(check_raises_section_incomplete(path, source))

@@ -22,6 +22,7 @@ from repostyle.rules._violation import (
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
+    RS_EQ_HASH_PAIRING,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
@@ -29,6 +30,7 @@ from repostyle.rules._violation import (
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
+    RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MAKE_IN_PRODUCTION,
@@ -36,12 +38,16 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
+    RS_PREDICATE_FUNCTION_NAMING,
     RS_RAISE_DESCRIBED_IN_PROSE,
+    RS_RAISES_SECTION_INCOMPLETE,
+    RS_RANGE_LEN_REINDEX,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
+    RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -53,6 +59,7 @@ from repostyle.rules._violation import (
 from repostyle.rules.annotations import check_deeply_nested_type
 from repostyle.rules.comments import (
     check_comment_tag_format,
+    check_comment_temporal_markers,
     check_comment_terminal_punctuation,
     check_tag_comment_continuation_indent,
 )
@@ -62,9 +69,11 @@ from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
     check_raise_described_in_prose,
+    check_raises_section_incomplete,
     check_return_described_in_prose,
 )
 from repostyle.rules.docstrings import (
+    check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
@@ -72,6 +81,7 @@ from repostyle.rules.docstrings import (
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
     check_imperative_docstring_opening,
+    check_lowercase_entry_description,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
@@ -81,7 +91,9 @@ from repostyle.rules.docstrings import (
     check_unbackticked_sibling_symbol_in_comments,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
+from repostyle.rules.equality import check_eq_hash_pairing
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
+from repostyle.rules.idioms import check_range_len_reindex
 from repostyle.rules.import_layering import check_banned_import_by_path
 from repostyle.rules.layout import (
     check_class_member_order,
@@ -96,6 +108,7 @@ from repostyle.rules.naming import (
     check_exception_alias,
     check_no_make_in_production,
     check_no_negated_boolean,
+    check_predicate_function_naming,
 )
 from repostyle.rules.ports import check_port_no_implementation
 from repostyle.rules.signatures import check_too_many_positional_args
@@ -168,6 +181,15 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     ),
     RS_DEEPLY_NESTED_TYPE: (check_deeply_nested_type,),
     RS_RAISE_DESCRIBED_IN_PROSE: (check_raise_described_in_prose,),
+    RS_EQ_HASH_PAIRING: (check_eq_hash_pairing,),
+    RS_RAISES_SECTION_INCOMPLETE: (check_raises_section_incomplete,),
+    RS_PREDICATE_FUNCTION_NAMING: (check_predicate_function_naming,),
+    RS_TEMPORAL_MARKER: (
+        check_docstring_temporal_markers,
+        check_comment_temporal_markers,
+    ),
+    RS_RANGE_LEN_REINDEX: (check_range_len_reindex,),
+    RS_LOWERCASE_ENTRY_DESCRIPTION: (check_lowercase_entry_description,),
 }
 
 
@@ -207,6 +229,11 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_UNBACKTICKED_SIBLING_SYMBOL: Severity.WARNING,
     RS_DEEPLY_NESTED_TYPE: Severity.WARNING,
     RS_RAISE_DESCRIBED_IN_PROSE: Severity.WARNING,
+    RS_RAISES_SECTION_INCOMPLETE: Severity.WARNING,
+    RS_PREDICATE_FUNCTION_NAMING: Severity.WARNING,
+    RS_TEMPORAL_MARKER: Severity.WARNING,
+    RS_RANGE_LEN_REINDEX: Severity.WARNING,
+    RS_LOWERCASE_ENTRY_DESCRIPTION: Severity.WARNING,
 }
 
 

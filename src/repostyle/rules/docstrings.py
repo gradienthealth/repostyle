@@ -28,6 +28,7 @@ from repostyle.rules._shared import (
     _repostyle_table,
     _standalone_comment_blocks,
     _string_list,
+    _temporal_markers,
     _terminal_punctuation_fault,
     find_pyproject,
 )
@@ -36,9 +37,11 @@ from repostyle.rules._violation import (
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
+    RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
+    RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     RS_UNBACKTICKED_CODE_REFERENCE,
     RS_UNBACKTICKED_SIBLING_SYMBOL,
@@ -106,6 +109,12 @@ _IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # documents the name rather than referencing it, so RS036 strips the caption
 # before scanning.
 _ENTRY_CAPTION_PATTERN = re.compile(r"^\S+(?:\s*\([^)]*\))?:\s*")
+# The leading identifier of an entry description, possibly dotted
+# (`json.dumps`): RS047 reads its shape to tell an inherently-lowercase code
+# token from a lowercase prose word. A dot only extends the token when a word
+# follows it, so a sentence-final `bar.` yields the bare `bar`, not a false
+# dotted path.
+_LEADING_TOKEN_PATTERN = re.compile(r"[A-Za-z_]\w*(?:\.\w+)*")
 # A pluralized all-caps acronym (`UIDs`, `URLs`, `IDs`): an acronym reads as
 # English whether bare (`URL`) or plural, so the trailing `s` — its only
 # lowercase letter — must not make the token look like code.
@@ -318,7 +327,9 @@ def _glued_code_span_columns(text: str) -> Iterator[int]:
         end = match.end()
         if end - match.start() <= 2 or end >= len(text):
             continue
-        if text[end].isalpha() or text[end] in "'’":
+        # A curly apostrophe is a real possessive to flag, so it stays literal
+        # here despite RUF001's ambiguous-character warning.
+        if text[end].isalpha() or text[end] in "'’":  # noqa: RUF001
             yield end
 
 
@@ -442,7 +453,7 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
 
 @lru_cache(maxsize=128)
 def _effective_pattern(pyproject: Path | None) -> re.Pattern[str]:
-    """Returns the opening-verb regex built from this repo's effective verbs.
+    r"""Returns the opening-verb regex built from this repo's effective verbs.
 
     Each verb is escaped before joining: `imperative-verbs-extra` comes from
     repo config, not this module's own hardcoded list, so a configured entry
@@ -513,6 +524,78 @@ def check_docstring_terminal_punctuation(
                 RS_TERMINAL_PUNCTUATION,
                 _terminal_punctuation_message(unit.kind),
             )
+
+
+def check_lowercase_entry_description(path: Path, source: str) -> Iterator[Violation]:
+    """A Google-section entry's description opens with a capital letter.
+
+    An `Args:`, `Returns:`, `Raises:`, or `Yields:` entry states its
+    description as a full sentence, so it opens with a capital just as RS030
+    requires it to close with a period — the two rules are the opening-capital
+    and closing-period halves of the same full-sentence convention. `bar: A
+    bar.`, not `bar: a bar.`; `NotFoundError: If a foo is not found.`, not
+    `NotFoundError: if a foo is not found.`.
+
+    Only a lowercase ASCII prose letter opening the description fires. A
+    description opening with a backtick code span, an inherently-lowercase code
+    token (a parameter name or a dotted path like `json.dumps`), a digit, or
+    any other non-letter is left alone, so a legitimately lowercase opener does
+    not draw a false finding. An empty description is skipped.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for unit in _docstring_prose_units(constant):
+            if unit.kind != "entry":
+                continue
+            if not _opens_with_lowercase_prose(_entry_description(unit.text)):
+                continue
+            lineno = unit.linenos[0]
+            line = source_lines[lineno - 1]
+            yield Violation(
+                lineno,
+                len(line) - len(line.lstrip()) + 1,
+                RS_LOWERCASE_ENTRY_DESCRIPTION,
+                "a section entry description opens in lowercase; begin it with "
+                "a capital letter",
+            )
+
+
+def check_docstring_temporal_markers(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a temporal or edit-narrative marker in docstring prose.
+
+    A curated set of phrases — naming what the code once did, or how a change
+    was reached — narrates the edit rather than the unit's present contract, so
+    it belongs in the commit message, not durable docstring prose. This is the
+    common source of an agent leaking the session's design discussion and the
+    diff's story into the code. A marker quoted inside a backtick span is a
+    referenced token, not narration, and is left alone. Each prose unit —
+    summary, body paragraph, or section entry — is scanned; a code span,
+    doctest, or `Example:` block is not. This is the mechanical floor under the
+    `common-style-review` prose-economy lens, which judges the ambiguous cases
+    this tight set deliberately leaves out.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for unit in _docstring_prose_units(constant):
+            for marker in _temporal_markers(unit.text):
+                yield Violation(
+                    unit.lineno,
+                    unit.col,
+                    RS_TEMPORAL_MARKER,
+                    f"docstring narrates the edit history with '{marker}'; "
+                    "state the code's current contract, not how it changed",
+                )
 
 
 def check_unbackticked_code_reference(path: Path, source: str) -> Iterator[Violation]:
@@ -750,6 +833,34 @@ def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and _has_dataclass_decorator(node):
             yield node
+
+
+def _entry_description(text: str) -> str:
+    """Returns an entry's description, the text after its `name:` caption.
+
+    An `Args:`/`Raises:`/`Yields:` entry leads with a `name:` or `name
+    (type):` caption naming the entry rather than describing it, so the caption
+    is stripped. A `Returns:`/`Yields:` entry with no name carries no caption,
+    so its whole line is the description and is returned unchanged.
+    """
+    return _ENTRY_CAPTION_PATTERN.sub("", text, count=1).strip()
+
+
+def _opens_with_lowercase_prose(description: str) -> bool:
+    """Reports whether an entry description opens with a lowercase prose word.
+
+    A description opening with a lowercase ASCII letter is a prose word unless
+    its leading token is an inherently-lowercase code token — a dotted path or
+    a distinctive-shaped identifier (an underscore, a digit, or an interior
+    capital) — which reads as code and is left alone. An empty description, or
+    one opening with a backtick, a digit, an uppercase letter, or any other
+    non-letter, does not fire.
+    """
+    if not description or not ("a" <= description[0] <= "z"):
+        return False
+    match = _LEADING_TOKEN_PATTERN.match(description)
+    token = match.group() if match else ""
+    return "." not in token and not _is_distinctive_code_token(token)
 
 
 def _sibling_symbol_evidence(tree: ast.AST) -> frozenset[str]:

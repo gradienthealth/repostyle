@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from repostyle.rules import RS_TEMPORAL_MARKER, check_comment_temporal_markers
 from repostyle.rules._comments import extract_comments
 
 
@@ -84,6 +85,19 @@ class TestExtractComments:
     def test_UnparseablePython_DoesNotRaise(self, source: str) -> None:
         # tokenizing stops at the error, so comments before it still survive
         assert _comments(Path("m.py"), source) == [(1, 0, False, "lead")]
+
+
+class TestTemporalMarkerCrossLanguage:
+    @pytest.mark.parametrize(
+        "path",
+        [Path("c.toml"), Path("c.yaml"), Path("c.yml")],
+        ids=["toml", "yaml", "yml"],
+    )
+    def test_MarkerInComment_FlagsAcrossLanguages(self, path: Path) -> None:
+        source = "# we decided to hardcode this\n"
+        violations = list(check_comment_temporal_markers(path, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_TEMPORAL_MARKER
 
 
 def _comments(path: Path, source: str) -> list[tuple[int, int, bool, str]]:

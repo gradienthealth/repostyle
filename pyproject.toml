@@ -40,13 +40,19 @@ repostyle = "repostyle.cli:main"
 where = ["src"]
 
 [tool.ruff]
+# Dogfood the shared base this package ships to consuming repos, so the family
+# set every consumer inherits also runs on repostyle's own code.
+extend = "ruff-base.toml"
 line-length = 88
 
 [tool.ruff.format]
 quote-style = "double"
 
-[tool.ruff.lint]
-select = ["E", "F", "I"]
+[tool.ruff.lint.per-file-ignores]
+# cli.py is the `repostyle` console entrypoint; printing findings and `explain`
+# cards to stdout/stderr is its whole job, so it is exempt from T20's
+# print-in-production ban (which ruff-base selects for consuming repos).
+"src/repostyle/cli.py" = ["T201"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,13 +1,13 @@
 """Type-annotation shape rule: warn when a type nests subscripts too deeply.
 
-A subscripted generic buried two deep inside others (`dict[str, tuple[list[int],
-str]]`) packs a data structure into a signature that a reader has to unpack in
-their head every time they meet it. Past two levels of nesting the annotation is
-usually standing in for a type that wants a name — a `TypeAlias`, a
-`NamedTuple`, or a dataclass — so the depth is a smell worth a second look
-rather than a defect, and the rule warns rather than fails. A two-level
-`Iterator[tuple[...]]` or `Callable[..., Iterator[...]]` is idiomatic and left
-alone.
+A subscripted generic buried two deep inside others (`dict[str,
+tuple[list[int], str]]`) packs a data structure into a signature that a reader
+has to unpack in their head every time they meet it. Past two levels of nesting
+the annotation is usually standing in for a type that wants a name — a
+`TypeAlias`, a `NamedTuple`, or a dataclass — so the depth is a smell worth a
+second look rather than a defect, and the rule warns rather than fails. A
+two-level `Iterator[tuple[...]]` or `Callable[..., Iterator[...]]` is idiomatic
+and left alone.
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ from repostyle.rules._shared import _parse_python
 from repostyle.rules._violation import RS_DEEPLY_NESTED_TYPE, Violation
 
 # Two levels of subscripting (`Iterator[tuple[Path, str]]`, `dict[str,
-# list[int]]`) is idiomatic and reads at a glance; the warning fires only once a
-# third subscript nests inside the second. Every `ast.Subscript` layer counts
+# list[int]]`) is idiomatic and reads at a glance; the warning fires only once
+# a third subscript nests inside the second. Every `ast.Subscript` layer counts
 # the same — there is no exemption for `tuple` or `Callable`, since a nested
 # generic is as hard to read whatever wraps it. A PEP 604 `X | Y` union is an
 # `ast.BinOp` rather than a subscript, so it adds no level of its own.
@@ -94,7 +94,7 @@ def _alias_value_or_annotation(node: ast.AnnAssign) -> ast.expr | None:
 
 
 def _is_type_alias_marker(node: ast.expr) -> bool:
-    """Reports whether an annotation is the `TypeAlias` marker, plain or dotted."""
+    """Reports whether an annotation is a plain/dotted `TypeAlias` marker."""
     if isinstance(node, ast.Name):
         return node.id == _TYPE_ALIAS_MARKER
     return isinstance(node, ast.Attribute) and node.attr == _TYPE_ALIAS_MARKER
