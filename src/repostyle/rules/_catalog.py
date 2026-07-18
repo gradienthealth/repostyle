@@ -43,6 +43,7 @@ from repostyle.rules._violation import (
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
+    RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MAKE_IN_PRODUCTION,
@@ -876,6 +877,38 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     "When the index is needed too — `rows[i]` beside `i + 1` or "
                     "a bare `i` — the loop is left alone."
                 ),
+            ),
+        ),
+    ),
+    RS_LOWERCASE_ENTRY_DESCRIPTION: RuleDoc(
+        name="lowercase-entry-description",
+        summary=(
+            "An `Args:`/`Returns:`/`Raises:`/`Yields:` entry description opens "
+            "with a capital letter (`bar: A bar.`, not `bar: a bar.`)."
+        ),
+        rationale=(
+            "The house treats each Google-section entry description as a full "
+            "sentence, so it opens with a capital just as RS030 requires it to "
+            "close with a period — the two rules are the opening-capital and "
+            "closing-period halves of one convention. ChromiumOS's Python style "
+            "guide requires docstring content, including argument descriptions, "
+            "to be full sentences with proper capitalization and punctuation, "
+            "and Google's own `Args:` examples are capitalized. No ruff or "
+            "pydocstyle rule enforces entry-description capitalization, so it is "
+            "a genuine gap. The check stays near zero-false-positive: only a "
+            "lowercase ASCII prose letter fires, and a description opening with "
+            "a backtick code span, an inherently-lowercase code token (a "
+            "parameter name or a dotted path like `json.dumps`), a digit, or any "
+            "other non-letter is left alone."
+        ),
+        examples=(
+            Example(
+                bad="Args:\n    bar: a bar.",
+                good="Args:\n    bar: A bar.",
+            ),
+            Example(
+                bad="Raises:\n    NotFoundError: if a foo is not found.",
+                good="Raises:\n    NotFoundError: If a foo is not found.",
             ),
         ),
     ),

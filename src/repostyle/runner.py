@@ -103,7 +103,7 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
     is `select` minus `ignore`. A missing or empty table enables all rules.
 
     Raises:
-        ValueError: when `select` or `ignore` names an unknown id. Silently
+        ValueError: When `select` or `ignore` names an unknown id. Silently
             dropping it could resolve `select` to the empty set and make the
             linter pass everything.
     """
@@ -133,7 +133,7 @@ def resolve_promoted_rules(config: dict | None) -> set[str]:
     unknown id is rejected rather than silently dropped.
 
     Raises:
-        ValueError: when `error` names an unknown id, matching how
+        ValueError: When `error` names an unknown id, matching how
             `resolve_enabled_rules` validates `select` and `ignore`.
     """
     if not config:
@@ -217,9 +217,9 @@ def lint_package(
     findings keyed by each path's resolved location.
 
     Args:
-        paths: the files findings are reported on, the pre-commit batch.
-        enabled: the resolved rule set; only its package rules run here.
-        root_paths: locates the package root, defaulting to `paths`. Pass the
+        paths: The files findings are reported on, the pre-commit batch.
+        enabled: The resolved rule set; only its package rules run here.
+        root_paths: Locates the package root, defaulting to `paths`. Pass the
             pre-expansion arguments when `paths` has already been expanded from
             a directory, so the root is discovered from what the caller pointed
             at rather than an arbitrary file the expansion happened to sort

@@ -37,6 +37,7 @@ from repostyle.rules._violation import (
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
+    RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
@@ -108,6 +109,12 @@ _IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # documents the name rather than referencing it, so RS036 strips the caption
 # before scanning.
 _ENTRY_CAPTION_PATTERN = re.compile(r"^\S+(?:\s*\([^)]*\))?:\s*")
+# The leading identifier of an entry description, possibly dotted
+# (`json.dumps`): RS047 reads its shape to tell an inherently-lowercase code
+# token from a lowercase prose word. A dot only extends the token when a word
+# follows it, so a sentence-final `bar.` yields the bare `bar`, not a false
+# dotted path.
+_LEADING_TOKEN_PATTERN = re.compile(r"[A-Za-z_]\w*(?:\.\w+)*")
 # A pluralized all-caps acronym (`UIDs`, `URLs`, `IDs`): an acronym reads as
 # English whether bare (`URL`) or plural, so the trailing `s` — its only
 # lowercase letter — must not make the token look like code.
@@ -519,6 +526,46 @@ def check_docstring_terminal_punctuation(
             )
 
 
+def check_lowercase_entry_description(path: Path, source: str) -> Iterator[Violation]:
+    """A Google-section entry's description opens with a capital letter.
+
+    An `Args:`, `Returns:`, `Raises:`, or `Yields:` entry states its
+    description as a full sentence, so it opens with a capital just as RS030
+    requires it to close with a period — the two rules are the opening-capital
+    and closing-period halves of the same full-sentence convention. `bar: A
+    bar.`, not `bar: a bar.`; `NotFoundError: If a foo is not found.`, not
+    `NotFoundError: if a foo is not found.`.
+
+    Only a lowercase ASCII prose letter opening the description fires. A
+    description opening with a backtick code span, an inherently-lowercase code
+    token (a parameter name or a dotted path like `json.dumps`), a digit, or
+    any other non-letter is left alone, so a legitimately lowercase opener does
+    not draw a false finding. An empty description is skipped.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for unit in _docstring_prose_units(constant):
+            if unit.kind != "entry":
+                continue
+            if not _opens_with_lowercase_prose(_entry_description(unit.text)):
+                continue
+            lineno = unit.linenos[0]
+            line = source_lines[lineno - 1]
+            yield Violation(
+                lineno,
+                len(line) - len(line.lstrip()) + 1,
+                RS_LOWERCASE_ENTRY_DESCRIPTION,
+                "a section entry description opens in lowercase; begin it with "
+                "a capital letter",
+            )
+
+
 def check_docstring_temporal_markers(path: Path, source: str) -> Iterator[Violation]:
     """Flags a temporal or edit-narrative marker in docstring prose.
 
@@ -786,6 +833,34 @@ def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and _has_dataclass_decorator(node):
             yield node
+
+
+def _entry_description(text: str) -> str:
+    """Returns an entry's description, the text after its `name:` caption.
+
+    An `Args:`/`Raises:`/`Yields:` entry leads with a `name:` or `name
+    (type):` caption naming the entry rather than describing it, so the caption
+    is stripped. A `Returns:`/`Yields:` entry with no name carries no caption,
+    so its whole line is the description and is returned unchanged.
+    """
+    return _ENTRY_CAPTION_PATTERN.sub("", text, count=1).strip()
+
+
+def _opens_with_lowercase_prose(description: str) -> bool:
+    """Reports whether an entry description opens with a lowercase prose word.
+
+    A description opening with a lowercase ASCII letter is a prose word unless
+    its leading token is an inherently-lowercase code token — a dotted path or
+    a distinctive-shaped identifier (an underscore, a digit, or an interior
+    capital) — which reads as code and is left alone. An empty description, or
+    one opening with a backtick, a digit, an uppercase letter, or any other
+    non-letter, does not fire.
+    """
+    if not description or not ("a" <= description[0] <= "z"):
+        return False
+    match = _LEADING_TOKEN_PATTERN.match(description)
+    token = match.group() if match else ""
+    return "." not in token and not _is_distinctive_code_token(token)
 
 
 def _sibling_symbol_evidence(tree: ast.AST) -> frozenset[str]:

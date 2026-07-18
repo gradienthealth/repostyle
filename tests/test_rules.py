@@ -17,6 +17,7 @@ from repostyle.rules import (
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_GLUED_CODE_SPAN,
+    RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MAKE_IN_PRODUCTION,
@@ -50,6 +51,7 @@ from repostyle.rules import (
     check_glued_code_span_in_comments,
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
+    check_lowercase_entry_description,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
@@ -1801,6 +1803,94 @@ class TestCheckDocstringTerminalPunctuation:
         )
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 6)]
+
+
+class TestCheckLowercaseEntryDescription:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f(foo):\n    """Do the thing.\n\n    Args:\n'
+            '        foo: A widget.\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Returns:\n'
+            '        The parsed bundle.\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Raises:\n'
+            '        ValueError: If the input is bad.\n    """\n',
+            'def f(foo):\n    """Do the thing.\n\n    Args:\n'
+            '        foo: `None` when unset.\n    """\n',
+            'def f(foo):\n    """Do the thing.\n\n    Args:\n'
+            '        foo: json.dumps of the payload.\n    """\n',
+            'def f(foo):\n    """Do the thing.\n\n    Args:\n'
+            '        foo: col_offset of the node.\n    """\n',
+            'def f(foo):\n    """Do the thing.\n\n    Args:\n'
+            '        foo: 3 retries at most.\n    """\n',
+            'def f(foo):\n    """Do the thing.\n\n    Args:\n        foo:\n    """\n',
+        ],
+        ids=[
+            "args-capitalized",
+            "returns-nameless-capitalized",
+            "raises-capitalized",
+            "opens-backtick-span",
+            "opens-dotted-path",
+            "opens-distinctive-token",
+            "opens-digit",
+            "empty-description",
+        ],
+    )
+    def test_ConformingEntry_NoViolation(self, source: str) -> None:
+        assert list(check_lowercase_entry_description(_DOC_PATH, source)) == []
+
+    def test_LowercaseArgsDescription_FlagsAtEntry(self) -> None:
+        source = (
+            'def f(bar):\n    """Do the thing.\n\n    Args:\n'
+            '        bar: a bar.\n    """\n'
+        )
+        violations = list(check_lowercase_entry_description(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_LOWERCASE_ENTRY_DESCRIPTION
+        assert (violations[0].line, violations[0].col) == (5, 9)
+        assert "lowercase" in violations[0].message
+
+    def test_LowercaseRaisesDescription_FlagsAtEntry(self) -> None:
+        source = (
+            'def f():\n    """Do the thing.\n\n    Raises:\n'
+            '        NotFoundError: if a foo is not found.\n    """\n'
+        )
+        violations = list(check_lowercase_entry_description(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_LOWERCASE_ENTRY_DESCRIPTION, 5)
+        ]
+
+    def test_NamelessReturnsLowercase_FlagsAtEntry(self) -> None:
+        source = (
+            'def f():\n    """Do the thing.\n\n    Returns:\n'
+            '        the parsed bundle.\n    """\n'
+        )
+        violations = list(check_lowercase_entry_description(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_LOWERCASE_ENTRY_DESCRIPTION, 5)
+        ]
+
+    def test_MultiLineEntryLowercase_FlagsAtFirstLine(self) -> None:
+        source = (
+            'def f():\n    """Do the thing.\n\n    Returns:\n'
+            "        the parsed bundle and the\n"
+            '        record count.\n    """\n'
+        )
+        violations = list(check_lowercase_entry_description(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_LOWERCASE_ENTRY_DESCRIPTION, 5)
+        ]
+
+    def test_MultiEntrySection_FlagsOnlyOffendingEntry(self) -> None:
+        source = (
+            'def f(foo, bar):\n    """Do the thing.\n\n    Args:\n'
+            "        foo: A first widget.\n"
+            '        bar: a second widget.\n    """\n'
+        )
+        violations = list(check_lowercase_entry_description(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_LOWERCASE_ENTRY_DESCRIPTION, 6)
+        ]
 
 
 class TestCheckCommentTerminalPunctuation:

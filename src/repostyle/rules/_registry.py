@@ -30,6 +30,7 @@ from repostyle.rules._violation import (
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
+    RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NO_MAKE_IN_PRODUCTION,
@@ -80,6 +81,7 @@ from repostyle.rules.docstrings import (
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
     check_imperative_docstring_opening,
+    check_lowercase_entry_description,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
@@ -187,6 +189,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
         check_comment_temporal_markers,
     ),
     RS_RANGE_LEN_REINDEX: (check_range_len_reindex,),
+    RS_LOWERCASE_ENTRY_DESCRIPTION: (check_lowercase_entry_description,),
 }
 
 
@@ -230,6 +233,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_PREDICATE_FUNCTION_NAMING: Severity.WARNING,
     RS_TEMPORAL_MARKER: Severity.WARNING,
     RS_RANGE_LEN_REINDEX: Severity.WARNING,
+    RS_LOWERCASE_ENTRY_DESCRIPTION: Severity.WARNING,
 }
 
 
