@@ -25,8 +25,12 @@ from repostyle.rules import (
 )
 from repostyle.rules._comments import COMMENT_SUFFIXES
 from repostyle.rules._shared import (
+    _bool_config,
     _dir_matches_config_glob,
+    _gitignore_prunes_dir,
+    _GitignoreRules,
     _matches_config_glob,
+    _parse_gitignore,
     _repostyle_table,
     find_pyproject,
 )
@@ -259,7 +263,10 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
     public name used only by excluded generated code (a `_grpc`/`_pb2` stub)
     must still count as a cross-module reference, or RS029 would flag it
     should-be-private on the strength of the exclude alone. The structural
-    `_SKIPPED_DIRS` prune still applies, so a working-tree `venv` is not read.
+    `_SKIPPED_DIRS` prune and, under `respect-gitignore`, the `.gitignore`
+    prune still apply, so a working-tree `venv` or a gitignored tree is not
+    read: a gitignored path is treated as outside the repo entirely, unlike an
+    excluded one.
     """
     root = root.resolve()
     base = root if root.is_dir() else root.parent
@@ -286,6 +293,12 @@ def _walk_matching(
     during the walk keeps a run over a venv-heavy working tree from going
     CPU-bound (DEV-1522).
 
+    When the config sets `respect-gitignore`, a directory the repo's root
+    `.gitignore` names is pruned too, on both walks — a gitignored tree is
+    treated as not part of the repo at all, so it is invisible even to the
+    whole-package index. That is the opposite of `exclude`, which keeps a file
+    in the tree and only silences its findings.
+
     With `should_apply_excludes`, the config's `exclude` globs also prune a
     matching directory, so a wholly-excluded tree is never descended. A file is
     not exclude-filtered here; `expand_paths` drops an excluded file when it
@@ -297,14 +310,20 @@ def _walk_matching(
     repo checked out under a dot-directory (`.claude/worktrees/...`) is still
     walked rather than skipped whole.
     """
-    pyproject = find_pyproject(root) if should_apply_excludes else None
+    pyproject = find_pyproject(root)
     table = _repostyle_table(pyproject)
+    gitignore = (
+        _parse_gitignore(pyproject.parent / ".gitignore")
+        if pyproject is not None and _bool_config(table, "respect-gitignore")
+        else _parse_gitignore(None)
+    )
+    exclude_table = table if should_apply_excludes else {}
     for dirpath, dirnames, filenames in os.walk(root):
         parent = Path(dirpath)
         dirnames[:] = [
             name
             for name in dirnames
-            if not _is_pruned_dir(parent / name, pyproject, table)
+            if not _is_pruned_dir(parent / name, pyproject, exclude_table, gitignore)
         ]
         for name in filenames:
             if name.startswith("."):
@@ -315,19 +334,27 @@ def _walk_matching(
 
 
 def _is_pruned_dir(
-    directory: Path, pyproject: Path | None, table: dict[str, object]
+    directory: Path,
+    pyproject: Path | None,
+    table: dict[str, object],
+    gitignore: _GitignoreRules,
 ) -> bool:
     """Reports whether a directory's subtree is pruned from a walk.
 
-    A dot-directory or a `_SKIPPED_DIRS` name is always pruned; otherwise the
+    A dot-directory or a `_SKIPPED_DIRS` name is always pruned. Otherwise the
     directory is pruned when the config's `exclude` globs match its whole
-    subtree. An empty `table` (the whole-package walk, which does not apply
-    excludes) matches no glob, so only the structural prune acts.
+    subtree, or when the repo's `.gitignore` names it and `respect-gitignore`
+    is set. An empty `table` (the whole-package walk, which does not apply
+    excludes) matches no `exclude` glob, but the `.gitignore` prune still
+    applies there — a gitignored tree is not part of the repo for any rule,
+    including the cross-module index.
     """
     name = directory.name
     if name.startswith(".") or name in _SKIPPED_DIRS:
         return True
-    return _dir_matches_config_glob(directory, pyproject, table, "exclude")
+    if _dir_matches_config_glob(directory, pyproject, table, "exclude"):
+        return True
+    return _gitignore_prunes_dir(directory, pyproject, gitignore)
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:

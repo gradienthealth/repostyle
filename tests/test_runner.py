@@ -12,6 +12,11 @@ from repostyle.rules import (
     Severity,
     severity_of,
 )
+from repostyle.rules._shared import (
+    _gitignore_prunes_dir,
+    _GitignoreRules,
+    _parse_gitignore,
+)
 from repostyle.runner import (
     _package_files,
     expand_paths,
@@ -370,6 +375,133 @@ class TestPackageWalkPruning:
         }
 
 
+class TestParseGitignore:
+    """Parsing a repo's `.gitignore` into repostyle's pruning rules."""
+
+    def test_DirectoryPatterns_SplitIntoAnchoredAndBare(self, tmp_path: Path) -> None:
+        gitignore = tmp_path / ".gitignore"
+        gitignore.write_text(
+            "/build\nvenv/\nsrc/generated\nnode_modules\n", encoding="utf-8"
+        )
+        assert _parse_gitignore(gitignore) == _GitignoreRules(
+            anchored=("build", "src/generated"),
+            bare=("venv", "node_modules"),
+            negated_prefixes=(),
+            is_disabled=False,
+        )
+
+    def test_BlankAndCommentLines_AreIgnored(self, tmp_path: Path) -> None:
+        gitignore = tmp_path / ".gitignore"
+        gitignore.write_text("# a comment\n\n   \nvenv/\n", encoding="utf-8")
+        assert _parse_gitignore(gitignore).bare == ("venv",)
+
+    def test_AnchoredNegation_RecordsGuardedPrefix(self, tmp_path: Path) -> None:
+        gitignore = tmp_path / ".gitignore"
+        gitignore.write_text("build/\n!build/keep\n", encoding="utf-8")
+        rules = _parse_gitignore(gitignore)
+        assert rules.negated_prefixes == ("build/keep",)
+        assert not rules.is_disabled
+
+    def test_UnanchoredNegation_DisablesPruning(self, tmp_path: Path) -> None:
+        gitignore = tmp_path / ".gitignore"
+        gitignore.write_text("build/\n!keep\n", encoding="utf-8")
+        assert _parse_gitignore(gitignore).is_disabled
+
+    def test_AbsentFile_ParsesToEmptyRules(self, tmp_path: Path) -> None:
+        empty = _GitignoreRules((), (), (), is_disabled=False)
+        assert _parse_gitignore(None) == empty
+        assert _parse_gitignore(tmp_path / "absent") == empty
+
+
+class TestGitignorePrunesDir:
+    """Matching a directory against the parsed `.gitignore` rules."""
+
+    def test_BareName_PrunesAtAnyDepth(self, tmp_path: Path) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        rules = _GitignoreRules((), ("venv",), (), is_disabled=False)
+        assert _gitignore_prunes_dir(tmp_path / "venv", pyproject, rules)
+        assert _gitignore_prunes_dir(tmp_path / "src" / "venv", pyproject, rules)
+        assert not _gitignore_prunes_dir(tmp_path / "src", pyproject, rules)
+
+    def test_AnchoredName_PrunesOnlyAtRoot(self, tmp_path: Path) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        rules = _GitignoreRules(("build",), (), (), is_disabled=False)
+        assert _gitignore_prunes_dir(tmp_path / "build", pyproject, rules)
+        assert not _gitignore_prunes_dir(tmp_path / "sub" / "build", pyproject, rules)
+
+    def test_NegatedSubtree_SparesEnclosingDirectory(self, tmp_path: Path) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        rules = _GitignoreRules((), ("build",), ("build/keep",), is_disabled=False)
+        assert not _gitignore_prunes_dir(tmp_path / "build", pyproject, rules)
+
+    def test_Disabled_PrunesNothing(self, tmp_path: Path) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        rules = _GitignoreRules((), ("venv",), (), is_disabled=True)
+        assert not _gitignore_prunes_dir(tmp_path / "venv", pyproject, rules)
+
+    def test_NoPatterns_PrunesNothing(self, tmp_path: Path) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        rules = _GitignoreRules((), (), (), is_disabled=False)
+        assert not _gitignore_prunes_dir(tmp_path / "venv", pyproject, rules)
+
+
+class TestWalkGitignorePruning:
+    """Honoring `.gitignore` prunes a tree from every walk when opted in.
+
+    A gitignored path is treated as outside the repo entirely, so it is pruned
+    from both the findings walk and the whole-package index, unlike `exclude`,
+    which keeps a file readable by the cross-module index. The flag is off by
+    default, so a repo that has not opted in walks a gitignored tree unchanged.
+    """
+
+    def test_RespectGitignore_PrunesTreeFromExpansion(self, tmp_path: Path) -> None:
+        _write_gitignore_repo(tmp_path, should_respect=True, gitignore="vendored/\n")
+        (tmp_path / "vendored").mkdir()
+        (tmp_path / "vendored" / "dep.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        expanded = expand_paths([tmp_path])
+        assert tmp_path / "vendored" / "dep.py" not in expanded
+        assert tmp_path / "app.py" in expanded
+
+    def test_FlagOff_WalksGitignoredTree(self, tmp_path: Path) -> None:
+        _write_gitignore_repo(tmp_path, should_respect=False, gitignore="vendored/\n")
+        (tmp_path / "vendored").mkdir()
+        (tmp_path / "vendored" / "dep.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        assert tmp_path / "vendored" / "dep.py" in expand_paths([tmp_path])
+
+    def test_RespectGitignore_HidesTreeFromPackageIndex(self, tmp_path: Path) -> None:
+        _write_gitignore_repo(tmp_path, should_respect=True, gitignore="_generated/\n")
+        (tmp_path / "_generated").mkdir()
+        (tmp_path / "_generated" / "stub.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        read = {path.resolve() for path, _ in _package_files(tmp_path)}
+        assert read == {(tmp_path / "app.py").resolve()}
+
+    def test_GitignoredFileReference_DropsNameFromIndex(self, tmp_path: Path) -> None:
+        """A reference from a gitignored file no longer keeps a name public.
+
+        Unlike `exclude`, `respect-gitignore` makes the referencing `_grpc`
+        stub invisible to the cross-module index, so `helper` reads as used
+        only within its own module and RS029 flags it should-be-private. This
+        is the clean split from the exclude case, which keeps `helper` public.
+        """
+        _write_gitignore_repo(tmp_path, should_respect=True, gitignore="_grpc/\n")
+        target = tmp_path / "app.py"
+        target.write_text(
+            '__all__ = ["run"]\n\n\ndef helper():\n    return 1\n\n\n'
+            "def run():\n    return helper()\n",
+            encoding="utf-8",
+        )
+        generated = tmp_path / "_grpc"
+        generated.mkdir()
+        (generated / "stub.py").write_text(
+            "def go():\n    return helper()\n", encoding="utf-8"
+        )
+        findings = lint_package([target], {RS_SHOULD_BE_PRIVATE}, root_paths=[tmp_path])
+        assert target.resolve() in findings
+
+
 class TestFixPath:
     def test_UnderwrappedDocstring_RewritesFileAndReportsChange(
         self, tmp_path: Path
@@ -428,3 +560,13 @@ def _write_exclude_config(tmp_path: Path, exclude: str) -> None:
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\nexclude = {exclude}\n", encoding="utf-8"
     )
+
+
+def _write_gitignore_repo(
+    tmp_path: Path, *, should_respect: bool, gitignore: str
+) -> None:
+    flag = "\nrespect-gitignore = true" if should_respect else ""
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.repostyle]{flag}\n", encoding="utf-8"
+    )
+    (tmp_path / ".gitignore").write_text(gitignore, encoding="utf-8")
