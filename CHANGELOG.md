@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.19.0...repostyle-v0.20.0) (2026-07-18)
+
+
+### Features
+
+* **NO-ISSUE:** add RS042–RS047 and expand the shared ruff base ([4a7f8c1](https://github.com/gradienthealth/repostyle/commit/4a7f8c1d0f1f288b5fb2e614059763d7b93e7921))
+* **NO-ISSUE:** promote chosen advisory rules to error via the `error` config key ([#110](https://github.com/gradienthealth/repostyle/issues/110)) ([c5ec0c4](https://github.com/gradienthealth/repostyle/commit/c5ec0c44114c018a8eec0d0788a83ff4e638baae))
+
 ## [0.19.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.18.1...repostyle-v0.19.0) (2026-07-15)
 
 
