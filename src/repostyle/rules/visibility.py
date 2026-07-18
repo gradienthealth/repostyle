@@ -81,6 +81,10 @@ def _module_facts(path: Path, source: str) -> _ModuleFacts | None:
     return facts
 
 
+# A top-level public `def`/`class` as `(name, line, col, decorators)`
+_PublicDef = tuple[str, int, int, frozenset[str]]
+
+
 @dataclass
 class _ModuleFacts:
     """What one module contributes to the package-wide visibility pass."""
@@ -89,9 +93,7 @@ class _ModuleFacts:
     """The module's source path."""
     is_public: bool
     """Whether the module itself is a public surface that re-exports names."""
-    public_defs: list[tuple[str, int, int, frozenset[str]]] = field(
-        default_factory=list
-    )
+    public_defs: list[_PublicDef] = field(default_factory=list)
     """Top-level public `def`/`class` as `(name, line, col, decorators)`."""
     exported: set[str] = field(default_factory=set)
     """Names this module declares in `__all__`."""

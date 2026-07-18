@@ -122,12 +122,15 @@ from repostyle.rules.testing import (
 )
 from repostyle.rules.visibility import check_should_be_private
 
+# The single-file check contract every RULES entry holds: a `(path, source)`
+# pair in, a stream of violations out.
+RuleCheck = Callable[[Path, str], Iterator[Violation]]
+
 # A package rule sees every first-party file at once and yields its findings
-# keyed by path, rather than the single-file `(path, source)` contract of the
-# rules above.
+# keyed by path, rather than the single-file `RuleCheck` contract above.
 PackageCheck = Callable[[Sequence[tuple[Path, str]]], Iterator[tuple[Path, Violation]]]
 
-RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
+RULES: dict[str, tuple[RuleCheck, ...]] = {
     RS_ACRONYM_CASING: (check_acronym_casing,),
     RS_TEST_NAMING: (check_test_naming,),
     RS_NO_MOCK_PATCH: (check_no_mock_patch,),

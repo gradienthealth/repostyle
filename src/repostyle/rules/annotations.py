@@ -68,17 +68,22 @@ def check_deeply_nested_type(path: Path, source: str) -> Iterator[Violation]:
 def _annotation_roots(tree: ast.AST) -> Iterator[ast.expr]:
     """Yields the top-level type expression of each annotated position."""
     for node in ast.walk(tree):
-        if isinstance(node, ast.arg) and node.annotation is not None:
-            yield node.annotation
-        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            if node.returns is not None:
-                yield node.returns
-        elif isinstance(node, ast.AnnAssign):
-            root = _alias_value_or_annotation(node)
-            if root is not None:
-                yield root
-        elif _TYPE_ALIAS_NODE is not None and isinstance(node, _TYPE_ALIAS_NODE):
-            yield node.value
+        yield from _node_annotation_roots(node)
+
+
+def _node_annotation_roots(node: ast.AST) -> Iterator[ast.expr]:
+    """Yields the type expressions a single node annotates, if any."""
+    if isinstance(node, ast.arg) and node.annotation is not None:
+        yield node.annotation
+    elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+        if node.returns is not None:
+            yield node.returns
+    elif isinstance(node, ast.AnnAssign):
+        root = _alias_value_or_annotation(node)
+        if root is not None:
+            yield root
+    elif _TYPE_ALIAS_NODE is not None and isinstance(node, _TYPE_ALIAS_NODE):
+        yield node.value
 
 
 def _alias_value_or_annotation(node: ast.AnnAssign) -> ast.expr | None:

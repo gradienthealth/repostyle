@@ -103,6 +103,10 @@ def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
         )
 
 
+# A pending reflow edit: `(start_lineno, stop_lineno, rewrapped_lines)`
+_Replacement = tuple[int, int, list[str]]
+
+
 def fix_doc_fill(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
@@ -124,7 +128,7 @@ def fix_doc_fill(
     if path.suffix == ".py" and _parse_python(path, source) is None:
         return source
     source_lines = source.splitlines()
-    replacements: list[tuple[int, int, list[str]]] = []
+    replacements: list[_Replacement] = []
     for unit in _fillable_units(path, source):
         if any(line.lineno in skip_lines for line in unit):
             continue

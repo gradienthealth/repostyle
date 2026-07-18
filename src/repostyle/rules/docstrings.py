@@ -785,7 +785,11 @@ def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
             )
 
 
-def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, str]]:
+# A standalone comment's `(column, text)`, keyed elsewhere by its line number
+_StandaloneComment = tuple[int, str]
+
+
+def _comment_lines(source: str) -> tuple[dict[int, _StandaloneComment], dict[int, str]]:
     """Splits a source's comments into the standalone and trailing maps.
 
     The first map keys each whole-line comment's line to its column and text;
@@ -794,7 +798,7 @@ def _comment_lines(source: str) -> tuple[dict[int, tuple[int, str]], dict[int, s
     line.
     """
     source_lines = source.splitlines()
-    standalone: dict[int, tuple[int, str]] = {}
+    standalone: dict[int, _StandaloneComment] = {}
     trailing: dict[int, str] = {}
     try:
         for token in tokenize.generate_tokens(io.StringIO(source).readline):
