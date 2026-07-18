@@ -38,6 +38,7 @@ from repostyle.rules._violation import (
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_RAISE_DESCRIBED_IN_PROSE,
+    RS_RAISES_SECTION_INCOMPLETE,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -63,6 +64,7 @@ from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
     check_raise_described_in_prose,
+    check_raises_section_incomplete,
     check_return_described_in_prose,
 )
 from repostyle.rules.docstrings import (
@@ -171,6 +173,7 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_DEEPLY_NESTED_TYPE: (check_deeply_nested_type,),
     RS_RAISE_DESCRIBED_IN_PROSE: (check_raise_described_in_prose,),
     RS_EQ_HASH_PAIRING: (check_eq_hash_pairing,),
+    RS_RAISES_SECTION_INCOMPLETE: (check_raises_section_incomplete,),
 }
 
 
@@ -210,6 +213,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_UNBACKTICKED_SIBLING_SYMBOL: Severity.WARNING,
     RS_DEEPLY_NESTED_TYPE: Severity.WARNING,
     RS_RAISE_DESCRIBED_IN_PROSE: Severity.WARNING,
+    RS_RAISES_SECTION_INCOMPLETE: Severity.WARNING,
 }
 
 

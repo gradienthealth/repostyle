@@ -51,6 +51,7 @@ from repostyle.rules._violation import (
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_RAISE_DESCRIBED_IN_PROSE,
+    RS_RAISES_SECTION_INCOMPLETE,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
@@ -764,6 +765,20 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     "`eq=`/`frozen=` flags."
                 ),
             ),
+        ),
+    ),
+    RS_RAISES_SECTION_INCOMPLETE: RuleDoc(
+        name="raises-section-incomplete",
+        summary=("A `Raises:` section lists every exception the body raises outright."),
+        rationale=(
+            "Once a function documents its exceptions in a `Raises:` section, a "
+            "reader trusts the section to be complete, so an exception the body "
+            "raises with an explicit `raise SomeError(...)` but the section "
+            "omits silently understates the contract. A function with no "
+            "`Raises:` section does not fire — whether to document exceptions at "
+            "all is the prose-side choice RS041 governs. Where an exception is "
+            "both raised in code and narrated in the body, RS041 owns it and "
+            "this rule stays silent."
         ),
     ),
 }
