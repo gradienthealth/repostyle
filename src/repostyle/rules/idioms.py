@@ -63,6 +63,13 @@ def _reindex_violation(node: ast.For | ast.AsyncFor) -> Iterator[Violation]:
         )
 
 
+def _index_names(node: ast.AST, index: str) -> Iterator[ast.Name]:
+    """Yields every `Name` node in a subtree referring to the index name."""
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name) and child.id == index:
+            yield child
+
+
 def _range_len_argument(iter_node: ast.expr) -> ast.expr | None:
     """Returns the `x` of a `range(len(x))` iterator, or `None`.
 
@@ -95,13 +102,6 @@ def _is_single_arg_call(node: ast.expr, name: str) -> bool:
         and not node.keywords
         and not any(isinstance(arg, ast.Starred) for arg in node.args)
     )
-
-
-def _index_names(node: ast.AST, index: str) -> Iterator[ast.Name]:
-    """Yields every `Name` node in a subtree referring to the index name."""
-    for child in ast.walk(node):
-        if isinstance(child, ast.Name) and child.id == index:
-            yield child
 
 
 def _reindex_subscripts(

@@ -52,16 +52,20 @@ def find_pyproject(start: Path) -> Path | None:
     return _find_pyproject_from(start if start.is_dir() else start.parent)
 
 
+# An own-line comment as a `(lineno, column, string)` triple
+_PositionedComment = tuple[int, int, str]
+
+
 def _standalone_comment_blocks(
     path: Path, source: str
-) -> Iterator[list[tuple[int, int, str]]]:
+) -> Iterator[list[_PositionedComment]]:
     """Groups own-line comments into adjacent same-column blocks.
 
     A directive line, a trailing comment, a blank gap, or a column shift closes
     the open block, so each yielded block is one contiguous prose comment a
     reader sees as a paragraph.
     """
-    block: list[tuple[int, int, str]] = []
+    block: list[_PositionedComment] = []
     previous: tuple[int, int] | None = None
     for comment in extract_comments(path, source):
         lineno, column, string = comment.lineno, comment.column, comment.string

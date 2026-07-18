@@ -17,7 +17,9 @@ PORT_IMPLEMENTATION_TOKENS: tuple[str, ...] = (
     "psycopg",
     "sqlalchemy",
 )
-_PORT_TOKEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+# An implementation token paired with the word-boundary pattern matching it
+_TokenPattern = tuple[str, re.Pattern[str]]
+_PORT_TOKEN_PATTERNS: tuple[_TokenPattern, ...] = tuple(
     (token, re.compile(rf"\b{re.escape(token)}\b", re.IGNORECASE))
     for token in PORT_IMPLEMENTATION_TOKENS
 )

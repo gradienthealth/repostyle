@@ -708,13 +708,13 @@ def _check_arg(source: str, path: Path = _SRC) -> list:
     return list(check_arg_described_in_prose(path, source))
 
 
-def _check_return(source: str, path: Path = _SRC) -> list:
-    return list(check_return_described_in_prose(path, source))
-
-
 def _check_raise(source: str, path: Path = _SRC) -> list:
     return list(check_raise_described_in_prose(path, source))
 
 
 def _check_raises_incomplete(source: str, path: Path = _SRC) -> list:
     return list(check_raises_section_incomplete(path, source))
+
+
+def _check_return(source: str, path: Path = _SRC) -> list:
+    return list(check_return_described_in_prose(path, source))
