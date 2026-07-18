@@ -55,12 +55,13 @@ ACRONYMS: tuple[str, ...] = (
 )
 
 _CAPWORDS_WORD = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+")
-# The uppercased form of each acronym mapped to its canonical casing, so a
-# mixed-case entry like `IPv6` (key `IPV6`) still matches case-insensitively
-# for RS001's membership test while keeping the target casing RS049 rewrites
-# to.
-_CANONICAL_ACRONYM: dict[str, str] = {word.upper(): word for word in ACRONYMS}
-_ACRONYM_SET = frozenset(_CANONICAL_ACRONYM)
+# Each acronym's uppercased form keyed to its canonical casing. The uppercase
+# key drives RS001's case-insensitive membership test against the letter-only
+# CapWords words above; a digit-bearing key like `IPV6` can never equal one of
+# those words, so `IPv6` is inert for RS001 while still carrying the target
+# casing RS049 rewrites prose to.
+_CANONICAL_ACRONYMS: dict[str, str] = {word.upper(): word for word in ACRONYMS}
+_ACRONYM_SET = frozenset(_CANONICAL_ACRONYMS)
 
 # Acronyms whose lowercased form is a common English word or an everyday
 # shorthand, so RS049 leaves them in prose to avoid rewriting the word: `SMART`
@@ -81,7 +82,7 @@ _PROSE_ACRONYM_TOKEN = re.compile(
 )
 # A URI, blanked before the token scan so an acronym inside a `gs://` or
 # `https://` path is not read as a bare prose reference to correct.
-_PROSE_URI_PATTERN = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
+_PROSE_URI = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
 
 _TYPE_FACTORY_NAMES = frozenset({"TypeVar", "NewType", "ParamSpec", "TypeVarTuple"})
 
@@ -360,26 +361,26 @@ def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
 
 
 def miscased_acronyms_in_prose(
-    text: str, canon: dict[str, str]
+    text: str, canonical_casing: dict[str, str]
 ) -> Iterator[tuple[int, str, str]]:
     """Yields each miscased acronym occurrence in a run of prose text.
 
     Reports a `(offset, found, canonical)` triple for every whole-word token in
-    `text` that case-insensitively matches an acronym in `canon` but is not
-    already in its canonical casing, where `offset` is the token's 0-based
-    position in `text`, `found` is the token as written, and `canonical` is the
-    casing to rewrite it to. Backtick code spans and URIs are blanked to
-    equal-length whitespace first, so a token in code font or inside a URL is
-    left alone and the reported offsets still index the original `text`.
-    Because a case-only rewrite never changes length, the offset and `found`
-    locate an in-place replacement exactly. Shared by RS049's docstring and
-    comment checks, which supply the prose region and resolve `canon` from
-    config.
+    `text` that case-insensitively matches an acronym in `canonical_casing` but
+    is not already in its canonical casing, where `offset` is the token's
+    0-based position in `text`, `found` is the token as written, and
+    `canonical` is the casing to rewrite it to. Backtick code spans and URIs
+    are blanked to equal-length whitespace first, so a token in code font or
+    inside a URL is left alone and the reported offsets still index the
+    original `text`. Because a case-only rewrite never changes length, the
+    offset and `found` locate an in-place replacement exactly. Shared by
+    RS049's docstring and comment checks, which supply the prose region and
+    resolve `canonical_casing` from config.
     """
     masked = _blank_prose_spans(text)
     for match in _PROSE_ACRONYM_TOKEN.finditer(masked):
         token = match.group()
-        canonical = canon.get(token.upper())
+        canonical = canonical_casing.get(token.upper())
         if canonical is not None and token != canonical:
             yield match.start(), token, canonical
 
@@ -393,11 +394,11 @@ def _blank_prose_spans(text: str) -> str:
     without_spans = _BACKTICK_SPAN_PATTERN.sub(
         lambda match: " " * len(match.group()), text
     )
-    return _PROSE_URI_PATTERN.sub(lambda match: " " * len(match.group()), without_spans)
+    return _PROSE_URI.sub(lambda match: " " * len(match.group()), without_spans)
 
 
 @lru_cache(maxsize=128)
-def resolve_prose_acronyms(pyproject: Path | None) -> dict[str, str]:
+def effective_prose_acronyms(pyproject: Path | None) -> dict[str, str]:
     """Returns the uppercased-to-canonical acronym map RS049 corrects prose to.
 
     The map is the shipped acronyms plus `acronyms-extra` minus
@@ -414,16 +415,16 @@ def resolve_prose_acronyms(pyproject: Path | None) -> dict[str, str]:
     exclude = frozenset(
         word.upper() for word in _string_list(table, "acronyms-exclude")
     )
-    canon: dict[str, str] = {}
+    canonical_casing: dict[str, str] = {}
     for word in ACRONYMS:
         key = word.upper()
         if key not in exclude and key not in _PROSE_AMBIGUOUS_ACRONYMS:
-            canon[key] = word
+            canonical_casing[key] = word
     for word in extra:
         key = word.upper()
         if key not in exclude:
-            canon[key] = word
-    return canon
+            canonical_casing[key] = word
+    return canonical_casing
 
 
 def _abbreviation_named_targets(node: ast.AST) -> Iterator[tuple[str, int, int]]:

@@ -55,8 +55,8 @@ from repostyle.rules.imperative_verbs import (
     conjugate,
 )
 from repostyle.rules.naming import (
+    effective_prose_acronyms,
     miscased_acronyms_in_prose,
-    resolve_prose_acronyms,
 )
 
 ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
@@ -742,8 +742,8 @@ def check_acronym_casing_in_docstrings(path: Path, source: str) -> Iterator[Viol
     tree = _parse_python(path, source)
     if tree is None:
         return
-    canon = resolve_prose_acronyms(find_pyproject(path))
-    if not canon:
+    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    if not canonical_casing:
         return
     source_lines = source.splitlines()
     for node in _walk_docstring_owners(tree):
@@ -751,7 +751,7 @@ def check_acronym_casing_in_docstrings(path: Path, source: str) -> Iterator[Viol
         if constant is None:
             continue
         for lineno, offset, found, canonical in _docstring_acronym_faults(
-            constant, source_lines, canon
+            constant, source_lines, canonical_casing
         ):
             yield Violation(
                 lineno,
@@ -779,8 +779,8 @@ def fix_acronym_casing_in_docstrings(
     tree = _parse_python(path, source)
     if tree is None:
         return source
-    canon = resolve_prose_acronyms(find_pyproject(path))
-    if not canon:
+    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    if not canonical_casing:
         return source
     source_lines = source.splitlines()
     changed = False
@@ -789,7 +789,7 @@ def fix_acronym_casing_in_docstrings(
         if constant is None:
             continue
         for lineno, offset, found, canonical in _docstring_acronym_faults(
-            constant, source_lines, canon
+            constant, source_lines, canonical_casing
         ):
             if lineno in skip_lines:
                 continue
@@ -803,7 +803,7 @@ def fix_acronym_casing_in_docstrings(
 
 
 def _docstring_acronym_faults(
-    constant: ast.Constant, source_lines: list[str], canon: dict[str, str]
+    constant: ast.Constant, source_lines: list[str], canonical_casing: dict[str, str]
 ) -> Iterator[tuple[int, int, str, str]]:
     """Yields `(lineno, offset, found, canonical)` for each miscased acronym.
 
@@ -819,7 +819,9 @@ def _docstring_acronym_faults(
     for lineno in sorted(prose_lines):
         line = source_lines[lineno - 1]
         scanned = _blank_entry_caption(line) if lineno in caption_lines else line
-        for offset, found, canonical in miscased_acronyms_in_prose(scanned, canon):
+        for offset, found, canonical in miscased_acronyms_in_prose(
+            scanned, canonical_casing
+        ):
             yield lineno, offset, found, canonical
 
 

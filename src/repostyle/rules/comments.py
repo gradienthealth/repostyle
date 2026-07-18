@@ -64,8 +64,8 @@ from repostyle.rules._violation import (
     Violation,
 )
 from repostyle.rules.naming import (
+    effective_prose_acronyms,
     miscased_acronyms_in_prose,
-    resolve_prose_acronyms,
 )
 
 DEFAULT_TAGS = ("TODO", "FIXME", "NOTE", "HACK")
@@ -359,14 +359,14 @@ def check_acronym_casing_in_comments(path: Path, source: str) -> Iterator[Violat
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
-    canon = resolve_prose_acronyms(find_pyproject(path))
-    if not canon:
+    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    if not canonical_casing:
         return
     for comment in extract_comments(path, source):
         if not _is_correctable_comment(comment.string):
             continue
         for offset, found, canonical in miscased_acronyms_in_prose(
-            comment.string, canon
+            comment.string, canonical_casing
         ):
             yield Violation(
                 comment.lineno,
@@ -393,8 +393,8 @@ def fix_acronym_casing_in_comments(
     """
     if path.suffix != ".py":
         return source
-    canon = resolve_prose_acronyms(find_pyproject(path))
-    if not canon:
+    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    if not canonical_casing:
         return source
     source_lines = source.splitlines()
     changed = False
@@ -402,7 +402,9 @@ def fix_acronym_casing_in_comments(
         if comment.lineno in skip_lines or not _is_correctable_comment(comment.string):
             continue
         line = source_lines[comment.lineno - 1]
-        rewritten = _recased_comment_line(line, comment.column, comment.string, canon)
+        rewritten = _recased_comment_line(
+            line, comment.column, comment.string, canonical_casing
+        )
         if rewritten != line:
             source_lines[comment.lineno - 1] = rewritten
             changed = True
@@ -416,7 +418,7 @@ def _is_correctable_comment(comment_string: str) -> bool:
 
 
 def _recased_comment_line(
-    line: str, column: int, comment_string: str, canon: dict[str, str]
+    line: str, column: int, comment_string: str, canonical_casing: dict[str, str]
 ) -> str:
     """Returns `line` with each miscased acronym in its comment recased.
 
@@ -425,7 +427,9 @@ def _recased_comment_line(
     length-preserving, so an earlier replacement leaves every later offset
     valid.
     """
-    for offset, found, canonical in miscased_acronyms_in_prose(comment_string, canon):
+    for offset, found, canonical in miscased_acronyms_in_prose(
+        comment_string, canonical_casing
+    ):
         start = column + offset
         if line[start : start + len(found)] == found:
             line = line[:start] + canonical + line[start + len(found) :]
