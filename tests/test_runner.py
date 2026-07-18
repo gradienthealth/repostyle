@@ -229,6 +229,18 @@ class TestExpandPaths:
             (hidden / "x.py").write_text("x = 1\n", encoding="utf-8")
         assert expand_paths([tmp_path]) == []
 
+    def test_Directory_SkipsDotPrefixedFiles(self, tmp_path: Path) -> None:
+        """A dot-prefixed file is skipped like a dot-directory.
+
+        A hidden file such as `.pre-commit-config.yaml` sits outside the source
+        a directory scan lints, so directory expansion drops it while still
+        yielding its visible sibling.
+        """
+        (tmp_path / ".pre-commit-config.yaml").write_text("k: v\n", encoding="utf-8")
+        (tmp_path / ".hidden.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [tmp_path / "app.py"]
+
     def test_File_PassesThroughRegardlessOfSuffix(self, tmp_path: Path) -> None:
         target = tmp_path / "notes.txt"
         target.write_text("x\n", encoding="utf-8")

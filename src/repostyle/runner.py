@@ -280,24 +280,26 @@ def _walk_matching(
 ) -> Iterator[Path]:
     """Yields the files under `root` matching `suffixes`, pruning as it walks.
 
-    Descends with `os.walk` so a pruned directory subtree is never entered: a
-    dot-directory or a `_SKIPPED_DIRS` name (a `venv`, `node_modules`, or build
-    output) is dropped before its files are enumerated, so its files are never
-    stat-ed or read. Pruning during traversal — rather than reading every file
-    and discarding the vendored ones after — is what keeps a run over a
-    venv-heavy working tree from going CPU-bound (DEV-1522).
+    Descends with `os.walk`, dropping a pruned directory subtree before its
+    files are enumerated: a dot-directory or a `_SKIPPED_DIRS` name (a `venv`,
+    `node_modules`, or build output) is never entered, so its files are never
+    stat-ed or read. A dot-prefixed file is skipped the same way. Pruning
+    during the walk keeps a run over a venv-heavy working tree from going
+    CPU-bound (DEV-1522).
 
-    With `should_apply_excludes`, the config's `exclude` globs prune a matching
-    directory and drop a matching file too, scoping the file-set a directory
-    argument expands to. The whole-package index passes it `False`, keeping an
-    excluded file visible to the cross-module rules that must still count it.
+    With `should_apply_excludes`, the config's `exclude` globs also prune a
+    matching directory, so a wholly-excluded tree is never descended. A file is
+    not exclude-filtered here; the caller that expands a directory argument
+    (`expand_paths`) drops an excluded file against its own nearest config. The
+    whole-package index passes `False`, so an excluded file stays readable by
+    the cross-module rules that must still count it.
 
     Only children below `root` are pruned, never the ancestors above it, so a
     repo checked out under a dot-directory (`.claude/worktrees/...`) is still
     walked rather than skipped whole.
     """
     pyproject = find_pyproject(root) if should_apply_excludes else None
-    table = _repostyle_table(pyproject) if should_apply_excludes else {}
+    table = _repostyle_table(pyproject)
     for dirpath, dirnames, filenames in os.walk(root):
         parent = Path(dirpath)
         dirnames[:] = [
@@ -306,14 +308,11 @@ def _walk_matching(
             if not _is_pruned_dir(parent / name, pyproject, table)
         ]
         for name in filenames:
+            if name.startswith("."):
+                continue
             path = parent / name
-            if path.suffix not in suffixes or not path.is_file():
-                continue
-            if should_apply_excludes and _matches_config_glob(
-                path, pyproject, table, "exclude"
-            ):
-                continue
-            yield path
+            if path.suffix in suffixes and path.is_file():
+                yield path
 
 
 def _is_pruned_dir(
