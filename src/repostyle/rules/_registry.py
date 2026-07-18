@@ -7,6 +7,7 @@ from pathlib import Path
 
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
+    RS_ACRONYM_CASING_IN_PROSE,
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
@@ -59,6 +60,7 @@ from repostyle.rules._violation import (
 )
 from repostyle.rules.annotations import check_deeply_nested_type
 from repostyle.rules.comments import (
+    check_acronym_casing_in_comments,
     check_comment_tag_format,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
@@ -74,6 +76,7 @@ from repostyle.rules.doc_value import (
     check_return_described_in_prose,
 )
 from repostyle.rules.docstrings import (
+    check_acronym_casing_in_docstrings,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
@@ -196,6 +199,10 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
     RS_RANGE_LEN_REINDEX: (check_range_len_reindex,),
     RS_LOWERCASE_ENTRY_DESCRIPTION: (check_lowercase_entry_description,),
     RS_PRIVATE_IMPORT: (check_private_import,),
+    RS_ACRONYM_CASING_IN_PROSE: (
+        check_acronym_casing_in_docstrings,
+        check_acronym_casing_in_comments,
+    ),
 }
 
 
@@ -241,6 +248,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_RANGE_LEN_REINDEX: Severity.WARNING,
     RS_LOWERCASE_ENTRY_DESCRIPTION: Severity.WARNING,
     RS_PRIVATE_IMPORT: Severity.WARNING,
+    RS_ACRONYM_CASING_IN_PROSE: Severity.WARNING,
 }
 
 
@@ -248,7 +256,12 @@ RULE_SEVERITY: dict[str, Severity] = {
 # runner's fix path and the `explain` card's fixable line consult, so a card
 # never promises a fix the runner does not perform.
 FIXABLE_RULES: frozenset[str] = frozenset(
-    {RS_DOC_FILL, RS_NO_DOUBLE_BACKTICKS, RS_TERMINAL_PUNCTUATION}
+    {
+        RS_ACRONYM_CASING_IN_PROSE,
+        RS_DOC_FILL,
+        RS_NO_DOUBLE_BACKTICKS,
+        RS_TERMINAL_PUNCTUATION,
+    }
 )
 
 

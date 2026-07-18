@@ -1,7 +1,11 @@
 from pathlib import Path
 
 from repostyle.rules import (
+    check_acronym_casing_in_comments,
+    check_acronym_casing_in_docstrings,
     check_comment_terminal_punctuation,
+    fix_acronym_casing_in_comments,
+    fix_acronym_casing_in_docstrings,
     fix_comment_terminal_punctuation,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
@@ -109,6 +113,49 @@ class TestFixCommentTerminalPunctuation:
         )
 
 
+class TestFixAcronymCasingInDocstrings:
+    def test_MiscasedAcronyms_RecaseToCanonical(self) -> None:
+        source = 'def f():\n    """The ipv6 and Nat and IPV6 here."""\n'
+        assert fix_acronym_casing_in_docstrings(_PY, source) == (
+            'def f():\n    """The IPv6 and NAT and IPv6 here."""\n'
+        )
+
+    def test_FixedDocstring_LeavesNoRemainingViolation(self) -> None:
+        source = 'def f():\n    """Parses the ipv6 Nat json path."""\n'
+        fixed = fix_acronym_casing_in_docstrings(_PY, source)
+        assert list(check_acronym_casing_in_docstrings(_PY, fixed)) == []
+
+    def test_LineSuppressed_LeavesUnit(self) -> None:
+        source = 'def f():\n    """The ipv6 case."""\n'
+        assert fix_acronym_casing_in_docstrings(_PY, source, frozenset({2})) == source
+
+    def test_AlreadyCanonical_ReturnsSourceUnchanged(self) -> None:
+        source = 'def f():\n    """The IPv6 and NAT case."""\n'
+        assert fix_acronym_casing_in_docstrings(_PY, source) == source
+
+
+class TestFixAcronymCasingInComments:
+    def test_MiscasedAcronyms_RecaseToCanonical(self) -> None:
+        source = "# routes ipv6 through the Nat gateway\nx = 1\n"
+        assert fix_acronym_casing_in_comments(_PY, source) == (
+            "# routes IPv6 through the NAT gateway\nx = 1\n"
+        )
+
+    def test_TrailingComment_RecasesInPlace(self) -> None:
+        source = "x = 1  # the ipv6 address\n"
+        assert fix_acronym_casing_in_comments(_PY, source) == (
+            "x = 1  # the IPv6 address\n"
+        )
+
+    def test_FixedComment_LeavesNoRemainingViolation(self) -> None:
+        source = "# handles ipv6 and the Nat gateway\nx = 1\n"
+        fixed = fix_acronym_casing_in_comments(_PY, source)
+        assert list(check_acronym_casing_in_comments(_PY, fixed)) == []
+
+    def test_MarkdownPath_ReturnsSourceUnchanged(self) -> None:
+        assert fix_acronym_casing_in_comments(_MD, "# ipv6\n") == "# ipv6\n"
+
+
 class TestFixPath:
     def test_EnabledFixers_ComposeOnOneFile(self, tmp_path: Path) -> None:
         source = (
@@ -128,6 +175,14 @@ class TestFixPath:
         fix_path(target, {"RS005"})
         assert target.read_text(encoding="utf-8") == (
             'def f():\n    """Use `dict` here"""\n'
+        )
+
+    def test_AcronymCasingRule_RecasesDocstringAndComment(self, tmp_path: Path) -> None:
+        source = 'def f():\n    # routes ipv6\n    """The Nat gateway."""\n'
+        target = _write_project(tmp_path, source, '["RS049"]')
+        assert fix_path(target, {"RS049"}) is True
+        assert target.read_text(encoding="utf-8") == (
+            'def f():\n    # routes IPv6\n    """The NAT gateway."""\n'
         )
 
     def test_MarkdownFile_FixesBackticksOnly(self, tmp_path: Path) -> None:
