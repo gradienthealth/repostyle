@@ -60,6 +60,7 @@ from repostyle.rules._violation import (
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
+    RS_PRIVATE_IMPORT,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RANGE_LEN_REINDEX,
@@ -120,6 +121,7 @@ from repostyle.rules.docstrings import (
     fix_double_backticks,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
+from repostyle.rules.encapsulation import check_private_import
 from repostyle.rules.equality import check_eq_hash_pairing
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
 from repostyle.rules.idioms import check_range_len_reindex
@@ -190,6 +192,7 @@ __all__ = [
     "RS_NO_PHI_SAFE_EXC_INFO",
     "RS_PORT_NO_IMPLEMENTATION",
     "RS_PREDICATE_FUNCTION_NAMING",
+    "RS_PRIVATE_IMPORT",
     "RS_RAISES_SECTION_INCOMPLETE",
     "RS_RAISE_DESCRIBED_IN_PROSE",
     "RS_RANGE_LEN_REINDEX",
@@ -253,6 +256,7 @@ __all__ = [
     "check_no_phi_safe_with_exc_info",
     "check_port_no_implementation",
     "check_predicate_function_naming",
+    "check_private_import",
     "check_raise_described_in_prose",
     "check_raises_section_incomplete",
     "check_range_len_reindex",

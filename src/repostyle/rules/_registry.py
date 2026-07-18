@@ -39,6 +39,7 @@ from repostyle.rules._violation import (
     RS_NO_PHI_SAFE_EXC_INFO,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
+    RS_PRIVATE_IMPORT,
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RANGE_LEN_REINDEX,
@@ -91,6 +92,7 @@ from repostyle.rules.docstrings import (
     check_unbackticked_sibling_symbol_in_comments,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
+from repostyle.rules.encapsulation import check_private_import
 from repostyle.rules.equality import check_eq_hash_pairing
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
 from repostyle.rules.idioms import check_range_len_reindex
@@ -193,6 +195,7 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
     ),
     RS_RANGE_LEN_REINDEX: (check_range_len_reindex,),
     RS_LOWERCASE_ENTRY_DESCRIPTION: (check_lowercase_entry_description,),
+    RS_PRIVATE_IMPORT: (check_private_import,),
 }
 
 
@@ -237,6 +240,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_TEMPORAL_MARKER: Severity.WARNING,
     RS_RANGE_LEN_REINDEX: Severity.WARNING,
     RS_LOWERCASE_ENTRY_DESCRIPTION: Severity.WARNING,
+    RS_PRIVATE_IMPORT: Severity.WARNING,
 }
 
 
