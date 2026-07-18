@@ -19,10 +19,7 @@ quote-style = "double"
 # D100-D107 require docstrings on every module/class/function. The convention
 # is no docstring over a low-content one (docstring minimalism). The remaining
 # D rules still enforce shape and content when a docstring exists. D203/D213
-# are mutually exclusive with D211/D212. PT004 (leading-underscore on no-return
-# fixtures) was removed upstream because the convention "isn't a practice
-# recommended by the pytest community"; the broad PT select still pulls it in,
-# so ignore explicitly.
+# are mutually exclusive with D211/D212.
 #
 # TRY003 (raise-vanilla-args) flags a long literal message passed to an
 # exception. It is ignored because it fights the house preference for a
@@ -41,7 +38,6 @@ ignore = [
     "D107",
     "D203",
     "D213",
-    "PT004",
     "TRY003",
 ]
 # ANN401 bans typing.Any in a parameter or return annotation: an Any in a
