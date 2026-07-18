@@ -20,6 +20,7 @@ from typing import NamedTuple
 
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
+    RS_ACRONYM_CASING_IN_PROSE,
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
@@ -910,6 +911,38 @@ RULE_DOCS: dict[str, RuleDoc] = {
             Example(
                 bad="Raises:\n    NotFoundError: if a foo is not found.",
                 good="Raises:\n    NotFoundError: If a foo is not found.",
+            ),
+        ),
+    ),
+    RS_ACRONYM_CASING_IN_PROSE: RuleDoc(
+        name="acronym-casing-in-prose",
+        summary=(
+            "A known acronym in docstring or comment prose is written in its "
+            "canonical casing (`IPv6`, not `ipv6`; `NAT`, not `Nat`)."
+        ),
+        rationale=(
+            "RS001 holds an acronym to its canonical casing in a CapWords "
+            "identifier; this holds the same acronym to the same casing in the "
+            "prose beside it, where a miscased `ipv6` or `Nat` reads as an "
+            "ordinary word. The canonical casing is not always uppercase — "
+            "`IPv6` is mixed-case — so each acronym carries its own target "
+            "casing, and `--fix` recases an occurrence in place. The resolved "
+            "set shares RS001's `acronyms-extra`/`acronyms-exclude` config keys. "
+            "The check stays mechanical by firing only on a whole-word token, "
+            "so a substring (`ID` in `identify`, `NAT` in `nation`) and a "
+            "hyphenated compound (`fhir-ingestor`, a proper name whose lowercase "
+            "is correct) are left alone, as is a token inside a backtick span or "
+            "a URL, a commented-out statement, and an `Args:` entry's parameter "
+            "caption. An acronym whose lowercased form is a common English word "
+            "(`SMART` to `smart`) is dropped from prose to avoid rewriting the "
+            "word, though a repo can reintroduce it through `acronyms-extra`. "
+            "Ruff has no acronym-casing-in-prose check, so this is a genuine gap."
+        ),
+        examples=(
+            Example(
+                bad='"""Parses the ipv6 address the Nat gateway advertises."""',
+                good='"""Parses the IPv6 address the NAT gateway advertises."""',
+                note="The canonical casing is per-acronym: `IPv6` mixed, `NAT` upper.",
             ),
         ),
     ),

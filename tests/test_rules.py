@@ -5,6 +5,7 @@ import pytest
 
 from repostyle.rules import (
     RS_ACRONYM_CASING,
+    RS_ACRONYM_CASING_IN_PROSE,
     RS_BANNED_ABBREVIATION,
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_BOOLEAN_PREFIX_REQUIRED,
@@ -33,6 +34,8 @@ from repostyle.rules import (
     RS_UNBACKTICKED_CODE_REFERENCE,
     RS_UNBACKTICKED_SIBLING_SYMBOL,
     check_acronym_casing,
+    check_acronym_casing_in_comments,
+    check_acronym_casing_in_docstrings,
     check_banned_abbreviation,
     check_behavior_verification_only,
     check_boolean_prefix_required,
@@ -100,6 +103,7 @@ class TestCheckAcronymCasing:
             ("class JsonHTTPError: ...", "JSON"),
             ("class HttpRetry: ...", "HTTP"),
             ("class PatientId: ...", "ID"),
+            ("class NatGateway: ...", "NAT"),
             ("T = TypeVar('FhirT')", "FHIR"),
             ("T = typing.TypeVar('FhirT')", "FHIR"),
             pytest.param("type FhirAlias = int", "FHIR", marks=_REQUIRES_PEP695),
@@ -126,6 +130,8 @@ class TestCheckAcronymCasing:
             "class FHIRClient: ...",
             "class JWTSigner: ...",
             "class EpicFHIRClient: ...",
+            "class NATGateway: ...",
+            "class Ipv6Handler: ...",
             "class _Internal: ...",
             "TToken = TypeVar('TToken')",
             "TToken = typing.TypeVar('TToken')",
@@ -170,6 +176,117 @@ class TestCheckAcronymCasing:
 
     def test_NonPythonFile_NotChecked(self) -> None:
         assert list(check_acronym_casing(Path("README.md"), "class FhirClient")) == []
+
+    def test_MixedCaseEntryIPv6_LeavesRS001Unchanged(self) -> None:
+        """A mixed-case entry does not corrupt RS001's uppercase membership.
+
+        RS001 tokenizes a CapWords name into letter-only words, which a
+        digit-bearing acronym like `IPv6` can never equal, so the mixed-case
+        entry is inert here rather than firing spuriously.
+        """
+        source = "class Ipv6Parser: ...\nclass IPv6Parser: ...\n"
+        assert list(check_acronym_casing(Path("src/x.py"), source)) == []
+
+
+class TestCheckAcronymCasingInDocstrings:
+    @pytest.mark.parametrize(
+        ("prose", "found", "canonical"),
+        [
+            ("Parses the ipv6 address.", "ipv6", "IPv6"),
+            ("Parses the IPV6 address.", "IPV6", "IPv6"),
+            ("The Nat gateway advertises it.", "Nat", "NAT"),
+            ("Returns the json payload.", "json", "JSON"),
+            ("Signs a jwt for the api.", "jwt", "JWT"),
+        ],
+        ids=["ipv6", "IPV6", "Nat", "json", "jwt-first-of-two"],
+    )
+    def test_MiscasedAcronym_FlagsWithCanonical(
+        self, prose: str, found: str, canonical: str
+    ) -> None:
+        source = f'def f():\n    """{prose}"""\n'
+        violations = list(check_acronym_casing_in_docstrings(Path("src/x.py"), source))
+        assert violations[0].rule == RS_ACRONYM_CASING_IN_PROSE
+        assert f"'{canonical}' as '{found}'" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "prose",
+        [
+            "Parses the IPv6 address and the NAT gateway.",
+            "We identify the nation in the aid record.",
+            "Uses `ipv6` and `json` in code font.",
+            "See http://host/api/json now.",
+            "A smart approach to the problem.",
+            "Imported from fhir-ingestor upstream.",
+        ],
+        ids=[
+            "correctly-cased-no-op",
+            "substring-not-flagged",
+            "backtick-span-skipped",
+            "acronym-in-url-skipped",
+            "ambiguous-smart-left-alone",
+            "hyphenated-compound-left-alone",
+        ],
+    )
+    def test_ConformingProse_NoViolation(self, prose: str) -> None:
+        source = f'def f():\n    """{prose}"""\n'
+        assert list(check_acronym_casing_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_ArgsEntryCaption_LeavesParameterName(self) -> None:
+        source = (
+            "def f(url):\n"
+            '    """Summary line.\n\n'
+            "    Args:\n"
+            "        url: The endpoint to call.\n"
+            '    """\n'
+        )
+        assert list(check_acronym_casing_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_ExcludedAcronym_NoViolation(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text(
+            '[tool.repostyle]\nacronyms-exclude = ["JSON"]\n', encoding="utf-8"
+        )
+        source = 'def f():\n    """Returns the json payload."""\n'
+        target = tmp_path / "x.py"
+        target.write_text(source, encoding="utf-8")
+        assert list(check_acronym_casing_in_docstrings(target, source)) == []
+
+
+class TestCheckAcronymCasingInComments:
+    @pytest.mark.parametrize(
+        ("comment", "found", "canonical"),
+        [
+            ("# handles the ipv6 case here", "ipv6", "IPv6"),
+            ("# routes through the Nat gateway", "Nat", "NAT"),
+        ],
+        ids=["ipv6", "Nat"],
+    )
+    def test_MiscasedAcronym_FlagsWithCanonical(
+        self, comment: str, found: str, canonical: str
+    ) -> None:
+        source = f"{comment}\nx = 1\n"
+        violations = list(check_acronym_casing_in_comments(Path("src/x.py"), source))
+        assert violations[0].rule == RS_ACRONYM_CASING_IN_PROSE
+        assert f"'{canonical}' as '{found}'" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "comment",
+        [
+            "# handles the IPv6 case and the NAT gateway",
+            "# json.loads(payload)",
+            "# type: ignore for the api call",
+        ],
+        ids=["correctly-cased", "commented-out-code", "directive"],
+    )
+    def test_ConformingComment_NoViolation(self, comment: str) -> None:
+        source = f"{comment}\nx = 1\n"
+        assert list(check_acronym_casing_in_comments(Path("src/x.py"), source)) == []
+
+    def test_TomlComment_FlagsMiscasedAcronym(self) -> None:
+        source = "# the ipv6 setting\nkey = 1\n"
+        violations = list(
+            check_acronym_casing_in_comments(Path("pyproject.toml"), source)
+        )
+        assert violations[0].rule == RS_ACRONYM_CASING_IN_PROSE
 
 
 class TestCheckTestNaming:

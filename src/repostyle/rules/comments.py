@@ -45,6 +45,7 @@ from repostyle._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle._shared import (
     _comment_text,
     _has_sentence_boundary,
+    _is_code_fragment,
     _is_directive_comment,
     _is_prose_comment,
     _join_source_lines,
@@ -55,11 +56,16 @@ from repostyle._shared import (
     find_pyproject,
 )
 from repostyle.rules._violation import (
+    RS_ACRONYM_CASING_IN_PROSE,
     RS_COMMENT_TAG_FORMAT,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     Violation,
+)
+from repostyle.rules.naming import (
+    effective_prose_acronyms,
+    miscased_acronyms_in_prose,
 )
 
 DEFAULT_TAGS = ("TODO", "FIXME", "NOTE", "HACK")
@@ -337,3 +343,94 @@ def check_comment_temporal_markers(path: Path, source: str) -> Iterator[Violatio
                 f"comment narrates the edit history with '{marker}'; state the "
                 "code's current contract, not how it changed",
             )
+
+
+def check_acronym_casing_in_comments(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a known acronym miscased in a comment.
+
+    RS049's docstring rule carried to `#` comments: a whole word in a comment
+    that case-insensitively matches a known acronym but is not in its canonical
+    casing is flagged and, under `--fix`, recased (`ipv6` to `IPv6`, `Nat` to
+    `NAT`). The resolved set, whole-word matching, and the backtick and URL
+    exemptions are the docstring rule's; additionally a directive comment and a
+    commented-out statement are skipped, since neither is prose to correct. The
+    check runs over Python, TOML, and YAML comments alike, since a `#` comment
+    reads the same in each; the `--fix` half repairs Python comments in place.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    if not canonical_casing:
+        return
+    for comment in extract_comments(path, source):
+        if not _is_correctable_comment(comment.string):
+            continue
+        for offset, found, canonical in miscased_acronyms_in_prose(
+            comment.string, canonical_casing
+        ):
+            yield Violation(
+                comment.lineno,
+                comment.column + offset + 1,
+                RS_ACRONYM_CASING_IN_PROSE,
+                f"comment miscases the acronym '{canonical}' as '{found}'; "
+                f"write '{canonical}'",
+            )
+
+
+def fix_acronym_casing_in_comments(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Recases each miscased acronym in a comment, RS049's comment fix.
+
+    Each occurrence the comment check flags is replaced in place with the
+    acronym's canonical casing; the rewrite is case-only and never changes
+    length. A comment whose line is in `skip_lines` is left untouched. The fix
+    runs on Python only, though the check spans TOML and YAML too.
+
+    Returns:
+        The source with each flagged acronym recased, unchanged when nothing
+        recases.
+    """
+    if path.suffix != ".py":
+        return source
+    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    if not canonical_casing:
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for comment in extract_comments(path, source):
+        if comment.lineno in skip_lines or not _is_correctable_comment(comment.string):
+            continue
+        line = source_lines[comment.lineno - 1]
+        rewritten = _recased_comment_line(
+            line, comment.column, comment.string, canonical_casing
+        )
+        if rewritten != line:
+            source_lines[comment.lineno - 1] = rewritten
+            changed = True
+    return _join_source_lines(source, source_lines) if changed else source
+
+
+def _is_correctable_comment(comment_string: str) -> bool:
+    """Reports whether a comment is prose to correct, not code or directive."""
+    text = _comment_text(comment_string)
+    return not (_is_directive_comment(text) or _is_code_fragment(text))
+
+
+def _recased_comment_line(
+    line: str, column: int, comment_string: str, canonical_casing: dict[str, str]
+) -> str:
+    """Returns `line` with each miscased acronym in its comment recased.
+
+    The comment begins at `column` on `line`, so a token offset within the
+    comment shifts by `column` to index `line`. Each rewrite is case-only and
+    length-preserving, so an earlier replacement leaves every later offset
+    valid.
+    """
+    for offset, found, canonical in miscased_acronyms_in_prose(
+        comment_string, canonical_casing
+    ):
+        start = column + offset
+        if line[start : start + len(found)] == found:
+            line = line[:start] + canonical + line[start + len(found) :]
+    return line

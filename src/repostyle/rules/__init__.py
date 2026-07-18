@@ -28,6 +28,7 @@ from repostyle.rules._registry import (
 )
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
+    RS_ACRONYM_CASING_IN_PROSE,
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
@@ -80,10 +81,12 @@ from repostyle.rules._violation import (
 )
 from repostyle.rules.annotations import check_deeply_nested_type
 from repostyle.rules.comments import (
+    check_acronym_casing_in_comments,
     check_comment_tag_format,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
     check_tag_comment_continuation_indent,
+    fix_acronym_casing_in_comments,
     fix_comment_terminal_punctuation,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
@@ -101,6 +104,7 @@ from repostyle.rules.doc_value import (
     check_return_described_in_prose,
 )
 from repostyle.rules.docstrings import (
+    check_acronym_casing_in_docstrings,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
@@ -117,6 +121,7 @@ from repostyle.rules.docstrings import (
     check_unbackticked_code_reference,
     check_unbackticked_sibling_symbol,
     check_unbackticked_sibling_symbol_in_comments,
+    fix_acronym_casing_in_docstrings,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
 )
@@ -160,6 +165,7 @@ __all__ = [
     "FIXABLE_RULES",
     "PACKAGE_RULES",
     "RS_ACRONYM_CASING",
+    "RS_ACRONYM_CASING_IN_PROSE",
     "RS_ARG_DESCRIBED_IN_PROSE",
     "RS_BANNED_ABBREVIATION",
     "RS_BANNED_IMPORT_BY_PATH",
@@ -215,6 +221,8 @@ __all__ = [
     "Severity",
     "Violation",
     "check_acronym_casing",
+    "check_acronym_casing_in_comments",
+    "check_acronym_casing_in_docstrings",
     "check_arg_described_in_prose",
     "check_banned_abbreviation",
     "check_banned_import_by_path",
@@ -270,6 +278,8 @@ __all__ = [
     "check_unbackticked_code_reference",
     "check_unbackticked_sibling_symbol",
     "check_unbackticked_sibling_symbol_in_comments",
+    "fix_acronym_casing_in_comments",
+    "fix_acronym_casing_in_docstrings",
     "fix_comment_terminal_punctuation",
     "fix_doc_fill",
     "fix_docstring_terminal_punctuation",

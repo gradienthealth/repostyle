@@ -23,10 +23,13 @@ from repostyle.rules import (
     ALL_RULE_IDS,
     FIXABLE_RULES,
     PACKAGE_RULES,
+    RS_ACRONYM_CASING_IN_PROSE,
     RS_DOC_FILL,
     RS_NO_DOUBLE_BACKTICKS,
     RS_TERMINAL_PUNCTUATION,
     Violation,
+    fix_acronym_casing_in_comments,
+    fix_acronym_casing_in_docstrings,
     fix_comment_terminal_punctuation,
     fix_doc_fill,
     fix_docstring_terminal_punctuation,
@@ -44,6 +47,8 @@ from repostyle.suppressions import filter_suppressed, suppressed_lines
 _Fixer = Callable[[Path, str, frozenset[int]], str]
 _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_NO_DOUBLE_BACKTICKS, fix_double_backticks),
+    (RS_ACRONYM_CASING_IN_PROSE, fix_acronym_casing_in_docstrings),
+    (RS_ACRONYM_CASING_IN_PROSE, fix_acronym_casing_in_comments),
     (RS_TERMINAL_PUNCTUATION, fix_docstring_terminal_punctuation),
     (RS_TERMINAL_PUNCTUATION, fix_comment_terminal_punctuation),
     (RS_DOC_FILL, fix_doc_fill),
