@@ -31,7 +31,7 @@ import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import _has_decorator, _is_test_file, _parse_python
+from repostyle._shared import _has_decorator, _is_test_file, _parse_python
 from repostyle.rules._violation import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
@@ -40,7 +40,7 @@ from repostyle.rules._violation import (
     RS_RETURN_DESCRIBED_IN_PROSE,
     Violation,
 )
-from repostyle.rules.complexity import _score_block
+from repostyle.rules.complexity import score_block
 
 # The presence check fires when a function scores at or above the complexity
 # floor (well below RS012's limit of 15, which marks over-complexity, not mere
@@ -261,7 +261,7 @@ def _check_function(
     docstring = ast.get_docstring(node, clean=False)
     params = _param_count(node)
     if docstring is None:
-        score = _score_block(node.body, 0)
+        score = score_block(node.body, 0)
         if score >= DOC_VALUE_COMPLEXITY_FLOOR or params >= DOC_VALUE_PARAM_FLOOR:
             plural = "" if params == 1 else "s"
             yield _violation(

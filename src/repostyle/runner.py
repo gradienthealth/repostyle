@@ -8,6 +8,17 @@ from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import NamedTuple
 
+from repostyle._comments import COMMENT_SUFFIXES
+from repostyle._shared import (
+    _bool_config,
+    _dir_matches_config_glob,
+    _gitignore_prunes_dir,
+    _GitignoreRules,
+    _matches_config_glob,
+    _parse_gitignore,
+    _repostyle_table,
+    find_pyproject,
+)
 from repostyle.rules import (
     ALL_RULE_IDS,
     FIXABLE_RULES,
@@ -22,17 +33,6 @@ from repostyle.rules import (
     fix_double_backticks,
     run_package_rule,
     run_rule,
-)
-from repostyle.rules._comments import COMMENT_SUFFIXES
-from repostyle.rules._shared import (
-    _bool_config,
-    _dir_matches_config_glob,
-    _gitignore_prunes_dir,
-    _GitignoreRules,
-    _matches_config_glob,
-    _parse_gitignore,
-    _repostyle_table,
-    find_pyproject,
 )
 from repostyle.suppressions import filter_suppressed, suppressed_lines
 

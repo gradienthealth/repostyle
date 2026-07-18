@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
-from repostyle.rules._shared import (
+from repostyle._shared import (
     TEST_CLASS_PATTERN,
     _has_decorator,
     _is_test_file,

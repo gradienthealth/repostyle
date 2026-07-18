@@ -13,7 +13,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import _parse_python
+from repostyle._shared import _parse_python
 from repostyle.rules._violation import RS_COGNITIVE_COMPLEXITY, Violation
 
 COGNITIVE_COMPLEXITY_LIMIT = 15
@@ -36,7 +36,7 @@ def check_cognitive_complexity(path: Path, source: str) -> Iterator[Violation]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
-        score = _score_block(node.body, 0)
+        score = score_block(node.body, 0)
         if score > COGNITIVE_COMPLEXITY_LIMIT:
             yield Violation(
                 node.lineno,
@@ -47,7 +47,7 @@ def check_cognitive_complexity(path: Path, source: str) -> Iterator[Violation]:
             )
 
 
-def _score_block(body: list[ast.stmt], nesting: int) -> int:
+def score_block(body: list[ast.stmt], nesting: int) -> int:
     return sum(_score_node(node, nesting) for node in body)
 
 
@@ -63,11 +63,11 @@ def _score_if(node: ast.If, nesting: int) -> int:
     matching how cognitive complexity treats `else if`.
     """
     score = 1 + nesting + _score_node(node.test, nesting)
-    score += _score_block(node.body, nesting + 1)
+    score += score_block(node.body, nesting + 1)
     if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
         score += _score_if(node.orelse[0], nesting)
     else:
-        score += _score_block(node.orelse, nesting + 1)
+        score += score_block(node.orelse, nesting + 1)
     return score
 
 

@@ -9,8 +9,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
 
-from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
-from repostyle.rules._shared import _join_source_lines, _parse_python
+from repostyle._comments import COMMENT_SUFFIXES, extract_comments
+from repostyle._shared import _join_source_lines, _parse_python
 from repostyle.rules._violation import RS_DOC_FILL, RS_DOC_SUMMARY_OVERFLOW, Violation
 
 DOC_FILL_COLUMNS = 79

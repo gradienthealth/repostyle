@@ -24,7 +24,7 @@ import symtable
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import TEST_CLASS_PATTERN, _parse_python
+from repostyle._shared import TEST_CLASS_PATTERN, _parse_python
 from repostyle.rules._violation import RS_ELEMENT_ORDER, Violation
 
 _ENUM_BASES = frozenset({"Enum", "IntEnum", "StrEnum", "Flag", "IntFlag", "ReprEnum"})

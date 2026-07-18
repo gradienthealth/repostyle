@@ -1,7 +1,8 @@
-"""Helpers shared across rule modules.
+"""Helpers shared across the package.
 
-A helper used by a single rule lives in that rule's module; one used by two or
-more lives here so the rule modules stay independent of each other.
+A helper used by a single module lives in that module; one used by two or more
+— the rule modules or the top-level runner — lives here, so its callers stay
+independent of each other.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
-from repostyle.rules._comments import extract_comments
+from repostyle._comments import extract_comments
 
 # A pytest-collected test class: `Test` followed by an uppercase letter or the
 # end of the name, so `Testimony` and `Tester` are not matched.

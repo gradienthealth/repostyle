@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import _is_test_file, _parse_python, _posix
+from repostyle._shared import _is_test_file, _parse_python, _posix
 from repostyle.rules._violation import (
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_CONDITIONAL_TEST_LOGIC,

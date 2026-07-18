@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import _parse_python, _posix
+from repostyle._shared import _parse_python, _posix
 from repostyle.rules._violation import RS_PORT_NO_IMPLEMENTATION, Violation
 
 PORT_IMPLEMENTATION_TOKENS: tuple[str, ...] = (

@@ -24,7 +24,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle.rules._shared import _is_test_file, _parse_python
+from repostyle._shared import _is_test_file, _parse_python
 from repostyle.rules._violation import RS_PRIVATE_IMPORT, Violation
 
 

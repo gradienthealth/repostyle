@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from repostyle._comments import extract_comments
 from repostyle.rules import RS_TEMPORAL_MARKER, check_comment_temporal_markers
-from repostyle.rules._comments import extract_comments
 
 
 class TestExtractComments:

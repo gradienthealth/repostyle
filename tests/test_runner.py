@@ -2,6 +2,11 @@ from pathlib import Path
 
 import pytest
 
+from repostyle._shared import (
+    _gitignore_prunes_dir,
+    _GitignoreRules,
+    _parse_gitignore,
+)
 from repostyle.rules import (
     ALL_RULE_IDS,
     RS_ACRONYM_CASING,
@@ -11,11 +16,6 @@ from repostyle.rules import (
     RS_SHOULD_BE_PRIVATE,
     Severity,
     severity_of,
-)
-from repostyle.rules._shared import (
-    _gitignore_prunes_dir,
-    _GitignoreRules,
-    _parse_gitignore,
 )
 from repostyle.runner import (
     _package_files,

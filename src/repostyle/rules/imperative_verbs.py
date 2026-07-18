@@ -3,10 +3,10 @@
 Kept separate from the docstring-form checks in `docstrings.py`: this data
 (which bare-infinitive verbs to recognize, and how each conjugates) is a
 distinct "vocabulary" concern from the AST-walking check that consumes it, and
-this module's own top-level `IMPERATIVE_VERB_CONJUGATIONS` needs `_conjugate`
+this module's own top-level `IMPERATIVE_VERB_CONJUGATIONS` needs `conjugate`
 defined above it, a constraint the `_effective_conjugations` in `docstrings.py`
-(which also calls `_conjugate`) cannot satisfy from within the same file
-without an ordering conflict.
+(which also calls `conjugate`) cannot satisfy from within the same file without
+an ordering conflict.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ import re
 # (a regex match object). `Partial`, `Rollback`, and `Init` are dropped as not
 # real standalone verbs (`functools.partial`, the two-word phrasal "roll back",
 # and an abbreviation, respectively).
-_IMPERATIVE_VERBS: tuple[str, ...] = (
+IMPERATIVE_VERBS: tuple[str, ...] = (
     "Accept",
     "Access",
     "Add",
@@ -304,7 +304,7 @@ _IRREGULAR_CONJUGATIONS: dict[str, str] = {"Have": "Has"}
 _ES_CONJUGATION_SUFFIXES = ("s", "x", "z", "ch", "sh", "o")
 
 
-def _conjugate(verb: str) -> str:
+def conjugate(verb: str) -> str:
     """Conjugates a bare-infinitive `verb` to third-person singular."""
     if verb in _IRREGULAR_CONJUGATIONS:
         return _IRREGULAR_CONJUGATIONS[verb]
@@ -316,9 +316,9 @@ def _conjugate(verb: str) -> str:
 
 
 IMPERATIVE_VERB_CONJUGATIONS: dict[str, str] = {
-    verb: _conjugate(verb) for verb in _IMPERATIVE_VERBS
+    verb: conjugate(verb) for verb in IMPERATIVE_VERBS
 }
-_IMPERATIVE_OPENING_PATTERN = re.compile(
+IMPERATIVE_OPENING_PATTERN = re.compile(
     r"^(" + "|".join(IMPERATIVE_VERB_CONJUGATIONS) + r")\b"
 )
 
@@ -328,7 +328,7 @@ _IMPERATIVE_OPENING_PATTERN = re.compile(
 # suffix rules), so it stays a quick reference at the list's full size instead
 # of repeating ~200 mechanically obvious entries. Compares each conjugation
 # against the plain-suffix default rather than re-deriving the branch
-# conditions of `_conjugate`, so the table cannot drift from what `_conjugate`
+# conditions of `conjugate`, so the table cannot drift from what `conjugate`
 # computes.
 NON_TRIVIAL_CONJUGATIONS: dict[str, str] = {
     verb: conjugated
