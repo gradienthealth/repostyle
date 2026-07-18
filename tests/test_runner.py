@@ -318,6 +318,29 @@ class TestLintPackage:
         assert target.resolve() in narrow
         assert broad == {}
 
+    def test_ExcludedFileReference_KeepsNamePublic(self, tmp_path: Path) -> None:
+        """A reference from an excluded file keeps a name off RS029.
+
+        `helper` is used only from an `exclude`-silenced `_grpc` stub, so
+        dropping that stub from the cross-module index would misreport it as
+        should-be-private. The index reads the excluded file, so the reference
+        counts and the name is left public.
+        """
+        _write_exclude_config(tmp_path, '["_grpc/*.py"]')
+        target = tmp_path / "app.py"
+        target.write_text(
+            '__all__ = ["run"]\n\n\ndef helper():\n    return 1\n\n\n'
+            "def run():\n    return helper()\n",
+            encoding="utf-8",
+        )
+        generated = tmp_path / "_grpc"
+        generated.mkdir()
+        (generated / "stub.py").write_text(
+            "def go():\n    return helper()\n", encoding="utf-8"
+        )
+        findings = lint_package([target], {RS_SHOULD_BE_PRIVATE}, root_paths=[tmp_path])
+        assert findings == {}
+
 
 class TestPackageWalkPruning:
     """The whole-package index prunes vendored trees but not excluded files.
