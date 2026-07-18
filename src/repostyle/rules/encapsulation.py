@@ -53,22 +53,6 @@ def check_private_import(path: Path, source: str) -> Iterator[Violation]:
                 yield _violation(node, dotted, owner)
 
 
-def _import_candidates(node: ast.AST, importer_top: str) -> list[str]:
-    """Returns the dotted import targets a statement should be tested against.
-
-    A private module is reported once for the whole statement; a public module
-    contributes one candidate per name it imports, so a private name pulled
-    from a public module is still caught.
-    """
-    if isinstance(node, ast.Import):
-        return [alias.name for alias in node.names]
-    if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-        if _private_owner(node.module, importer_top) is not None:
-            return [node.module]
-        return [f"{node.module}.{alias.name}" for alias in node.names]
-    return []
-
-
 def _dotted_module(path: Path) -> str:
     """Resolves a file's dotted module name from its enclosing packages.
 
@@ -90,6 +74,22 @@ def _dotted_module(path: Path) -> str:
     if parts[-1] == "__init__":
         parts.pop()
     return ".".join(parts)
+
+
+def _import_candidates(node: ast.AST, importer_top: str) -> list[str]:
+    """Returns the dotted import targets a statement should be tested against.
+
+    A private module is reported once for the whole statement; a public module
+    contributes one candidate per name it imports, so a private name pulled
+    from a public module is still caught.
+    """
+    if isinstance(node, ast.Import):
+        return [alias.name for alias in node.names]
+    if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+        if _private_owner(node.module, importer_top) is not None:
+            return [node.module]
+        return [f"{node.module}.{alias.name}" for alias in node.names]
+    return []
 
 
 def _is_inside(importer: str, owner: str) -> bool:
