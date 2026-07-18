@@ -682,6 +682,23 @@ class TestCheckRaisesSectionIncomplete:
     def test_SectionCompleteOrOutOfScope_NoViolation(self, source: str) -> None:
         assert _check_raises_incomplete(source) == []
 
+    def test_TwoMissingTypes_FlagsEachInSourceOrder(self) -> None:
+        source = (
+            "def load(path: str) -> dict:\n"
+            '    """Load the config.\n'
+            "\n"
+            "    Raises:\n"
+            "        ValueError: when the file is not valid TOML.\n"
+            '    """\n'
+            "    if not path:\n"
+            '        raise KeyError("missing")\n'
+            '    raise RuntimeError("boom")\n'
+        )
+        violations = _check_raises_incomplete(source)
+        assert len(violations) == 2
+        assert "KeyError" in violations[0].message
+        assert "RuntimeError" in violations[1].message
+
 
 def _check(source: str, path: Path = _SRC) -> list:
     return list(check_doc_value_signal(path, source))
