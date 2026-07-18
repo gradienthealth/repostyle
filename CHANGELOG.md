@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.20.1...repostyle-v0.21.0) (2026-07-18)
+
+
+### Features
+
+* **DEV-1523:** skip gitignored trees under respect-gitignore ([#116](https://github.com/gradienthealth/repostyle/issues/116)) ([f186d93](https://github.com/gradienthealth/repostyle/commit/f186d934fff5ae28991ad004a3bb64f1ee5d9d34))
+* **NO-ISSUE:** add RS048 flagging cross-package private imports ([#118](https://github.com/gradienthealth/repostyle/issues/118)) ([df6b610](https://github.com/gradienthealth/repostyle/commit/df6b61029b1193e32db5b90f79314728980c4ce7))
+
 ## [0.20.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.20.0...repostyle-v0.20.1) (2026-07-18)
 
 
