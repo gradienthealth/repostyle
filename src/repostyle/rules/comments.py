@@ -1,4 +1,4 @@
-"""Comment rules (RS022, RS038, RS030): tag format, indent, punctuation.
+r"""Comment rules (RS022, RS038, RS030): tag format, indent, punctuation.
 
 RS022 standardizes special comments. A special comment carries one of a small
 set of tags and points at a tracking ticket, so an agent reading the finding

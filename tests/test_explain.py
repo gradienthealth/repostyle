@@ -23,7 +23,7 @@ class TestRuleDocs:
 
 class TestExplainRule:
     @pytest.mark.parametrize(
-        "rule_id, present, absent",
+        ("rule_id", "present", "absent"),
         [
             (
                 "RS010",

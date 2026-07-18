@@ -320,7 +320,9 @@ def _glued_code_span_columns(text: str) -> Iterator[int]:
         end = match.end()
         if end - match.start() <= 2 or end >= len(text):
             continue
-        if text[end].isalpha() or text[end] in "'’":
+        # A curly apostrophe is a real possessive to flag, so it stays literal
+        # here despite RUF001's ambiguous-character warning.
+        if text[end].isalpha() or text[end] in "'’":  # noqa: RUF001
             yield end
 
 
@@ -444,7 +446,7 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
 
 @lru_cache(maxsize=128)
 def _effective_pattern(pyproject: Path | None) -> re.Pattern[str]:
-    """Returns the opening-verb regex built from this repo's effective verbs.
+    r"""Returns the opening-verb regex built from this repo's effective verbs.
 
     Each verb is escaped before joining: `imperative-verbs-extra` comes from
     repo config, not this module's own hardcoded list, so a configured entry

@@ -38,7 +38,8 @@ class TestReflowDocFill:
         source = '"""Summary.\n\n- ' + "word " * 20 + 'end.\n"""\n'
         body = fix_doc_fill(_PY, source).splitlines()
         assert body[2].startswith("- ")
-        assert body[3].startswith("  ") and not body[3].startswith("   ")
+        assert body[3].startswith("  ")
+        assert not body[3].startswith("   ")
 
     def test_Comment_JoinsToLimit(self) -> None:
         source = "# aaa\n# bbb\nx = 1\n"

@@ -217,6 +217,8 @@ def lint_package(
     findings keyed by each path's resolved location.
 
     Args:
+        paths: the files findings are reported on, the pre-commit batch.
+        enabled: the resolved rule set; only its package rules run here.
         root_paths: locates the package root, defaulting to `paths`. Pass the
             pre-expansion arguments when `paths` has already been expanded from
             a directory, so the root is discovered from what the caller pointed

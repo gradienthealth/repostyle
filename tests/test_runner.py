@@ -64,7 +64,7 @@ class TestResolveEnabledRules:
             resolve_enabled_rules({"ignore": ["RS999"]})
 
     def test_AllUnknownSelect_RaisesRatherThanRunningNothing(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="unknown repostyle rule id"):
             resolve_enabled_rules({"select": ["RS999"]})
 
 
@@ -283,9 +283,10 @@ class TestLintPackage:
     def test_RootPathsOverride_ScansTheOriginalArgumentsTree(
         self, tmp_path: Path
     ) -> None:
-        """Without `root_paths`, the scan misses the call to `helper` in
-        `outer.py` and misreports it as should-be-private; passing `root_paths`
-        widens the scan to the real package root and the finding disappears.
+        """Passing `root_paths` widens the scan to the real package root.
+
+        Without it the scan misses the call to `helper` in `outer.py` and
+        misreports it as should-be-private; with it the finding disappears.
         """
         nested = tmp_path / "aaa_sub"
         nested.mkdir()

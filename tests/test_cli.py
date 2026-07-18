@@ -202,7 +202,8 @@ class TestFix:
         exit_code = main(["--fix", str(target)])
         captured = capsys.readouterr()
         assert exit_code == 1
-        assert "fixed" in captured.err and str(target) in captured.err
+        assert "fixed" in captured.err
+        assert str(target) in captured.err
 
     def test_FixOnFilledFile_ExitsZeroAndIsSilent(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]

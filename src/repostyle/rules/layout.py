@@ -19,6 +19,7 @@ would destroy.
 from __future__ import annotations
 
 import ast
+import itertools
 import symtable
 from collections.abc import Iterator
 from pathlib import Path
@@ -175,7 +176,7 @@ def _body_references(
         for child in symtable.symtable(source, str(path), "exec").get_children()
     }
     body: dict[str, frozenset[str]] = {}
-    for name, stmt in names.items():
+    for name, _stmt in names.items():
         refs = _collect_global_refs(children[name]) if name in children else set()
         body[name] = frozenset(refs & names.keys()) - {name}
     return body
@@ -202,17 +203,20 @@ def _caller_precedes_callee(
             if not isinstance(names[used], _DefNode) or used in forced[user]:
                 continue
             same_cycle = user in reach[used]
-            if position[used] < position[user] and not same_cycle:
-                if used not in reported:
-                    reported.add(used)
-                    stmt = names[used]
-                    yield Violation(
-                        stmt.lineno,
-                        stmt.col_offset + 1,
-                        RS_ELEMENT_ORDER,
-                        f"'{used}' is used by '{user}' below it; order a "
-                        f"caller above the definitions it uses",
-                    )
+            if (
+                position[used] < position[user]
+                and not same_cycle
+                and used not in reported
+            ):
+                reported.add(used)
+                stmt = names[used]
+                yield Violation(
+                    stmt.lineno,
+                    stmt.col_offset + 1,
+                    RS_ELEMENT_ORDER,
+                    f"'{used}' is used by '{user}' below it; order a "
+                    f"caller above the definitions it uses",
+                )
 
 
 def _collect_global_refs(table: symtable.SymbolTable) -> set[str]:
@@ -296,12 +300,10 @@ def _definition_time_nodes(stmt: ast.stmt) -> list[ast.AST]:
 def _local_alphabetical(
     tree: ast.Module, reach: dict[str, set[str]]
 ) -> Iterator[Violation]:
-    """Flags adjacent same-kind definitions the dependency graph leaves free
-    but that are not in alphabetical order.
-    """
+    """Flags adjacent same-kind definitions left free but not alphabetical."""
     nodes = _top_level_names(tree.body)
     names = list(nodes)
-    for earlier, later in zip(names, names[1:], strict=False):
+    for earlier, later in itertools.pairwise(names):
         kind = _alpha_kind(nodes[earlier])
         if kind is None or kind != _alpha_kind(nodes[later]):
             continue
@@ -327,9 +329,12 @@ def _alpha_kind(stmt: ast.stmt) -> str | None:
     """
     if isinstance(stmt, ast.ClassDef):
         return None if _is_test_class(stmt) else "class"
-    if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
-        if stmt.name.startswith("_") and not _is_dunder(stmt.name):
-            return "private helper"
+    if (
+        isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef)
+        and stmt.name.startswith("_")
+        and not _is_dunder(stmt.name)
+    ):
+        return "private helper"
     return None
 
 

@@ -119,7 +119,7 @@ class TestCheckCommentTagFormat:
         assert list(check_comment_tag_format(target, source)) == []
 
     @pytest.mark.parametrize(
-        "suffix,source",
+        ("suffix", "source"),
         [
             ("toml", '# TODO(PROC-1): fix the thing\nkey = "value"\n'),
             ("yaml", "# TODO(PROC-1): fix the thing\nkey: value\n"),
@@ -134,7 +134,7 @@ class TestCheckCommentTagFormat:
         assert list(check_comment_tag_format(target, source)) == []
 
     @pytest.mark.parametrize(
-        "suffix,source",
+        ("suffix", "source"),
         [
             ("toml", '# todo: fix the thing\nkey = "value"\n'),
             ("yaml", "# todo: fix the thing\nkey: value\n"),
@@ -151,7 +151,7 @@ class TestCheckCommentTagFormat:
         assert violations[0].rule == RS_COMMENT_TAG_FORMAT
 
     @pytest.mark.parametrize(
-        "suffix,source",
+        ("suffix", "source"),
         [
             ("toml", '# TODO(PROC-1): real comment\nkey = "value # todo: inside"\n'),
             ("yaml", '# TODO(PROC-1): real comment\nkey: "value # todo: inside"\n'),
@@ -229,7 +229,7 @@ class TestCheckTagCommentContinuationIndent:
         assert violations[0].line == 3
 
     @pytest.mark.parametrize(
-        "suffix,source",
+        ("suffix", "source"),
         [
             ("toml", '# TODO(PROC-1): fix\n# flush line\nkey = "value"\n'),
             ("yaml", "# TODO(PROC-1): fix\n# flush line\nkey: value\n"),

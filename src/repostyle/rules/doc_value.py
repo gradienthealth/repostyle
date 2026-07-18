@@ -214,15 +214,15 @@ def check_raises_section_incomplete(path: Path, source: str) -> Iterator[Violati
 
     A public function that already carries a `Raises:` section fires once per
     specific exception type its own body raises with an explicit `raise
-    SomeError(...)` statement while no `Raises:` entry names it. Once a function
-    documents its exceptions at all, the section should be complete, so a reader
-    trusts it; a raise the section omits silently understates the contract. A
-    function with no `Raises:` section does not fire — whether to document
-    exceptions at all is a presence choice RS041 governs from the prose side.
-    A bare `raise` re-raising the caught exception and a `raise` of a
-    non-class expression are ignored, since neither names a specific type, and
-    an exception RS041 already narrates in the body prose is left to RS041 so
-    the two rules never flag one exception twice.
+    SomeError(...)` statement while no `Raises:` entry names it. Once a
+    function documents its exceptions at all, the section should be complete,
+    so a reader trusts it; a raise the section omits silently understates the
+    contract. A function with no `Raises:` section does not fire — whether to
+    document exceptions at all is a presence choice RS041 governs from the
+    prose side. A bare `raise` re-raising the caught exception and a `raise` of
+    a non-class expression are ignored, since neither names a specific type,
+    and an exception RS041 already narrates in the body prose is left to RS041
+    so the two rules never flag one exception twice.
     """
     for node in _public_functions(path, source):
         docstring = ast.get_docstring(node, clean=True)

@@ -2,4 +2,4 @@
 
 from repostyle.rules import ALL_RULE_IDS, RULES, Violation
 
-__all__ = ["RULES", "ALL_RULE_IDS", "Violation"]
+__all__ = ["ALL_RULE_IDS", "RULES", "Violation"]

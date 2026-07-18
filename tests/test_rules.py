@@ -561,7 +561,9 @@ class TestCheckGluedCodeSpanInDocstrings:
             '"""Returns `patient.identifier`\'s value."""',
             '"""Returns the `Observation`s in the bundle."""',
             '"""Returns the bundle once `parse`d."""',
-            '"""Returns `x`’s value."""',
+            # The curly apostrophe is the case under test, kept literal despite
+            # RUF001's ambiguous-character warning.
+            '"""Returns `x`’s value."""',  # noqa: RUF001
         ],
         ids=["possessive", "plural", "verb-suffix", "curly-apostrophe"],
     )
