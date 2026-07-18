@@ -44,18 +44,26 @@ class TestCheckPrivateImport:
         target = _write(tmp_path, "tests/test_service.py", source)
         assert list(check_private_import(target, source)) == []
 
+    def test_FileOutsideAnyPackage_NoViolation(self, tmp_path: Path) -> None:
+        source = "from myapp.core._engine import run\n"
+        target = tmp_path / "script.py"
+        target.write_text(source, encoding="utf-8")
+        assert list(check_private_import(target, source)) == []
+
     @pytest.mark.parametrize(
         "source",
         [
             "from myapp.core._engine import run\n",
             "import myapp.core._engine\n",
             "from myapp.core.engine import _run\n",
+            "from myapp.core.engine import run, _run\n",
             "from myapp.rules._shared import parse\n",
         ],
         ids=[
             "private_module_from",
             "private_module_import",
             "private_name_from_public_module",
+            "mixed_names_only_private_flags",
             "sibling_package_internal",
         ],
     )
@@ -67,15 +75,6 @@ class TestCheckPrivateImport:
         assert len(violations) == 1
         assert violations[0].rule == RS_PRIVATE_IMPORT
         assert violations[0].line == 1
-
-    def test_TopLevelModuleReachingSubpackageInternal_FlagsViolation(
-        self, tmp_path: Path
-    ) -> None:
-        source = "from myapp.rules._shared import find_pyproject\n"
-        target = _write(tmp_path, "src/myapp/runner.py", source)
-        violations = list(check_private_import(target, source))
-        assert len(violations) == 1
-        assert violations[0].rule == RS_PRIVATE_IMPORT
 
 
 def _write(tmp_path: Path, relative: str, source: str) -> Path:
