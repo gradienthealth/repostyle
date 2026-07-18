@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tomllib
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
@@ -24,6 +25,7 @@ from repostyle.rules import (
 )
 from repostyle.rules._comments import COMMENT_SUFFIXES
 from repostyle.rules._shared import (
+    _dir_matches_config_glob,
     _matches_config_glob,
     _repostyle_table,
     find_pyproject,
@@ -43,10 +45,13 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_DOC_FILL, fix_doc_fill),
 )
 
-# Directories never holding first-party source, skipped when building the
-# whole-package index a package rule scans, and when expanding a directory
-# argument into its lintable files.
-_SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules"})
+# Directories never holding first-party source, pruned during traversal when
+# building the whole-package index a package rule scans and when expanding a
+# directory argument into its lintable files. `venv` joins the vendored-tree
+# names so a repo that keeps a working-tree virtualenv without configuring an
+# `exclude` glob is still spared descending into it (DEV-1522); a dot-prefixed
+# `.venv` is already pruned by the dot-directory rule.
+_SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules", "venv"})
 
 # The suffixes a rule ever inspects: every `COMMENT_SUFFIXES` language plus
 # markdown, which RS005 covers but the comment rules do not. A directory
@@ -184,7 +189,7 @@ def _is_excluded(path: Path) -> bool:
 
 
 def _lintable_files(root: Path) -> Iterator[Path]:
-    return _walk_matching(root, LINTABLE_SUFFIXES)
+    return _walk_matching(root, LINTABLE_SUFFIXES, should_apply_excludes=True)
 
 
 def lint_paths(paths: Iterable[Path], enabled: set[str]) -> list[Violation]:
@@ -248,11 +253,21 @@ def lint_package(
 
 
 def _package_files(root: Path) -> list[tuple[Path, str]]:
-    """Reads every first-party Python file under `root`."""
+    """Reads every first-party Python file under `root`.
+
+    Passes `should_apply_excludes=False`, so a file an `exclude` glob silences
+    is still read into the whole-package index. That asymmetry is deliberate: a
+    public name used only by excluded generated code (a `_grpc`/`_pb2` stub)
+    must still count as a cross-module reference, or RS029 would flag it
+    should-be-private on the strength of the exclude alone. The structural
+    `_SKIPPED_DIRS` prune still applies, so a working-tree `venv` is not read.
+    """
     root = root.resolve()
     base = root if root.is_dir() else root.parent
     files: list[tuple[Path, str]] = []
-    for path in sorted(_walk_matching(base, frozenset({".py"}))):
+    for path in sorted(
+        _walk_matching(base, frozenset({".py"}), should_apply_excludes=False)
+    ):
         try:
             files.append((path, path.read_text(encoding="utf-8")))
         except (OSError, UnicodeDecodeError):
@@ -260,23 +275,61 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
     return files
 
 
-def _walk_matching(root: Path, suffixes: frozenset[str]) -> Iterator[Path]:
-    for path in root.rglob("*"):
-        if _is_skipped_entry(path, root):
-            continue
-        if path.suffix in suffixes and path.is_file():
+def _walk_matching(
+    root: Path, suffixes: frozenset[str], *, should_apply_excludes: bool
+) -> Iterator[Path]:
+    """Yields the files under `root` matching `suffixes`, pruning as it walks.
+
+    Descends with `os.walk` so a pruned directory subtree is never entered: a
+    dot-directory or a `_SKIPPED_DIRS` name (a `venv`, `node_modules`, or build
+    output) is dropped before its files are enumerated, so its files are never
+    stat-ed or read. Pruning during traversal — rather than reading every file
+    and discarding the vendored ones after — is what keeps a run over a
+    venv-heavy working tree from going CPU-bound (DEV-1522).
+
+    With `should_apply_excludes`, the config's `exclude` globs prune a matching
+    directory and drop a matching file too, scoping the file-set a directory
+    argument expands to. The whole-package index passes it `False`, keeping an
+    excluded file visible to the cross-module rules that must still count it.
+
+    Only children below `root` are pruned, never the ancestors above it, so a
+    repo checked out under a dot-directory (`.claude/worktrees/...`) is still
+    walked rather than skipped whole.
+    """
+    pyproject = find_pyproject(root) if should_apply_excludes else None
+    table = _repostyle_table(pyproject) if should_apply_excludes else {}
+    for dirpath, dirnames, filenames in os.walk(root):
+        parent = Path(dirpath)
+        dirnames[:] = [
+            name
+            for name in dirnames
+            if not _is_pruned_dir(parent / name, pyproject, table)
+        ]
+        for name in filenames:
+            path = parent / name
+            if path.suffix not in suffixes or not path.is_file():
+                continue
+            if should_apply_excludes and _matches_config_glob(
+                path, pyproject, table, "exclude"
+            ):
+                continue
             yield path
 
 
-def _is_skipped_entry(path: Path, base: Path) -> bool:
-    """Reports whether `path` sits under a dot-directory or `_SKIPPED_DIRS`.
+def _is_pruned_dir(
+    directory: Path, pyproject: Path | None, table: dict[str, object]
+) -> bool:
+    """Reports whether a directory's subtree is pruned from a walk.
 
-    Tests the parts below `base`, not the absolute ancestors: a repo checked
-    out under a dot-directory (`.claude/worktrees/...`) must not have its whole
-    tree skipped.
+    A dot-directory or a `_SKIPPED_DIRS` name is always pruned; otherwise the
+    directory is pruned when the config's `exclude` globs match its whole
+    subtree. An empty `table` (the whole-package walk, which does not apply
+    excludes) matches no glob, so only the structural prune acts.
     """
-    within = path.relative_to(base).parts
-    return any(part.startswith(".") or part in _SKIPPED_DIRS for part in within)
+    name = directory.name
+    if name.startswith(".") or name in _SKIPPED_DIRS:
+        return True
+    return _dir_matches_config_glob(directory, pyproject, table, "exclude")
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:

@@ -13,6 +13,7 @@ from repostyle.rules import (
     severity_of,
 )
 from repostyle.runner import (
+    _package_files,
     expand_paths,
     find_pyproject,
     fix_path,
@@ -304,6 +305,40 @@ class TestLintPackage:
         broad = lint_package(expanded, {RS_SHOULD_BE_PRIVATE}, root_paths=[tmp_path])
         assert target.resolve() in narrow
         assert broad == {}
+
+
+class TestPackageWalkPruning:
+    """The whole-package index prunes vendored trees but not excluded files.
+
+    Reading and tokenizing every file under a working-tree virtualenv was what
+    made a run go CPU-bound for minutes in a venv-heavy repo (DEV-1522), so a
+    `venv` subtree must never be descended. An `exclude` glob, by contrast,
+    silences a file's findings without removing it from the cross-module index,
+    so RS029 still counts a reference from excluded generated code.
+    """
+
+    def test_VenvDirectory_PrunedFromPackageIndex(self, tmp_path: Path) -> None:
+        """A working-tree `venv/` is pruned by the structural skip alone."""
+        (tmp_path / "pyproject.toml").write_text("[tool.repostyle]\n", encoding="utf-8")
+        vendored = tmp_path / "venv" / "lib"
+        vendored.mkdir(parents=True)
+        (vendored / "dep.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        read = {path.resolve() for path, _ in _package_files(tmp_path)}
+        assert read == {(tmp_path / "app.py").resolve()}
+
+    def test_ExcludedFile_StillReadIntoPackageIndex(self, tmp_path: Path) -> None:
+        """An `exclude` glob keeps a file in the package index (RS029)."""
+        _write_exclude_config(tmp_path, '["_grpc/*.py"]')
+        generated = tmp_path / "_grpc"
+        generated.mkdir()
+        (generated / "stub.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        read = {path.resolve() for path, _ in _package_files(tmp_path)}
+        assert read == {
+            (tmp_path / "app.py").resolve(),
+            (generated / "stub.py").resolve(),
+        }
 
 
 class TestFixPath:

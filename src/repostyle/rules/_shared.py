@@ -88,6 +88,23 @@ def _comment_text(comment: str) -> str:
     return comment.lstrip("#").strip()
 
 
+def _dir_matches_config_glob(
+    directory: Path, pyproject: Path | None, table: dict[str, object], key: str
+) -> bool:
+    """Reports whether a directory's whole subtree is excluded under `key`.
+
+    Matches the directory's relative POSIX form with a trailing slash appended,
+    so a file-oriented glob like `*venv/*` prunes the `venv` directory itself
+    before its files are walked, not merely each file once read. Returns
+    `False` when `key` configures no globs.
+    """
+    globs = _string_list(table, key)
+    if not globs:
+        return False
+    relative = _relative_to_pyproject(directory, pyproject).rstrip("/") + "/"
+    return any(fnmatch(relative, glob) for glob in globs)
+
+
 @lru_cache(maxsize=128)
 def _find_pyproject_from(directory: Path) -> Path | None:
     """Walks up from `directory` to the nearest `pyproject.toml`.
