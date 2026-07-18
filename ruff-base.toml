@@ -23,6 +23,12 @@ quote-style = "double"
 # fixtures) was removed upstream because the convention "isn't a practice
 # recommended by the pytest community"; the broad PT select still pulls it in,
 # so ignore explicitly.
+#
+# TRY003 (raise-vanilla-args) flags a long literal message passed to an
+# exception. It is ignored because it fights the house preference for a
+# context-rich exception message that names what failed and with which values
+# (`raise ValueError(f"batch_size must be > 0, got {n}")`); the rest of TRY,
+# selected below, still enforces the error-handling discipline the house wants.
 ignore = [
     "E501",
     "D100",
@@ -36,6 +42,7 @@ ignore = [
     "D203",
     "D213",
     "PT004",
+    "TRY003",
 ]
 # ANN401 bans typing.Any in a parameter or return annotation: an Any in a
 # signature opts that edge out of type checking. Only ANN401 is selected, not
@@ -58,24 +65,67 @@ ignore = [
 # PLR0913 (too-many-arguments) is deliberately left out — it fires on many
 # legitimate wide signatures, and is better adopted once enforcement is scoped
 # to a PR's changed lines, not the whole tree.
+#
+# DTZ (flake8-datetimez) flags a naive `datetime.now()`/`utcnow()`/`today()`
+# with no tzinfo. A PHI/clinical shop that already makes durations a `timedelta`
+# (RS007) should never store a naive timestamp: the missing zone is a latent bug
+# the moment two environments disagree on local time.
+#
+# G (flake8-logging-format) and LOG (flake8-logging) govern logging-call shape.
+# G flags an f-string-, %-, or +-built log message; the argument should stay a
+# lazy %-arg so the record renders only when it is emitted, which also keeps PHI
+# out of an eagerly-rendered string — the complement to RS008's PHI-safe-logging
+# ban. LOG flags the deprecated `logging.warn` and `exc_info` misuse.
+#
+# RET (flake8-return) flags an `else` after `return`, an unnecessary `else`, and
+# a mismatched implicit/explicit return — guard-clause hygiene that keeps a
+# function's exits uniform.
+#
+# ERA (eradicate) flags commented-out code. The house comment rules
+# (RS020/RS021/RS022/RS038) govern comment prose but have no rule against dead
+# code left as a comment, the most common comment smell.
+#
+# T20 (flake8-print) flags a `print()` in production; observability goes through
+# logging, not stdout. A genuine CLI entrypoint that prints for the user is
+# exempted with a per-file ignore in the consuming repo.
+#
+# TRY (tryceratops) flags error-handling smells — a vanilla `raise Exception`, a
+# long `try` body, a `return` inside `try`. TRY003 alone is turned off in the
+# `ignore` list above, since it fights the house preference for a context-rich
+# exception message.
+#
+# N804/N805/N818 are cherry-picked from pep8-naming, not the whole N family,
+# which would fight RS001's acronym casing and the house naming rules. N818
+# wants an exception class name to end in `Error`; N804/N805 want the first
+# argument of a classmethod/method to be `cls`/`self`.
 select = [
     "ANN401",  # any-type (ban typing.Any in annotations)
     "B",       # flake8-bugbear
     "C4",      # flake8-comprehensions
     "C90",     # mccabe cyclomatic complexity
     "D",       # pydocstyle (Google convention)
+    "DTZ",     # flake8-datetimez (naive datetime without tzinfo)
     "E",       # pycodestyle errors
+    "ERA",     # eradicate (commented-out code)
     "F",       # pyflakes
     "FBT",     # flake8-boolean-trap (boolean positional arguments)
+    "G",       # flake8-logging-format (no f-string/%/+ log message)
     "I",       # isort
+    "LOG",     # flake8-logging (logging.warn, exc_info misuse)
+    "N804",    # first argument of a classmethod is cls
+    "N805",    # first argument of a method is self
+    "N818",    # exception class name ends in Error
     "PLC0415", # import outside top-level (ban in-function imports)
     "PLR0911", # too many return statements
     "PLR0912", # too many branches
     "PLR0915", # too many statements
     "PT",      # flake8-pytest-style
+    "RET",     # flake8-return (else-after-return, redundant else)
     "RUF",     # ruff-specific
     "SIM",     # flake8-simplify
+    "T20",     # flake8-print (print in production)
     "TID",     # flake8-tidy-imports (ban relative imports)
+    "TRY",     # tryceratops (error-handling smells; TRY003 ignored)
     "UP",      # pyupgrade
     "W",       # pycodestyle warnings
 ]
