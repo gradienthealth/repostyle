@@ -58,6 +58,7 @@ from repostyle.rules._violation import (
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
+    RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -805,6 +806,45 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 bad="def valid(self) -> bool: ...",
                 good="def is_valid(self) -> bool: ...",
                 note="A predicate verb (`matches`, `exists`) needs no prefix.",
+            ),
+        ),
+    ),
+    RS_TEMPORAL_MARKER: RuleDoc(
+        name="temporal-marker",
+        summary=(
+            "A docstring or comment states the code's present contract, not a "
+            "temporal or edit-narrative marker of how it changed."
+        ),
+        rationale=(
+            "A durable docstring or comment describes what the code does now. A "
+            "marker like `previously`, `used to`, `formerly`, `originally`, `as "
+            "discussed`, `we decided`, `for now`, `changed to`, or `switched "
+            "to` narrates the edit or the design discussion instead — the story "
+            "belongs in the commit message, where it stays attached to the "
+            "diff, not in prose a later reader mistakes for the current "
+            "contract. This is the common shape of an agent leaking the "
+            "session's design chat into the code. The set is held deliberately "
+            "tight (ambiguous words like `currently`, `instead of`, or `note "
+            "that` are left out) and a marker quoted in a backtick span is "
+            "read as data, not narration, so the rule stays a mechanical floor. "
+            "The judgment ceiling — prose that narrates the edit without one of "
+            "these exact markers — is the `common-style-review` prose-economy "
+            "lens this rule is synced with. Not auto-fixable: cutting the "
+            "narration cleanly needs judgment, so no `--fix`."
+        ),
+        examples=(
+            Example(
+                bad='"""Returns the lease. Previously returned a raw dict."""',
+                good='"""Returns the lease."""',
+                note="Drop the note on the old shape; the diff already records it.",
+            ),
+            Example(
+                bad="# we decided to cache this for now",
+                good="# cached because the upstream call dominates the request time",
+                note=(
+                    "Replace the decision narration with the durable reason the "
+                    "code is the way it is, or delete the comment."
+                ),
             ),
         ),
     ),

@@ -289,3 +289,37 @@ def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
 def _strip_trailing_closers(text: str) -> str:
     """Returns `text` without trailing whitespace or sentence-closing marks."""
     return text.rstrip().rstrip(_TRAILING_CLOSERS)
+
+
+# The RS045 marker set: temporal and edit-narrative phrases that almost always
+# narrate the change rather than the code, kept deliberately tight and synced
+# with the `common-style-review` prose-economy lens's do-not-flag entry. The
+# phrases are matched on a word boundary, case-insensitively, so an identifier
+# fragment like `switched_to` (joined by an underscore) never matches.
+_TEMPORAL_MARKER_PATTERN = re.compile(
+    r"\b(previously|used to|formerly|originally|as discussed|we decided"
+    r"|for now|changed to|switched to)\b",
+    re.IGNORECASE,
+)
+# A backtick span quotes a phrase as a referenced token rather than narrating
+# with it, so it is masked out before the marker match: a docstring that
+# documents a marker as data (RS023's own card names `Used to`) is not itself
+# flagged, and only a bare narrative use fires.
+_BACKTICK_SPAN_PATTERN = re.compile(r"`[^`]*`")
+
+
+def _temporal_markers(text: str) -> list[str]:
+    """Lists the distinct RS045 markers a prose unit narrates with.
+
+    Backtick spans are masked first, so a marker quoted as a referenced token
+    does not count; only a bare narrative occurrence does. Each marker is
+    lowercased and listed once, in first-mention order, so one prose unit
+    yields at most one finding per distinct marker.
+    """
+    bare = _BACKTICK_SPAN_PATTERN.sub(" ", text)
+    seen: list[str] = []
+    for match in _TEMPORAL_MARKER_PATTERN.finditer(bare):
+        marker = match.group(1).lower()
+        if marker not in seen:
+            seen.append(marker)
+    return seen

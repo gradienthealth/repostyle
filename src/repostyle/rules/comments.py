@@ -26,6 +26,11 @@ RS030 holds a comment to the house terminal-punctuation rule: a prose comment
 ends with terminal punctuation, while a single-line fragment does not. The
 check spans Python, TOML, and YAML comments alike, and its `--fix` half repairs
 Python comments in place.
+
+RS045 flags a temporal or edit-narrative marker in a comment, the same curated
+set it holds docstrings to, so a comment states the code's present contract
+rather than narrating the change that produced it. It spans Python, TOML, and
+YAML comments alike.
 """
 
 from __future__ import annotations
@@ -40,16 +45,19 @@ from repostyle.rules._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._shared import (
     _comment_text,
     _has_sentence_boundary,
+    _is_directive_comment,
     _is_prose_comment,
     _join_source_lines,
     _standalone_comment_blocks,
     _strip_trailing_closers,
+    _temporal_markers,
     _terminal_punctuation_fault,
     find_pyproject,
 )
 from repostyle.rules._violation import (
     RS_COMMENT_TAG_FORMAT,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
+    RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     Violation,
 )
@@ -302,3 +310,30 @@ def _comment_terminal_message(fault: str) -> str:
     if fault == "missing":
         return "comment reads as prose; end it with terminal punctuation"
     return "comment reads as a fragment; drop the trailing period"
+
+
+def check_comment_temporal_markers(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a temporal or edit-narrative marker in a comment.
+
+    The curated set RS045 holds docstrings to — phrases naming what the code
+    once did, or how a change was reached — is held over `#` comments too,
+    which narrate the edit rather than the code just as a docstring can. A tool
+    directive is skipped, and a marker quoted inside a backtick span is a
+    referenced token, not narration, and is left alone. The check runs over
+    Python, TOML, and YAML comments alike, since a `#` comment reads the same
+    in each.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    for comment in extract_comments(path, source):
+        text = _comment_text(comment.string)
+        if _is_directive_comment(text):
+            continue
+        for marker in _temporal_markers(text):
+            yield Violation(
+                comment.lineno,
+                comment.column + 1,
+                RS_TEMPORAL_MARKER,
+                f"comment narrates the edit history with '{marker}'; state the "
+                "code's current contract, not how it changed",
+            )

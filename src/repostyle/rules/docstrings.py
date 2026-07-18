@@ -28,6 +28,7 @@ from repostyle.rules._shared import (
     _repostyle_table,
     _standalone_comment_blocks,
     _string_list,
+    _temporal_markers,
     _terminal_punctuation_fault,
     find_pyproject,
 )
@@ -39,6 +40,7 @@ from repostyle.rules._violation import (
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
+    RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     RS_UNBACKTICKED_CODE_REFERENCE,
     RS_UNBACKTICKED_SIBLING_SYMBOL,
@@ -513,6 +515,38 @@ def check_docstring_terminal_punctuation(
                 RS_TERMINAL_PUNCTUATION,
                 _terminal_punctuation_message(unit.kind),
             )
+
+
+def check_docstring_temporal_markers(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a temporal or edit-narrative marker in docstring prose.
+
+    A curated set of phrases — naming what the code once did, or how a change
+    was reached — narrates the edit rather than the unit's present contract, so
+    it belongs in the commit message, not durable docstring prose. This is the
+    common source of an agent leaking the session's design discussion and the
+    diff's story into the code. A marker quoted inside a backtick span is a
+    referenced token, not narration, and is left alone. Each prose unit —
+    summary, body paragraph, or section entry — is scanned; a code span,
+    doctest, or `Example:` block is not. This is the mechanical floor under the
+    `common-style-review` prose-economy lens, which judges the ambiguous cases
+    this tight set deliberately leaves out.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for unit in _docstring_prose_units(constant):
+            for marker in _temporal_markers(unit.text):
+                yield Violation(
+                    unit.lineno,
+                    unit.col,
+                    RS_TEMPORAL_MARKER,
+                    f"docstring narrates the edit history with '{marker}'; "
+                    "state the code's current contract, not how it changed",
+                )
 
 
 def check_unbackticked_code_reference(path: Path, source: str) -> Iterator[Violation]:

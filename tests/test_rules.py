@@ -26,6 +26,7 @@ from repostyle.rules import (
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
     RS_SLEEPY_TEST,
+    RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_UNBACKTICKED_CODE_REFERENCE,
@@ -34,11 +35,13 @@ from repostyle.rules import (
     check_banned_abbreviation,
     check_behavior_verification_only,
     check_boolean_prefix_required,
+    check_comment_temporal_markers,
     check_comment_terminal_punctuation,
     check_conditional_test_logic,
     check_discouraged_class_suffix,
     check_doc_fill,
     check_doc_summary_overflow,
+    check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_duration_as_timedelta,
     check_eq_hash_pairing,
@@ -1424,6 +1427,89 @@ class TestCheckPredicateFunctionNaming:
             )
             == []
         )
+
+
+class TestCheckDocstringTemporalMarkers:
+    @pytest.mark.parametrize(
+        "marker",
+        [
+            "previously",
+            "used to",
+            "formerly",
+            "originally",
+            "as discussed",
+            "we decided",
+            "for now",
+            "changed to",
+            "switched to",
+        ],
+    )
+    def test_MarkerInDocstringProse_FlagsViolation(self, marker: str) -> None:
+        source = f'def f(x):\n    """Returns x. This {marker} held here."""\n'
+        violations = list(check_docstring_temporal_markers(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_TEMPORAL_MARKER
+        assert f"'{marker}'" in violations[0].message
+
+    def test_TwoDistinctMarkers_FlagsEach(self) -> None:
+        source = (
+            "def f(x):\n"
+            '    """Returns x.\n'
+            "\n"
+            "    It formerly returned a dict, as discussed in the review.\n"
+            '    """\n'
+        )
+        violations = list(check_docstring_temporal_markers(Path("src/x.py"), source))
+        assert len(violations) == 2
+        assert {v.rule for v in violations} == {RS_TEMPORAL_MARKER}
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f(x):\n    """Returns x from the current inputs."""\n',
+            'def f(x):\n    """Flags an opening like `used to` in a summary."""\n',
+        ],
+        ids=["clean", "marker-in-backticks"],
+    )
+    def test_NoBareMarker_NoViolation(self, source: str) -> None:
+        assert list(check_docstring_temporal_markers(Path("src/x.py"), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        source = 'def f():\n    """Previously returned a dict."""\n'
+        assert list(check_docstring_temporal_markers(Path("README.md"), source)) == []
+
+
+class TestCheckCommentTemporalMarkers:
+    @pytest.mark.parametrize(
+        ("source", "marker"),
+        [
+            ("# we decided to cache this here\nx = 1\n", "we decided"),
+            ("x = 1  # switched to a set for lookup speed\n", "switched to"),
+        ],
+        ids=["own-line", "trailing"],
+    )
+    def test_MarkerInComment_FlagsViolation(self, source: str, marker: str) -> None:
+        violations = list(check_comment_temporal_markers(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_TEMPORAL_MARKER
+        assert f"'{marker}'" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "# type: ignore we decided this\nx = 1\n",
+            "# reset switched_to_set on load\nx = 1\n",
+            "# caches the lookup, which dominates the request time\nx = 1\n",
+            "# quotes `for now` only as a referenced token\nx = 1\n",
+        ],
+        ids=["directive", "underscore-boundary", "clean", "backticked-marker"],
+    )
+    def test_NoBareMarker_NoViolation(self, source: str) -> None:
+        assert list(check_comment_temporal_markers(Path("src/x.py"), source)) == []
+
+    def test_NonCommentSuffix_NotChecked(self) -> None:
+        source = "# we decided this here\nx = 1\n"
+        assert list(check_comment_temporal_markers(Path("x.md"), source)) == []
 
 
 class TestCheckNoMakeInProduction:

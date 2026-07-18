@@ -45,6 +45,7 @@ from repostyle.rules._violation import (
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
+    RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -56,6 +57,7 @@ from repostyle.rules._violation import (
 from repostyle.rules.annotations import check_deeply_nested_type
 from repostyle.rules.comments import (
     check_comment_tag_format,
+    check_comment_temporal_markers,
     check_comment_terminal_punctuation,
     check_tag_comment_continuation_indent,
 )
@@ -69,6 +71,7 @@ from repostyle.rules.doc_value import (
     check_return_described_in_prose,
 )
 from repostyle.rules.docstrings import (
+    check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
@@ -177,6 +180,10 @@ RULES: dict[str, tuple[Callable[[Path, str], Iterator[Violation]], ...]] = {
     RS_EQ_HASH_PAIRING: (check_eq_hash_pairing,),
     RS_RAISES_SECTION_INCOMPLETE: (check_raises_section_incomplete,),
     RS_PREDICATE_FUNCTION_NAMING: (check_predicate_function_naming,),
+    RS_TEMPORAL_MARKER: (
+        check_docstring_temporal_markers,
+        check_comment_temporal_markers,
+    ),
 }
 
 
@@ -218,6 +225,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_RAISE_DESCRIBED_IN_PROSE: Severity.WARNING,
     RS_RAISES_SECTION_INCOMPLETE: Severity.WARNING,
     RS_PREDICATE_FUNCTION_NAMING: Severity.WARNING,
+    RS_TEMPORAL_MARKER: Severity.WARNING,
 }
 
 
