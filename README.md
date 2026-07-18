@@ -113,6 +113,21 @@ exclude = ["*_pb2.py", "*_pb2_grpc.py", "vendor/*"]  # globs skipped by every ru
 
 The globs use the same `fnmatch` semantics and repo-relative matching as `filename-ignore` (matched against the path relative to the discovered `pyproject.toml`). In `fnmatch`, `*` spans `/`, so a name glob like `*_pb2.py` matches at any depth and there is no recursive `**` operator — to exclude a `_grpc` directory wherever it sits, write `*_grpc/*.py`, not `**/_grpc/*.py`. A match is dropped however it reaches repostyle: whether walked from a directory argument or passed explicitly, so a regenerated file the pre-commit hook passes by name is skipped too. With no `exclude` configured, every discovered file is scanned. This is a global discovery filter, distinct from `filename-ignore`, which only exempts a file from the RS033 filename-convention rule while leaving every other rule to scan it.
 
+## Skip gitignored trees (`respect-gitignore`)
+
+A repo already lists its vendored and generated trees in `.gitignore`. Rather than restate each in `exclude`, set `respect-gitignore` and repostyle prunes a directory the repo's root `.gitignore` names — the `.gitignore` beside the discovered `pyproject.toml`:
+
+```toml
+[tool.repostyle]
+respect-gitignore = true  # prune directories the root .gitignore names
+```
+
+The flag is off by default, so no existing repo's behavior changes and a repo that gitignores a path it does want linted is not surprised. Built-in structural pruning (a dot-directory, `venv`, `node_modules`, and build outputs) applies regardless of this flag.
+
+A gitignored path is treated as not part of the repo at all: a pruned directory is invisible to every rule, including the RS029 whole-package visibility index. This is the deliberate split from `exclude`, which keeps a file in the tree and only silences its findings — a generated stub kept in the tree by `exclude` still counts as a cross-module reference for RS029, a gitignored one does not.
+
+The matcher honors a small, well-defined subset of `.gitignore` syntax, enough for the vendored-tree case: blank lines and `#` comments are skipped; a trailing-slash `foo/` and a bare `foo` both name a directory; a leading-slash `/foo` or an internal-slash `foo/bar` anchors to the repo root, while a bare name matches a directory so named at any depth. Glob matching is `fnmatch`, as the `exclude` globs already use, so `*` spans `/`. Two constructs are deliberately not supported: a `!` negation is never honored as a re-inclusion (an anchored one only spares its own subtree from pruning; an unanchored one, whose any-depth reach cannot be bounded cheaply, switches gitignore pruning off for the whole repo rather than risk mis-pruning a re-included path), and per-directory nested `.gitignore` files below the root are not read. When either bound would matter, keep using `exclude`, which is unaffected.
+
 ## Configure the acronym list (RS001)
 
 RS001 checks a fixed set of acronyms (`API`, `FHIR`, `HTTP`, `ID`, `JWT`, `URL`, ...) for uppercase casing in CapWords names. A repo whose domain carries its own acronyms tunes the set without a repostyle source change:

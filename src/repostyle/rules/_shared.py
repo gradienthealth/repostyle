@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
+from typing import NamedTuple
 
 from repostyle.rules._comments import extract_comments
 
@@ -50,6 +51,16 @@ def find_pyproject(start: Path) -> Path | None:
     """Walks up from `start` to find the nearest `pyproject.toml`."""
     start = start.resolve()
     return _find_pyproject_from(start if start.is_dir() else start.parent)
+
+
+def _bool_config(table: dict[str, object], key: str) -> bool:
+    """Reads a boolean flag from a repostyle config table under `key`.
+
+    Returns `False` for a missing key or a non-boolean value, so an absent or
+    malformed flag leaves the feature it gates switched off.
+    """
+    value = table.get(key)
+    return value if isinstance(value, bool) else False
 
 
 # An own-line comment as a `(lineno, column, string)` triple
@@ -103,6 +114,121 @@ def _dir_matches_config_glob(
         return False
     relative = _relative_to_pyproject(directory, pyproject).rstrip("/") + "/"
     return any(fnmatch(relative, glob) for glob in globs)
+
+
+def _gitignore_prunes_dir(
+    directory: Path, pyproject: Path | None, rules: _GitignoreRules
+) -> bool:
+    """Reports whether a `.gitignore` pattern prunes a directory's subtree.
+
+    Matches an anchored pattern against the directory's whole repo-relative
+    path and a bare pattern against its own name, so a bare name prunes a
+    directory so named at any depth. The directory is not pruned when a
+    negation re-includes it or a descendant, or when an unanchored negation has
+    switched pruning off for the repo. Returns `False` when no pattern is
+    configured, so an absent or empty `.gitignore` prunes nothing.
+    """
+    if rules.is_disabled or not (rules.anchored or rules.bare):
+        return False
+    relative = _relative_to_pyproject(directory, pyproject)
+    if any(_negation_covers(negated, relative) for negated in rules.negated_prefixes):
+        return False
+    if any(fnmatch(directory.name, pattern) for pattern in rules.bare):
+        return True
+    return any(fnmatch(relative, pattern) for pattern in rules.anchored)
+
+
+def _negation_covers(negated: str, relative: str) -> bool:
+    """Reports whether a negated path re-includes a directory or its subtree.
+
+    A negated path guards the directory it names, an ancestor of it, and any
+    descendant, so a `!keep/me` line stops the enclosing `keep` from being
+    pruned out from under the re-included path.
+    """
+    return (
+        negated == relative
+        or negated.startswith(relative + "/")
+        or relative.startswith(negated + "/")
+    )
+
+
+@lru_cache(maxsize=128)
+def _parse_gitignore(gitignore: Path | None) -> _GitignoreRules:
+    """Parses the directory-pruning patterns from a repo's `.gitignore`.
+
+    Honors a deliberately small subset: a blank line and a `#` comment are
+    skipped; a trailing-slash `foo/` and a bare `foo` both name a directory; a
+    leading-slash `/foo` or an internal-slash `foo/bar` anchors to the repo
+    root, while a bare name matches a directory so named at any depth. Glob
+    matching is `fnmatch`, as the `exclude` globs already use, so a `*` may
+    cross a path separator. A `!` negation is not honored as a re-inclusion: an
+    anchored one only guards its own subtree from pruning, and an unanchored
+    one — whose any-depth reach cannot be bounded cheaply — switches gitignore
+    pruning off for the whole repo. Per-directory nested `.gitignore` files are
+    not read. Returns empty rules when the file is absent or unreadable.
+    """
+    try:
+        text = gitignore.read_text(encoding="utf-8") if gitignore else ""
+    except (OSError, UnicodeDecodeError):
+        text = ""
+    buckets: dict[str, list[str]] = {"anchored": [], "bare": [], "negated": []}
+    is_disabled = False
+    for raw in text.splitlines():
+        classified = _classify_gitignore_line(raw.rstrip())
+        if classified is None:
+            continue
+        kind, body = classified
+        if kind == "disable":
+            is_disabled = True
+        else:
+            buckets[kind].append(body)
+    return _GitignoreRules(
+        tuple(buckets["anchored"]),
+        tuple(buckets["bare"]),
+        tuple(buckets["negated"]),
+        is_disabled,
+    )
+
+
+def _classify_gitignore_line(line: str) -> tuple[str, str] | None:
+    """Sorts a `.gitignore` line into a pruning-pattern kind and its body.
+
+    Returns `None` for a blank line or a `#` comment. Otherwise returns the
+    kind paired with the normalized directory body: `anchored` for a
+    root-anchored or internal-slash pattern, `bare` for an any-depth name,
+    `negated` for an anchored `!` re-inclusion whose subtree must be spared a
+    prune, or `disable` for an unanchored `!` that switches pruning off.
+    """
+    if not line or line.startswith("#"):
+        return None
+    negation = line.startswith("!")
+    body = line[1:] if negation else line
+    if body.startswith("\\"):
+        body = body[1:]
+    body = body.strip("/")
+    if not body:
+        return None
+    anchored = line.lstrip("!").startswith("/") or "/" in body
+    if negation:
+        return ("negated", body) if anchored else ("disable", body)
+    return ("anchored" if anchored else "bare", body)
+
+
+class _GitignoreRules(NamedTuple):
+    """The `.gitignore` directory-pruning patterns repostyle honors.
+
+    `anchored` patterns match a directory's whole repo-relative path; `bare`
+    patterns match a directory's own name at any depth. `negated_prefixes`
+    holds the anchored paths a `!` line re-includes, each guarding its subtree
+    from a prune. `is_disabled` is set when an unanchored `!` line is present,
+    whose any-depth reach cannot be reasoned about cheaply, so directory
+    pruning is switched off for the whole repo rather than risk a mis-prune.
+    """
+
+    anchored: tuple[str, ...]
+    bare: tuple[str, ...]
+    negated_prefixes: tuple[str, ...]
+    is_disabled: bool
 
 
 @lru_cache(maxsize=128)
