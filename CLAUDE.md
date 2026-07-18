@@ -23,7 +23,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
   - `idioms` — RS046 (a `for i in range(len(seq))` loop that indexes only `seq[i]`, where direct iteration reads better; warn)
   - `signatures` — RS027 (too many positional arguments; warn), a stand-in for ruff's preview-gated PLR0917 — delete it when PLR0917 graduates (PROC-2319)
   - `import_layering` — RS017 (config-driven banned-import-by-path)
-  - `encapsulation` — RS048 (a first-party import reaches another package's public surface, not its `_`-private internals; warn), the enforcement dual of RS029 scoped to imports within one distribution
+  - `encapsulation` — RS048 (a first-party import that reaches another package's `_`-private internals instead of its public surface; warn), the enforcement dual of RS029 scoped to imports sharing the importer's top-level package
   - `layout` — RS019 (module element and class member order; warn)
   - `comments` — RS022 (comment-tag format), RS038 (a wrapped tag comment indents its continuation past the tag; warn), the comment half of RS030, and the comment half of RS045 (temporal / diff-narrative marker; warn), all run over Python, TOML, and YAML comments
   - `visibility` — RS029 (a name used only in-package should be private; warn), the one package rule, run over every first-party file at once rather than per file

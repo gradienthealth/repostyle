@@ -47,13 +47,13 @@ def check_private_import(path: Path, source: str) -> Iterator[Violation]:
     importer = _dotted_module(path)
     importer_top = importer.split(".", 1)[0]
     for node in ast.walk(tree):
-        for dotted in _candidates(node, importer_top):
+        for dotted in _import_candidates(node, importer_top):
             owner = _private_owner(dotted, importer_top)
             if owner is not None and not _is_inside(importer, owner):
                 yield _violation(node, dotted, owner)
 
 
-def _candidates(node: ast.AST, importer_top: str) -> list[str]:
+def _import_candidates(node: ast.AST, importer_top: str) -> list[str]:
     """Returns the dotted import targets a statement should be tested against.
 
     A private module is reported once for the whole statement; a public module
