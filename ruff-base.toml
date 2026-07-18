@@ -67,30 +67,31 @@ ignore = [
 # to a PR's changed lines, not the whole tree.
 #
 # DTZ (flake8-datetimez) flags a naive `datetime.now()`/`utcnow()`/`today()`
-# with no tzinfo. A PHI/clinical shop that already makes durations a `timedelta`
-# (RS007) should never store a naive timestamp: the missing zone is a latent bug
-# the moment two environments disagree on local time.
+# with no tzinfo. A PHI/clinical shop that already makes durations a
+# `timedelta` (RS007) should never store a naive timestamp: the missing zone is
+# a latent bug the moment two environments disagree on local time.
 #
 # G (flake8-logging-format) and LOG (flake8-logging) govern logging-call shape.
 # G flags an f-string-, %-, or +-built log message; the argument should stay a
-# lazy %-arg so the record renders only when it is emitted, which also keeps PHI
-# out of an eagerly-rendered string — the complement to RS008's PHI-safe-logging
-# ban. LOG flags the deprecated `logging.warn` and `exc_info` misuse.
+# lazy %-arg so the record renders only when it is emitted, which also keeps
+# PHI out of an eagerly-rendered string — the complement to RS008's
+# PHI-safe-logging ban. LOG flags the deprecated `logging.warn` and `exc_info`
+# misuse.
 #
-# RET (flake8-return) flags an `else` after `return`, an unnecessary `else`, and
-# a mismatched implicit/explicit return — guard-clause hygiene that keeps a
+# RET (flake8-return) flags an `else` after `return`, an unnecessary `else`,
+# and a mismatched implicit/explicit return — guard-clause hygiene that keeps a
 # function's exits uniform.
 #
 # ERA (eradicate) flags commented-out code. The house comment rules
 # (RS020/RS021/RS022/RS038) govern comment prose but have no rule against dead
 # code left as a comment, the most common comment smell.
 #
-# T20 (flake8-print) flags a `print()` in production; observability goes through
-# logging, not stdout. A genuine CLI entrypoint that prints for the user is
-# exempted with a per-file ignore in the consuming repo.
+# T20 (flake8-print) flags a `print()` in production; observability goes
+# through logging, not stdout. A genuine CLI entrypoint that prints for the
+# user is exempted with a per-file ignore in the consuming repo.
 #
-# TRY (tryceratops) flags error-handling smells — a vanilla `raise Exception`, a
-# long `try` body, a `return` inside `try`. TRY003 alone is turned off in the
+# TRY (tryceratops) flags error-handling smells — a vanilla `raise Exception`,
+# a long `try` body, a `return` inside `try`. TRY003 alone is turned off in the
 # `ignore` list above, since it fights the house preference for a context-rich
 # exception message.
 #
