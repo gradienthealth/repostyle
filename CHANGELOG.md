@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.20.0...repostyle-v0.20.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **DEV-1522:** prune vendored trees so repostyle doesn't hang on venv-heavy repos ([#114](https://github.com/gradienthealth/repostyle/issues/114)) ([e8b9d6a](https://github.com/gradienthealth/repostyle/commit/e8b9d6a8cb2633d033891f8475bbec09e796e0f2))
+
 ## [0.20.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.19.0...repostyle-v0.20.0) (2026-07-18)
 
 
