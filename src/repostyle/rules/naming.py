@@ -225,11 +225,11 @@ def check_predicate_function_naming(path: Path, source: str) -> Iterator[Violati
     zero: it fires only on a single bare word, since a multi-word name already
     carries a predicate somewhere (`field_has_docstring`,
     `branch_asserts_directly`), and it accepts a third-person verb (a word
-    ending in `s`, like `matches` or `suppresses`), which RS026 already blesses
-    as the idiomatic predicate-verb name for a boolean function. A dunder, a
-    property setter, and an `@override`/`@overload` are exempt, since their
-    names are fixed elsewhere. Detection is by the bare `bool` return
-    annotation, so an unannotated or union-returning function is left alone.
+    ending in `s`, like `matches` or `suppresses`), the idiomatic
+    predicate-verb name a boolean function may take. A dunder, a property
+    setter, and an `@override`/`@overload` are exempt, since their names are
+    fixed elsewhere. Detection is by the bare `bool` return annotation, so an
+    unannotated or union-returning function is left alone.
     Advisory: it marks a name to reconsider rather than failing the run.
     """
     tree = _parse_python(path, source)

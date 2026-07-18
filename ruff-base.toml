@@ -67,6 +67,10 @@ ignore = [
 # `timedelta` (RS007) should never store a naive timestamp: the missing zone is
 # a latent bug the moment two environments disagree on local time.
 #
+# ERA (eradicate) flags commented-out code. The house comment rules
+# (RS020/RS021/RS022/RS038) govern comment prose but have no rule against dead
+# code left as a comment, the most common comment smell.
+#
 # G (flake8-logging-format) and LOG (flake8-logging) govern logging-call shape.
 # G flags an f-string-, %-, or +-built log message; the argument should stay a
 # lazy %-arg so the record renders only when it is emitted, which also keeps
@@ -74,13 +78,14 @@ ignore = [
 # PHI-safe-logging ban. LOG flags the deprecated `logging.warn` and `exc_info`
 # misuse.
 #
+# N804/N805/N818 are cherry-picked from pep8-naming, not the whole N family,
+# which would fight RS001's acronym casing and the house naming rules. N818
+# wants an exception class name to end in `Error`; N804/N805 want the first
+# argument of a classmethod/method to be `cls`/`self`.
+#
 # RET (flake8-return) flags an `else` after `return`, an unnecessary `else`,
 # and a mismatched implicit/explicit return — guard-clause hygiene that keeps a
 # function's exits uniform.
-#
-# ERA (eradicate) flags commented-out code. The house comment rules
-# (RS020/RS021/RS022/RS038) govern comment prose but have no rule against dead
-# code left as a comment, the most common comment smell.
 #
 # T20 (flake8-print) flags a `print()` in production; observability goes
 # through logging, not stdout. A genuine CLI entrypoint that prints for the
@@ -88,13 +93,7 @@ ignore = [
 #
 # TRY (tryceratops) flags error-handling smells — a vanilla `raise Exception`,
 # a long `try` body, a `return` inside `try`. TRY003 alone is turned off in the
-# `ignore` list above, since it fights the house preference for a context-rich
-# exception message.
-#
-# N804/N805/N818 are cherry-picked from pep8-naming, not the whole N family,
-# which would fight RS001's acronym casing and the house naming rules. N818
-# wants an exception class name to end in `Error`; N804/N805 want the first
-# argument of a classmethod/method to be `cls`/`self`.
+# `ignore` list above.
 select = [
     "ANN401",  # any-type (ban typing.Any in annotations)
     "B",       # flake8-bugbear
