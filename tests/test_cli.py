@@ -145,6 +145,52 @@ class TestMain:
         assert "RS999" in capsys.readouterr().err
 
 
+_IMPERATIVE_DOCSTRING = 'def f():\n    """Return the thing."""\n'
+
+
+class TestErrorPromotion:
+    def test_PromotedAdvisoryRule_PrintsErrorAndFails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(
+            tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]', '["RS034"]'
+        )
+        exit_code = main([str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert f"{target}:1:1: error: RS034" in out
+
+    def test_UnpromotedAdvisoryRule_PrintsWarningAndPasses(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(
+            tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]', "[]"
+        )
+        exit_code = main([str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert f"{target}:1:1: warning: RS034" in out
+
+    def test_UnknownIdInError_ReturnsTwoAndReportsError(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(tmp_path, "x = 1\n", '["RS001"]', '["RS999"]')
+        exit_code = main([str(target)])
+        assert exit_code == 2
+        assert "RS999" in capsys.readouterr().err
+
+    def test_PromotingNativelyErrorRule_IsNoOp(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(
+            tmp_path, _ACRONYM_SOURCE, '["RS001"]', '["RS001"]'
+        )
+        exit_code = main([str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert f"{target}:2:5: error: RS001" in out
+
+
 _UNDERWRAPPED_DOCSTRING = 'def f():\n    """Summary.\n\n    aaa\n    bbb\n    """\n'
 
 
@@ -239,6 +285,17 @@ class TestDiscoveryHint:
 def _write_project(tmp_path: Path, source: str, select: str) -> Path:
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\nselect = {select}\n", encoding="utf-8"
+    )
+    target = tmp_path / "x.py"
+    target.write_text(source, encoding="utf-8")
+    return target
+
+
+def _write_promotion_project(
+    tmp_path: Path, source: str, select: str, error: str
+) -> Path:
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.repostyle]\nselect = {select}\nerror = {error}\n", encoding="utf-8"
     )
     target = tmp_path / "x.py"
     target.write_text(source, encoding="utf-8")

@@ -22,6 +22,8 @@ from repostyle.runner import (
     load_config,
     resolve_enabled_rules,
     resolve_enabled_rules_for_paths,
+    resolve_promoted_rules,
+    resolve_rules_for_paths,
 )
 
 _UNDERWRAPPED_DOCSTRING = 'def f():\n    """Summary.\n\n    aaa\n    bbb\n    """\n'
@@ -64,6 +66,52 @@ class TestResolveEnabledRules:
     def test_AllUnknownSelect_RaisesRatherThanRunningNothing(self) -> None:
         with pytest.raises(ValueError):
             resolve_enabled_rules({"select": ["RS999"]})
+
+
+class TestResolvePromotedRules:
+    @pytest.mark.parametrize(
+        "config",
+        [None, {}, {"error": []}],
+        ids=["missing_table", "empty_table", "empty_error"],
+    )
+    def test_MissingOrEmptyError_PromotesNothing(self, config: dict | None) -> None:
+        assert resolve_promoted_rules(config) == set()
+
+    def test_ErrorList_ReturnsThoseIds(self) -> None:
+        config = {"error": [RS_ACRONYM_CASING, RS_DISCOURAGED_CLASS_SUFFIX]}
+        assert resolve_promoted_rules(config) == {
+            RS_ACRONYM_CASING,
+            RS_DISCOURAGED_CLASS_SUFFIX,
+        }
+
+    def test_UnknownRuleIdInError_Raises(self) -> None:
+        with pytest.raises(ValueError, match="RS999"):
+            resolve_promoted_rules({"error": ["RS999"]})
+
+    def test_DisabledRulePromoted_ValidatedIndependentlyOfSelect(self) -> None:
+        config = {"select": [RS_DISCOURAGED_CLASS_SUFFIX], "error": [RS_ACRONYM_CASING]}
+        assert resolve_promoted_rules(config) == {RS_ACRONYM_CASING}
+
+
+class TestResolveRulesForPaths:
+    def test_OnePyproject_ResolvesEnabledAndPromoted(self, tmp_path: Path) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            "[tool.repostyle]\n"
+            f'select = ["{RS_ACRONYM_CASING}", "{RS_DISCOURAGED_CLASS_SUFFIX}"]\n'
+            f'error = ["{RS_DISCOURAGED_CLASS_SUFFIX}"]\n',
+            encoding="utf-8",
+        )
+        target = tmp_path / "x.py"
+        target.write_text("x = 1\n", encoding="utf-8")
+        resolution = resolve_rules_for_paths([target])
+        assert resolution.enabled == {RS_ACRONYM_CASING, RS_DISCOURAGED_CLASS_SUFFIX}
+        assert resolution.promoted == {RS_DISCOURAGED_CLASS_SUFFIX}
+
+    def test_NoPaths_EnablesAllAndPromotesNothing(self) -> None:
+        resolution = resolve_rules_for_paths([])
+        assert resolution.enabled == set(ALL_RULE_IDS)
+        assert resolution.promoted == set()
 
 
 class TestLintPathWithEnabledRules:
