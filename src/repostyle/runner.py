@@ -47,10 +47,9 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
 
 # Directories never holding first-party source, pruned during traversal when
 # building the whole-package index a package rule scans and when expanding a
-# directory argument into its lintable files. `venv` joins the vendored-tree
-# names so a repo that keeps a working-tree virtualenv without configuring an
-# `exclude` glob is still spared descending into it (DEV-1522); a dot-prefixed
-# `.venv` is already pruned by the dot-directory rule.
+# directory argument into its lintable files. `venv` is included so a
+# working-tree virtualenv with no configured `exclude` glob is still pruned; a
+# dot-prefixed `.venv` is already pruned by the dot-directory rule.
 _SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules", "venv"})
 
 # The suffixes a rule ever inspects: every `COMMENT_SUFFIXES` language plus
@@ -289,10 +288,10 @@ def _walk_matching(
 
     With `should_apply_excludes`, the config's `exclude` globs also prune a
     matching directory, so a wholly-excluded tree is never descended. A file is
-    not exclude-filtered here; the caller that expands a directory argument
-    (`expand_paths`) drops an excluded file against its own nearest config. The
-    whole-package index passes `False`, so an excluded file stays readable by
-    the cross-module rules that must still count it.
+    not exclude-filtered here; `expand_paths` drops an excluded file when it
+    expands a directory argument. The whole-package index passes `False`, so an
+    excluded file stays readable by the cross-module rules that must still
+    count it.
 
     Only children below `root` are pruned, never the ancestors above it, so a
     repo checked out under a dot-directory (`.claude/worktrees/...`) is still
