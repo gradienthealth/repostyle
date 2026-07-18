@@ -13,6 +13,7 @@ from repostyle.rules import (
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DURATION_AS_TIMEDELTA,
+    RS_EQ_HASH_PAIRING,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_GLUED_CODE_SPAN,
@@ -39,6 +40,7 @@ from repostyle.rules import (
     check_doc_summary_overflow,
     check_docstring_terminal_punctuation,
     check_duration_as_timedelta,
+    check_eq_hash_pairing,
     check_exception_alias,
     check_excessive_mocking,
     check_glued_code_span_in_comments,
@@ -1318,6 +1320,56 @@ class TestCheckExceptionAlias:
     def test_NonPythonFile_NotChecked(self) -> None:
         source = "try:\n    f()\nexcept Exception as e:\n    g()"
         assert list(check_exception_alias(Path("README.md"), source)) == []
+
+
+class TestCheckEqHashPairing:
+    @pytest.mark.parametrize(
+        ("source", "half"),
+        [
+            ("class Money:\n    def __eq__(self, other): return True\n", "__hash__"),
+            (
+                "class Money(Base):\n    def __eq__(self, other): return True\n",
+                "__hash__",
+            ),
+            ("class Token:\n    def __hash__(self): return 1\n", "__eq__"),
+        ],
+        ids=["eq-without-hash", "eq-without-hash-with-base", "hash-without-eq"],
+    )
+    def test_LoneHalf_FlagsViolation(self, source: str, half: str) -> None:
+        violations = list(check_eq_hash_pairing(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_EQ_HASH_PAIRING
+        assert half in violations[0].message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "class Money:\n"
+            "    def __eq__(self, other): return True\n"
+            "    def __hash__(self): return 1\n",
+            "class Plain:\n    x = 1\n",
+            "@dataclass\nclass Money:\n    def __eq__(self, other): return True\n",
+            "@attrs.define\nclass Money:\n    def __eq__(self, other): return True\n",
+            "class Money:\n"
+            "    def __eq__(self, other): return True\n"
+            "    __hash__ = None\n",
+            "class Token(Base):\n    def __hash__(self): return 1\n",
+        ],
+        ids=[
+            "both-defined",
+            "neither-defined",
+            "dataclass-exempt",
+            "attrs-exempt",
+            "explicit-hash-none",
+            "hash-without-eq-inherits-base",
+        ],
+    )
+    def test_PairedExemptOrNeither_NoViolation(self, source: str) -> None:
+        assert list(check_eq_hash_pairing(Path("src/x.py"), source)) == []
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        source = "class Money:\n    def __eq__(self, other): return True\n"
+        assert list(check_eq_hash_pairing(Path("README.md"), source)) == []
 
 
 class TestCheckNoMakeInProduction:

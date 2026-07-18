@@ -43,6 +43,7 @@ from repostyle.rules._violation import (
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
+    RS_EQ_HASH_PAIRING,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
@@ -110,6 +111,7 @@ from repostyle.rules.docstrings import (
     fix_double_backticks,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
+from repostyle.rules.equality import check_eq_hash_pairing
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
 from repostyle.rules.import_layering import check_banned_import_by_path
 from repostyle.rules.layout import (
@@ -163,6 +165,7 @@ __all__ = [
     "RS_DOC_VALUE_SIGNAL",
     "RS_DURATION_AS_TIMEDELTA",
     "RS_ELEMENT_ORDER",
+    "RS_EQ_HASH_PAIRING",
     "RS_EXCEPTION_ALIAS",
     "RS_EXCESSIVE_MOCKING",
     "RS_FIELD_COMMENT_AS_DOCSTRING",
@@ -210,6 +213,7 @@ __all__ = [
     "check_doc_value_signal",
     "check_docstring_terminal_punctuation",
     "check_duration_as_timedelta",
+    "check_eq_hash_pairing",
     "check_exception_alias",
     "check_excessive_mocking",
     "check_field_comment_as_docstring",

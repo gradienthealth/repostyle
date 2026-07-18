@@ -35,6 +35,7 @@ from repostyle.rules._violation import (
     RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
+    RS_EQ_HASH_PAIRING,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
@@ -733,6 +734,36 @@ RULE_DOCS: dict[str, RuleDoc] = {
         summary=(
             "A raised exception goes in a `Raises:` section, not narrated in "
             "the docstring body."
+        ),
+    ),
+    RS_EQ_HASH_PAIRING: RuleDoc(
+        name="eq-hash-pairing",
+        summary=("A class defines `__eq__` and `__hash__` as a pair, or neither."),
+        rationale=(
+            "Overriding `__eq__` without `__hash__` makes instances silently "
+            "unhashable, since Python sets the class's `__hash__` to `None`; "
+            "defining `__hash__` without `__eq__` keeps a value hash beside "
+            "identity equality. Define both so equality and hashing agree, or "
+            "set `__hash__ = None` to opt out of hashing on purpose. A "
+            "`@dataclass` or `attrs` class synthesizes both and is exempt, as "
+            "is a class inheriting the other half from a non-`object` base. The "
+            "eq-without-hash half stands in for ruff's `PLW1641`, which is "
+            "preview-gated in the pinned ruff version; when it graduates to "
+            "stable, select it in `ruff-base.toml` and drop that half here."
+        ),
+        examples=(
+            Example(
+                bad="class Money:\n    def __eq__(self, other): ...",
+                good=(
+                    "class Money:\n"
+                    "    def __eq__(self, other): ...\n"
+                    "    def __hash__(self): ..."
+                ),
+                note=(
+                    "Or make it a `@dataclass`, which synthesizes both from its "
+                    "`eq=`/`frozen=` flags."
+                ),
+            ),
         ),
     ),
 }
