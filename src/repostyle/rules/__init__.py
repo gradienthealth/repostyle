@@ -39,6 +39,7 @@ from repostyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DEEPLY_NESTED_TYPE,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
@@ -85,9 +86,11 @@ from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
+    check_disfavored_gcp_term_in_comments,
     check_tag_comment_continuation_indent,
     fix_acronym_casing_in_comments,
     fix_comment_terminal_punctuation,
+    fix_disfavored_gcp_term_in_comments,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
 from repostyle.rules.doc_fill import (
@@ -105,6 +108,7 @@ from repostyle.rules.doc_value import (
 )
 from repostyle.rules.docstrings import (
     check_acronym_casing_in_docstrings,
+    check_disfavored_gcp_term_in_docstrings,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
@@ -122,6 +126,7 @@ from repostyle.rules.docstrings import (
     check_unbackticked_sibling_symbol,
     check_unbackticked_sibling_symbol_in_comments,
     fix_acronym_casing_in_docstrings,
+    fix_disfavored_gcp_term_in_docstrings,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
 )
@@ -176,6 +181,7 @@ __all__ = [
     "RS_CONDITIONAL_TEST_LOGIC",
     "RS_DEEPLY_NESTED_TYPE",
     "RS_DISCOURAGED_CLASS_SUFFIX",
+    "RS_DISFAVORED_GCP_TERM",
     "RS_DOC_FILL",
     "RS_DOC_SUMMARY_OVERFLOW",
     "RS_DOC_VALUE_SIGNAL",
@@ -236,6 +242,8 @@ __all__ = [
     "check_conditional_test_logic",
     "check_deeply_nested_type",
     "check_discouraged_class_suffix",
+    "check_disfavored_gcp_term_in_comments",
+    "check_disfavored_gcp_term_in_docstrings",
     "check_doc_fill",
     "check_doc_summary_overflow",
     "check_doc_value_signal",
@@ -281,6 +289,8 @@ __all__ = [
     "fix_acronym_casing_in_comments",
     "fix_acronym_casing_in_docstrings",
     "fix_comment_terminal_punctuation",
+    "fix_disfavored_gcp_term_in_comments",
+    "fix_disfavored_gcp_term_in_docstrings",
     "fix_doc_fill",
     "fix_docstring_terminal_punctuation",
     "fix_double_backticks",

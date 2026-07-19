@@ -34,6 +34,7 @@ from repostyle._shared import (
 )
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING_IN_PROSE,
+    RS_DISFAVORED_GCP_TERM,
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
@@ -55,12 +56,17 @@ from repostyle.rules.imperative_verbs import (
     conjugate,
 )
 from repostyle.rules.naming import (
+    disfavored_gcp_terms_in_prose,
     effective_prose_acronyms,
     miscased_acronyms_in_prose,
 )
 
 ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
 DOUBLE_BACKTICK_PATTERN = re.compile(r"(?<!`)``(?!`)")
+
+# One RS050 term occurrence within a line: its `(offset, found, preferred)`, as
+# `disfavored_gcp_terms_in_prose` reports it.
+_GcpTermFault = tuple[int, str, str]
 
 # A docstring opening that names the unit's category or hedges instead of
 # stating its contract. Matched case-insensitively against the summary's first
@@ -808,21 +814,111 @@ def _docstring_acronym_faults(
     """Yields `(lineno, offset, found, canonical)` for each miscased acronym.
 
     Scans each source line the docstring's prose units occupy — the segmenter
-    already drops fences, doctests, and `Example:` sections — and blanks an
-    entry unit's leading `name:` caption on its first line, so a parameter
-    named for a lowercased acronym (`url:`) is not mistaken for prose to
-    correct.
+    already drops fences, doctests, and `Example:` sections — confined to the
+    docstring literal's own columns, so a one-line `def`/`class` signature or a
+    trailing comment sharing the line is excluded, and with an entry unit's
+    leading `name:` caption blanked, so a parameter named for a lowercased
+    acronym (`url:`) is not mistaken for prose to correct.
     """
     units = _docstring_prose_units(constant)
     prose_lines = frozenset(lineno for unit in units for lineno in unit.linenos)
     caption_lines = {unit.linenos[0] for unit in units if unit.kind == "entry"}
     for lineno in sorted(prose_lines):
-        line = source_lines[lineno - 1]
+        line = _blank_outside_docstring(source_lines[lineno - 1], lineno, constant)
         scanned = _blank_entry_caption(line) if lineno in caption_lines else line
         for offset, found, canonical in miscased_acronyms_in_prose(
             scanned, canonical_casing
         ):
             yield lineno, offset, found, canonical
+
+
+def check_disfavored_gcp_term_in_docstrings(
+    path: Path, source: str
+) -> Iterator[Violation]:
+    """Flags a disfavored Google Cloud product or brand name in a docstring.
+
+    A whole-word occurrence of a term in RS050's curated map (`GCP`, `GCS`,
+    `Google Cloud Platform`, `Big Query`, `PubSub`, ...) is flagged and, under
+    `--fix`, rewritten to its current form (`Google Cloud`, `Cloud Storage`,
+    `Pub/Sub`, ...). The match is whole-word and case-insensitive, so a
+    substring (`GCS` in `GCSError`) and a term glued to a hyphen are left
+    alone, as is an occurrence inside a backtick span (the identifier
+    `gcp.storage`) or a URL, and an `Args:` entry's leading parameter caption.
+    Only unambiguous substitutions are mapped; a bare `Storage` or
+    `Monitoring`, an ordinary English word, is left to review.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for lineno, offset, found, preferred in _docstring_gcp_term_faults(
+            constant, source_lines
+        ):
+            yield Violation(
+                lineno,
+                offset + 1,
+                RS_DISFAVORED_GCP_TERM,
+                f"docstring uses the disfavored name '{found}'; write '{preferred}'",
+            )
+
+
+def fix_disfavored_gcp_term_in_docstrings(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Rewrites each disfavored Google Cloud name in a docstring, RS050's fix.
+
+    Each occurrence the docstring check flags is replaced in place with its
+    preferred form. A replacement changes length, so a line's faults are
+    applied right to left, keeping each earlier offset valid. A unit whose line
+    is in `skip_lines` is left alone.
+
+    Returns:
+        The source with each flagged name rewritten, unchanged when nothing
+        rewrites.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return source
+    source_lines = source.splitlines()
+    faults_by_line: dict[int, list[_GcpTermFault]] = {}
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for lineno, offset, found, preferred in _docstring_gcp_term_faults(
+            constant, source_lines
+        ):
+            if lineno not in skip_lines:
+                faults_by_line.setdefault(lineno, []).append((offset, found, preferred))
+    for lineno, faults in faults_by_line.items():
+        source_lines[lineno - 1] = _rewrite_gcp_terms(source_lines[lineno - 1], faults)
+    return _join_source_lines(source, source_lines) if faults_by_line else source
+
+
+def _docstring_gcp_term_faults(
+    constant: ast.Constant, source_lines: list[str]
+) -> Iterator[tuple[int, int, str, str]]:
+    """Yields `(lineno, offset, found, preferred)` for each disfavored name.
+
+    Scans each source line the docstring's prose units occupy — the segmenter
+    already drops fences, doctests, and `Example:` sections — confined to the
+    docstring literal's own columns, so a one-line `def`/`class` signature or a
+    trailing comment sharing the line is excluded, and with an entry unit's
+    leading `name:` caption blanked, so a parameter named for a Google Cloud
+    term is not mistaken for prose to correct.
+    """
+    units = _docstring_prose_units(constant)
+    prose_lines = frozenset(lineno for unit in units for lineno in unit.linenos)
+    caption_lines = {unit.linenos[0] for unit in units if unit.kind == "entry"}
+    for lineno in sorted(prose_lines):
+        line = _blank_outside_docstring(source_lines[lineno - 1], lineno, constant)
+        scanned = _blank_entry_caption(line) if lineno in caption_lines else line
+        for offset, found, preferred in disfavored_gcp_terms_in_prose(scanned):
+            yield lineno, offset, found, preferred
 
 
 def _blank_entry_caption(line: str) -> str:
@@ -839,6 +935,33 @@ def _blank_entry_caption(line: str) -> str:
     indent = len(line) - len(stripped)
     end = indent + match.end()
     return line[:indent] + " " * (end - indent) + line[end:]
+
+
+def _blank_outside_docstring(line: str, lineno: int, constant: ast.Constant) -> str:
+    """Blanks the parts of a shared physical line outside the docstring.
+
+    A one-line `def` or `class` puts its signature on the same physical line as
+    the docstring, and a comment can trail the closing quote, so scanning the
+    whole line would read a signature name or a trailing comment as docstring
+    prose. Blanking the columns before the literal's start on its first line
+    and after its end on its last line to equal-length spaces confines the scan
+    to the docstring while keeping every following offset valid.
+    """
+    start = constant.col_offset if lineno == constant.lineno else 0
+    end = constant.end_col_offset if lineno == constant.end_lineno else len(line)
+    return " " * start + line[start:end] + " " * (len(line) - end)
+
+
+def _rewrite_gcp_terms(line: str, faults: list[_GcpTermFault]) -> str:
+    """Returns `line` with each `(offset, found, preferred)` fault applied.
+
+    Faults are applied in descending offset order, so a preceding replacement's
+    length change never shifts a later offset.
+    """
+    for offset, found, preferred in sorted(faults, reverse=True):
+        if line[offset : offset + len(found)] == found:
+            line = line[:offset] + preferred + line[offset + len(found) :]
+    return line
 
 
 def fix_docstring_terminal_punctuation(

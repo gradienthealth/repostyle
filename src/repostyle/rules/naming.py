@@ -71,6 +71,14 @@ _ACRONYM_SET = frozenset(_CANONICAL_ACRONYMS)
 # prose reintroduces it through `acronyms-extra`, which overrides this set.
 _PROSE_AMBIGUOUS_ACRONYMS: frozenset[str] = frozenset({"ID", "SMART"})
 
+# Acronyms a prose *term-map* rule owns instead, so RS049 leaves them alone in
+# prose and the two rules never fight over the same token. RS050 rewrites `GCP`
+# in prose to `Google Cloud` (the current umbrella brand), a substitution, not
+# a recasing, so RS049 must not first recase `gcp` to `GCP`. RS001 keeps `GCP`,
+# since a CapWords identifier's casing is still correct; only the prose set
+# drops it, and `acronyms-extra` cannot reintroduce it, since RS050 owns it.
+_PROSE_TERM_OWNED_ACRONYMS: frozenset[str] = frozenset({"GCP"})
+
 # A whole-word prose token RS049 tests against the acronym set. The lookarounds
 # reject a hyphen glued to a letter or digit on either side too, so a
 # hyphenated compound such as `fhir-ingestor` (a proper name whose lowercase is
@@ -83,6 +91,50 @@ _PROSE_ACRONYM_TOKEN = re.compile(
 # A URI, blanked before the token scan so an acronym inside a `gs://` or
 # `https://` path is not read as a bare prose reference to correct.
 _PROSE_URI = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
+
+# RS050's curated map of a disfavored Google Cloud product or brand name in
+# prose to its preferred current form. Only unambiguous substitutions live
+# here: `GCS` and `GCP` are Google's own retired shorthands, and `Big Query`,
+# `BigTable`, and `PubSub` are miswritten product names whose canonical
+# spelling is fixed. A bare `Storage`, `Monitoring`, or `Logging` is too often
+# an ordinary English word to rewrite mechanically, so the convention doc and
+# the review lens own those. Keys are matched case- and
+# whitespace-insensitively; the value is written verbatim.
+DISFAVORED_GCP_TERMS: dict[str, str] = {
+    "Google Cloud Platform": "Google Cloud",
+    "GCP": "Google Cloud",
+    "GCS": "Cloud Storage",
+    "GCE": "Compute Engine",
+    "Big Query": "BigQuery",
+    "BigTable": "Bigtable",
+    "Big Table": "Bigtable",
+    "PubSub": "Pub/Sub",
+    "Pub Sub": "Pub/Sub",
+}
+
+# Each disfavored term keyed by its normalized form — internal whitespace
+# collapsed to one space, uppercased — so a case- and spacing-insensitive match
+# resolves back to its preferred replacement.
+_GCP_TERM_REPLACEMENT: dict[str, str] = {
+    re.sub(r"\s+", " ", term).upper(): preferred
+    for term, preferred in DISFAVORED_GCP_TERMS.items()
+}
+
+# A whole-word alternation of the disfavored terms, longest first so a phrase
+# (`Google Cloud Platform`) wins over a shorter key at the same position. Each
+# term's internal spaces match one or more whitespace characters; the
+# lookarounds reject a letter, digit, or hyphen glued on either end, so a
+# substring (`GCS` in `GCSError`, `gce` in `gce-node`) never matches. The scan
+# is case-insensitive, since a lowercased `gcp` is the same disfavored word.
+_GCP_TERM_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_-])(?:"
+    + "|".join(
+        r"\s+".join(re.escape(word) for word in term.split())
+        for term in sorted(DISFAVORED_GCP_TERMS, key=len, reverse=True)
+    )
+    + r")(?![A-Za-z0-9_-])",
+    re.IGNORECASE,
+)
 
 _TYPE_FACTORY_NAMES = frozenset({"TypeVar", "NewType", "ParamSpec", "TypeVarTuple"})
 
@@ -385,6 +437,33 @@ def miscased_acronyms_in_prose(
             yield match.start(), token, canonical
 
 
+def disfavored_gcp_terms_in_prose(text: str) -> Iterator[tuple[int, str, str]]:
+    """Yields each disfavored Google Cloud term in a run of prose text.
+
+    Reports a `(offset, found, preferred)` triple for every whole-word match of
+    a term in `DISFAVORED_GCP_TERMS`, where `offset` is the match's 0-based
+    position in `text`, `found` is the text as written, and `preferred` is the
+    current form to write, skipping a match already in its exact preferred
+    form. Backtick code spans and URIs are blanked to equal-length whitespace
+    first, so a term in code font (`gcp.storage`) or inside a URL is left alone
+    and the reported offsets still index the original `text`. Unlike RS049's
+    length-preserving recasing, a replacement changes length, so a caller
+    rewriting in place applies the triples in reverse offset order. Shared by
+    RS050's docstring and comment checks.
+    """
+    masked = _blank_prose_spans(text)
+    for match in _GCP_TERM_PATTERN.finditer(masked):
+        found = match.group()
+        normalized = re.sub(r"\s+", " ", found).upper()
+        preferred = _GCP_TERM_REPLACEMENT[normalized]
+        # A disfavored key can differ from its preferred form in case alone
+        # (`BigTable` to `Bigtable`), and the scan is case-insensitive, so the
+        # already-correct form matches its own key; leave it be.
+        if found == preferred:
+            continue
+        yield match.start(), found, preferred
+
+
 def _blank_prose_spans(text: str) -> str:
     """Replaces each backtick span and URI in `text` with equal-length spaces.
 
@@ -407,8 +486,10 @@ def effective_prose_acronyms(pyproject: Path | None) -> dict[str, str]:
     whose lowercased form collides with an English word or shorthand (`SMART`,
     `ID`) is dropped, so prose is not miscorrected; an `acronyms-extra` entry
     is kept even when it names such a collision, so a repo that means it can
-    reintroduce one. RS001 shares the same config keys but keeps the full set,
-    since a CapWords identifier is unambiguously code where prose is not.
+    reintroduce one. An acronym a prose term-map rule owns (`GCP`, which RS050
+    rewrites to `Google Cloud`) is dropped unconditionally, `acronyms-extra`
+    included. RS001 shares the same config keys but keeps the full set, since a
+    CapWords identifier is unambiguously code where prose is not.
     """
     table = _repostyle_table(pyproject)
     extra = _string_list(table, "acronyms-extra")
@@ -418,11 +499,15 @@ def effective_prose_acronyms(pyproject: Path | None) -> dict[str, str]:
     canonical_casing: dict[str, str] = {}
     for word in ACRONYMS:
         key = word.upper()
-        if key not in exclude and key not in _PROSE_AMBIGUOUS_ACRONYMS:
+        if (
+            key not in exclude
+            and key not in _PROSE_AMBIGUOUS_ACRONYMS
+            and key not in _PROSE_TERM_OWNED_ACRONYMS
+        ):
             canonical_casing[key] = word
     for word in extra:
         key = word.upper()
-        if key not in exclude:
+        if key not in exclude and key not in _PROSE_TERM_OWNED_ACRONYMS:
             canonical_casing[key] = word
     return canonical_casing
 
