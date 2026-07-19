@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.22.0...repostyle-v0.23.0) (2026-07-19)
+
+
+### Features
+
+* **PROC-2524:** default the exported shfmt hook to 2-space indent ([#127](https://github.com/gradienthealth/repostyle/issues/127)) ([65e159d](https://github.com/gradienthealth/repostyle/commit/65e159dc89692d1a956ba46251f646458bfabfbd))
+
 ## [0.22.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.21.0...repostyle-v0.22.0) (2026-07-19)
 
 
