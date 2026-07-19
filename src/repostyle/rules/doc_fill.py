@@ -53,7 +53,7 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     lines, comment directives, and lines carrying URLs are exempt, as is a unit
     with a backtick span hard-wrapped across lines; bullets and section entries
     wrap as hanging paragraphs. Docstrings are read from Python only; comments
-    are read from Python, TOML, and YAML alike.
+    are read from Python, TOML, YAML, and shell alike.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -117,7 +117,7 @@ def fix_doc_fill(
     section headers) are left untouched, as are units on a line in `skip_lines`
     and units with a backtick span hard-wrapped across source lines. The
     source's line ending is preserved. Docstrings reflow in Python; comments
-    reflow in Python, TOML, and YAML alike.
+    reflow in Python, TOML, YAML, and shell alike.
 
     Returns:
         The source with fillable paragraphs rewrapped, unchanged when nothing

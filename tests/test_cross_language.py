@@ -3,7 +3,16 @@ from pathlib import Path
 import pytest
 
 from repostyle._comments import extract_comments
-from repostyle.rules import RS_TEMPORAL_MARKER, check_comment_temporal_markers
+from repostyle.rules import (
+    RS_COMMENT_TAG_FORMAT,
+    RS_DOC_FILL,
+    RS_TEMPORAL_MARKER,
+    RS_TERMINAL_PUNCTUATION,
+    check_comment_tag_format,
+    check_comment_temporal_markers,
+    check_comment_terminal_punctuation,
+    check_doc_fill,
+)
 
 
 class TestExtractComments:
@@ -71,6 +80,73 @@ class TestExtractComments:
         source = "block: >  # note\n  folded # literal\ndone: 1\n"
         assert _comments(Path("c.yaml"), source) == [(1, 10, True, "note")]
 
+    def test_ShellSource_YieldsOwnLineAndTrailingComments(self) -> None:
+        source = "# lead\nx=1  # trail\n"
+        assert _comments(Path("s.sh"), source) == [
+            (1, 0, False, "lead"),
+            (2, 5, True, "trail"),
+        ]
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'echo "a # b"\n',
+            "echo 'a # b'\n",
+            "echo ${v#pat}\n",
+            "echo ${v##pat}\n",
+            "echo $# args\n",
+            "echo a#b\n",
+            "x=$'a # b'\n",
+            "x=$((16#ff))\n",
+            "x=$((1 << 2))\n",
+            "echo \\# literal\n",
+        ],
+        ids=[
+            "double_quoted",
+            "single_quoted",
+            "parameter_expansion",
+            "parameter_expansion_greedy",
+            "positional_count",
+            "glued_word",
+            "ansi_c_string",
+            "arithmetic_base",
+            "arithmetic_shift",
+            "escaped_hash",
+        ],
+    )
+    def test_HashNotOpeningShellComment_IsIgnored(self, source: str) -> None:
+        assert _comments(Path("s.sh"), source) == []
+
+    def test_ShellHeredocBody_IsNotScanned(self) -> None:
+        source = "cat <<EOF\n  literal # not a comment\nEOF\nnext=1  # real\n"
+        assert _comments(Path("s.sh"), source) == [(4, 8, True, "real")]
+
+    def test_ShellDashHeredoc_TerminatesOnTabIndentedDelimiter(self) -> None:
+        source = "cat <<-END\n\tbody # not\n\tEND\nx=1  # real\n"
+        assert _comments(Path("s.sh"), source) == [(4, 5, True, "real")]
+
+    def test_CommentOnShellHeredocRedirection_IsFound(self) -> None:
+        source = "cat <<'EOF'  # note\nfolded # literal\nEOF\n"
+        assert _comments(Path("s.sh"), source) == [(1, 13, True, "note")]
+
+    def test_ShellHereString_IsNotTreatedAsHeredoc(self) -> None:
+        source = 'grep foo <<< "$input"  # note\nx=1  # real\n'
+        assert _comments(Path("s.sh"), source) == [
+            (1, 23, True, "note"),
+            (2, 5, True, "real"),
+        ]
+
+    def test_ShellDoubleQuotedStringSpanningLines_IsNotScanned(self) -> None:
+        source = 'x="line1\nline2 # not"\nz=1  # real\n'
+        assert _comments(Path("s.sh"), source) == [(3, 5, True, "real")]
+
+    def test_ShellShebang_IsYieldedAsAComment(self) -> None:
+        source = "#!/usr/bin/env bash\nx=1  # real\n"
+        assert _comments(Path("s.sh"), source) == [
+            (1, 0, False, "!/usr/bin/env bash"),
+            (2, 5, True, "real"),
+        ]
+
     def test_UnsupportedSuffix_YieldsNothing(self) -> None:
         assert _comments(Path("notes.txt"), "# a comment\n") == []
 
@@ -90,14 +166,35 @@ class TestExtractComments:
 class TestTemporalMarkerCrossLanguage:
     @pytest.mark.parametrize(
         "path",
-        [Path("c.toml"), Path("c.yaml"), Path("c.yml")],
-        ids=["toml", "yaml", "yml"],
+        [Path("c.toml"), Path("c.yaml"), Path("c.yml"), Path("s.sh")],
+        ids=["toml", "yaml", "yml", "shell"],
     )
     def test_MarkerInComment_FlagsAcrossLanguages(self, path: Path) -> None:
         source = "# we decided to hardcode this\n"
         violations = list(check_comment_temporal_markers(path, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_TEMPORAL_MARKER
+
+
+class TestShellCommentRules:
+    def test_MalformedTag_FlagsTagFormat(self) -> None:
+        violations = list(check_comment_tag_format(Path("s.sh"), "# todo: fix it\n"))
+        assert [v.rule for v in violations] == [RS_COMMENT_TAG_FORMAT]
+
+    def test_ProseComment_FlagsTerminalPunctuation(self) -> None:
+        source = "x=1  # First sentence. Second one with no period\n"
+        violations = list(check_comment_terminal_punctuation(Path("s.sh"), source))
+        assert [v.rule for v in violations] == [RS_TERMINAL_PUNCTUATION]
+
+    def test_UnderWrappedBlock_FlagsDocFill(self) -> None:
+        source = "# a short first line\n# and a second line that could have joined the first\n"
+        violations = list(check_doc_fill(Path("s.sh"), source))
+        assert any(v.rule == RS_DOC_FILL for v in violations)
+
+    def test_Shebang_IsSkippedByProseRules(self) -> None:
+        source = "#!/usr/bin/env bash\n"
+        assert list(check_comment_terminal_punctuation(Path("s.sh"), source)) == []
+        assert list(check_comment_tag_format(Path("s.sh"), source)) == []
 
 
 def _comments(path: Path, source: str) -> list[tuple[int, int, bool, str]]:
