@@ -18,7 +18,7 @@ A reader who sees a bare `name` parameter cannot tell which of the three it hold
 
 - **`*_id`** — the bare identifier token (`project_id`, `bucket_id`, `object_id`). This is what feeds a Pulumi `project=` / `dataset_id=` argument or a resource's `name=`.
 - **`*_resource_name` / `*_path`** — a full `{collection}/{id}` path (`projects/{project}`, `buckets/{bucket}/objects/{object}`), the form an IAM condition or a fully-qualified reference needs.
-- **`logical_name` / `resource_name`** — the Pulumi URN name, a resource's first positional argument. Name it for what it is (a program-local handle), never `*_name`, which reads as a cloud identifier.
+- **`logical_name`** — the Pulumi URN name, a resource's first positional argument. Name it for what it is (a program-local handle), never `*_name` (which reads as a cloud identifier) and not `resource_name`, which AIP-122 already spends on the full path above.
 - **Prefer `project_id` over bare `project`** in our own signatures, even though Pulumi's own argument is `project=`. The `_id` suffix states which of the three meanings the value carries; matching Pulumi's looser spelling would reimport the ambiguity.
 
 ### Worked example
@@ -40,7 +40,7 @@ Under this convention the first argument is a `logical_name` and the id argument
 
 Deciding whether a given `*_name` holds a bare id, a path, or a URN name is dataflow-dependent, and a linter sees only the identifier, so the full convention is judgment, not a rule:
 
-- **Judgment** — the `common-style-review` naming lens (section P) reviews the subtle name / id / logical-name calls on a changed line.
+- **Judgment** — the `common-style-review` naming lens (section Q) reviews the subtle name / id / logical-name calls on a changed line.
 - **Mechanical (candidate, not yet built)** — a narrow, low-false-positive rule could reach only the unambiguous subset: a bare parameter named exactly `project` / `bucket` / `dataset` (suggest the `_id` suffix), or a `*_name` parameter passed straight to a Pulumi `project=` / id argument. Left as a possible follow-up; the judgment lens is the primary enforcement.
 
 ## Facet 2 — Google Cloud product and brand names in prose
