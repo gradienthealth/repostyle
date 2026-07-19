@@ -1,9 +1,10 @@
 # The `repostyle` hook runs the RSnnn linter; the `repostyle-*` gate hooks wrap
 # third-party tools whose versions are pinned here, so a consumer bumps one
 # repostyle rev to move the whole suite instead of tracking each tool's own
-# hook repo. Each gate reads its own `[tool.*]` table from the consuming repo's
-# pyproject.toml, so the repo-specific config stays local while the tool and
-# its version live here.
+# hook repo. Each gate reads its own config from the consuming repo — a
+# `[tool.*]` table in pyproject.toml for the Python gates, a `.shellcheckrc` or
+# per-hook flags for the shell gates — so the repo-specific config stays local
+# while the tool and its version live here.
 - id: repostyle
   name: repostyle
   entry: repostyle
@@ -53,3 +54,19 @@
   language: python
   additional_dependencies: ["codespell==2.4.2", "tomli"]
   types: [text]
+
+- id: repostyle-shellcheck
+  name: shellcheck (via repostyle)
+  description: Static analysis of shell scripts, reading .shellcheckrc from the repo.
+  entry: shellcheck
+  language: python
+  additional_dependencies: ["shellcheck-py==0.11.0.1"]
+  types: [shell]
+
+- id: repostyle-shfmt
+  name: shfmt (via repostyle)
+  description: Shell-script format check, failing on an unformatted file.
+  entry: shfmt -d
+  language: python
+  additional_dependencies: ["shfmt-py==4.0.0"]
+  types: [shell]

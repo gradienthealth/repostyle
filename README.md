@@ -252,7 +252,7 @@ Override only repo-specific knobs (target version, per-file ignores) on top of t
 
 ## Distribute the lint gate suite
 
-Beyond the `repostyle` linter, this repo distributes the third-party quality gates the house style runs (bandit, vulture, deptry, interrogate, codespell) with their versions pinned centrally, so a consuming repo gets the whole suite at one pinned version instead of tracking each tool itself. There are two ways to consume it, differing only in how the pinned versions reach the repo: as pre-commit hooks (clones this repo) or as a package extra (installs from the private index). Pick the one whose auth the repo already has.
+Beyond the `repostyle` linter, this repo distributes the third-party quality gates the house style runs (bandit, vulture, deptry, interrogate, codespell for Python; shellcheck and shfmt for shell scripts) with their versions pinned centrally, so a consuming repo gets the whole suite at one pinned version instead of tracking each tool itself. There are two ways to consume it, differing only in how the pinned versions reach the repo: as pre-commit hooks (clones this repo) or as a package extra (installs from the private index). Pick the one whose auth the repo already has.
 
 ### As pre-commit hooks
 
@@ -269,9 +269,11 @@ repos:
       - id: repostyle-deptry
       - id: repostyle-interrogate
       - id: repostyle-codespell
+      - id: repostyle-shellcheck
+      - id: repostyle-shfmt
 ```
 
-Each gate reads its own `[tool.*]` table from the consuming repo's `pyproject.toml`, so the tool and its version live here while the repo-specific config (exclude paths, ignore lists, layering contracts) stays local. A repo adopting the suite adds these tables, tuning the paths and ignores to its own layout:
+Each Python gate reads its own `[tool.*]` table from the consuming repo's `pyproject.toml`, so the tool and its version live here while the repo-specific config (exclude paths, ignore lists, layering contracts) stays local. A repo adopting the suite adds these tables, tuning the paths and ignores to its own layout:
 
 ```toml
 [tool.bandit]
@@ -302,6 +304,8 @@ skip = "uv.lock,*.svg,.git"
 ignore-words-list = "datas,ehr,fo,hist"
 ```
 
+The two shell gates configure differently, since neither tool reads `pyproject.toml`. `shellcheck` reads a `.shellcheckrc` at the repo root (for example `disable=SC1091` to skip unfollowable `source` targets), so a repo tuning it commits that file. `shfmt` takes flags rather than a config file: the `repostyle-shfmt` hook runs `shfmt -d`, which fails on any file that is not already formatted, and a repo picks its formatting dialect by appending flags in its hook entry — `args: ["-i", "2", "-ci"]` for two-space indented, switch-case-indented scripts.
+
 ### As a package extra
 
 A repo that already consumes repostyle as a package from the private index (rather than cloning this private repo as a hook) installs the `gates` extra instead of referencing the `repostyle-*` hooks. The extra carries the same version pins, so a repo picks up the suite through the index auth it already has and keeps its own `local` hooks that run each tool. As long as the private index is declared `explicit = true` (so only repostyle is drawn from it, as in fhir-ingestor), the gate tools resolve from the default PyPI index, and the extra needs no index permission beyond the read access repostyle itself already requires.
@@ -324,8 +328,9 @@ lint = [
         language: system
         pass_filenames: false
         types: [python]
-      # ...and one local hook per gate (vulture, deptry, interrogate, codespell),
-      # each `uv run --group lint <tool>`, so the tool resolves from the extra.
+      # ...and one local hook per gate (vulture, deptry, interrogate, codespell,
+      # shellcheck, shfmt), each `uv run --group lint <tool>`, so the tool
+      # resolves from the extra.
 ```
 
 ### Gates that stay consumer-side
