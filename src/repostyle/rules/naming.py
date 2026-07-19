@@ -731,7 +731,8 @@ def _is_bool_annotation(annotation: ast.expr | None) -> bool:
 
 
 # The stringized (forward-reference) annotations RS051 reads as a string type,
-# whitespace removed so `str | None` matches whatever the author's spacing.
+# whitespace removed so `str | None` matches regardless of the author's
+# spacing.
 _STR_FORWARD_REFS: frozenset[str] = frozenset(
     {"str", "str|None", "None|str", "Optional[str]"}
 )
@@ -793,9 +794,8 @@ def _is_str_annotation(annotation: ast.expr | None) -> bool:
 def _is_none_constant(annotation: ast.expr) -> bool:
     """Reports whether an annotation node is the bare `None` literal.
 
-    A `str | None` union is the only mixed form RS051 treats as a string, so
-    the `None` arm has to be told apart from any other non-`str` type sharing
-    the union.
+    RS051 accepts a `str | None` union but not, say, `str | int`, so the `None`
+    arm has to be told apart from any other non-`str` type sharing a union.
     """
     return isinstance(annotation, ast.Constant) and annotation.value is None
 

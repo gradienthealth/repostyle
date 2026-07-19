@@ -41,7 +41,7 @@ Under this convention the first argument is a `logical_name` and the id argument
 Deciding whether a given `*_name` holds a bare id, a path, or a URN name is dataflow-dependent, and a linter sees only the identifier, so the full convention is judgment, not a rule:
 
 - **Judgment** — the `common-style-review` naming lens (section Q) reviews the subtle name / id / logical-name calls on a changed line.
-- **Mechanical** — `repostyle` **RS051** (`gcp-bare-identifier`), a warning over the unambiguous subset: a `str`-typed parameter named exactly for a Google Cloud resource collection (`project`, `bucket`, `dataset`, `topic`, `subscription`, `instance`) wants the `_id` suffix. It reaches only the exact-match, string-annotated case; a `*_name` parameter passed straight to a Pulumi `project=` / id argument stays with the judgment lens, since that call is dataflow-dependent. The judgment lens remains the primary enforcement.
+- **Mechanical** — `repostyle` **RS051** (`gcp-bare-identifier`), a warning over the unambiguous subset: a `str`-typed parameter named exactly for a Google Cloud resource collection (`project`, `bucket`, `dataset`, `topic`, `subscription`, `instance`) wants the `_id` suffix. A `*_name` parameter passed straight to a Pulumi `project=` / id argument stays with the judgment lens, since that call is dataflow-dependent. The judgment lens remains the primary enforcement.
 
 ## Facet 2 — Google Cloud product and brand names in prose
 

@@ -1855,6 +1855,11 @@ class TestCheckGCPBareIdentifier:
         assert f"'{name}'" in violations[0].message
         assert f"'{name}_id'" in violations[0].message
 
+    def test_TwoBareParams_FlagsEach(self) -> None:
+        source = "def grant(project: str, bucket: str) -> None: ..."
+        violations = list(check_gcp_bare_identifier(Path("src/x.py"), source))
+        assert [v.message.split("'")[1] for v in violations] == ["project", "bucket"]
+
     @pytest.mark.parametrize(
         "source",
         [
@@ -1880,11 +1885,6 @@ class TestCheckGCPBareIdentifier:
     )
     def test_NonBareIdentifier_NoViolation(self, source: str) -> None:
         assert list(check_gcp_bare_identifier(Path("src/x.py"), source)) == []
-
-    def test_TwoBareParams_FlagsEach(self) -> None:
-        source = "def grant(project: str, bucket: str) -> None: ..."
-        violations = list(check_gcp_bare_identifier(Path("src/x.py"), source))
-        assert [v.message.split("'")[1] for v in violations] == ["project", "bucket"]
 
     def test_NonPythonFile_NotChecked(self) -> None:
         source = "def f(project: str): ..."
