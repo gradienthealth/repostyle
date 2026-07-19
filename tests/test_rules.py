@@ -333,6 +333,7 @@ class TestCheckGCPProductNameInDocstrings:
         "prose",
         [
             "Uploads to a Cloud Storage bucket in Google Cloud.",
+            "Writes each row to Bigtable.",
             "Raises GCSError when the object is missing.",
             "Reads `gcp.storage` and a bare `GCS` in code font.",
             "See gs://bucket/obj for the layout.",
@@ -340,6 +341,7 @@ class TestCheckGCPProductNameInDocstrings:
         ],
         ids=[
             "already-preferred",
+            "preferred-bigtable-not-reflagged",
             "substring-not-flagged",
             "backtick-span-skipped",
             "uri-skipped",

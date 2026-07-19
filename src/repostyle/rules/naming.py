@@ -443,18 +443,25 @@ def disfavored_gcp_terms_in_prose(text: str) -> Iterator[tuple[int, str, str]]:
     Reports a `(offset, found, preferred)` triple for every whole-word match of
     a term in `DISFAVORED_GCP_TERMS`, where `offset` is the match's 0-based
     position in `text`, `found` is the text as written, and `preferred` is the
-    current form to write. Backtick code spans and URIs are blanked to
-    equal-length whitespace first, so a term in code font (`gcp.storage`) or
-    inside a URL is left alone and the reported offsets still index the
-    original `text`. Unlike RS049's length-preserving recasing, a replacement
-    changes length, so a caller rewriting in place applies the triples in
-    reverse offset order. Shared by RS050's docstring and comment checks.
+    current form to write, skipping a match already in its exact preferred
+    form. Backtick code spans and URIs are blanked to equal-length whitespace
+    first, so a term in code font (`gcp.storage`) or inside a URL is left alone
+    and the reported offsets still index the original `text`. Unlike RS049's
+    length-preserving recasing, a replacement changes length, so a caller
+    rewriting in place applies the triples in reverse offset order. Shared by
+    RS050's docstring and comment checks.
     """
     masked = _blank_prose_spans(text)
     for match in _GCP_TERM_PATTERN.finditer(masked):
         found = match.group()
         normalized = re.sub(r"\s+", " ", found).upper()
-        yield match.start(), found, _GCP_TERM_REPLACEMENT[normalized]
+        preferred = _GCP_TERM_REPLACEMENT[normalized]
+        # A disfavored key can differ from its preferred form in case alone
+        # (`BigTable` to `Bigtable`), and the scan is case-insensitive, so the
+        # already-correct form matches its own key; leave it be.
+        if found == preferred:
+            continue
+        yield match.start(), found, preferred
 
 
 def _blank_prose_spans(text: str) -> str:

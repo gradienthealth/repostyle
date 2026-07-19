@@ -972,8 +972,13 @@ RULE_DOCS: dict[str, RuleDoc] = {
         examples=(
             Example(
                 bad='"""Uploads the study to a GCS bucket in GCP."""',
-                good='"""Uploads the study to a Cloud Storage bucket in Google Cloud."""',
-                note="Fix every disfavored term in the file; the reference is the full map.",
+                good=(
+                    '"""Uploads the study to a Cloud Storage bucket in Google Cloud."""'
+                ),
+                note=(
+                    "Fix every disfavored term in the file; the reference is "
+                    "the full map."
+                ),
             ),
         ),
         reference=tuple(
