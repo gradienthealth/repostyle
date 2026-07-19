@@ -177,16 +177,16 @@ class TestTemporalMarkerCrossLanguage:
 
 
 class TestShellCommentRules:
-    def test_MalformedTag_FlagsTagFormatInShell(self) -> None:
+    def test_MalformedTag_FlagsTagFormat(self) -> None:
         violations = list(check_comment_tag_format(Path("s.sh"), "# todo: fix it\n"))
         assert [v.rule for v in violations] == [RS_COMMENT_TAG_FORMAT]
 
-    def test_ProseComment_FlagsTerminalPunctuationInShell(self) -> None:
+    def test_ProseComment_FlagsTerminalPunctuation(self) -> None:
         source = "x=1  # First sentence. Second one with no period\n"
         violations = list(check_comment_terminal_punctuation(Path("s.sh"), source))
         assert [v.rule for v in violations] == [RS_TERMINAL_PUNCTUATION]
 
-    def test_UnderWrappedBlock_FlagsDocFillInShell(self) -> None:
+    def test_UnderWrappedBlock_FlagsDocFill(self) -> None:
         source = "# a short first line\n# and a second line that could have joined the first\n"
         violations = list(check_doc_fill(Path("s.sh"), source))
         assert any(v.rule == RS_DOC_FILL for v in violations)

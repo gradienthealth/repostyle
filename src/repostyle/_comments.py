@@ -250,8 +250,7 @@ def _shell_comments(source: str) -> Iterator[_CommentToken]:
     quoted string, an ANSI-C `$'...'` string, and an arithmetic `$(( ))`
     expansion are skipped, so a `#` inside them is never a comment; a string or
     heredoc body spanning lines carries forward in `_ShellState`. A `#!`
-    shebang is yielded like any comment; the prose rules classify a `!`-led
-    comment as a directive and skip it, as they do a Python shebang.
+    shebang is yielded like any comment.
     """
     state = _ShellState(None, None)
     for lineno, line in enumerate(source.splitlines(), start=1):
@@ -284,10 +283,11 @@ def _shell_scan_code(line: str, start: int) -> tuple[int | None, _ShellState]:
     """Scans `line` from `start` for a `#` comment, outside any open string.
 
     Skips a backslash-escaped character, an ANSI-C `$'...'` string, an
-    arithmetic `$(( ))` expansion, and a quoted string, so a `#` inside any of
-    them stays code. A heredoc redirection is recorded but the scan continues,
-    so a trailing comment on the redirection line is still found. Returns the
-    `#` column (or `None`) and the state open at the line's end.
+    arithmetic `$(( ))` expansion, a `<<<` here-string, and a quoted string, so
+    neither a `#` inside one nor a here-string's own `<<<` is misread. A
+    heredoc redirection is recorded but the scan continues, so a trailing
+    comment on the redirection line is still found. Returns the `#` column (or
+    `None`) and the state open at the line's end.
     """
     index = start
     pending: _Heredoc | None = None
@@ -298,15 +298,10 @@ def _shell_scan_code(line: str, start: int) -> tuple[int | None, _ShellState]:
         if step is not None:
             index = step
             continue
-        if line.startswith("<<<", index):
-            # A here-string, not a heredoc. Skipping all three `<` together
-            # keeps the trailing `<<` from opening a spurious heredoc.
-            index += 3
-            continue
         opener = _heredoc_opener(line, index)
         if opener is not None:
-            pending = pending or opener[0]
-            index = opener[1]
+            heredoc, index = opener
+            pending = pending or heredoc
             continue
         if line[index] in "\"'":
             end = _shell_string_end(line, index + 1, line[index])
@@ -372,9 +367,8 @@ def _heredoc_terminated(line: str, heredoc: _Heredoc) -> bool:
 def _opens_comment(line: str, index: int) -> bool:
     """Reports whether the `#` at `index` begins a shell comment.
 
-    A `#` begins a comment only at the line start or after unquoted whitespace,
-    so a `#` glued to a word (`$#`, `${v#p}`, `a#b`) stays code. This mirrors
-    the conservative rule the YAML scanner uses.
+    A `#` begins a comment only at the line start or after whitespace, so a `#`
+    glued to a word (`$#`, `${v#p}`, `a#b`) stays code.
     """
     return index == 0 or line[index - 1] in " \t"
 
@@ -385,7 +379,9 @@ def _shell_skip(line: str, index: int) -> int | None:
     A backslash escapes the next character, including a line-continuation `\`
     at the line's end; `$'...'` is an ANSI-C string honouring backslash
     escapes; `$(( ))` is an arithmetic expansion whose `#` base marker and `<<`
-    shift must not read as a comment or a heredoc.
+    shift must not read as a comment or a heredoc; `<<<` is a here-string
+    operator, whose three characters skip together so the trailing `<<` cannot
+    open a spurious heredoc.
     """
     if line[index] == "\\":
         return index + 2
@@ -393,6 +389,8 @@ def _shell_skip(line: str, index: int) -> int | None:
         return _shell_ansi_c_end(line, index + 2)
     if line.startswith("$((", index):
         return _shell_arithmetic_end(line, index + 3)
+    if line.startswith("<<<", index):
+        return index + 3
     return None
 
 
