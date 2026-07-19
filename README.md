@@ -252,7 +252,7 @@ Override only repo-specific knobs (target version, per-file ignores) on top of t
 
 ## Distribute the lint gate suite
 
-Beyond the `repostyle` linter, this repo distributes the third-party quality gates the house style runs (bandit, vulture, deptry, interrogate, codespell for Python, and shellcheck and shfmt for shell scripts) with their versions pinned centrally, so a consuming repo gets the whole suite at one pinned version instead of tracking each tool itself. There are two ways to consume it, differing only in how the pinned versions reach the repo: as pre-commit hooks (clones this repo) or as a package extra (installs from the private index). Pick the one whose auth the repo already has.
+Beyond the `repostyle` linter, this repo distributes the third-party quality gates the house style runs (bandit, vulture, deptry, interrogate, codespell for Python; shellcheck and shfmt for shell scripts) with their versions pinned centrally, so a consuming repo gets the whole suite at one pinned version instead of tracking each tool itself. There are two ways to consume it, differing only in how the pinned versions reach the repo: as pre-commit hooks (clones this repo) or as a package extra (installs from the private index). Pick the one whose auth the repo already has.
 
 ### As pre-commit hooks
 
@@ -304,7 +304,7 @@ skip = "uv.lock,*.svg,.git"
 ignore-words-list = "datas,ehr,fo,hist"
 ```
 
-The two shell gates configure differently, since neither tool reads `pyproject.toml`. `shellcheck` reads a `.shellcheckrc` at the repo root (for example `disable=SC1091` to skip unfollowable `source` targets), so a repo tuning it commits that file. `shfmt` takes flags rather than a config file: the `repostyle-shfmt` hook runs `shfmt -d`, which fails on any file that is not already formatted, and a repo picks its formatting dialect by appending flags in its hook entry — `args: ["-i", "2", "-ci"]` for two-space indented, switch-case-indented scripts. Full companion wiring for consuming repos (a default `.shellcheckrc` and a shared `shfmt` flag set) is a separate follow-up.
+The two shell gates configure differently, since neither tool reads `pyproject.toml`. `shellcheck` reads a `.shellcheckrc` at the repo root (for example `disable=SC1091` to skip unfollowable `source` targets), so a repo tuning it commits that file. `shfmt` takes flags rather than a config file: the `repostyle-shfmt` hook runs `shfmt -d`, which fails on any file that is not already formatted, and a repo picks its formatting dialect by appending flags in its hook entry — `args: ["-i", "2", "-ci"]` for two-space indented, switch-case-indented scripts.
 
 ### As a package extra
 
