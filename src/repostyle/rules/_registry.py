@@ -18,6 +18,7 @@ from repostyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DEEPLY_NESTED_TYPE,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
@@ -64,6 +65,7 @@ from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
+    check_gcp_product_name_in_comments,
     check_tag_comment_continuation_indent,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
@@ -81,6 +83,7 @@ from repostyle.rules.docstrings import (
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
+    check_gcp_product_name_in_docstrings,
     check_glued_code_span_in_comments,
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
@@ -203,6 +206,10 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
         check_acronym_casing_in_docstrings,
         check_acronym_casing_in_comments,
     ),
+    RS_DISFAVORED_GCP_TERM: (
+        check_gcp_product_name_in_docstrings,
+        check_gcp_product_name_in_comments,
+    ),
 }
 
 
@@ -249,6 +256,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_LOWERCASE_ENTRY_DESCRIPTION: Severity.WARNING,
     RS_PRIVATE_IMPORT: Severity.WARNING,
     RS_ACRONYM_CASING_IN_PROSE: Severity.WARNING,
+    RS_DISFAVORED_GCP_TERM: Severity.WARNING,
 }
 
 
@@ -258,6 +266,7 @@ RULE_SEVERITY: dict[str, Severity] = {
 FIXABLE_RULES: frozenset[str] = frozenset(
     {
         RS_ACRONYM_CASING_IN_PROSE,
+        RS_DISFAVORED_GCP_TERM,
         RS_DOC_FILL,
         RS_NO_DOUBLE_BACKTICKS,
         RS_TERMINAL_PUNCTUATION,

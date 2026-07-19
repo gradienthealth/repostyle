@@ -39,6 +39,7 @@ from repostyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DEEPLY_NESTED_TYPE,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
@@ -85,9 +86,11 @@ from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
+    check_gcp_product_name_in_comments,
     check_tag_comment_continuation_indent,
     fix_acronym_casing_in_comments,
     fix_comment_terminal_punctuation,
+    fix_gcp_product_name_in_comments,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
 from repostyle.rules.doc_fill import (
@@ -109,6 +112,7 @@ from repostyle.rules.docstrings import (
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
+    check_gcp_product_name_in_docstrings,
     check_glued_code_span_in_comments,
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
@@ -124,6 +128,7 @@ from repostyle.rules.docstrings import (
     fix_acronym_casing_in_docstrings,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
+    fix_gcp_product_name_in_docstrings,
 )
 from repostyle.rules.duration import check_duration_as_timedelta
 from repostyle.rules.encapsulation import check_private_import
@@ -176,6 +181,7 @@ __all__ = [
     "RS_CONDITIONAL_TEST_LOGIC",
     "RS_DEEPLY_NESTED_TYPE",
     "RS_DISCOURAGED_CLASS_SUFFIX",
+    "RS_DISFAVORED_GCP_TERM",
     "RS_DOC_FILL",
     "RS_DOC_SUMMARY_OVERFLOW",
     "RS_DOC_VALUE_SIGNAL",
@@ -249,6 +255,8 @@ __all__ = [
     "check_filename_casing",
     "check_filename_extension",
     "check_filler_docstring_opening",
+    "check_gcp_product_name_in_comments",
+    "check_gcp_product_name_in_docstrings",
     "check_glued_code_span_in_comments",
     "check_glued_code_span_in_docstrings",
     "check_glued_code_span_in_md",
@@ -284,6 +292,8 @@ __all__ = [
     "fix_doc_fill",
     "fix_docstring_terminal_punctuation",
     "fix_double_backticks",
+    "fix_gcp_product_name_in_comments",
+    "fix_gcp_product_name_in_docstrings",
     "has_guidance",
     "rule_doc",
     "run_package_rule",

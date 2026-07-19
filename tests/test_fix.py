@@ -4,11 +4,15 @@ from repostyle.rules import (
     check_acronym_casing_in_comments,
     check_acronym_casing_in_docstrings,
     check_comment_terminal_punctuation,
+    check_gcp_product_name_in_comments,
+    check_gcp_product_name_in_docstrings,
     fix_acronym_casing_in_comments,
     fix_acronym_casing_in_docstrings,
     fix_comment_terminal_punctuation,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
+    fix_gcp_product_name_in_comments,
+    fix_gcp_product_name_in_docstrings,
 )
 from repostyle.runner import fix_path
 
@@ -156,6 +160,49 @@ class TestFixAcronymCasingInComments:
         assert fix_acronym_casing_in_comments(_MD, "# ipv6\n") == "# ipv6\n"
 
 
+class TestFixGCPProductNameInDocstrings:
+    def test_DisfavoredTerms_RewriteToPreferred(self) -> None:
+        source = 'def f():\n    """Wires PubSub to Big Query via GCP."""\n'
+        assert fix_gcp_product_name_in_docstrings(_PY, source) == (
+            'def f():\n    """Wires Pub/Sub to BigQuery via Google Cloud."""\n'
+        )
+
+    def test_FixedDocstring_LeavesNoRemainingViolation(self) -> None:
+        source = 'def f():\n    """Uploads to a GCS bucket in GCP."""\n'
+        fixed = fix_gcp_product_name_in_docstrings(_PY, source)
+        assert list(check_gcp_product_name_in_docstrings(_PY, fixed)) == []
+
+    def test_LineSuppressed_LeavesUnit(self) -> None:
+        source = 'def f():\n    """The GCS bucket."""\n'
+        assert fix_gcp_product_name_in_docstrings(_PY, source, frozenset({2})) == source
+
+    def test_AlreadyPreferred_ReturnsSourceUnchanged(self) -> None:
+        source = 'def f():\n    """The Cloud Storage bucket in Google Cloud."""\n'
+        assert fix_gcp_product_name_in_docstrings(_PY, source) == source
+
+
+class TestFixGCPProductNameInComments:
+    def test_DisfavoredTerms_RewriteToPreferred(self) -> None:
+        source = "# stages the study in a GCS bucket on GCP\nx = 1\n"
+        assert fix_gcp_product_name_in_comments(_PY, source) == (
+            "# stages the study in a Cloud Storage bucket on Google Cloud\nx = 1\n"
+        )
+
+    def test_TrailingComment_RewritesInPlace(self) -> None:
+        source = "x = 1  # the GCS staging bucket\n"
+        assert fix_gcp_product_name_in_comments(_PY, source) == (
+            "x = 1  # the Cloud Storage staging bucket\n"
+        )
+
+    def test_FixedComment_LeavesNoRemainingViolation(self) -> None:
+        source = "# stages in GCS on GCP\nx = 1\n"
+        fixed = fix_gcp_product_name_in_comments(_PY, source)
+        assert list(check_gcp_product_name_in_comments(_PY, fixed)) == []
+
+    def test_MarkdownPath_ReturnsSourceUnchanged(self) -> None:
+        assert fix_gcp_product_name_in_comments(_MD, "# GCS\n") == "# GCS\n"
+
+
 class TestFixPath:
     def test_EnabledFixers_ComposeOnOneFile(self, tmp_path: Path) -> None:
         source = (
@@ -183,6 +230,14 @@ class TestFixPath:
         assert fix_path(target, {"RS049"}) is True
         assert target.read_text(encoding="utf-8") == (
             'def f():\n    # routes IPv6\n    """The NAT gateway."""\n'
+        )
+
+    def test_GcpTermRule_RewritesDocstringAndComment(self, tmp_path: Path) -> None:
+        source = 'def f():\n    # stages in GCS\n    """Runs on GCP."""\n'
+        target = _write_project(tmp_path, source, '["RS050"]')
+        assert fix_path(target, {"RS050"}) is True
+        assert target.read_text(encoding="utf-8") == (
+            'def f():\n    # stages in Cloud Storage\n    """Runs on Google Cloud."""\n'
         )
 
     def test_MarkdownFile_FixesBackticksOnly(self, tmp_path: Path) -> None:

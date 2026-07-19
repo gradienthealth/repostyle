@@ -11,6 +11,7 @@ from repostyle.rules import (
     RS_BOOLEAN_PREFIX_REQUIRED,
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DURATION_AS_TIMEDELTA,
@@ -51,6 +52,8 @@ from repostyle.rules import (
     check_eq_hash_pairing,
     check_exception_alias,
     check_excessive_mocking,
+    check_gcp_product_name_in_comments,
+    check_gcp_product_name_in_docstrings,
     check_glued_code_span_in_comments,
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
@@ -287,6 +290,120 @@ class TestCheckAcronymCasingInComments:
             check_acronym_casing_in_comments(Path("pyproject.toml"), source)
         )
         assert violations[0].rule == RS_ACRONYM_CASING_IN_PROSE
+
+
+class TestCheckGCPProductNameInDocstrings:
+    @pytest.mark.parametrize(
+        ("prose", "found", "preferred"),
+        [
+            ("Uploads to a GCS bucket.", "GCS", "Cloud Storage"),
+            ("Runs the job in GCP.", "GCP", "Google Cloud"),
+            (
+                "Deploys across Google Cloud Platform.",
+                "Google Cloud Platform",
+                "Google Cloud",
+            ),
+            ("Reads from Big Query.", "Big Query", "BigQuery"),
+            ("Publishes to PubSub.", "PubSub", "Pub/Sub"),
+            ("Boots a GCE instance.", "GCE", "Compute Engine"),
+            ("A lowercase gcp reference.", "gcp", "Google Cloud"),
+        ],
+        ids=[
+            "GCS",
+            "GCP",
+            "google-cloud-platform",
+            "big-query",
+            "pubsub",
+            "GCE",
+            "lowercase",
+        ],
+    )
+    def test_DisfavoredTerm_FlagsWithPreferred(
+        self, prose: str, found: str, preferred: str
+    ) -> None:
+        source = f'def f():\n    """{prose}"""\n'
+        violations = list(
+            check_gcp_product_name_in_docstrings(Path("src/x.py"), source)
+        )
+        assert violations[0].rule == RS_DISFAVORED_GCP_TERM
+        assert f"'{found}'" in violations[0].message
+        assert f"'{preferred}'" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "prose",
+        [
+            "Uploads to a Cloud Storage bucket in Google Cloud.",
+            "Raises GCSError when the object is missing.",
+            "Reads `gcp.storage` and a bare `GCS` in code font.",
+            "See gs://bucket/obj for the layout.",
+            "Adds a gce-node label to the pool.",
+        ],
+        ids=[
+            "already-preferred",
+            "substring-not-flagged",
+            "backtick-span-skipped",
+            "uri-skipped",
+            "hyphenated-compound-left-alone",
+        ],
+    )
+    def test_ConformingProse_NoViolation(self, prose: str) -> None:
+        source = f'def f():\n    """{prose}"""\n'
+        assert (
+            list(check_gcp_product_name_in_docstrings(Path("src/x.py"), source)) == []
+        )
+
+    def test_ArgsEntryCaption_LeavesParameterName(self) -> None:
+        source = (
+            "def f(gcp):\n"
+            '    """Summary line.\n\n'
+            "    Args:\n"
+            "        gcp: The GCP project to deploy into.\n"
+            '    """\n'
+        )
+        violations = list(
+            check_gcp_product_name_in_docstrings(Path("src/x.py"), source)
+        )
+        assert len(violations) == 1  # the description's `GCP`, not the `gcp:` caption
+        assert violations[0].line == 5
+
+
+class TestCheckGCPProductNameInComments:
+    @pytest.mark.parametrize(
+        ("comment", "found", "preferred"),
+        [
+            ("# uploads to a GCS bucket", "GCS", "Cloud Storage"),
+            ("# routes through GCP", "GCP", "Google Cloud"),
+        ],
+        ids=["GCS", "GCP"],
+    )
+    def test_DisfavoredTerm_FlagsWithPreferred(
+        self, comment: str, found: str, preferred: str
+    ) -> None:
+        source = f"{comment}\nx = 1\n"
+        violations = list(check_gcp_product_name_in_comments(Path("src/x.py"), source))
+        assert violations[0].rule == RS_DISFAVORED_GCP_TERM
+        assert f"'{found}'" in violations[0].message
+        assert f"'{preferred}'" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "comment",
+        [
+            "# uploads to Cloud Storage in Google Cloud",
+            "# gcp.storage.Bucket(name)",
+            "# type: ignore for the GCP client",
+        ],
+        ids=["already-preferred", "commented-out-code", "directive"],
+    )
+    def test_ConformingComment_NoViolation(self, comment: str) -> None:
+        source = f"{comment}\nx = 1\n"
+        assert list(check_gcp_product_name_in_comments(Path("src/x.py"), source)) == []
+
+    def test_TomlComment_FlagsDisfavoredTerm(self) -> None:
+        source = "# the GCS staging bucket\nkey = 1\n"
+        violations = list(
+            check_gcp_product_name_in_comments(Path("pyproject.toml"), source)
+        )
+        assert violations[0].rule == RS_DISFAVORED_GCP_TERM
 
 
 class TestCheckTestNaming:

@@ -31,6 +31,7 @@ from repostyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DEEPLY_NESTED_TYPE,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
@@ -70,6 +71,7 @@ from repostyle.rules._violation import (
     RS_UNBACKTICKED_SIBLING_SYMBOL,
 )
 from repostyle.rules.imperative_verbs import NON_TRIVIAL_CONJUGATIONS
+from repostyle.rules.naming import DISFAVORED_GCP_TERMS
 
 
 class Example(NamedTuple):
@@ -944,6 +946,39 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 good='"""Parses the IPv6 address the NAT gateway advertises."""',
                 note="The canonical casing is per-acronym: `IPv6` mixed, `NAT` upper.",
             ),
+        ),
+    ),
+    RS_DISFAVORED_GCP_TERM: RuleDoc(
+        name="disfavored-gcp-term",
+        summary=(
+            "A disfavored Google Cloud product or brand name in docstring or "
+            "comment prose is written in its current form (`Cloud Storage`, "
+            "not `GCS`; `Google Cloud`, not `GCP`)."
+        ),
+        rationale=(
+            "Google retired `GCP` and `Google Cloud Platform` as the umbrella "
+            "brand (circa 2022) in favor of `Google Cloud`, and each product "
+            "has one canonical name (`Cloud Storage`, `Compute Engine`, "
+            "`Pub/Sub`), so prose that mixes the old shorthand with the current "
+            "name reads as two systems. The map is curated and matched only as "
+            "a whole word, so an occurrence in code font (the identifier "
+            "`gcp.storage`), inside a URL, glued to a hyphen, or in an `Args:` "
+            "parameter caption is left alone, and `--fix` rewrites the rest in "
+            "place. Only unambiguous substitutions are mapped; a bare `Storage` "
+            "or `Monitoring` is too often an ordinary English word to rewrite "
+            "mechanically, so it is left to review. Ruff has no equivalent, and "
+            "codespell catches misspellings, not brand-name substitutions."
+        ),
+        examples=(
+            Example(
+                bad='"""Uploads the study to a GCS bucket in GCP."""',
+                good='"""Uploads the study to a Cloud Storage bucket in Google Cloud."""',
+                note="Fix every disfavored term in the file; the reference is the full map.",
+            ),
+        ),
+        reference=tuple(
+            f"{term} -> {preferred}"
+            for term, preferred in sorted(DISFAVORED_GCP_TERMS.items())
         ),
     ),
     RS_PRIVATE_IMPORT: RuleDoc(

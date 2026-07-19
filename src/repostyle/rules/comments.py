@@ -58,12 +58,14 @@ from repostyle._shared import (
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING_IN_PROSE,
     RS_COMMENT_TAG_FORMAT,
+    RS_DISFAVORED_GCP_TERM,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     Violation,
 )
 from repostyle.rules.naming import (
+    disfavored_gcp_terms_in_prose,
     effective_prose_acronyms,
     miscased_acronyms_in_prose,
 )
@@ -411,6 +413,62 @@ def fix_acronym_casing_in_comments(
     return _join_source_lines(source, source_lines) if changed else source
 
 
+def check_gcp_product_name_in_comments(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a disfavored Google Cloud product or brand name in a comment.
+
+    RS050's docstring rule carried to `#` comments: a whole-word occurrence of
+    a term in the curated map (`GCP`, `GCS`, `Google Cloud Platform`, ...) is
+    flagged and, under `--fix`, rewritten to its current form. The map, the
+    whole-word case-insensitive matching, and the backtick and URL exemptions
+    are the docstring rule's; additionally a directive comment and a
+    commented-out statement are skipped. The check runs over Python, TOML, and
+    YAML comments alike, since a `#` comment reads the same in each; the
+    `--fix` half repairs Python comments in place.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    for comment in extract_comments(path, source):
+        if not _is_correctable_comment(comment.string):
+            continue
+        for offset, found, preferred in disfavored_gcp_terms_in_prose(comment.string):
+            yield Violation(
+                comment.lineno,
+                comment.column + offset + 1,
+                RS_DISFAVORED_GCP_TERM,
+                f"comment uses the disfavored name '{found}'; write '{preferred}'",
+            )
+
+
+def fix_gcp_product_name_in_comments(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Rewrites each disfavored Google Cloud name in a comment, RS050's fix.
+
+    Each occurrence the comment check flags is replaced in place with its
+    preferred form. A replacement changes length, so a comment's faults are
+    applied right to left, keeping each earlier offset valid. A comment whose
+    line is in `skip_lines` is left untouched. The fix runs on Python only,
+    though the check spans TOML and YAML too.
+
+    Returns:
+        The source with each flagged name rewritten, unchanged when nothing
+        rewrites.
+    """
+    if path.suffix != ".py":
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for comment in extract_comments(path, source):
+        if comment.lineno in skip_lines or not _is_correctable_comment(comment.string):
+            continue
+        line = source_lines[comment.lineno - 1]
+        rewritten = _rewrite_gcp_comment_line(line, comment.column, comment.string)
+        if rewritten != line:
+            source_lines[comment.lineno - 1] = rewritten
+            changed = True
+    return _join_source_lines(source, source_lines) if changed else source
+
+
 def _is_correctable_comment(comment_string: str) -> bool:
     """Reports whether a comment is prose to correct, not code or directive."""
     text = _comment_text(comment_string)
@@ -433,4 +491,27 @@ def _recased_comment_line(
         start = column + offset
         if line[start : start + len(found)] == found:
             line = line[:start] + canonical + line[start + len(found) :]
+    return line
+
+
+def _rewrite_gcp_comment_line(line: str, column: int, comment_string: str) -> str:
+    """Returns `line` with each disfavored name in its comment rewritten.
+
+    The comment begins at `column` on `line`, so a term offset within the
+    comment shifts by `column` to index `line`. A replacement changes length,
+    so the faults are applied in descending offset order, keeping each earlier
+    offset valid.
+    """
+    faults = sorted(
+        (
+            (column + offset, found, preferred)
+            for offset, found, preferred in disfavored_gcp_terms_in_prose(
+                comment_string
+            )
+        ),
+        reverse=True,
+    )
+    for start, found, preferred in faults:
+        if line[start : start + len(found)] == found:
+            line = line[:start] + preferred + line[start + len(found) :]
     return line

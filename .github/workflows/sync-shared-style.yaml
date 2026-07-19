@@ -1,13 +1,13 @@
 name: sync shared style files
 
-# docs/judgment-conventions.md (the judgment canon) and ruff-base.toml (the
-# shared ruff baseline) are org-wide style sources. Consumer repos vendor
-# read-only copies — the canon imported from CLAUDE.md, ruff-base.toml extended
-# from pyproject.toml — so both sit where a coding agent and the linter see
-# them, not only at review. When either changes on main, mint a
-# gradienthealth-bot token, copy both into each consumer repo, and open a pull
-# request. Edit these here, never the vendored copies — the next sync
-# overwrites them.
+# docs/judgment-conventions.md (the judgment canon), docs/gcp-naming.md (the
+# Google Cloud naming convention), and ruff-base.toml (the shared ruff
+# baseline) are org-wide style sources. Consumer repos vendor read-only copies
+# — the docs imported from CLAUDE.md, ruff-base.toml extended from
+# pyproject.toml — so each sits where a coding agent and the linter see it, not
+# only at review. When any changes on main, mint a gradienthealth-bot token,
+# copy them into each consumer repo, and open a pull request. Edit these here,
+# never the vendored copies — the next sync overwrites them.
 
 on:
   push:
@@ -15,6 +15,7 @@ on:
       - main
     paths:
       - docs/judgment-conventions.md
+      - docs/gcp-naming.md
       - ruff-base.toml
   workflow_dispatch:
 
@@ -60,6 +61,7 @@ jobs:
       - name: Copy the style sources into ${{ matrix.repo }}
         run: |
           cp source/docs/judgment-conventions.md target/docs/judgment-conventions.md
+          cp source/docs/gcp-naming.md target/docs/gcp-naming.md
           cp source/ruff-base.toml target/ruff-base.toml
 
       - name: Open a sync pull request
@@ -72,6 +74,6 @@ jobs:
           title: "docs: sync shared style files from repostyle"
           body: |
             Automated sync of the shared style sources from gradienthealth/repostyle
-            (judgment-conventions.md and ruff-base.toml). These are read-only
-            mirrors — change them upstream in repostyle, not here.
+            (judgment-conventions.md, gcp-naming.md, and ruff-base.toml). These are
+            read-only mirrors — change them upstream in repostyle, not here.
           delete-branch: true
