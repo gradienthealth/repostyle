@@ -180,6 +180,12 @@ class TestFixGCPProductNameInDocstrings:
         source = 'def f():\n    """The Cloud Storage bucket in Google Cloud."""\n'
         assert fix_gcp_product_name_in_docstrings(_PY, source) == source
 
+    def test_OneLineDef_RewritesDocstringNotSignature(self) -> None:
+        source = 'def f(gcp): """Uses GCS."""\n'
+        assert fix_gcp_product_name_in_docstrings(_PY, source) == (
+            'def f(gcp): """Uses Cloud Storage."""\n'
+        )
+
 
 class TestFixGCPProductNameInComments:
     def test_DisfavoredTerms_RewriteToPreferred(self) -> None:

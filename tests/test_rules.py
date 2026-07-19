@@ -368,6 +368,22 @@ class TestCheckGCPProductNameInDocstrings:
         assert len(violations) == 1  # the description's `GCP`, not the `gcp:` caption
         assert violations[0].line == 5
 
+    def test_OneLineDefSignature_NotScannedAsProse(self) -> None:
+        source = 'def f(gcp): """Uses GCS."""\n'
+        violations = list(
+            check_gcp_product_name_in_docstrings(Path("src/x.py"), source)
+        )
+        assert len(violations) == 1  # the docstring's `GCS`, not the `gcp` parameter
+        assert "GCS" in violations[0].message
+
+    def test_TrailingCommentOnClosingLine_NotScanned(self) -> None:
+        source = 'def f():\n    """Uses GCS."""  # deploys to GCP\n'
+        violations = list(
+            check_gcp_product_name_in_docstrings(Path("src/x.py"), source)
+        )
+        assert len(violations) == 1  # the docstring's `GCS`, not the comment's `GCP`
+        assert "GCS" in violations[0].message
+
 
 class TestCheckGCPProductNameInComments:
     @pytest.mark.parametrize(

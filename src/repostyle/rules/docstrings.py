@@ -814,16 +814,18 @@ def _docstring_acronym_faults(
     """Yields `(lineno, offset, found, canonical)` for each miscased acronym.
 
     Scans each source line the docstring's prose units occupy — the segmenter
-    already drops fences, doctests, and `Example:` sections — and blanks an
-    entry unit's leading `name:` caption on its first line, so a parameter
-    named for a lowercased acronym (`url:`) is not mistaken for prose to
+    already drops fences, doctests, and `Example:` sections — confined to the
+    docstring literal's own columns, so a one-line `def`/`class` signature or a
+    trailing comment sharing the line is excluded, and with an entry unit's
+    leading `name:` caption blanked, so neither a signature name nor a
+    parameter named for a lowercased acronym (`url:`) is mistaken for prose to
     correct.
     """
     units = _docstring_prose_units(constant)
     prose_lines = frozenset(lineno for unit in units for lineno in unit.linenos)
     caption_lines = {unit.linenos[0] for unit in units if unit.kind == "entry"}
     for lineno in sorted(prose_lines):
-        line = source_lines[lineno - 1]
+        line = _blank_outside_docstring(source_lines[lineno - 1], lineno, constant)
         scanned = _blank_entry_caption(line) if lineno in caption_lines else line
         for offset, found, canonical in miscased_acronyms_in_prose(
             scanned, canonical_casing
@@ -904,15 +906,17 @@ def _docstring_gcp_term_faults(
     """Yields `(lineno, offset, found, preferred)` for each disfavored name.
 
     Scans each source line the docstring's prose units occupy — the segmenter
-    already drops fences, doctests, and `Example:` sections — and blanks an
-    entry unit's leading `name:` caption, so a parameter named for a Google
-    Cloud term is not mistaken for prose to correct.
+    already drops fences, doctests, and `Example:` sections — confined to the
+    docstring literal's own columns, so a one-line `def`/`class` signature or a
+    trailing comment sharing the line is excluded, and with an entry unit's
+    leading `name:` caption blanked, so neither a signature name nor a
+    parameter named for a Google Cloud term is mistaken for prose to correct.
     """
     units = _docstring_prose_units(constant)
     prose_lines = frozenset(lineno for unit in units for lineno in unit.linenos)
     caption_lines = {unit.linenos[0] for unit in units if unit.kind == "entry"}
     for lineno in sorted(prose_lines):
-        line = source_lines[lineno - 1]
+        line = _blank_outside_docstring(source_lines[lineno - 1], lineno, constant)
         scanned = _blank_entry_caption(line) if lineno in caption_lines else line
         for offset, found, preferred in disfavored_gcp_terms_in_prose(scanned):
             yield lineno, offset, found, preferred
@@ -932,6 +936,21 @@ def _blank_entry_caption(line: str) -> str:
     indent = len(line) - len(stripped)
     end = indent + match.end()
     return line[:indent] + " " * (end - indent) + line[end:]
+
+
+def _blank_outside_docstring(line: str, lineno: int, constant: ast.Constant) -> str:
+    """Blanks the parts of a shared physical line outside the docstring.
+
+    A one-line `def` or `class` puts its signature on the same physical line as
+    the docstring, and a comment can trail the closing quote, so scanning the
+    whole line would read a signature name or a trailing comment as docstring
+    prose. Blanking the columns before the literal's start on its first line
+    and after its end on its last line to equal-length spaces confines the scan
+    to the docstring while keeping every following offset valid.
+    """
+    start = constant.col_offset if lineno == constant.lineno else 0
+    end = constant.end_col_offset if lineno == constant.end_lineno else len(line)
+    return " " * start + line[start:end] + " " * (len(line) - end)
 
 
 def _rewrite_gcp_terms(line: str, faults: list[_GcpTermFault]) -> str:
