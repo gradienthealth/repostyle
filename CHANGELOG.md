@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.22.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.21.0...repostyle-v0.22.0) (2026-07-19)
+
+
+### Features
+
+* **PROC-2517:** add RS049 acronym-casing-in-prose rule ([#121](https://github.com/gradienthealth/repostyle/issues/121)) ([cf55181](https://github.com/gradienthealth/repostyle/commit/cf551818d6a8497c018c04302af1d07ededf1f6c))
+* **PROC-2518:** add RS050 flagging disfavored Google Cloud names in prose ([#123](https://github.com/gradienthealth/repostyle/issues/123)) ([be13489](https://github.com/gradienthealth/repostyle/commit/be13489af35bb89007697c32c00e6b16b96a670d))
+* **PROC-2520:** add RS051 flagging bare Google Cloud id parameters ([#124](https://github.com/gradienthealth/repostyle/issues/124)) ([ac06d0b](https://github.com/gradienthealth/repostyle/commit/ac06d0b506da02751bb0ed6ec791020793754854))
+* **PROC-2522:** add shellcheck and shfmt to the exported gate suite ([#125](https://github.com/gradienthealth/repostyle/issues/125)) ([589d198](https://github.com/gradienthealth/repostyle/commit/589d19892d288fe395d246318d7d3abd9a1e1f66))
+
 ## [0.21.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.20.1...repostyle-v0.21.0) (2026-07-18)
 
 
