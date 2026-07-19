@@ -304,7 +304,7 @@ skip = "uv.lock,*.svg,.git"
 ignore-words-list = "datas,ehr,fo,hist"
 ```
 
-The two shell gates configure differently, since neither tool reads `pyproject.toml`. `shellcheck` reads a `.shellcheckrc` at the repo root (for example `disable=SC1091` to skip unfollowable `source` targets), so a repo tuning it commits that file. `shfmt` takes flags rather than a config file: the `repostyle-shfmt` hook runs `shfmt -d`, which fails on any file that is not already formatted, and a repo picks its formatting dialect by appending flags in its hook entry — `args: ["-i", "2", "-ci"]` for two-space indented, switch-case-indented scripts.
+The two shell gates configure differently, since neither tool reads `pyproject.toml`. `shellcheck` reads a `.shellcheckrc` at the repo root (for example `disable=SC1091` to skip unfollowable `source` targets), so a repo tuning it commits that file. `shfmt` takes flags rather than a config file: the `repostyle-shfmt` hook runs `shfmt -d -i 2 -ci`, so it enforces the house default of two-space, switch-case indentation (per Google's Shell Style Guide, which forbids tabs) and fails on any file that is not already formatted — a consumer gets the house dialect with zero per-repo config, the same way the other `repostyle-*` gates ship opinionated house settings. A repo that wants a different indent overrides via the hook's `args` (for example `args: ["-i", "4"]`), since shfmt honors the last `-i` it is given.
 
 ### As a package extra
 
@@ -330,7 +330,8 @@ lint = [
         types: [python]
       # ...and one local hook per gate (vulture, deptry, interrogate, codespell,
       # shellcheck, shfmt), each `uv run --group lint <tool>`, so the tool
-      # resolves from the extra.
+      # resolves from the extra. This path does not inherit the exported hook's
+      # entry, so give shfmt the same `-i 2 -ci` the exported hook bakes in.
 ```
 
 ### Gates that stay consumer-side
