@@ -781,12 +781,23 @@ def _is_str_annotation(annotation: ast.expr | None) -> bool:
     if isinstance(annotation, ast.Constant) and isinstance(annotation.value, str):
         return annotation.value.replace(" ", "") in _STR_FORWARD_REFS
     if isinstance(annotation, ast.BinOp) and isinstance(annotation.op, ast.BitOr):
-        return _is_str_annotation(annotation.left) or _is_str_annotation(
-            annotation.right
+        arms = (annotation.left, annotation.right)
+        return any(_is_str_annotation(arm) for arm in arms) and all(
+            _is_str_annotation(arm) or _is_none_constant(arm) for arm in arms
         )
     if isinstance(annotation, ast.Subscript) and _is_optional_name(annotation.value):
         return _is_str_annotation(annotation.slice)
     return False
+
+
+def _is_none_constant(annotation: ast.expr) -> bool:
+    """Reports whether an annotation node is the bare `None` literal.
+
+    A `str | None` union is the only mixed form RS051 treats as a string, so
+    the `None` arm has to be told apart from any other non-`str` type sharing
+    the union.
+    """
+    return isinstance(annotation, ast.Constant) and annotation.value is None
 
 
 def _is_optional_name(node: ast.expr) -> bool:

@@ -1,6 +1,6 @@
 # Google Cloud naming conventions
 
-Gradient runs on Google Cloud, and two kinds of naming drift without a written convention, each caught today only by manual review. This doc records both, and maps each to the enforcement layer that owns it: a `repostyle` rule where the convention is mechanizable, and a `common-style-review` lens plus this doc where it resists a rule.
+Gradient runs on Google Cloud, and two kinds of naming drift without a written convention. This doc records both, and maps each to the enforcement layer that owns it: a `repostyle` rule reaches the mechanizable subset, and a `common-style-review` lens plus this doc cover what resists a rule.
 
 The two facets are independent. Facet 1 is about identifiers in our own code; Facet 2 is about product and brand names in prose.
 
@@ -41,7 +41,7 @@ Under this convention the first argument is a `logical_name` and the id argument
 Deciding whether a given `*_name` holds a bare id, a path, or a URN name is dataflow-dependent, and a linter sees only the identifier, so the full convention is judgment, not a rule:
 
 - **Judgment** — the `common-style-review` naming lens (section Q) reviews the subtle name / id / logical-name calls on a changed line.
-- **Mechanical (candidate, not yet built)** — a narrow, low-false-positive rule could reach only the unambiguous subset: a bare parameter named exactly `project` / `bucket` / `dataset` (suggest the `_id` suffix), or a `*_name` parameter passed straight to a Pulumi `project=` / id argument. Left as a possible follow-up; the judgment lens is the primary enforcement.
+- **Mechanical** — `repostyle` **RS051** (`gcp-bare-identifier`), a warning over the unambiguous subset: a `str`-typed parameter named exactly for a Google Cloud resource collection (`project`, `bucket`, `dataset`, `topic`, `subscription`, `instance`) wants the `_id` suffix. It reaches only the exact-match, string-annotated case; a `*_name` parameter passed straight to a Pulumi `project=` / id argument stays with the judgment lens, since that call is dataflow-dependent. The judgment lens remains the primary enforcement.
 
 ## Facet 2 — Google Cloud product and brand names in prose
 
