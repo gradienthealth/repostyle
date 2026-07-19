@@ -1828,8 +1828,10 @@ class TestCheckGCPBareIdentifier:
             ("def f(dataset: str): ...", "dataset"),
             ("def f(topic: str | None): ...", "topic"),
             ("def f(subscription: Optional[str]): ...", "subscription"),
+            ("def f(project: typing.Optional[str]): ...", "project"),
             ('def f(instance: "str"): ...', "instance"),
             ("class C:\n    def m(self, project: str): ...", "project"),
+            ("async def f(dataset: str): ...", "dataset"),
             ("def f(*, dataset: str): ...", "dataset"),
         ],
         ids=[
@@ -1838,8 +1840,10 @@ class TestCheckGCPBareIdentifier:
             "dataset",
             "union-optional",
             "optional-subscript",
+            "qualified-optional",
             "forward-ref",
             "method-parameter",
+            "async-function",
             "keyword-only",
         ],
     )
