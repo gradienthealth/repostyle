@@ -24,13 +24,13 @@ into the tag.
 
 RS030 holds a comment to the house terminal-punctuation rule: a prose comment
 ends with terminal punctuation, while a single-line fragment does not. The
-check spans Python, TOML, and YAML comments alike, and its `--fix` half repairs
-Python comments in place.
+check spans Python, TOML, YAML, and shell comments alike, and its `--fix` half
+repairs Python comments in place.
 
 RS045 flags a temporal or edit-narrative marker in a comment, the same curated
 set it holds docstrings to, so a comment states the code's present contract
-rather than narrating the change that produced it. It spans Python, TOML, and
-YAML comments alike.
+rather than narrating the change that produced it. It spans Python, TOML, YAML,
+and shell comments alike.
 """
 
 from __future__ import annotations
@@ -139,8 +139,8 @@ def check_tag_comment_continuation_indent(
     starts a separate one, so an independent note is set off by a blank line
     rather than folded into the tag. A continuation that is itself a tag
     comment is a new tag, not a wrap, and is left alone. The check runs over
-    Python, TOML, and YAML comments alike, since a `#` comment reads the same
-    in each.
+    Python, TOML, YAML, and shell comments alike, since a `#` comment reads the
+    same in each.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -237,8 +237,8 @@ def check_comment_terminal_punctuation(path: Path, source: str) -> Iterator[Viol
     end with a period; a comment spanning lines or running more than one
     sentence reads as prose and must end with `.`, `!`, or `?`. A tool
     directive, a coding line, and a commented-out statement are not prose and
-    are left alone. The check runs over Python, TOML, and YAML comments alike,
-    since a `#` comment reads the same in each.
+    are left alone. The check runs over Python, TOML, YAML, and shell comments
+    alike, since a `#` comment reads the same in each.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -260,7 +260,7 @@ def fix_comment_terminal_punctuation(
     fragment carrying one drops it, including a period sitting before trailing
     closers (`note.)`), so the repair matches what the rule flags. A comment
     whose line is in `skip_lines` is left untouched. The fix runs on Python
-    only, though the check spans TOML and YAML too.
+    only, though the check spans TOML, YAML, and shell too.
 
     Returns:
         The source with each flagged comment's terminal punctuation repaired,
@@ -290,7 +290,8 @@ def _comment_terminal_faults(path: Path, source: str) -> Iterator[tuple[int, int
 
     Trailing comments and standalone blocks are both covered, so the check and
     its fixer see the same flagged locations. Comments are read across Python,
-    TOML, and YAML. The fault is `"missing"` or `"extra"`, per the house rule.
+    TOML, YAML, and shell. The fault is `"missing"` or `"extra"`, per the house
+    rule.
     """
     for comment in extract_comments(path, source):
         if not comment.is_trailing:
@@ -328,8 +329,8 @@ def check_comment_temporal_markers(path: Path, source: str) -> Iterator[Violatio
     which narrate the edit rather than the code just as a docstring can. A tool
     directive is skipped, and a marker quoted inside a backtick span is a
     referenced token, not narration, and is left alone. The check runs over
-    Python, TOML, and YAML comments alike, since a `#` comment reads the same
-    in each.
+    Python, TOML, YAML, and shell comments alike, since a `#` comment reads the
+    same in each.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -356,8 +357,9 @@ def check_acronym_casing_in_comments(path: Path, source: str) -> Iterator[Violat
     `NAT`). The resolved set, whole-word matching, and the backtick and URL
     exemptions are the docstring rule's; additionally a directive comment and a
     commented-out statement are skipped, since neither is prose to correct. The
-    check runs over Python, TOML, and YAML comments alike, since a `#` comment
-    reads the same in each; the `--fix` half repairs Python comments in place.
+    check runs over Python, TOML, YAML, and shell comments alike, since a `#`
+    comment reads the same in each; the `--fix` half repairs Python comments in
+    place.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -387,7 +389,7 @@ def fix_acronym_casing_in_comments(
     Each occurrence the comment check flags is replaced in place with the
     acronym's canonical casing; the rewrite is case-only and never changes
     length. A comment whose line is in `skip_lines` is left untouched. The fix
-    runs on Python only, though the check spans TOML and YAML too.
+    runs on Python only, though the check spans TOML, YAML, and shell too.
 
     Returns:
         The source with each flagged acronym recased, unchanged when nothing
@@ -423,9 +425,9 @@ def check_disfavored_gcp_term_in_comments(
     flagged and, under `--fix`, rewritten to its current form. The map, the
     whole-word case-insensitive matching, and the backtick and URL exemptions
     are the docstring rule's; additionally a directive comment and a
-    commented-out statement are skipped. The check runs over Python, TOML, and
-    YAML comments alike, since a `#` comment reads the same in each; the
-    `--fix` half repairs Python comments in place.
+    commented-out statement are skipped. The check runs over Python, TOML,
+    YAML, and shell comments alike, since a `#` comment reads the same in each;
+    the `--fix` half repairs Python comments in place.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -450,7 +452,7 @@ def fix_disfavored_gcp_term_in_comments(
     preferred form. A replacement changes length, so a comment's faults are
     applied right to left, keeping each earlier offset valid. A comment whose
     line is in `skip_lines` is left untouched. The fix runs on Python only,
-    though the check spans TOML and YAML too.
+    though the check spans TOML, YAML, and shell too.
 
     Returns:
         The source with each flagged name rewritten, unchanged when nothing

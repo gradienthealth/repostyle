@@ -192,7 +192,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "A paragraph wrapped well short of the limit, or running past it, "
             "reads as ragged and churns diffs when reflowed by hand. Fill each "
             "prose paragraph to 79 columns. Docstrings are checked in Python; "
-            "comments in Python, TOML, and YAML alike. `--fix` rewrites Python "
+            "comments in Python, TOML, YAML, and shell alike. `--fix` rewrites Python "
             "in place."
         ),
     ),
@@ -408,7 +408,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "continuation is indented, an independent comment is set off by a "
             "blank line. A follow-on line that is itself a tag comment is a new "
             "tag, not a wrap, and is left alone. The check spans Python, TOML, "
-            "and YAML comments."
+            "YAML, and shell comments."
         ),
         examples=(
             Example(
@@ -475,7 +475,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         name="terminal-punctuation",
         summary=(
             "A docstring or comment prose unit ends with terminal punctuation "
-            "(`.`, `!`, or `?`); comments are checked in Python, TOML, and YAML."
+            "(`.`, `!`, or `?`); comments are checked in Python, TOML, YAML, and shell."
         ),
     ),
     RS_ARG_DESCRIBED_IN_PROSE: RuleDoc(

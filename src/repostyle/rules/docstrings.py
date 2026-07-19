@@ -285,7 +285,7 @@ def check_glued_code_span_in_comments(path: Path, source: str) -> Iterator[Viola
     The same rule the docstring check applies holds for a comment: a suffix run
     onto a code span's closing backtick reads as part of the identifier. A
     standalone and a trailing comment are covered alike, across the Python,
-    TOML, and YAML comments `extract_comments` handles — tokenizing a
+    TOML, YAML, and shell comments `extract_comments` handles — tokenizing a
     non-Python file as Python here would raise on its first irregular indent.
     """
     if path.suffix not in COMMENT_SUFFIXES:

@@ -42,5 +42,5 @@ repos:
         # `python3` (3.11+) needs nothing installed.
         entry: env PYTHONPATH=src python3 -m repostyle.cli
         language: system
-        types_or: [python, markdown, toml, yaml]
+        types_or: [python, markdown, toml, yaml, shell]
         exclude: ^CHANGELOG\.md$

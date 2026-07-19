@@ -9,7 +9,7 @@
   name: repostyle
   entry: repostyle
   language: python
-  types_or: [python, markdown, toml, yaml]
+  types_or: [python, markdown, toml, yaml, shell]
 
 - id: repostyle-bandit
   name: bandit (via repostyle)
