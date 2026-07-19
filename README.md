@@ -304,7 +304,7 @@ skip = "uv.lock,*.svg,.git"
 ignore-words-list = "datas,ehr,fo,hist"
 ```
 
-The two shell gates configure differently, since neither tool reads `pyproject.toml`. `shellcheck` reads a `.shellcheckrc` at the repo root (for example `disable=SC1091` to skip unfollowable `source` targets), so a repo tuning it commits that file. `shfmt` takes flags rather than a config file: the `repostyle-shfmt` hook runs `shfmt -d -i 2 -ci`, so it enforces the house default of two-space, switch-case indentation (per Google's Shell Style Guide, which forbids tabs) and fails on any file that is not already formatted — a consumer gets the house dialect with zero per-repo config, the same way the other `repostyle-*` gates ship opinionated house settings. A repo that wants a different indent overrides via the hook's `args` (for example `args: ["-i", "4"]`), since shfmt honors the last `-i` it is given.
+The two shell gates configure differently, since neither tool reads `pyproject.toml`. `shellcheck` reads a `.shellcheckrc` at the repo root (for example `disable=SC1091` to skip unfollowable `source` targets), so a repo tuning it commits that file. `shfmt` takes flags rather than a config file: the `repostyle-shfmt` hook runs `shfmt -d -i 2 -ci`, so it enforces the house default of two-space, switch-case indentation (per Google's Shell Style Guide, which forbids tabs) and fails on any file that is not already formatted — a consumer gets the house dialect with zero per-repo config, since the flags ride the hook entry rather than a consumer-side `[tool.*]` table. A repo that wants a different indent overrides via the hook's `args` (for example `args: ["-i", "4"]`), since shfmt honors the last `-i` it is given.
 
 ### As a package extra
 
