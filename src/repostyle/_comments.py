@@ -298,6 +298,11 @@ def _shell_scan_code(line: str, start: int) -> tuple[int | None, _ShellState]:
         if step is not None:
             index = step
             continue
+        if line.startswith("<<<", index):
+            # A here-string, not a heredoc. Skipping all three `<` together
+            # keeps the trailing `<<` from opening a spurious heredoc.
+            index += 3
+            continue
         opener = _heredoc_opener(line, index)
         if opener is not None:
             pending = pending or opener[0]
@@ -317,11 +322,10 @@ def _heredoc_opener(line: str, index: int) -> tuple[_Heredoc, int] | None:
     """Parses a `<<WORD` heredoc redirection at `index`, or returns `None`.
 
     Handles `<<`, the tab-stripping `<<-`, and a quoted (`<<'EOF'`) or bare
-    delimiter. A `<<<` here-string is not a heredoc. Returns the heredoc and
-    the index past the delimiter, so the rest of the line still scans for a
-    trailing comment.
+    delimiter. Returns the heredoc and the index past the delimiter, so the
+    rest of the line still scans for a trailing comment.
     """
-    if not line.startswith("<<", index) or line[index + 2 : index + 3] == "<":
+    if not line.startswith("<<", index):
         return None
     cursor = index + 2
     has_tab_stripping = line[cursor : cursor + 1] == "-"

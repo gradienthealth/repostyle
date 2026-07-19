@@ -129,6 +129,13 @@ class TestExtractComments:
         source = "cat <<'EOF'  # note\nfolded # literal\nEOF\n"
         assert _comments(Path("s.sh"), source) == [(1, 13, True, "note")]
 
+    def test_ShellHereString_IsNotTreatedAsHeredoc(self) -> None:
+        source = 'grep foo <<< "$input"  # note\nx=1  # real\n'
+        assert _comments(Path("s.sh"), source) == [
+            (1, 23, True, "note"),
+            (2, 5, True, "real"),
+        ]
+
     def test_ShellDoubleQuotedStringSpanningLines_IsNotScanned(self) -> None:
         source = 'x="line1\nline2 # not"\nz=1  # real\n'
         assert _comments(Path("s.sh"), source) == [(3, 5, True, "real")]
