@@ -44,6 +44,8 @@ from repostyle.rules import (
     check_comment_terminal_punctuation,
     check_conditional_test_logic,
     check_discouraged_class_suffix,
+    check_disfavored_gcp_term_in_comments,
+    check_disfavored_gcp_term_in_docstrings,
     check_doc_fill,
     check_doc_summary_overflow,
     check_docstring_temporal_markers,
@@ -52,8 +54,6 @@ from repostyle.rules import (
     check_eq_hash_pairing,
     check_exception_alias,
     check_excessive_mocking,
-    check_gcp_product_name_in_comments,
-    check_gcp_product_name_in_docstrings,
     check_glued_code_span_in_comments,
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
@@ -323,7 +323,7 @@ class TestCheckGCPProductNameInDocstrings:
     ) -> None:
         source = f'def f():\n    """{prose}"""\n'
         violations = list(
-            check_gcp_product_name_in_docstrings(Path("src/x.py"), source)
+            check_disfavored_gcp_term_in_docstrings(Path("src/x.py"), source)
         )
         assert violations[0].rule == RS_DISFAVORED_GCP_TERM
         assert f"'{found}'" in violations[0].message
@@ -351,7 +351,8 @@ class TestCheckGCPProductNameInDocstrings:
     def test_ConformingProse_NoViolation(self, prose: str) -> None:
         source = f'def f():\n    """{prose}"""\n'
         assert (
-            list(check_gcp_product_name_in_docstrings(Path("src/x.py"), source)) == []
+            list(check_disfavored_gcp_term_in_docstrings(Path("src/x.py"), source))
+            == []
         )
 
     def test_ArgsEntryCaption_LeavesParameterName(self) -> None:
@@ -363,7 +364,7 @@ class TestCheckGCPProductNameInDocstrings:
             '    """\n'
         )
         violations = list(
-            check_gcp_product_name_in_docstrings(Path("src/x.py"), source)
+            check_disfavored_gcp_term_in_docstrings(Path("src/x.py"), source)
         )
         assert len(violations) == 1  # the description's `GCP`, not the `gcp:` caption
         assert violations[0].line == 5
@@ -371,7 +372,7 @@ class TestCheckGCPProductNameInDocstrings:
     def test_OneLineDefSignature_NotScannedAsProse(self) -> None:
         source = 'def f(gcp): """Uses GCS."""\n'
         violations = list(
-            check_gcp_product_name_in_docstrings(Path("src/x.py"), source)
+            check_disfavored_gcp_term_in_docstrings(Path("src/x.py"), source)
         )
         assert len(violations) == 1  # the docstring's `GCS`, not the `gcp` parameter
         assert "GCS" in violations[0].message
@@ -379,7 +380,7 @@ class TestCheckGCPProductNameInDocstrings:
     def test_TrailingCommentOnClosingLine_NotScanned(self) -> None:
         source = 'def f():\n    """Uses GCS."""  # deploys to GCP\n'
         violations = list(
-            check_gcp_product_name_in_docstrings(Path("src/x.py"), source)
+            check_disfavored_gcp_term_in_docstrings(Path("src/x.py"), source)
         )
         assert len(violations) == 1  # the docstring's `GCS`, not the comment's `GCP`
         assert "GCS" in violations[0].message
@@ -398,7 +399,9 @@ class TestCheckGCPProductNameInComments:
         self, comment: str, found: str, preferred: str
     ) -> None:
         source = f"{comment}\nx = 1\n"
-        violations = list(check_gcp_product_name_in_comments(Path("src/x.py"), source))
+        violations = list(
+            check_disfavored_gcp_term_in_comments(Path("src/x.py"), source)
+        )
         assert violations[0].rule == RS_DISFAVORED_GCP_TERM
         assert f"'{found}'" in violations[0].message
         assert f"'{preferred}'" in violations[0].message
@@ -414,12 +417,14 @@ class TestCheckGCPProductNameInComments:
     )
     def test_ConformingComment_NoViolation(self, comment: str) -> None:
         source = f"{comment}\nx = 1\n"
-        assert list(check_gcp_product_name_in_comments(Path("src/x.py"), source)) == []
+        assert (
+            list(check_disfavored_gcp_term_in_comments(Path("src/x.py"), source)) == []
+        )
 
     def test_TomlComment_FlagsDisfavoredTerm(self) -> None:
         source = "# the GCS staging bucket\nkey = 1\n"
         violations = list(
-            check_gcp_product_name_in_comments(Path("pyproject.toml"), source)
+            check_disfavored_gcp_term_in_comments(Path("pyproject.toml"), source)
         )
         assert violations[0].rule == RS_DISFAVORED_GCP_TERM
 

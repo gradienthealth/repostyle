@@ -29,7 +29,8 @@ jobs:
       fail-fast: false
       matrix:
         # Consumer repos that vendor these files, kept alphabetical. Add a repo
-        # here once it vendors docs/judgment-conventions.md and ruff-base.toml.
+        # here once it vendors docs/judgment-conventions.md,
+        # docs/gcp-naming.md, and ruff-base.toml.
         repo:
           - dicom-ingestor
           - fhir-ingestor

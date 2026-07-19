@@ -413,7 +413,9 @@ def fix_acronym_casing_in_comments(
     return _join_source_lines(source, source_lines) if changed else source
 
 
-def check_gcp_product_name_in_comments(path: Path, source: str) -> Iterator[Violation]:
+def check_disfavored_gcp_term_in_comments(
+    path: Path, source: str
+) -> Iterator[Violation]:
     """Flags a disfavored Google Cloud product or brand name in a comment.
 
     RS050's docstring rule carried to `#` comments: a whole-word occurrence of
@@ -439,7 +441,7 @@ def check_gcp_product_name_in_comments(path: Path, source: str) -> Iterator[Viol
             )
 
 
-def fix_gcp_product_name_in_comments(
+def fix_disfavored_gcp_term_in_comments(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
     """Rewrites each disfavored Google Cloud name in a comment, RS050's fix.

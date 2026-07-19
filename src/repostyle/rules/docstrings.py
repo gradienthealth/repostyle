@@ -817,9 +817,8 @@ def _docstring_acronym_faults(
     already drops fences, doctests, and `Example:` sections — confined to the
     docstring literal's own columns, so a one-line `def`/`class` signature or a
     trailing comment sharing the line is excluded, and with an entry unit's
-    leading `name:` caption blanked, so neither a signature name nor a
-    parameter named for a lowercased acronym (`url:`) is mistaken for prose to
-    correct.
+    leading `name:` caption blanked, so a parameter named for a lowercased
+    acronym (`url:`) is not mistaken for prose to correct.
     """
     units = _docstring_prose_units(constant)
     prose_lines = frozenset(lineno for unit in units for lineno in unit.linenos)
@@ -833,7 +832,7 @@ def _docstring_acronym_faults(
             yield lineno, offset, found, canonical
 
 
-def check_gcp_product_name_in_docstrings(
+def check_disfavored_gcp_term_in_docstrings(
     path: Path, source: str
 ) -> Iterator[Violation]:
     """Flags a disfavored Google Cloud product or brand name in a docstring.
@@ -867,7 +866,7 @@ def check_gcp_product_name_in_docstrings(
             )
 
 
-def fix_gcp_product_name_in_docstrings(
+def fix_disfavored_gcp_term_in_docstrings(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
     """Rewrites each disfavored Google Cloud name in a docstring, RS050's fix.
@@ -909,8 +908,8 @@ def _docstring_gcp_term_faults(
     already drops fences, doctests, and `Example:` sections — confined to the
     docstring literal's own columns, so a one-line `def`/`class` signature or a
     trailing comment sharing the line is excluded, and with an entry unit's
-    leading `name:` caption blanked, so neither a signature name nor a
-    parameter named for a Google Cloud term is mistaken for prose to correct.
+    leading `name:` caption blanked, so a parameter named for a Google Cloud
+    term is not mistaken for prose to correct.
     """
     units = _docstring_prose_units(constant)
     prose_lines = frozenset(lineno for unit in units for lineno in unit.linenos)

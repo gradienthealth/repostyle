@@ -65,7 +65,7 @@ from repostyle.rules.comments import (
     check_comment_tag_format,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
-    check_gcp_product_name_in_comments,
+    check_disfavored_gcp_term_in_comments,
     check_tag_comment_continuation_indent,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
@@ -79,11 +79,11 @@ from repostyle.rules.doc_value import (
 )
 from repostyle.rules.docstrings import (
     check_acronym_casing_in_docstrings,
+    check_disfavored_gcp_term_in_docstrings,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
-    check_gcp_product_name_in_docstrings,
     check_glued_code_span_in_comments,
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
@@ -207,8 +207,8 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
         check_acronym_casing_in_comments,
     ),
     RS_DISFAVORED_GCP_TERM: (
-        check_gcp_product_name_in_docstrings,
-        check_gcp_product_name_in_comments,
+        check_disfavored_gcp_term_in_docstrings,
+        check_disfavored_gcp_term_in_comments,
     ),
 }
 
