@@ -43,6 +43,7 @@ from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_GCP_BARE_IDENTIFIER,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_LOWERCASE_ENTRY_DESCRIPTION,
@@ -71,7 +72,7 @@ from repostyle.rules._violation import (
     RS_UNBACKTICKED_SIBLING_SYMBOL,
 )
 from repostyle.rules.imperative_verbs import NON_TRIVIAL_CONJUGATIONS
-from repostyle.rules.naming import DISFAVORED_GCP_TERMS
+from repostyle.rules.naming import DISFAVORED_GCP_TERMS, GCP_COLLECTION_NOUNS
 
 
 class Example(NamedTuple):
@@ -986,6 +987,39 @@ RULE_DOCS: dict[str, RuleDoc] = {
         reference=tuple(
             f"{term} -> {preferred}"
             for term, preferred in sorted(DISFAVORED_GCP_TERMS.items())
+        ),
+    ),
+    RS_GCP_BARE_IDENTIFIER: RuleDoc(
+        name="gcp-bare-identifier",
+        summary=(
+            "A string-typed parameter named for a Google Cloud resource "
+            "collection (`project`, `bucket`, ...) carries the `_id` suffix."
+        ),
+        rationale=(
+            "AIP-122 distinguishes a resource's bare id (`my-bucket`) from its "
+            "qualified name, the `{collection}/{id}` path. A `str` parameter "
+            "named for the collection alone almost always holds the id, and the "
+            "`_id` suffix says so, so a caller reads the intent without tracing "
+            "the value; it also matches the `project_id` the code should pass to "
+            "a Pulumi `project=` argument, rather than the bare `project` that "
+            "Pulumi's own signature uses. The check fires only on a string "
+            "annotation, so a "
+            "resource object or an `Output` named `project` is left alone, and "
+            "only on an exact-match name, so `project_id` and `bucket_url` are "
+            "not touched. It reaches only this unambiguous subset; whether a "
+            "`*_name` holds a bare id, a path, or a Pulumi logical handle is "
+            "dataflow-dependent and stays with review (`docs/gcp-naming.md`). A "
+            "repo with no Google Cloud resources drops the rule via `ignore`."
+        ),
+        examples=(
+            Example(
+                bad="def grant_viewer(project: str, bucket: str) -> None: ...",
+                good="def grant_viewer(project_id: str, bucket_id: str) -> None: ...",
+                note="Only a `str`-typed, exact collection-noun parameter is flagged.",
+            ),
+        ),
+        reference=tuple(
+            f"{noun} -> {noun}_id" for noun in sorted(GCP_COLLECTION_NOUNS)
         ),
     ),
     RS_PRIVATE_IMPORT: RuleDoc(

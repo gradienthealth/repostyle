@@ -30,6 +30,7 @@ from repostyle.rules._violation import (
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
+    RS_GCP_BARE_IDENTIFIER,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
     RS_LOWERCASE_ENTRY_DESCRIPTION,
@@ -114,6 +115,7 @@ from repostyle.rules.naming import (
     check_boolean_prefix_required,
     check_discouraged_class_suffix,
     check_exception_alias,
+    check_gcp_bare_identifier,
     check_no_make_in_production,
     check_no_negated_boolean,
     check_predicate_function_naming,
@@ -156,6 +158,7 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
     RS_NO_NEGATED_BOOLEAN: (check_no_negated_boolean,),
     RS_BOOLEAN_PREFIX_REQUIRED: (check_boolean_prefix_required,),
     RS_NO_MAKE_IN_PRODUCTION: (check_no_make_in_production,),
+    RS_GCP_BARE_IDENTIFIER: (check_gcp_bare_identifier,),
     RS_COGNITIVE_COMPLEXITY: (check_cognitive_complexity,),
     RS_CONDITIONAL_TEST_LOGIC: (check_conditional_test_logic,),
     RS_SLEEPY_TEST: (check_sleepy_test,),
@@ -257,6 +260,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_PRIVATE_IMPORT: Severity.WARNING,
     RS_ACRONYM_CASING_IN_PROSE: Severity.WARNING,
     RS_DISFAVORED_GCP_TERM: Severity.WARNING,
+    RS_GCP_BARE_IDENTIFIER: Severity.WARNING,
 }
 
 

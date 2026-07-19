@@ -28,6 +28,7 @@ from repostyle.rules._violation import (
     RS_BOOLEAN_PREFIX_REQUIRED,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_EXCEPTION_ALIAS,
+    RS_GCP_BARE_IDENTIFIER,
     RS_NO_MAKE_IN_PRODUCTION,
     RS_NO_NEGATED_BOOLEAN,
     RS_PREDICATE_FUNCTION_NAMING,
@@ -167,6 +168,17 @@ BANNED_ABBREVIATIONS: frozenset[str] = frozenset(
         "resp",
         "usr",
     }
+)
+
+# Google Cloud resource collection nouns whose bare, string-typed parameter
+# almost always carries the resource's bare id (AIP-122), so RS051 asks for the
+# `_id` suffix. Kept tight to hold the false-positive rate down: each reads
+# unambiguously as a Google Cloud resource id when a `str` parameter is named
+# for it, where a wider set (`table`, `key`, `service`, `zone`) would collide
+# with ordinary non-cloud uses. The deeper name/path/handle distinction stays
+# with the review lens, per `docs/gcp-naming.md`.
+GCP_COLLECTION_NOUNS: frozenset[str] = frozenset(
+    {"project", "bucket", "dataset", "topic", "subscription", "instance"}
 )
 
 DISCOURAGED_CLASS_SUFFIXES: tuple[str, ...] = ("Helper", "Manager", "Util", "Utils")
@@ -410,6 +422,39 @@ def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
                 f"production; use 'build_' (in-memory) or 'create_' "
                 f"(side-effecting)",
             )
+
+
+def check_gcp_bare_identifier(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a string parameter named for a Google Cloud resource collection.
+
+    A `str`-typed parameter named exactly for a Google Cloud resource
+    collection (`project`, `bucket`, `dataset`, `topic`, `subscription`,
+    `instance`) almost always holds that resource's bare id, which AIP-122
+    distinguishes from the qualified resource name (the `{collection}/{id}`
+    path). The `_id` suffix (`project` to `project_id`) states which of the two
+    the value carries, so a caller reads the intent without tracing the
+    dataflow. Only a string-typed parameter is flagged, so a resource object or
+    an `Output` passed as `project` is left alone. This reaches only the
+    mechanically-unambiguous subset; the wider name / path / logical-handle
+    distinction is dataflow-dependent and stays with review, per
+    `docs/gcp-naming.md`. A repo with no Google Cloud resources drops the rule
+    through `ignore`.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        for arg in _function_parameters(node):
+            if arg.arg in GCP_COLLECTION_NOUNS and _is_str_annotation(arg.annotation):
+                yield Violation(
+                    arg.lineno,
+                    arg.col_offset + 1,
+                    RS_GCP_BARE_IDENTIFIER,
+                    f"parameter '{arg.arg}' holds a bare Google Cloud resource "
+                    f"identifier; name it '{arg.arg}_id'",
+                )
 
 
 def miscased_acronyms_in_prose(
@@ -685,6 +730,27 @@ def _is_bool_annotation(annotation: ast.expr | None) -> bool:
     return isinstance(annotation, ast.Name) and annotation.id == "bool"
 
 
+# The stringized (forward-reference) annotations RS051 reads as a string type,
+# whitespace removed so `str | None` matches regardless of the author's
+# spacing.
+_STR_FORWARD_REFS: frozenset[str] = frozenset(
+    {"str", "str|None", "None|str", "Optional[str]"}
+)
+
+
+def _function_parameters(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> Iterator[ast.arg]:
+    """Yields a function's positional and keyword parameters.
+
+    The `*args` and `**kwargs` catch-alls are left out, since neither is named
+    for a single resource.
+    """
+    yield from node.args.posonlyargs
+    yield from node.args.args
+    yield from node.args.kwonlyargs
+
+
 def _is_dunder(name: str) -> bool:
     """Reports whether a name is a double-underscore special method."""
     return name.startswith("__") and name.endswith("__")
@@ -700,6 +766,45 @@ def _is_property_setter(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
         isinstance(decorator, ast.Attribute) and decorator.attr == "setter"
         for decorator in node.decorator_list
     )
+
+
+def _is_str_annotation(annotation: ast.expr | None) -> bool:
+    """Reports whether an annotation declares a plain string type.
+
+    Accepts `str`, `str | None`, and `Optional[str]`, resolving a stringized
+    forward reference (`"str"`) and the `None` arm of a union too. Anything
+    else — another type, a `list[str]`, or no annotation — reads as
+    not-a-string, so RS051 fires only where the parameter is declared to hold a
+    plain string.
+    """
+    if isinstance(annotation, ast.Name):
+        return annotation.id == "str"
+    if isinstance(annotation, ast.Constant) and isinstance(annotation.value, str):
+        return annotation.value.replace(" ", "") in _STR_FORWARD_REFS
+    if isinstance(annotation, ast.BinOp) and isinstance(annotation.op, ast.BitOr):
+        arms = (annotation.left, annotation.right)
+        return any(_is_str_annotation(arm) for arm in arms) and all(
+            _is_str_annotation(arm) or _is_none_constant(arm) for arm in arms
+        )
+    if isinstance(annotation, ast.Subscript) and _is_optional_name(annotation.value):
+        return _is_str_annotation(annotation.slice)
+    return False
+
+
+def _is_none_constant(annotation: ast.expr) -> bool:
+    """Reports whether an annotation node is the bare `None` literal.
+
+    RS051 accepts a `str | None` union but not, say, `str | int`, so the `None`
+    arm has to be told apart from any other non-`str` type sharing a union.
+    """
+    return isinstance(annotation, ast.Constant) and annotation.value is None
+
+
+def _is_optional_name(node: ast.expr) -> bool:
+    """Reports whether a subscript base is `Optional` or `typing.Optional`."""
+    if isinstance(node, ast.Name):
+        return node.id == "Optional"
+    return isinstance(node, ast.Attribute) and node.attr == "Optional"
 
 
 def _name_and_position(target: ast.expr) -> Iterator[tuple[str, int, int]]:
