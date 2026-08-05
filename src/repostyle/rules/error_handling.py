@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import ast
 import builtins
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from repostyle._shared import _parse_python
@@ -43,11 +43,6 @@ _BUILTIN_EXCEPTIONS = frozenset(
     if isinstance(value, type) and issubclass(value, BaseException)
 )
 """Every exception the builtins define; anything else is a caller's own."""
-
-# Two structural builtins in one tuple is the threshold, because a single one
-# is routinely deliberate: `except AttributeError` on a duck-typed probe, or
-# the `(TypeError, ValueError)` pair every `int()` conversion needs.
-_MIN_STRUCTURAL_FOR_A_SMELL = 2
 
 
 def check_over_broad_except(path: Path, source: str) -> Iterator[Violation]:
@@ -85,18 +80,28 @@ def _over_broad_violation(node: ast.ExceptHandler) -> Iterator[Violation]:
     if not isinstance(node.type, ast.Tuple) or _is_converting(node):
         return
     caught = [name for element in node.type.elts if (name := _exception_name(element))]
-    structural = sorted({name for name in caught if name in STRUCTURAL_BUILTINS})
-    foreign = sorted({name for name in caught if name not in _BUILTIN_EXCEPTIONS})
-    if not structural:
-        return
-    if len(structural) < _MIN_STRUCTURAL_FOR_A_SMELL and not foreign:
-        return
-    yield Violation(
-        node.lineno,
-        node.col_offset + 1,
-        RS_OVER_BROAD_EXCEPT,
-        _message(structural, foreign),
-    )
+    structural = _unique(name for name in caught if name in STRUCTURAL_BUILTINS)
+    foreign = _unique(name for name in caught if name not in _BUILTIN_EXCEPTIONS)
+    # Two structural builtins is the threshold, because a single one is
+    # routinely deliberate: `except AttributeError` on a duck-typed probe, or
+    # the `(TypeError, ValueError)` pair every `int()` conversion needs. A name
+    # repeated in the tuple counts once, since ruff's `B025` owns that.
+    if structural and (len(structural) > 1 or foreign):
+        yield Violation(
+            node.lineno,
+            node.col_offset + 1,
+            RS_OVER_BROAD_EXCEPT,
+            _message(structural, foreign),
+        )
+
+
+def _unique(names: Iterable[str]) -> list[str]:
+    """Drops repeated names, keeping the order the `except` line reads in.
+
+    Returns:
+        The distinct names, so a message lists them where the eye finds them.
+    """
+    return list(dict.fromkeys(names))
 
 
 def _exception_name(element: ast.expr) -> str | None:

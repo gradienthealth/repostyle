@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from repostyle.rules import RS_OVER_BROAD_EXCEPT, check_over_broad_except
+from repostyle.rules import RS_OVER_BROAD_EXCEPT, Violation, check_over_broad_except
+
+_SRC = Path("src/x.py")
 
 
 class TestCheckOverBroadExcept:
@@ -36,34 +38,32 @@ class TestCheckOverBroadExcept:
                 id="qualified-project-exception",
             ),
             pytest.param(
-                "try:\n"
-                "    f()\n"
-                "except (TypeError, TypeError, KeyError):\n"
-                "    pass\n",
+                "try:\n    f()\nexcept (TypeError, TypeError, KeyError):\n    pass\n",
                 id="repeated-builtin-counted-once-still-reaches-two",
             ),
         ],
     )
     def test_WideHandler_FlagsViolation(self, source: str) -> None:
-        violations = list(check_over_broad_except(Path("src/x.py"), source))
+        violations = _check(source)
         assert len(violations) == 1
         assert violations[0].rule == RS_OVER_BROAD_EXCEPT
 
     def test_MixedHandler_NamesBothSides(self) -> None:
         source = "try:\n    f()\nexcept (ParseError, KeyError):\n    pass\n"
-        violations = list(check_over_broad_except(Path("src/x.py"), source))
-        assert "KeyError" in violations[0].message
-        assert "ParseError" in violations[0].message
+        assert "KeyError" in _check(source)[0].message
+        assert "ParseError" in _check(source)[0].message
 
     def test_BuiltinOnlyHandler_PointsAtWhereToRaiseInstead(self) -> None:
         source = "try:\n    f()\nexcept (AttributeError, KeyError):\n    pass\n"
-        violations = list(check_over_broad_except(Path("src/x.py"), source))
-        assert "raise a named error" in violations[0].message
+        assert "raise a named error" in _check(source)[0].message
+
+    def test_WideHandler_ListsBuiltinsInSourceOrder(self) -> None:
+        source = "try:\n    f()\nexcept (TypeError, AttributeError):\n    pass\n"
+        assert "TypeError, AttributeError" in _check(source)[0].message
 
     def test_WideHandler_ReportsTheExceptLine(self) -> None:
         source = "try:\n    f()\nexcept (AttributeError, TypeError):\n    pass\n"
-        violations = list(check_over_broad_except(Path("src/x.py"), source))
-        assert violations[0].line == 3
+        assert _check(source)[0].line == 3
 
     @pytest.mark.parametrize(
         "source",
@@ -75,6 +75,10 @@ class TestCheckOverBroadExcept:
             pytest.param(
                 "try:\n    f()\nexcept AttributeError:\n    pass\n",
                 id="one-structural-builtin-alone",
+            ),
+            pytest.param(
+                "try:\n    f()\nexcept (KeyError, KeyError):\n    pass\n",
+                id="one-structural-builtin-repeated-is-still-one",
             ),
             pytest.param(
                 "try:\n    f()\nexcept (ParseError, OSError):\n    pass\n",
@@ -114,7 +118,7 @@ class TestCheckOverBroadExcept:
         ],
     )
     def test_NarrowHandler_IsLeftAlone(self, source: str) -> None:
-        assert not list(check_over_broad_except(Path("src/x.py"), source))
+        assert not _check(source)
 
     def test_HandlerRaisingOnOneBranchOnly_StillFlagsViolation(self) -> None:
         source = (
@@ -125,8 +129,15 @@ class TestCheckOverBroadExcept:
             "        raise\n"
             "    return None\n"
         )
-        violations = list(check_over_broad_except(Path("src/x.py"), source))
-        assert len(violations) == 1
+        assert len(_check(source)) == 1
+
+    def test_NonPythonFile_NotChecked(self) -> None:
+        source = "try:\n    f()\nexcept (AttributeError, TypeError):\n    pass\n"
+        assert not _check(source, Path("README.md"))
 
     def test_UnparsableSource_YieldsNothing(self) -> None:
-        assert not list(check_over_broad_except(Path("src/x.py"), "def (\n"))
+        assert not _check("def (\n")
+
+
+def _check(source: str, path: Path = _SRC) -> list[Violation]:
+    return list(check_over_broad_except(path, source))

@@ -1108,27 +1108,19 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 ),
             ),
             Example(
-                bad="except (TypeError, ValueError):\n    return default",
-                good="except (TypeError, ValueError):\n    return default",
-                note=(
-                    "Not flagged: one structural builtin, and the pair every "
-                    "`int()` conversion needs. Two structural builtins is the "
-                    "threshold."
-                ),
-            ),
-            Example(
-                bad=(
-                    "except (KeyError, TypeError) as exc:\n"
-                    "    raise ParseError(f'response missing a field: {exc}')"
-                ),
+                bad="except (KeyError, TypeError):\n    return None",
                 good=(
                     "except (KeyError, TypeError) as exc:\n"
-                    "    raise ParseError(f'response missing a field: {exc}')"
+                    "    raise ParseError('response missing a field') from exc"
                 ),
                 note=(
-                    "Not flagged either: a handler ending in a `raise` is the "
+                    "The second remedy, for where the callee cannot be "
+                    "changed: a handler whose last statement is a `raise` is a "
                     "boundary converting a wide failure into one named error, "
-                    "which is what this rule asks callers to rely on."
+                    "so it is exempt and the callers above it catch only "
+                    "`ParseError`. Raising on one branch and falling through "
+                    "on another still swallows, so only the closing statement "
+                    "counts."
                 ),
             ),
         ),
