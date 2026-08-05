@@ -38,6 +38,17 @@ class TestCheckOverBroadExcept:
                 id="qualified-project-exception",
             ),
             pytest.param(
+                "try:\n"
+                "    payload = json.loads(raw)['id']\n"
+                "except (json.JSONDecodeError, KeyError):\n"
+                "    return None\n",
+                id="stdlib-exception-counts-as-declared",
+            ),
+            pytest.param(
+                "try:\n    f()\nexcept (requests.HTTPError, AttributeError):\n    pass\n",
+                id="third-party-exception-counts-as-declared",
+            ),
+            pytest.param(
                 "try:\n    f()\nexcept (TypeError, TypeError, KeyError):\n    pass\n",
                 id="repeated-builtin-counted-once-still-reaches-two",
             ),
@@ -83,6 +94,14 @@ class TestCheckOverBroadExcept:
             pytest.param(
                 "try:\n    f()\nexcept (ParseError, OSError):\n    pass\n",
                 id="project-exception-with-an-environment-error",
+            ),
+            pytest.param(
+                "try:\n    f()\nexcept (os.error, KeyError):\n    pass\n",
+                id="lowercase-alias-of-an-exempt-builtin",
+            ),
+            pytest.param(
+                "try:\n    f()\nexcept (socket.timeout, KeyError):\n    pass\n",
+                id="lowercase-alias-of-a-builtin-timeout",
             ),
             pytest.param(
                 "try:\n    f()\nexcept (ValueError, OSError, RuntimeError):\n    pass\n",

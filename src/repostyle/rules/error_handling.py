@@ -3,8 +3,9 @@
 The home for rules about the shape of a `try` / `except`, as distinct from
 RS028 in `naming`, which governs only what a caught exception is called. RS052
 is the first: an `except` tuple wide enough to take in the structural builtins
-is a caller compensating for a callee that does not name its own failures, and
-the fix belongs in the callee rather than in the handler.
+is blanketing its block rather than handling a known failure, and the fix
+belongs either in the callee that should name that failure or in a `try`
+narrowed to the statement the handler was written for.
 """
 
 from __future__ import annotations
@@ -42,7 +43,12 @@ _BUILTIN_EXCEPTIONS = frozenset(
     for name, value in vars(builtins).items()
     if isinstance(value, type) and issubclass(value, BaseException)
 )
-"""Every exception the builtins define; anything else is a caller's own."""
+"""Every exception the builtins define.
+
+A caught name outside this set is one somebody declared — in the stdlib, in a
+third-party package, or in this project — so its presence in a handler shows
+the callee already reports that failure by name.
+"""
 
 
 def check_over_broad_except(path: Path, source: str) -> Iterator[Violation]:
@@ -52,12 +58,14 @@ def check_over_broad_except(path: Path, source: str) -> Iterator[Violation]:
     builtins at once — `AttributeError`, `TypeError`, `KeyError`, `IndexError`,
     `NameError`, `UnboundLocalError` — means the block is being blanketed
     rather than a known failure handled, since each of those says a value was
-    not the shape the code assumed. Catching one of them alongside a project's
-    own exception says the same thing more sharply: that exception proves the
-    callee already has an error contract, and the builtins beside it are the
-    caller compensating for the places the contract does not cover. Both
-    usually mean the callee should convert the failure where it arises, or that
-    the `try` covers more statements than the handler was written for.
+    not the shape the code assumed. Catching one of them alongside a declared
+    exception — any name the builtins do not define, whether from the stdlib, a
+    third-party package, or this project — says the same thing more sharply:
+    that exception is the callee's error contract, so the builtins beside it
+    are covering something else, usually a dereference elsewhere in the same
+    `try`. Both usually mean the callee should convert the failure where it
+    arises, or that the `try` covers more statements than the handler was
+    written for.
 
     Three shapes are left alone. A handler ending in a `raise` is a boundary
     converting what it caught into one named failure, which is the fix this
@@ -95,28 +103,26 @@ def _over_broad_violation(node: ast.ExceptHandler) -> Iterator[Violation]:
         )
 
 
-def _unique(names: Iterable[str]) -> list[str]:
-    """Drops repeated names, keeping the order the `except` line reads in.
-
-    Returns:
-        The distinct names, so a message lists them where the eye finds them.
-    """
-    return list(dict.fromkeys(names))
-
-
 def _exception_name(element: ast.expr) -> str | None:
     """Reads the name a tuple element catches, dropping any qualifier.
 
+    A name that does not open with a capital is not read as an exception at
+    all, matching how `doc_value` reads one. That keeps the lowercase stdlib
+    aliases out of the count: `os.error` and `socket.timeout` are `OSError` and
+    `TimeoutError` themselves, so counting `error` or `timeout` as a declared
+    exception would contradict this rule's own exemption for those classes.
+
     Returns:
         `ParseError` for both `ParseError` and `errors.ParseError`, or `None`
-        for an element that is not a plain reference at all, which is rare
+        for an element that is not a capitalized plain reference, which is rare
         enough to leave to review.
     """
+    name = None
     if isinstance(element, ast.Name):
-        return element.id
-    if isinstance(element, ast.Attribute):
-        return element.attr
-    return None
+        name = element.id
+    elif isinstance(element, ast.Attribute):
+        name = element.attr
+    return name if name and name[0].isupper() else None
 
 
 def _is_converting(node: ast.ExceptHandler) -> bool:
@@ -144,13 +150,24 @@ def _message(structural: list[str], foreign: list[str]) -> str:
     """
     listed = ", ".join(structural)
     if foreign:
+        named = ", ".join(foreign)
         return (
-            f"except catches {listed} alongside {', '.join(foreign)}; let the "
-            f"callee report its own failure and drop the builtins, rather than "
-            f"catching both kinds here"
+            f"except catches {listed} alongside {named}; {named} already names "
+            f"the failure this block handles, so drop the builtins — move what "
+            f"raises them out of the `try`, or have that callee name its "
+            f"failure too"
         )
     return (
         f"except catches {listed} together; each says a value was not the shape "
         f"the code assumed, so raise a named error where that is decided and "
         f"narrow this handler to it"
     )
+
+
+def _unique(names: Iterable[str]) -> list[str]:
+    """Drops repeated names, keeping the order the `except` line reads in.
+
+    Returns:
+        The distinct names, so a message lists them where the eye finds them.
+    """
+    return list(dict.fromkeys(names))
