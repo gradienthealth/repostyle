@@ -37,6 +37,7 @@ jobs:
           - gradient-beam
           - gradient-pulumi-infrastructure
           - hl7-ingestor
+          - trurez
     steps:
       - name: Check out the style sources
         uses: actions/checkout@v4
