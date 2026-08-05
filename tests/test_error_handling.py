@@ -76,6 +76,33 @@ class TestCheckOverBroadExcept:
         source = "try:\n    f()\nexcept (AttributeError, TypeError):\n    pass\n"
         assert _check(source)[0].line == 3
 
+    def test_IndentedHandler_ReportsAOneBasedColumn(self) -> None:
+        source = (
+            "def load():\n"
+            "    try:\n"
+            "        f()\n"
+            "    except (AttributeError, TypeError):\n"
+            "        pass\n"
+        )
+        assert (_check(source)[0].line, _check(source)[0].col) == (4, 5)
+
+    def test_TwoWideHandlers_EachReportOnce(self) -> None:
+        source = (
+            "try:\n"
+            "    f()\n"
+            "except (KeyError, TypeError):\n"
+            "    pass\n"
+            "try:\n"
+            "    g()\n"
+            "except (IndexError, NameError):\n"
+            "    pass\n"
+        )
+        assert [violation.line for violation in _check(source)] == [3, 7]
+
+    def test_ExceptStarGroup_IsCheckedTheSameWay(self) -> None:
+        source = "try:\n    f()\nexcept* (AttributeError, TypeError):\n    pass\n"
+        assert len(_check(source)) == 1
+
     @pytest.mark.parametrize(
         "source",
         [

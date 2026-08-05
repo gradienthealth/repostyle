@@ -74,6 +74,9 @@ def check_over_broad_except(path: Path, source: str) -> Iterator[Violation]:
     errors (`ValueError`, `OSError`, `LookupError`, and their kin) reports
     something the code handled correctly and does not control. A bare `except
     Exception` is out of scope and belongs to ruff's `BLE001`.
+
+    An `except*` group is read the same way, since the reasoning about a
+    blanketed block holds whether or not the failures arrive grouped.
     """
     tree = _parse_python(path, source)
     if tree is None:
