@@ -45,9 +45,9 @@ _BUILTIN_EXCEPTIONS = frozenset(
 )
 """Every exception the builtins define.
 
-A caught name outside this set is one somebody declared — in the stdlib, in a
-third-party package, or in this project — so its presence in a handler shows
-the callee already reports that failure by name.
+A caught name outside this set is one somebody declared, in the stdlib, in a
+third-party package, or in this project. Its presence in a handler therefore
+shows the callee already reports that failure by name.
 """
 
 
@@ -59,13 +59,13 @@ def check_over_broad_except(path: Path, source: str) -> Iterator[Violation]:
     `NameError`, `UnboundLocalError` — means the block is being blanketed
     rather than a known failure handled, since each of those says a value was
     not the shape the code assumed. Catching one of them alongside a declared
-    exception — any name the builtins do not define, whether from the stdlib, a
-    third-party package, or this project — says the same thing more sharply:
-    that exception is the callee's error contract, so the builtins beside it
-    are covering something else, usually a dereference elsewhere in the same
-    `try`. Both usually mean the callee should convert the failure where it
-    arises, or that the `try` covers more statements than the handler was
-    written for.
+    exception says the same thing more sharply. A declared exception is any
+    name the builtins do not define, whether from the stdlib, a third-party
+    package, or this project, and it is already the callee's error contract, so
+    a builtin beside it is covering something else — usually a dereference
+    elsewhere in the same `try`. Either shape means the callee should convert
+    the failure where it arises, or the `try` covers more statements than the
+    handler was written for.
 
     Three shapes are left alone. A handler ending in a `raise` is a boundary
     converting what it caught into one named failure, which is the fix this
@@ -84,12 +84,12 @@ def check_over_broad_except(path: Path, source: str) -> Iterator[Violation]:
 
 
 def _over_broad_violation(node: ast.ExceptHandler) -> Iterator[Violation]:
-    """Yields the violation a handler earns, if its tuple reaches too wide."""
+    """Yields the violation a handler earns, if its tuple is too wide."""
     if not isinstance(node.type, ast.Tuple) or _is_converting(node):
         return
     caught = [name for element in node.type.elts if (name := _exception_name(element))]
-    structural = _unique(name for name in caught if name in STRUCTURAL_BUILTINS)
-    foreign = _unique(name for name in caught if name not in _BUILTIN_EXCEPTIONS)
+    structural = _distinct_names(n for n in caught if n in STRUCTURAL_BUILTINS)
+    foreign = _distinct_names(n for n in caught if n not in _BUILTIN_EXCEPTIONS)
     # Two structural builtins is the threshold, because a single one is
     # routinely deliberate: `except AttributeError` on a duck-typed probe, or
     # the `(TypeError, ValueError)` pair every `int()` conversion needs. A name
@@ -101,6 +101,11 @@ def _over_broad_violation(node: ast.ExceptHandler) -> Iterator[Violation]:
             RS_OVER_BROAD_EXCEPT,
             _message(structural, foreign),
         )
+
+
+def _distinct_names(names: Iterable[str]) -> list[str]:
+    """Drops repeated names, keeping the order the `except` line reads in."""
+    return list(dict.fromkeys(names))
 
 
 def _exception_name(element: ast.expr) -> str | None:
@@ -134,9 +139,6 @@ def _is_converting(node: ast.ExceptHandler) -> bool:
     there is the point, not a defect. A handler that raises on one branch and
     falls through on another still swallows, so only the closing statement
     counts.
-
-    Returns:
-        Whether the handler converts what it caught into a raise.
     """
     return isinstance(node.body[-1], ast.Raise)
 
@@ -146,28 +148,18 @@ def _message(structural: list[str], foreign: list[str]) -> str:
 
     Returns:
         The message, naming the builtins that widened the handler and, where
-        there is one, the exception whose contract they reach past.
+        there are any, the declared exceptions whose contract they reach past.
     """
     listed = ", ".join(structural)
     if foreign:
         named = ", ".join(foreign)
         return (
             f"except catches {listed} alongside {named}; {named} already names "
-            f"the failure this block handles, so drop the builtins — move what "
-            f"raises them out of the `try`, or have that callee name its "
-            f"failure too"
+            f"the failure this block handles, so drop the builtins and move "
+            f"what raises them out of the `try`"
         )
     return (
         f"except catches {listed} together; each says a value was not the shape "
         f"the code assumed, so raise a named error where that is decided and "
         f"narrow this handler to it"
     )
-
-
-def _unique(names: Iterable[str]) -> list[str]:
-    """Drops repeated names, keeping the order the `except` line reads in.
-
-    Returns:
-        The distinct names, so a message lists them where the eye finds them.
-    """
-    return list(dict.fromkeys(names))

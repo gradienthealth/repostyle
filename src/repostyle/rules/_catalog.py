@@ -72,6 +72,7 @@ from repostyle.rules._violation import (
     RS_UNBACKTICKED_CODE_REFERENCE,
     RS_UNBACKTICKED_SIBLING_SYMBOL,
 )
+from repostyle.rules.error_handling import STRUCTURAL_BUILTINS
 from repostyle.rules.imperative_verbs import NON_TRIVIAL_CONJUGATIONS
 from repostyle.rules.naming import DISFAVORED_GCP_TERMS, GCP_COLLECTION_NOUNS
 
@@ -1127,6 +1128,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 ),
             ),
         ),
+        reference=tuple(sorted(STRUCTURAL_BUILTINS)),
     ),
 }
 
