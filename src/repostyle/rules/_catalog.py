@@ -53,6 +53,7 @@ from repostyle.rules._violation import (
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
+    RS_OVER_BROAD_EXCEPT,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
     RS_PRIVATE_IMPORT,
@@ -1056,6 +1057,78 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     "surface. Re-export `run` from `core/__init__.py` rather "
                     "than reaching past it. An import from within `myapp.core` "
                     "itself is fine."
+                ),
+            ),
+        ),
+    ),
+    RS_OVER_BROAD_EXCEPT: RuleDoc(
+        name="over-broad-except",
+        summary=(
+            "An `except` tuple does not reach past the failure it was written "
+            "for, into the structural builtins."
+        ),
+        rationale=(
+            "`AttributeError`, `TypeError`, `KeyError`, `IndexError`, "
+            "`NameError`, and `UnboundLocalError` each say a value was not the "
+            "shape the code assumed, which is what a bug looks like from the "
+            "outside. A handler that takes in two of them at once, or one of "
+            "them beside a project's own exception, cannot tell the failure it "
+            "was written for from a typo in the same block — and the project "
+            "exception beside them proves the callee already has an error "
+            "contract the builtins are papering over. The fix is almost never "
+            "in the handler: convert the failure where it arises, so the callee "
+            "raises one named error, or shrink a `try` that covers more "
+            "statements than the handler was written for. Left alone are a "
+            "handler ending in a `raise`, since a boundary converting what it "
+            "caught into one named failure is the fix rather than the smell; a "
+            "single structural builtin, which is routinely deliberate; and the "
+            "value-and-environment errors (`ValueError`, `OSError`, and their "
+            "kin) that report something the code handled correctly and does not "
+            "control. ruff's `BLE001` covers only a bare `except Exception`, so "
+            "a tuple of concrete builtins is a genuine gap."
+        ),
+        examples=(
+            Example(
+                bad=(
+                    "try:\n"
+                    "    return has_uncompressed_length(dataset)\n"
+                    "except (TruRezError, AttributeError, TypeError, KeyError):\n"
+                    "    return False"
+                ),
+                good=(
+                    "try:\n"
+                    "    return has_uncompressed_length(dataset)\n"
+                    "except TruRezError:\n"
+                    "    return False"
+                ),
+                note=(
+                    "The builtins came from `int(dataset.Rows)` inside the "
+                    "callee. Reading that attribute through a helper that "
+                    "raises `TruRezError` leaves the handler one type wide."
+                ),
+            ),
+            Example(
+                bad="except (TypeError, ValueError):\n    return default",
+                good="except (TypeError, ValueError):\n    return default",
+                note=(
+                    "Not flagged: one structural builtin, and the pair every "
+                    "`int()` conversion needs. Two structural builtins is the "
+                    "threshold."
+                ),
+            ),
+            Example(
+                bad=(
+                    "except (KeyError, TypeError) as exc:\n"
+                    "    raise ParseError(f'response missing a field: {exc}')"
+                ),
+                good=(
+                    "except (KeyError, TypeError) as exc:\n"
+                    "    raise ParseError(f'response missing a field: {exc}')"
+                ),
+                note=(
+                    "Not flagged either: a handler ending in a `raise` is the "
+                    "boundary converting a wide failure into one named error, "
+                    "which is what this rule asks callers to rely on."
                 ),
             ),
         ),

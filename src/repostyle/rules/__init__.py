@@ -61,6 +61,7 @@ from repostyle.rules._violation import (
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
+    RS_OVER_BROAD_EXCEPT,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
     RS_PRIVATE_IMPORT,
@@ -134,6 +135,7 @@ from repostyle.rules.docstrings import (
 from repostyle.rules.duration import check_duration_as_timedelta
 from repostyle.rules.encapsulation import check_private_import
 from repostyle.rules.equality import check_eq_hash_pairing
+from repostyle.rules.error_handling import check_over_broad_except
 from repostyle.rules.filenames import check_filename_casing, check_filename_extension
 from repostyle.rules.idioms import check_range_len_reindex
 from repostyle.rules.import_layering import check_banned_import_by_path
@@ -205,6 +207,7 @@ __all__ = [
     "RS_NO_MOCK_PATCH",
     "RS_NO_NEGATED_BOOLEAN",
     "RS_NO_PHI_SAFE_EXC_INFO",
+    "RS_OVER_BROAD_EXCEPT",
     "RS_PORT_NO_IMPLEMENTATION",
     "RS_PREDICATE_FUNCTION_NAMING",
     "RS_PRIVATE_IMPORT",
@@ -274,6 +277,7 @@ __all__ = [
     "check_no_mock_patch",
     "check_no_negated_boolean",
     "check_no_phi_safe_with_exc_info",
+    "check_over_broad_except",
     "check_port_no_implementation",
     "check_predicate_function_naming",
     "check_private_import",
