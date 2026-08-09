@@ -472,6 +472,29 @@ class TestCheckTestNaming:
         source = "def test_bad_name(): ..."
         assert list(check_test_naming(Path("tests/unit/conftest.py"), source)) == []
 
+    @pytest.mark.parametrize(
+        "globs_value",
+        ['["hooks/test_*.py"]', '"hooks/test_*.py"'],
+        ids=["list", "bare_string"],
+    )
+    def test_ConfiguredGlobs_CheckMatchingFile(
+        self, tmp_path: Path, globs_value: str
+    ) -> None:
+        target = _naming_scope_target(tmp_path, globs_value, "hooks/test_x.py")
+        violations = list(check_test_naming(target, "def test_bad_name(): ..."))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_TEST_NAMING
+
+    def test_ConfiguredGlobs_ReplaceDefaultScope(self, tmp_path: Path) -> None:
+        target = _naming_scope_target(
+            tmp_path, '["hooks/test_*.py"]', "tests/unit/test_x.py"
+        )
+        assert list(check_test_naming(target, "def test_bad_name(): ...")) == []
+
+    def test_ConfiguredGlobs_ExemptConftest(self, tmp_path: Path) -> None:
+        target = _naming_scope_target(tmp_path, '["hooks/*.py"]', "hooks/conftest.py")
+        assert list(check_test_naming(target, "def test_bad_name(): ...")) == []
+
 
 class TestCheckNoMockPatch:
     @pytest.mark.parametrize(
@@ -2319,3 +2342,15 @@ class TestCheckCommentTerminalPunctuation:
         assert (
             list(check_comment_terminal_punctuation(Path("config.yaml"), source)) == []
         )
+
+
+def _naming_scope_target(tmp_path: Path, globs_value: str, relative: str) -> Path:
+    """Writes a pyproject configuring `test-naming-globs` and returns a path.
+
+    The returned path sits under `tmp_path` at `relative`; the file itself is
+    never written, since `check_test_naming` takes the source separately.
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.repostyle]\ntest-naming-globs = {globs_value}\n", encoding="utf-8"
+    )
+    return tmp_path / relative
