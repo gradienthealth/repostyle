@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.24.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.23.0...repostyle-v0.24.0) (2026-08-09)
+
+
+### Features
+
+* **NO-ISSUE:** add RS052 flagging an over-broad except tuple ([#130](https://github.com/gradienthealth/repostyle/issues/130)) ([84e1cf4](https://github.com/gradienthealth/repostyle/commit/84e1cf41f65efd4afc5584d0f544add87be58a3b))
+* **NO-ISSUE:** make the RS002 test-naming scope configurable ([#131](https://github.com/gradienthealth/repostyle/issues/131)) ([399b328](https://github.com/gradienthealth/repostyle/commit/399b32838450227bc9d4c0624afbf879e038adeb))
+
 ## [0.23.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.22.0...repostyle-v0.23.0) (2026-07-19)
 
 
