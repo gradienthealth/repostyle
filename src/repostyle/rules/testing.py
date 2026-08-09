@@ -7,7 +7,15 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._shared import _is_test_file, _parse_python, _posix
+from repostyle._shared import (
+    _is_test_file,
+    _matches_config_glob,
+    _parse_python,
+    _posix,
+    _repostyle_table,
+    _string_list,
+    find_pyproject,
+)
 from repostyle.rules._violation import (
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -21,6 +29,7 @@ from repostyle.rules._violation import (
 TEST_NAME_PATTERN = re.compile(r"^test_[A-Z][A-Za-z0-9]*_[A-Z][A-Za-z0-9]*$")
 FAKES_PATH_FRAGMENT = "tests/fakes/"
 UNIT_TEST_PATH_FRAGMENT = "tests/unit/"
+TEST_NAMING_GLOBS_KEY = "test-naming-globs"
 SLEEP_MODULES = frozenset({"time", "asyncio"})
 MOCK_CONSTRUCTORS = frozenset(
     {"Mock", "MagicMock", "AsyncMock", "NonCallableMock", "patch"}
@@ -31,8 +40,14 @@ _BRANCH_STATEMENTS = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.Try)
 
 
 def check_test_naming(path: Path, source: str) -> Iterator[Violation]:
-    """A `tests/unit/` test matches `test_StateUnderTest_ExpectedBehavior`."""
-    if UNIT_TEST_PATH_FRAGMENT not in _posix(path):
+    """A unit test matches `test_StateUnderTest_ExpectedBehavior`.
+
+    Applies to files under `tests/unit/`, or, when the config sets
+    `test-naming-globs`, to the files matching those globs instead, so a repo
+    keeping its unit tests elsewhere can still hold them to the naming.
+    `conftest.py` and `__init__.py` are exempt in either scope.
+    """
+    if not _is_in_test_naming_scope(path):
         return
     if path.name in {"conftest.py", "__init__.py"}:
         return
@@ -209,6 +224,20 @@ def _is_choreography_call(node: ast.AST) -> bool:
             in {"assert_has_calls", "assert_not_called", "assert_any_call"}
         )
     )
+
+
+def _is_in_test_naming_scope(path: Path) -> bool:
+    """Reports whether `path` falls in RS002's naming scope.
+
+    The `test-naming-globs` config, when set, replaces the default
+    `tests/unit/` path fragment rather than extending it, so a repo states its
+    whole test layout in one place.
+    """
+    pyproject = find_pyproject(path)
+    table = _repostyle_table(pyproject)
+    if _string_list(table, TEST_NAMING_GLOBS_KEY):
+        return _matches_config_glob(path, pyproject, table, TEST_NAMING_GLOBS_KEY)
+    return UNIT_TEST_PATH_FRAGMENT in _posix(path)
 
 
 def _is_mock_decorator(decorator: ast.expr) -> bool:
