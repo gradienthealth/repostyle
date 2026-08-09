@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.24.0...repostyle-v0.25.0) (2026-08-09)
+
+
+### Features
+
+* **NO-ISSUE:** add bullet-casing, dash-standard, and banner-comment rules ([#133](https://github.com/gradienthealth/repostyle/issues/133)) ([c430528](https://github.com/gradienthealth/repostyle/commit/c430528a124717c708ef15f3ecf769ec9f63c315))
+
 ## [0.24.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.23.0...repostyle-v0.24.0) (2026-08-09)
 
 
