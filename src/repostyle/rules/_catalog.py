@@ -149,7 +149,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
     RS_TEST_NAMING: RuleDoc(
         name="test-naming",
         summary=(
-            "A test under `tests/unit/` matches `test_StateUnderTest_ExpectedBehavior`."
+            "A test under `tests/unit/` (or the configured `test-naming-globs`) "
+            "matches `test_StateUnderTest_ExpectedBehavior`."
         ),
     ),
     RS_NO_MOCK_PATCH: RuleDoc(

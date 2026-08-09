@@ -4,7 +4,7 @@ A stdlib-only AST/token/line linter for repo-style conventions that ruff cannot 
 
 ## Project context
 
-Consuming repos add the hook to their `.pre-commit-config.yaml` pinned to a `repostyle-vX.Y.Z` tag, select the rule subset they want through a `[tool.repostyle]` table in their `pyproject.toml`, and inherit the base ruff settings from `ruff-base.toml`. Two rules are tied to fhir-ingestor's hexagonal layout (RS002 test naming, RS006 port purity) and RS003 (mock ban) presumes a `tests/fakes/` directory; a repo without those conventions should not select them. The rest are general.
+Consuming repos add the hook to their `.pre-commit-config.yaml` pinned to a `repostyle-vX.Y.Z` tag, select the rule subset they want through a `[tool.repostyle]` table in their `pyproject.toml`, and inherit the base ruff settings from `ruff-base.toml`. RS006 (port purity) is tied to fhir-ingestor's hexagonal layout and RS003 (mock ban) presumes a `tests/fakes/` directory; a repo without those conventions should not select them. RS002 (test naming) defaults to the `tests/unit/` layout but re-scopes through `test-naming-globs`, so a repo keeping its unit tests elsewhere can still select it. The rest are general.
 
 The `RSnnn` rules are the *subject matter* this package enforces on other repos. Their definitions, scope, and rationale live in the rule docstrings in the themed modules under `src/repostyle/rules/`; read the relevant module before changing rule behavior.
 
