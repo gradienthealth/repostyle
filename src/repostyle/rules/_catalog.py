@@ -53,6 +53,7 @@ from repostyle.rules._violation import (
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
+    RS_OVER_BROAD_EXCEPT,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
     RS_PRIVATE_IMPORT,
@@ -71,6 +72,7 @@ from repostyle.rules._violation import (
     RS_UNBACKTICKED_CODE_REFERENCE,
     RS_UNBACKTICKED_SIBLING_SYMBOL,
 )
+from repostyle.rules.error_handling import STRUCTURAL_BUILTINS
 from repostyle.rules.imperative_verbs import NON_TRIVIAL_CONJUGATIONS
 from repostyle.rules.naming import DISFAVORED_GCP_TERMS, GCP_COLLECTION_NOUNS
 
@@ -1060,6 +1062,74 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 ),
             ),
         ),
+    ),
+    RS_OVER_BROAD_EXCEPT: RuleDoc(
+        name="over-broad-except",
+        summary=(
+            "An `except` tuple does not reach past the failure it was written "
+            "for, into the structural builtins."
+        ),
+        rationale=(
+            "`AttributeError`, `TypeError`, `KeyError`, `IndexError`, "
+            "`NameError`, and `UnboundLocalError` each say a value was not the "
+            "shape the code assumed, which is what a bug looks like from the "
+            "outside. A handler that takes in two of them at once, or one of "
+            "them beside a declared exception — any name the builtins do not "
+            "define, whether from the stdlib, a third-party package, or this "
+            "project — cannot tell the failure it was written for from a typo "
+            "in the same block, and that declared exception is already the "
+            "callee's error contract, so the builtins beside it are covering "
+            "something else. The fix is almost never in the handler: shrink a "
+            "`try` that covers more statements than the handler was written "
+            "for, so what raises the builtins sits outside it, or convert the "
+            "failure where it arises so the callee raises one named error. "
+            "Left alone are a "
+            "handler ending in a `raise`, since a boundary converting what it "
+            "caught into one named failure is the fix rather than the smell; a "
+            "single structural builtin, which is routinely deliberate; and the "
+            "value-and-environment errors (`ValueError`, `OSError`, and their "
+            "kin) that report something the code handled correctly and does not "
+            "control. ruff's `BLE001` covers only a bare `except Exception`, so "
+            "a tuple of concrete builtins is a genuine gap."
+        ),
+        examples=(
+            Example(
+                bad=(
+                    "try:\n"
+                    "    return has_uncompressed_length(dataset)\n"
+                    "except (TruRezError, AttributeError, TypeError, KeyError):\n"
+                    "    return False"
+                ),
+                good=(
+                    "try:\n"
+                    "    return has_uncompressed_length(dataset)\n"
+                    "except TruRezError:\n"
+                    "    return False"
+                ),
+                note=(
+                    "The builtins came from `int(dataset.Rows)` inside the "
+                    "callee. Reading that attribute through a helper that "
+                    "raises `TruRezError` leaves the handler one type wide."
+                ),
+            ),
+            Example(
+                bad="except (KeyError, TypeError):\n    return None",
+                good=(
+                    "except (KeyError, TypeError) as exc:\n"
+                    "    raise ParseError('response missing a field') from exc"
+                ),
+                note=(
+                    "The second remedy, for where the callee cannot be "
+                    "changed: a handler whose last statement is a `raise` is a "
+                    "boundary converting a wide failure into one named error, "
+                    "so it is exempt and the callers above it catch only "
+                    "`ParseError`. Raising on one branch and falling through "
+                    "on another still swallows, so only the closing statement "
+                    "counts."
+                ),
+            ),
+        ),
+        reference=tuple(sorted(STRUCTURAL_BUILTINS)),
     ),
 }
 
