@@ -3,11 +3,11 @@ name: sync shared style files
 # docs/judgment-conventions.md (the judgment canon), docs/gcp-naming.md (the
 # Google Cloud naming convention), and ruff-base.toml (the shared ruff
 # baseline) are org-wide style sources. Consumer repos vendor read-only copies
-# — the docs imported from CLAUDE.md, ruff-base.toml extended from
-# pyproject.toml — so each sits where a coding agent and the linter see it, not
-# only at review. When any changes on main, mint a gradienthealth-bot token,
-# copy them into each consumer repo, and open a pull request. Edit these here,
-# never the vendored copies — the next sync overwrites them.
+# -- the docs imported from CLAUDE.md, ruff-base.toml extended from
+# pyproject.toml -- so each sits where a coding agent and the linter see it,
+# not only at review. When any changes on main, mint a gradienthealth-bot
+# token, copy them into each consumer repo, and open a pull request. Edit these
+# here, never the vendored copies -- the next sync overwrites them.
 
 on:
   push:
@@ -77,5 +77,5 @@ jobs:
           body: |
             Automated sync of the shared style sources from gradienthealth/repostyle
             (judgment-conventions.md, gcp-naming.md, and ruff-base.toml). These are
-            read-only mirrors — change them upstream in repostyle, not here.
+            read-only mirrors -- change them upstream in repostyle, not here.
           delete-branch: true

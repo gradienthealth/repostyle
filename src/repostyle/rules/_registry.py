@@ -11,8 +11,10 @@ from repostyle.rules._violation import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
+    RS_BANNER_COMMENT,
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_BOOLEAN_PREFIX_REQUIRED,
+    RS_BULLET_ITEM_CASING,
     RS_COGNITIVE_COMPLEXITY,
     RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -40,6 +42,7 @@ from repostyle.rules._violation import (
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
+    RS_NONSTANDARD_DASH,
     RS_OVER_BROAD_EXCEPT,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
@@ -64,10 +67,12 @@ from repostyle.rules._violation import (
 from repostyle.rules.annotations import check_deeply_nested_type
 from repostyle.rules.comments import (
     check_acronym_casing_in_comments,
+    check_banner_comment,
     check_comment_tag_format,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
     check_disfavored_gcp_term_in_comments,
+    check_nonstandard_dash_in_comments,
     check_tag_comment_continuation_indent,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
@@ -81,6 +86,8 @@ from repostyle.rules.doc_value import (
 )
 from repostyle.rules.docstrings import (
     check_acronym_casing_in_docstrings,
+    check_bullet_item_casing,
+    check_bullet_item_casing_in_comments,
     check_disfavored_gcp_term_in_docstrings,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
@@ -94,6 +101,7 @@ from repostyle.rules.docstrings import (
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
     check_no_double_backticks_in_md,
+    check_nonstandard_dash_in_docstrings,
     check_summary_comment_as_docstring,
     check_unbackticked_code_reference,
     check_unbackticked_sibling_symbol,
@@ -216,6 +224,15 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
         check_disfavored_gcp_term_in_comments,
     ),
     RS_OVER_BROAD_EXCEPT: (check_over_broad_except,),
+    RS_BULLET_ITEM_CASING: (
+        check_bullet_item_casing,
+        check_bullet_item_casing_in_comments,
+    ),
+    RS_NONSTANDARD_DASH: (
+        check_nonstandard_dash_in_docstrings,
+        check_nonstandard_dash_in_comments,
+    ),
+    RS_BANNER_COMMENT: (check_banner_comment,),
 }
 
 
@@ -227,8 +244,8 @@ PACKAGE_RULES: dict[str, tuple[PackageCheck, ...]] = {
 }
 
 
-# An advisory rule — a threshold, a judgment call, or a newer mechanical check
-# still proving out its false-positive rate — registers Severity.WARNING here
+# An advisory rule -- a threshold, a judgment call, or a newer mechanical check
+# still proving out its false-positive rate -- registers Severity.WARNING here
 # to emit a non-blocking signal; the settled, low-false-positive rules stay at
 # the default ERROR and fail the run.
 RULE_SEVERITY: dict[str, Severity] = {
@@ -265,6 +282,9 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_DISFAVORED_GCP_TERM: Severity.WARNING,
     RS_GCP_BARE_IDENTIFIER: Severity.WARNING,
     RS_OVER_BROAD_EXCEPT: Severity.WARNING,
+    RS_BULLET_ITEM_CASING: Severity.WARNING,
+    RS_NONSTANDARD_DASH: Severity.WARNING,
+    RS_BANNER_COMMENT: Severity.WARNING,
 }
 
 
@@ -277,6 +297,7 @@ FIXABLE_RULES: frozenset[str] = frozenset(
         RS_DISFAVORED_GCP_TERM,
         RS_DOC_FILL,
         RS_NO_DOUBLE_BACKTICKS,
+        RS_NONSTANDARD_DASH,
         RS_TERMINAL_PUNCTUATION,
     }
 )

@@ -31,24 +31,36 @@ RS045 flags a temporal or edit-narrative marker in a comment, the same curated
 set it holds docstrings to, so a comment states the code's present contract
 rather than narrating the change that produced it. It spans Python, TOML, YAML,
 and shell comments alike.
+
+RS054 standardizes the sentence dash a comment sets a clause off with: an em
+dash, a spaced en dash, or a mis-spaced hyphen form is flagged and, under
+`--fix`, rewritten to the house ` -- `. It spans the same four languages; the
+fix repairs Python in place.
+
+RS055 bans the banner comment -- a standalone line that is nothing but a run of
+rule characters, alone or framing a section title. The grouping a banner
+decorates belongs to structure (a class, a module split, a section docstring),
+so the divider is deleted rather than styled. It spans the same four languages.
 """
 
 from __future__ import annotations
 
 import re
 import tomllib
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from functools import lru_cache
 from pathlib import Path
 
 from repostyle._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle._shared import (
+    STANDARD_SENTENCE_DASH,
     _comment_text,
     _has_sentence_boundary,
     _is_code_fragment,
     _is_directive_comment,
     _is_prose_comment,
     _join_source_lines,
+    _nonstandard_dashes_in_prose,
     _standalone_comment_blocks,
     _strip_trailing_closers,
     _temporal_markers,
@@ -57,8 +69,10 @@ from repostyle._shared import (
 )
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING_IN_PROSE,
+    RS_BANNER_COMMENT,
     RS_COMMENT_TAG_FORMAT,
     RS_DISFAVORED_GCP_TERM,
+    RS_NONSTANDARD_DASH,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
@@ -79,8 +93,16 @@ DEFAULT_TICKET_PATTERN = r"[A-Z]+-\d+|NO-ISSUE"
 # allowed set is ordinary prose and never flagged.
 _KNOWN_ALIASES = frozenset({"XXX", "BUG", "TBD", "OPTIMIZE", "REVIEW", "WIP"})
 
+# The characters a divider line is drawn with. A comment that is nothing but a
+# run of at least four of them is RS055's banner; three or fewer spares YAML's
+# commented-out `---` document separator.
+_BANNER_CHARACTERS = frozenset("-=#*~_+")
+# A `+----+` box edge is ASCII-table content -- verbatim to RS009 -- not a
+# banner.
+_TABLE_BORDER_PATTERN = re.compile(r"\+[-=+]*\+")
+
 # A comment's first token, with the character that immediately follows
-# it captured separately. A tag is used tag-style — written in all caps
+# it captured separately. A tag is used tag-style -- written in all caps
 # (`TODO fix`) or set off by a `(` or `:` separator (`todo: x`,
 # `Note(...)`); a title-case word trailed by prose (`Note that this
 # works`) is an ordinary sentence. The follower tells the two apart. The
@@ -92,15 +114,15 @@ _LEADING_TOKEN_PATTERN = re.compile(r"^#+\s*([A-Za-z]+)([(:]?)")
 def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
     """A special comment must read `TAG(TICKET): message`.
 
-    A comment opening with a tag — a token that is an allowed tag or a known
+    A comment opening with a tag -- a token that is an allowed tag or a known
     alias of one, and is used tag-style: written in all caps or set off by a
-    `(` or `:` separator — is held to the canonical form: an allowed tag, the
+    `(` or `:` separator -- is held to the canonical form: an allowed tag, the
     ticket in parentheses matching the configured pattern, then `: ` and a
-    message. A deviation — an unknown tag, wrong casing, a missing or malformed
-    ticket, or a wrong separator — is flagged. A title-case word trailed by
-    prose is an ordinary sentence and is left alone. The allowed tags and
-    ticket pattern come from config. The check runs over Python, TOML, and YAML
-    comments alike, since a `#` comment reads the same in each.
+    message. A deviation -- an unknown tag, wrong casing, a missing or
+    malformed ticket, or a wrong separator -- is flagged. A title-case word
+    trailed by prose is an ordinary sentence and is left alone. The allowed
+    tags and ticket pattern come from config. The check runs over Python, TOML,
+    and YAML comments alike, since a `#` comment reads the same in each.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -324,8 +346,8 @@ def _comment_terminal_message(fault: str) -> str:
 def check_comment_temporal_markers(path: Path, source: str) -> Iterator[Violation]:
     """Flags a temporal or edit-narrative marker in a comment.
 
-    The curated set RS045 holds docstrings to — phrases naming what the code
-    once did, or how a change was reached — is held over `#` comments too,
+    The curated set RS045 holds docstrings to -- phrases naming what the code
+    once did, or how a change was reached -- is held over `#` comments too,
     which narrate the edit rather than the code just as a docstring can. A tool
     directive is skipped, and a marker quoted inside a backtick span is a
     referenced token, not narration, and is left alone. The check runs over
@@ -466,11 +488,106 @@ def fix_disfavored_gcp_term_in_comments(
         if comment.lineno in skip_lines or not _is_correctable_comment(comment.string):
             continue
         line = source_lines[comment.lineno - 1]
-        rewritten = _rewrite_gcp_comment_line(line, comment.column, comment.string)
+        rewritten = _rewritten_comment_line(
+            line, comment.column, disfavored_gcp_terms_in_prose(comment.string)
+        )
         if rewritten != line:
             source_lines[comment.lineno - 1] = rewritten
             changed = True
     return _join_source_lines(source, source_lines) if changed else source
+
+
+def check_nonstandard_dash_in_comments(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a nonstandard sentence dash in a comment.
+
+    RS054's docstring rule carried to `#` comments: an em dash (spaced or
+    glued), a spaced en dash, a letter-flanked spaced hyphen, or a mis-spaced
+    double hyphen doing sentence work is flagged and, under `--fix`, rewritten
+    to the house ` -- `. The forms, guards, and backtick and URL exemptions are
+    the docstring rule's; additionally a directive comment and a commented-out
+    statement are skipped. The check runs over Python, TOML, YAML, and shell
+    comments alike; the `--fix` half repairs Python comments in place.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    for comment in extract_comments(path, source):
+        if not _is_correctable_comment(comment.string):
+            continue
+        for offset, found, _ in _nonstandard_dashes_in_prose(comment.string):
+            yield Violation(
+                comment.lineno,
+                comment.column + offset + 1,
+                RS_NONSTANDARD_DASH,
+                f"comment uses a nonstandard sentence dash {found!r}; "
+                f"write {STANDARD_SENTENCE_DASH!r}",
+            )
+
+
+def fix_nonstandard_dash_in_comments(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Rewrites each nonstandard sentence dash in a comment, RS054's fix.
+
+    Each occurrence the comment check flags is replaced in place with the house
+    ` -- `. A replacement changes length, so a comment's faults are applied
+    right to left, keeping each earlier offset valid. A comment whose line is
+    in `skip_lines` is left untouched. The fix runs on Python only, though the
+    check spans TOML, YAML, and shell too.
+
+    Returns:
+        The source with each flagged dash rewritten, unchanged when nothing
+        rewrites.
+    """
+    if path.suffix != ".py":
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for comment in extract_comments(path, source):
+        if comment.lineno in skip_lines or not _is_correctable_comment(comment.string):
+            continue
+        line = source_lines[comment.lineno - 1]
+        rewritten = _rewritten_comment_line(
+            line, comment.column, _nonstandard_dashes_in_prose(comment.string)
+        )
+        if rewritten != line:
+            source_lines[comment.lineno - 1] = rewritten
+            changed = True
+    return _join_source_lines(source, source_lines) if changed else source
+
+
+def check_banner_comment(path: Path, source: str) -> Iterator[Violation]:
+    """Flags a banner or section-divider comment.
+
+    A standalone comment whose text is nothing but a run of rule characters --
+    `# -----`, `# =====`, `#####`, or the frame lines boxing a `# TESTS` title
+    -- decorates a grouping the code should express with structure: a class, a
+    module split, or a section docstring. Divider styling is rarely applied
+    consistently and adds no information, so the divider is flagged for
+    deletion; each frame line of a boxed banner draws its own violation.
+
+    A run shorter than four characters is left alone, sparing YAML's
+    commented-out `# ---` document separator, as are the `+----+` ASCII-table
+    border RS009 already treats as verbatim content, a trailing comment, and a
+    one-line decorated title (`# === TESTS ===`), whose text is not wholly a
+    divider. The check runs over Python, TOML, YAML, and shell comments alike.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    for comment in extract_comments(path, source):
+        if comment.is_trailing:
+            continue
+        text = comment.string[1:].strip()
+        if len(text) < 4 or set(text) - _BANNER_CHARACTERS:
+            continue
+        if _TABLE_BORDER_PATTERN.fullmatch(text):
+            continue
+        yield Violation(
+            comment.lineno,
+            comment.column + 1,
+            RS_BANNER_COMMENT,
+            "banner comment; delete the divider and express the grouping "
+            "with structure (a class, a module split, or a section docstring)",
+        )
 
 
 def _is_correctable_comment(comment_string: str) -> bool:
@@ -498,24 +615,24 @@ def _recased_comment_line(
     return line
 
 
-def _rewrite_gcp_comment_line(line: str, column: int, comment_string: str) -> str:
-    """Returns `line` with each disfavored name in its comment rewritten.
+def _rewritten_comment_line(
+    line: str, column: int, faults: Iterable[tuple[int, str, str]]
+) -> str:
+    """Returns `line` with each `(offset, found, replacement)` fault applied.
 
-    The comment begins at `column` on `line`, so a term offset within the
-    comment shifts by `column` to index `line`. A replacement changes length,
-    so the faults are applied in descending offset order, keeping each earlier
-    offset valid.
+    A fault's offset indexes the comment, which begins at `column` on `line`,
+    so each offset shifts by `column`. A replacement changes length, so the
+    faults are applied in descending offset order, keeping each earlier offset
+    valid.
     """
-    faults = sorted(
+    shifted = sorted(
         (
-            (column + offset, found, preferred)
-            for offset, found, preferred in disfavored_gcp_terms_in_prose(
-                comment_string
-            )
+            (column + offset, found, replacement)
+            for offset, found, replacement in faults
         ),
         reverse=True,
     )
-    for start, found, preferred in faults:
+    for start, found, replacement in shifted:
         if line[start : start + len(found)] == found:
-            line = line[:start] + preferred + line[start + len(found) :]
+            line = line[:start] + replacement + line[start + len(found) :]
     return line

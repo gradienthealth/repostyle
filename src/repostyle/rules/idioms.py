@@ -1,7 +1,7 @@
 """Idiom rules: a Pythonic construct is preferred over a literal-minded one.
 
 The home for rules that flag a working but un-Pythonic shape whose fluent form
-reads better. RS046 catches the canonical case — a `for` loop over
+reads better. RS046 catches the canonical case -- a `for` loop over
 `range(len(seq))` that uses the index only to subscript that same sequence,
 where direct iteration (`for item in seq:`) says the same thing without the
 index. The check is scoped tightly so an index genuinely needed for arithmetic,
@@ -27,7 +27,7 @@ def check_range_len_reindex(path: Path, source: str) -> Iterator[Violation]:
     the elements directly. The check fires only when the loop `iter` is a
     `range(len(x))` call over a single argument, its target is a lone index
     name, and every use of that name in the body is a subscript `x[i]` of that
-    same sequence — `x` matched structurally, so a plain name or an attribute
+    same sequence -- `x` matched structurally, so a plain name or an attribute
     like `self.rows` both work. An index used bare anywhere else (passed to a
     call, used in arithmetic, indexing a second sequence) means the index is
     genuinely needed, so the loop is left alone rather than steered toward the
@@ -75,8 +75,8 @@ def _range_len_argument(iter_node: ast.expr) -> ast.expr | None:
 
     The iterator qualifies only as a bare `range(...)` call over a single
     positional argument that is itself a bare `len(...)` call over a single
-    positional argument, and that inner argument — a `Name` or an `Attribute` —
-    is returned as the sequence. Any keyword, star, or extra positional
+    positional argument, and that inner argument -- a `Name` or an `Attribute`
+    -- is returned as the sequence. Any keyword, star, or extra positional
     argument on either call disqualifies the loop.
     """
     if not _is_single_arg_call(iter_node, "range"):
@@ -111,8 +111,8 @@ def _reindex_subscripts(
 
     A subscript qualifies only when its slice is the bare index name and its
     value matches the loop's sequence structurally, so a subscript of a second
-    sequence or one whose slice is an expression like `index + 1` is excluded —
-    leaving the caller a use of the index that the direct-iteration rewrite
+    sequence or one whose slice is an expression like `index + 1` is excluded
+    -- leaving the caller a use of the index that the direct-iteration rewrite
     could not carry.
     """
     for child in ast.walk(node):

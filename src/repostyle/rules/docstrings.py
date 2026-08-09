@@ -20,10 +20,16 @@ from typing import NamedTuple
 
 from repostyle._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle._shared import (
+    _BULLET_PATTERN,
+    _VERBATIM_LINE_PATTERN,
+    STANDARD_SENTENCE_DASH,
+    _blank_prose_spans,
     _comment_text,
+    _has_sentence_boundary,
     _is_directive_comment,
     _is_prose_comment,
     _join_source_lines,
+    _nonstandard_dashes_in_prose,
     _parse_python,
     _repostyle_table,
     _standalone_comment_blocks,
@@ -34,6 +40,7 @@ from repostyle._shared import (
 )
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING_IN_PROSE,
+    RS_BULLET_ITEM_CASING,
     RS_DISFAVORED_GCP_TERM,
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
@@ -42,6 +49,7 @@ from repostyle.rules._violation import (
     RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
+    RS_NONSTANDARD_DASH,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
@@ -64,9 +72,9 @@ from repostyle.rules.naming import (
 ATTRIBUTES_SECTION_PATTERN = re.compile(r"^\s*Attributes:\s*$", re.MULTILINE)
 DOUBLE_BACKTICK_PATTERN = re.compile(r"(?<!`)``(?!`)")
 
-# One RS050 term occurrence within a line: its `(offset, found, preferred)`, as
-# `disfavored_gcp_terms_in_prose` reports it.
-_GcpTermFault = tuple[int, str, str]
+# One prose fault within a line: its `(offset, found, replacement)`, as the
+# RS050 and RS054 scanners report it.
+_LineFault = tuple[int, str, str]
 
 # A docstring opening that names the unit's category or hedges instead of
 # stating its contract. Matched case-insensitively against the summary's first
@@ -97,14 +105,10 @@ _CODE_SECTION_HEADERS = frozenset({"Example:", "Examples:"})
 _SECTION_HEADERS = (
     _ENTRY_SECTION_HEADERS | _PROSE_SECTION_HEADERS | _CODE_SECTION_HEADERS
 )
-_BULLET_PATTERN = re.compile(r"^[-*+] ")
 # A section entry's caption: a non-space run then a colon (`name:`,
 # `name (type):`, `ValueError:`), which opens a fresh entry. A line without one
 # continues the entry it follows.
 _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
-# A markdown table row or a line made only of rule characters opens verbatim
-# content whose terminal character is not prose punctuation.
-_VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 
 # The Python literal constants read as code in prose just as a name does, so
 # RS036 treats them as always-known references beside the module's own names.
@@ -127,12 +131,16 @@ _ENTRY_CAPTION_PATTERN = re.compile(r"^\S+(?:\s*\([^)]*\))?:\s*")
 # dotted path.
 _LEADING_TOKEN_PATTERN = re.compile(r"[A-Za-z_]\w*(?:\.\w+)*")
 # A pluralized all-caps acronym (`UIDs`, `URLs`, `IDs`): an acronym reads as
-# English whether bare (`URL`) or plural, so the trailing `s` — its only
-# lowercase letter — must not make the token look like code.
+# English whether bare (`URL`) or plural, so the trailing `s` -- its only
+# lowercase letter -- must not make the token look like code.
 _PLURAL_ACRONYM_PATTERN = re.compile(r"[A-Z]{2,}s")
 _SENTENCE_ENDINGS = (".", "!", "?")
 _GLUED_SPAN_MESSAGE = (
     "a code span carries a glued suffix; move the suffix outside the backticks"
+)
+_BULLET_CASING_MESSAGE = (
+    "a bullet item in a multi-sentence list opens in lowercase; begin each "
+    "item with a capital letter"
 )
 
 
@@ -231,8 +239,8 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
     """Docstring prose may not glue an inflection to a code span.
 
     A code span sets a name in code font, so an English suffix run straight
-    onto its closing backtick — a possessive apostrophe-s, a plural, or a verb
-    ending — reads as part of the identifier and breaks the span in rendered
+    onto its closing backtick -- a possessive apostrophe-s, a plural, or a verb
+    ending -- reads as part of the identifier and breaks the span in rendered
     Markdown. The check fires on a closing backtick followed at once by a
     letter or an apostrophe, and leaves a hyphenated compound such as `-safe`
     alone, since that keeps the span ending on a word boundary. The rule warns
@@ -252,16 +260,16 @@ def check_glued_code_span_in_docstrings(path: Path, source: str) -> Iterator[Vio
         # Join the docstring's physical lines so a code span crossing a line
         # break pairs as one span; scanning each line alone would pair a
         # wrapped span's trailing backtick with the next span's opening one. A
-        # line outside the segmenter's prose units — inside a fence or
-        # `Example:` section, or a doctest line — is blanked to its width so
+        # line outside the segmenter's prose units -- inside a fence or
+        # `Example:` section, or a doctest line -- is blanked to its width so
         # its backticks neither pair nor draw a finding, as RS030 and RS036
         # also skip those lines, while the blank preserves the column math
         # below. The blanking is skipped only for an implicitly-concatenated
         # literal, whose adjacent pieces decode to fewer lines than the literal
         # spans and so collapse the value-to-physical mapping the blanking
         # relies on; such a literal carries no code section, so all its lines
-        # are scanned. A single literal — even one with an escaped newline,
-        # which only adds value lines — keeps the blanking so a fenced or
+        # are scanned. A single literal -- even one with an escaped newline,
+        # which only adds value lines -- keeps the blanking so a fenced or
         # `Example:` region stays excluded.
         concatenated = constant.value.count("\n") < end - start
         prose_lines = _docstring_prose_line_numbers(constant)
@@ -285,7 +293,7 @@ def check_glued_code_span_in_comments(path: Path, source: str) -> Iterator[Viola
     The same rule the docstring check applies holds for a comment: a suffix run
     onto a code span's closing backtick reads as part of the identifier. A
     standalone and a trailing comment are covered alike, across the Python,
-    TOML, YAML, and shell comments `extract_comments` handles — tokenizing a
+    TOML, YAML, and shell comments `extract_comments` handles -- tokenizing a
     non-Python file as Python here would raise on its first irregular indent.
     """
     if path.suffix not in COMMENT_SUFFIXES:
@@ -471,7 +479,7 @@ def _effective_pattern(pyproject: Path | None) -> re.Pattern[str]:
     containing a regex metacharacter must match itself literally rather than be
     interpreted as one. An empty effective verb set (every verb excluded)
     compiles to a pattern that matches nothing, not one that matches everything
-    — `re.compile("^()\\b")` would otherwise match the empty string at the
+    -- `re.compile("^()\\b")` would otherwise match the empty string at the
     start of every summary.
     """
     conjugations = _effective_conjugations(pyproject)
@@ -490,7 +498,7 @@ def _effective_conjugations(pyproject: Path | None) -> dict[str, str]:
     A repo adds its own survey-backed verb via `imperative-verbs-extra`, or
     drops a homograph too risky for its own domain via
     `imperative-verbs-exclude`, tuning RS034 locally instead of editing the
-    shared verb list every repo inherits — the same override pattern RS017's
+    shared verb list every repo inherits -- the same override pattern RS017's
     `banned-imports` and RS033's `filename-extensions` already use. A consuming
     repo excluding every verb (its own plus any extra) is left with an empty
     map.
@@ -542,7 +550,7 @@ def check_lowercase_entry_description(path: Path, source: str) -> Iterator[Viola
 
     An `Args:`, `Returns:`, `Raises:`, or `Yields:` entry states its
     description as a full sentence, so it opens with a capital just as RS030
-    requires it to close with a period — the two rules are the opening-capital
+    requires it to close with a period -- the two rules are the opening-capital
     and closing-period halves of the same full-sentence convention. `bar: A
     bar.`, not `bar: a bar.`; `NotFoundError: If a foo is not found.`, not
     `NotFoundError: if a foo is not found.`.
@@ -577,16 +585,64 @@ def check_lowercase_entry_description(path: Path, source: str) -> Iterator[Viola
             )
 
 
+def check_bullet_item_casing(path: Path, source: str) -> Iterator[Violation]:
+    """A bulleted list holding a multi-sentence item is sentence-cased.
+
+    A list item running more than one sentence is prose, and prose opens with
+    a capital; once any item in a list is such prose, every item in the list
+    opens with a capital, so the list reads in one register -- `- The thing.
+    Does a foo.` beside `- The other thing.`, never beside `- the other
+    thing`. A list whose items are all single-sentence fragments may stay
+    lowercase, since a fragment continues the sentence that introduced the
+    list. As in RS047, an item opening with a backtick span, an
+    inherently-lowercase code token (a dotted path or a distinctive-shaped
+    identifier), a digit, or any other non-letter never fires.
+
+    A list is a run of consecutive bullet items at one indent, unbroken by a
+    body paragraph; a nested deeper-indented list is judged on its own. A
+    sentence boundary inside a backtick span or a URL does not count toward an
+    item being multi-sentence.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        units = _docstring_prose_units(constant)
+        for items in _docstring_bullet_lists(units, source_lines):
+            yield from _miscased_bullet_items(items)
+
+
+def check_bullet_item_casing_in_comments(
+    path: Path, source: str
+) -> Iterator[Violation]:
+    """A comment's bulleted list follows RS053's sentence-casing contract.
+
+    Applies `check_bullet_item_casing` to the bulleted lists inside standalone
+    comment blocks, read from Python, TOML, YAML, and shell comments alike. A
+    line indented past the item's marker within the same block wraps the item;
+    a same-indent bullet continues the list; any other line ends it.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    for block in _standalone_comment_blocks(path, source):
+        for items in _comment_bullet_lists(block):
+            yield from _miscased_bullet_items(items)
+
+
 def check_docstring_temporal_markers(path: Path, source: str) -> Iterator[Violation]:
     """Flags a temporal or edit-narrative marker in docstring prose.
 
-    A curated set of phrases — naming what the code once did, or how a change
-    was reached — narrates the edit rather than the unit's present contract, so
-    it belongs in the commit message, not durable docstring prose. This is the
-    common source of an agent leaking the session's design discussion and the
-    diff's story into the code. A marker quoted inside a backtick span is a
-    referenced token, not narration, and is left alone. Each prose unit —
-    summary, body paragraph, or section entry — is scanned; a code span,
+    A curated set of phrases -- naming what the code once did, or how a change
+    was reached -- narrates the edit rather than the unit's present contract,
+    so it belongs in the commit message, not durable docstring prose. This is
+    the common source of an agent leaking the session's design discussion and
+    the diff's story into the code. A marker quoted inside a backtick span is a
+    referenced token, not narration, and is left alone. Each prose unit --
+    summary, body paragraph, or section entry -- is scanned; a code span,
     doctest, or `Example:` block is not. This is the mechanical floor under the
     `common-style-review` prose-economy lens, which judges the ambiguous cases
     this tight set deliberately leaves out.
@@ -612,8 +668,8 @@ def check_docstring_temporal_markers(path: Path, source: str) -> Iterator[Violat
 def check_unbackticked_code_reference(path: Path, source: str) -> Iterator[Violation]:
     """Flags a code name in docstring prose left without backticks.
 
-    A word in docstring prose that matches a name the module itself binds — a
-    parameter, an import, a function or class, an accessed attribute — or one
+    A word in docstring prose that matches a name the module itself binds -- a
+    parameter, an import, a function or class, an accessed attribute -- or one
     of the literals `None`, `True`, and `False` reads as a code reference, and
     the house style sets a code token in single backticks. To stay mechanical
     the check fires only where a word cannot be ordinary English: an
@@ -659,9 +715,9 @@ def check_unbackticked_sibling_symbol(path: Path, source: str) -> Iterator[Viola
     only on that inconsistency: a docstring must already backtick at least one
     code-shaped token before any bare token in it is considered.
 
-    A bare token qualifies only when its shape rules out ordinary English — an
+    A bare token qualifies only when its shape rules out ordinary English -- an
     underscore, a digit, or an interior capital beside a lowercase letter
-    (`remote_aes`, `col_offset`, `HttpClient`) — and when the same file offers
+    (`remote_aes`, `col_offset`, `HttpClient`) -- and when the same file offers
     self-contained proof it is a real identifier by carrying it verbatim inside
     a string literal, such as a table or column name in an embedded SQL
     statement. A name the module binds is left to RS036, which flags it whether
@@ -813,8 +869,8 @@ def _docstring_acronym_faults(
 ) -> Iterator[tuple[int, int, str, str]]:
     """Yields `(lineno, offset, found, canonical)` for each miscased acronym.
 
-    Scans each source line the docstring's prose units occupy — the segmenter
-    already drops fences, doctests, and `Example:` sections — confined to the
+    Scans each source line the docstring's prose units occupy -- the segmenter
+    already drops fences, doctests, and `Example:` sections -- confined to the
     docstring literal's own columns, so a one-line `def`/`class` signature or a
     trailing comment sharing the line is excluded, and with an entry unit's
     leading `name:` caption blanked, so a parameter named for a lowercased
@@ -884,7 +940,7 @@ def fix_disfavored_gcp_term_in_docstrings(
     if tree is None:
         return source
     source_lines = source.splitlines()
-    faults_by_line: dict[int, list[_GcpTermFault]] = {}
+    faults_by_line: dict[int, list[_LineFault]] = {}
     for node in _walk_docstring_owners(tree):
         constant = _docstring_constant(node)
         if constant is None:
@@ -895,8 +951,107 @@ def fix_disfavored_gcp_term_in_docstrings(
             if lineno not in skip_lines:
                 faults_by_line.setdefault(lineno, []).append((offset, found, preferred))
     for lineno, faults in faults_by_line.items():
-        source_lines[lineno - 1] = _rewrite_gcp_terms(source_lines[lineno - 1], faults)
+        source_lines[lineno - 1] = _apply_line_faults(source_lines[lineno - 1], faults)
     return _join_source_lines(source, source_lines) if faults_by_line else source
+
+
+def check_nonstandard_dash_in_docstrings(
+    path: Path, source: str
+) -> Iterator[Violation]:
+    """Flags a nonstandard sentence dash in a docstring.
+
+    Prose sets a clause off with the house sentence dash, the spaced double
+    hyphen ` -- `. An em dash (spaced or glued), a spaced en dash, a
+    letter-flanked spaced hyphen, and a mis-spaced double hyphen are flagged
+    and, under `--fix`, rewritten to the standard form. An occurrence inside a
+    backtick span (`git log -- path`) or a URL is left alone, as are an
+    unspaced en dash (an `RSnnn` or numeric range) and a hyphen not flanked by
+    letters (arithmetic, a negative number, a CLI flag, a bullet marker), so
+    only a dash doing sentence work fires.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for lineno, offset, found, _ in _docstring_dash_faults(constant, source_lines):
+            yield Violation(
+                lineno,
+                offset + 1,
+                RS_NONSTANDARD_DASH,
+                f"docstring uses a nonstandard sentence dash {found!r}; "
+                f"write {STANDARD_SENTENCE_DASH!r}",
+            )
+
+
+def fix_nonstandard_dash_in_docstrings(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Rewrites each nonstandard sentence dash in a docstring, RS054's fix.
+
+    Each occurrence the docstring check flags is replaced in place with the
+    house ` -- `. A replacement changes length, so a line's faults are applied
+    right to left, keeping each earlier offset valid. A unit whose line is in
+    `skip_lines` is left alone.
+
+    Returns:
+        The source with each flagged dash rewritten, unchanged when nothing
+        rewrites.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return source
+    source_lines = source.splitlines()
+    faults_by_line: dict[int, list[_LineFault]] = {}
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for lineno, offset, found, replacement in _docstring_dash_faults(
+            constant, source_lines
+        ):
+            if lineno not in skip_lines:
+                faults_by_line.setdefault(lineno, []).append(
+                    (offset, found, replacement)
+                )
+    for lineno, faults in faults_by_line.items():
+        source_lines[lineno - 1] = _apply_line_faults(source_lines[lineno - 1], faults)
+    return _join_source_lines(source, source_lines) if faults_by_line else source
+
+
+def _apply_line_faults(line: str, faults: list[_LineFault]) -> str:
+    """Returns `line` with each `(offset, found, replacement)` fault applied.
+
+    Faults are applied in descending offset order, so a preceding replacement's
+    length change never shifts a later offset.
+    """
+    for offset, found, replacement in sorted(faults, reverse=True):
+        if line[offset : offset + len(found)] == found:
+            line = line[:offset] + replacement + line[offset + len(found) :]
+    return line
+
+
+def _docstring_dash_faults(
+    constant: ast.Constant, source_lines: list[str]
+) -> Iterator[tuple[int, int, str, str]]:
+    """Yields `(lineno, offset, found, replacement)` per nonstandard dash.
+
+    Scans each source line the docstring's prose units occupy -- the segmenter
+    already drops fences, doctests, verbatim lines, and `Example:` sections --
+    confined to the docstring literal's own columns, so a one-line signature or
+    a trailing comment sharing the line is excluded. An entry's leading `name:`
+    caption needs no blanking, since a caption is one unspaced token no dash
+    form can straddle.
+    """
+    units = _docstring_prose_units(constant)
+    prose_lines = frozenset(lineno for unit in units for lineno in unit.linenos)
+    for lineno in sorted(prose_lines):
+        line = _blank_outside_docstring(source_lines[lineno - 1], lineno, constant)
+        for offset, found, replacement in _nonstandard_dashes_in_prose(line):
+            yield lineno, offset, found, replacement
 
 
 def _docstring_gcp_term_faults(
@@ -904,8 +1059,8 @@ def _docstring_gcp_term_faults(
 ) -> Iterator[tuple[int, int, str, str]]:
     """Yields `(lineno, offset, found, preferred)` for each disfavored name.
 
-    Scans each source line the docstring's prose units occupy — the segmenter
-    already drops fences, doctests, and `Example:` sections — confined to the
+    Scans each source line the docstring's prose units occupy -- the segmenter
+    already drops fences, doctests, and `Example:` sections -- confined to the
     docstring literal's own columns, so a one-line `def`/`class` signature or a
     trailing comment sharing the line is excluded, and with an entry unit's
     leading `name:` caption blanked, so a parameter named for a Google Cloud
@@ -950,18 +1105,6 @@ def _blank_outside_docstring(line: str, lineno: int, constant: ast.Constant) -> 
     start = constant.col_offset if lineno == constant.lineno else 0
     end = constant.end_col_offset if lineno == constant.end_lineno else len(line)
     return " " * start + line[start:end] + " " * (len(line) - end)
-
-
-def _rewrite_gcp_terms(line: str, faults: list[_GcpTermFault]) -> str:
-    """Returns `line` with each `(offset, found, preferred)` fault applied.
-
-    Faults are applied in descending offset order, so a preceding replacement's
-    length change never shifts a later offset.
-    """
-    for offset, found, preferred in sorted(faults, reverse=True):
-        if line[offset : offset + len(found)] == found:
-            line = line[:offset] + preferred + line[offset + len(found) :]
-    return line
 
 
 def fix_docstring_terminal_punctuation(
@@ -1033,6 +1176,52 @@ def _check_double_backticks_in_lines(source: str) -> Iterator[Violation]:
 _StandaloneComment = tuple[int, str]
 
 
+def _comment_bullet_lists(
+    block: list[tuple[int, int, str]],
+) -> list[list[_BulletItem]]:
+    """Groups a comment block's bullet lines into the lists RS053 judges.
+
+    A line whose post-hash text opens with a bullet marker starts an item; a
+    non-bullet line indented past the list's markers wraps the open item; a
+    same-indent bullet continues the list; any other line, or a marker-indent
+    change, ends the open list.
+    """
+    lists: list[list[_BulletItem]] = []
+    items: list[_BulletItem] = []
+    open_item: tuple[int, int, list[str]] | None = None
+    list_indent = -1
+    for lineno, column, string in block:
+        indent, text = _comment_body(string)
+        is_bullet = _BULLET_PATTERN.match(text) is not None
+        if not is_bullet and open_item is not None and indent > list_indent:
+            open_item[2].append(text)
+            continue
+        if open_item is not None:
+            marker_line, marker_col, parts = open_item
+            items.append(_BulletItem(marker_line, marker_col, " ".join(parts)))
+            open_item = None
+        if not is_bullet or (items and indent != list_indent):
+            if items:
+                lists.append(items)
+            items = []
+        if is_bullet:
+            if not items:
+                list_indent = indent
+            open_item = (lineno, column + 1, [text])
+    if open_item is not None:
+        marker_line, marker_col, parts = open_item
+        items.append(_BulletItem(marker_line, marker_col, " ".join(parts)))
+    if items:
+        lists.append(items)
+    return lists
+
+
+def _comment_body(comment: str) -> tuple[int, str]:
+    """Splits a comment into its post-hash indent width and stripped text."""
+    body = comment.lstrip("#")
+    return len(body) - len(body.lstrip()), body.strip()
+
+
 def _comment_lines(source: str) -> tuple[dict[int, _StandaloneComment], dict[int, str]]:
     """Splits a source's comments into the standalone and trailing maps.
 
@@ -1083,6 +1272,39 @@ def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
             yield node
 
 
+def _docstring_bullet_lists(
+    units: list[_ProseUnit], source_lines: list[str]
+) -> list[list[_BulletItem]]:
+    """Groups a docstring's bullet units into the lists RS053 judges.
+
+    A maximal run of consecutive bullet units whose first lines share one
+    indent is a list; a non-bullet unit or an indent change ends the run, so a
+    nested deeper-indented list stands on its own. A blank line yields no unit,
+    so blank-separated items still group into one list.
+    """
+    lists: list[list[_BulletItem]] = []
+    run: list[_BulletItem] = []
+    run_indent = -1
+    for unit in units:
+        if unit.kind != "bullet":
+            if run:
+                lists.append(run)
+            run = []
+            continue
+        lineno = unit.linenos[0]
+        line = source_lines[lineno - 1]
+        indent = len(line) - len(line.lstrip())
+        if run and indent != run_indent:
+            lists.append(run)
+            run = []
+        if not run:
+            run_indent = indent
+        run.append(_BulletItem(lineno, indent + 1, unit.text))
+    if run:
+        lists.append(run)
+    return lists
+
+
 def _entry_description(text: str) -> str:
     """Returns an entry's description, the text after its `name:` caption.
 
@@ -1094,13 +1316,30 @@ def _entry_description(text: str) -> str:
     return _ENTRY_CAPTION_PATTERN.sub("", text, count=1).strip()
 
 
+def _miscased_bullet_items(items: list[_BulletItem]) -> Iterator[Violation]:
+    """Yields RS053's violation for each lowercase item in a prose-cased list.
+
+    The list must be sentence-cased when any of its items runs more than one
+    sentence; each item that then opens with a lowercase prose word draws one
+    violation at its marker.
+    """
+    texts = [_BULLET_PATTERN.sub("", item.text, count=1) for item in items]
+    if not any(_has_sentence_boundary(_blank_prose_spans(text)) for text in texts):
+        return
+    for item, text in zip(items, texts, strict=True):
+        if _opens_with_lowercase_prose(text):
+            yield Violation(
+                item.lineno, item.col, RS_BULLET_ITEM_CASING, _BULLET_CASING_MESSAGE
+            )
+
+
 def _opens_with_lowercase_prose(description: str) -> bool:
     """Reports whether an entry description opens with a lowercase prose word.
 
     A description opening with a lowercase ASCII letter is a prose word unless
-    its leading token is an inherently-lowercase code token — a dotted path or
+    its leading token is an inherently-lowercase code token -- a dotted path or
     a distinctive-shaped identifier (an underscore, a digit, or an interior
-    capital) — which reads as code and is left alone. An empty description, or
+    capital) -- which reads as code and is left alone. An empty description, or
     one opening with a backtick, a digit, an uppercase letter, or any other
     non-letter, does not fire.
     """
@@ -1172,8 +1411,8 @@ def _string_literal_symbols(
 ) -> frozenset[str]:
     """Returns the distinctive identifier tokens found in string literals.
 
-    Scans every string constant that is not itself a docstring — an embedded
-    SQL statement, a log line, a format string — and collects the identifier
+    Scans every string constant that is not itself a docstring -- an embedded
+    SQL statement, a log line, a format string -- and collects the identifier
     tokens whose shape marks them as code. A token appearing here is proof, in
     the file itself, that a matching bare word in a docstring names a real
     identifier rather than reading as English.
@@ -1315,6 +1554,15 @@ def _is_distinctive_code_token(name: str) -> bool:
     return has_interior_capital and any(character.islower() for character in name)
 
 
+class _BulletItem(NamedTuple):
+    lineno: int
+    """1-based source line of the item's bullet marker."""
+    col: int
+    """1-based column the violation points at."""
+    text: str
+    """The item's lines joined into one string, bullet marker included."""
+
+
 class _DocLine(NamedTuple):
     lineno: int
     """1-based source line of this docstring line."""
@@ -1332,8 +1580,9 @@ class _DocstringSegmenter:
     Feed lines in order with `consume`, call `close` after the last, then read
     `units`. The first paragraph is the summary; later margin paragraphs are
     body; a `Note:` section's body is treated as body; an `Args:`-style section
-    yields one entry per item; a bullet yields a one-line bullet unit; and
-    code, doctests, `Example:` sections, and verbatim lines yield nothing.
+    yields one entry per item; a bullet item and its deeper-indented wrapped
+    continuations form one bullet unit; and code, doctests, `Example:`
+    sections, and verbatim lines yield nothing.
     """
 
     def __init__(self) -> None:
@@ -1343,6 +1592,7 @@ class _DocstringSegmenter:
         self._in_fence = False
         self._section: str | None = None
         self._entry_indent: int | None = None
+        self._bullet_indent: int | None = None
         self._summary_done = False
 
     def close(self) -> None:
@@ -1368,13 +1618,21 @@ class _DocstringSegmenter:
         if _BULLET_PATTERN.match(line.text):
             self.close()
             # A bullet is prose the code-reference and glued-span rules scan,
-            # so it becomes its own unit; the terminal-punctuation rule skips a
+            # so it opens its own unit; the terminal-punctuation rule skips a
             # `bullet` unit, since a list item need not close with a period.
-            self.units.append(
-                _ProseUnit(
-                    "bullet", line.lineno, line.column + 1, line.text, (line.lineno,)
-                )
-            )
+            self._open = [line]
+            self._open_kind = "bullet"
+            self._bullet_indent = line.relative_indent
+            return
+        if (
+            self._open
+            and self._open_kind == "bullet"
+            and self._bullet_indent is not None
+            and line.relative_indent > self._bullet_indent
+        ):
+            # A deeper-indented follower wraps the open item, so it extends the
+            # bullet unit rather than opening a stray paragraph.
+            self._open.append(line)
             return
         if self._section == "entry":
             self._consume_entry(line)

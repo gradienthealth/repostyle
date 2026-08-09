@@ -3,12 +3,12 @@
 The one-line finding a rule emits tells a consumer what tripped, not how to fix
 it or how to generalize the fix to lines the linter never flagged. That
 guidance lives in the rule docstrings, where a consuming repo's agent cannot
-reach it. This module lifts it into structured data — a `RuleDoc` per rule — so
-the `explain` subcommand and any later format render from one source rather
+reach it. This module lifts it into structured data -- a `RuleDoc` per rule --
+so the `explain` subcommand and any later format render from one source rather
 than parsing prose back out of docstrings.
 
-Every rule carries a `summary`; the rules where general knowledge falls short —
-config-driven bans, heuristic warnings with no single fix — carry richer
+Every rule carries a `summary`; the rules where general knowledge falls short
+-- config-driven bans, heuristic warnings with no single fix -- carry richer
 `rationale`, `examples`, `signals`, or a `reference` table. A rule whose
 one-line message already tells a competent agent the fix is left at its summary
 on purpose, to keep the cards worth reading.
@@ -24,8 +24,10 @@ from repostyle.rules._violation import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_BANNED_ABBREVIATION,
     RS_BANNED_IMPORT_BY_PATH,
+    RS_BANNER_COMMENT,
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_BOOLEAN_PREFIX_REQUIRED,
+    RS_BULLET_ITEM_CASING,
     RS_COGNITIVE_COMPLEXITY,
     RS_COMMENT_TAG_FORMAT,
     RS_CONDITIONAL_TEST_LOGIC,
@@ -53,6 +55,7 @@ from repostyle.rules._violation import (
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
+    RS_NONSTANDARD_DASH,
     RS_OVER_BROAD_EXCEPT,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
@@ -218,7 +221,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 good="def handle(request, response): ...",
                 note=(
                     "Fix every abbreviation in the file, not just the flagged "
-                    "one — the reference below is the full banned set."
+                    "one -- the reference below is the full banned set."
                 ),
             ),
         ),
@@ -239,7 +242,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         summary="A function's cognitive complexity is over the limit of 15.",
         rationale=(
             "Cognitive complexity weights control flow by nesting depth, so the "
-            "remedy is rarely to shorten the function — it is to flatten or "
+            "remedy is rarely to shorten the function -- it is to flatten or "
             "factor the structure driving the score. Reach for the remedy that "
             "matches the cause, not a blanket extraction."
         ),
@@ -282,7 +285,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "Replace a mock of your own collaborator with a port fake under "
             "`tests/fakes/` that records and replays observable interactions.",
             "If the unit needs many mocks to stand up, it may have too many "
-            "dependencies — consider whether it is doing too much.",
+            "dependencies -- consider whether it is doing too much.",
             "A mock that only satisfies a constructor argument can often be a "
             "real lightweight value or a shared fixture.",
         ),
@@ -314,7 +317,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         name="banned-import-by-path",
         summary="A file imports a module its layer's `banned-imports` config forbids.",
         rationale=(
-            "The bans express the repo's layering boundaries — an inner domain "
+            "The bans express the repo's layering boundaries -- an inner domain "
             "or port module must not import an outer adapter or the CLI, so the "
             "dependency arrow points inward. The fix is not to delete the import "
             "but to move the code that needs it to the layer that may hold it, or "
@@ -407,7 +410,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "A `TODO(TICKET): ...` comment that wraps onto a further line reads "
             "as one unit only when the wrapped text is indented past the tag. A "
             "flush follow-on line is ambiguous: it could be the wrap or an "
-            "unrelated comment. The convention resolves it by column — a "
+            "unrelated comment. The convention resolves it by column -- a "
             "continuation is indented, an independent comment is set off by a "
             "blank line. A follow-on line that is itself a tag comment is a new "
             "tag, not a wrap, and is left alone. The check spans Python, TOML, "
@@ -507,7 +510,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "Google's developer documentation style guide prefers hyphens "
             "over underscores in filenames, since a search engine reads a "
             "hyphen as a word break but not an underscore. Both defaults are "
-            "configurable — `[tool.repostyle.filename-extensions]` replaces "
+            "configurable -- `[tool.repostyle.filename-extensions]` replaces "
             "the extension map wholesale, `filename-case` takes `snake` or "
             "`none`. A curated set of tool- or ecosystem-mandated fixed "
             "names (`README.md`, `CHANGELOG.md`, `LICENSE`, `CODEOWNERS`, "
@@ -517,7 +520,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "renaming it. An "
             "extensionless name like `Dockerfile` or `LICENSE` only reaches "
             "this rule if the consuming repo's own pre-commit hook is "
-            "configured to pass it — the shipped hook and a bare directory "
+            "configured to pass it -- the shipped hook and a bare directory "
             "argument both discover only `.py`/`.toml`/`.yaml`/`.yml`/`.md`."
         ),
         examples=(
@@ -581,7 +584,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         rationale=(
             "PEP 257 and Google style require a docstring summary to be "
             "exactly one physical line, so unlike a body paragraph it has no "
-            "second line to spread overflow onto — `doc-fill`'s `--fix` "
+            "second line to spread overflow onto -- `doc-fill`'s `--fix` "
             "cannot rewrap it, only shrink or relocate the words by hand. "
             "Move a detail that does not fit into the body or an `Args:`/"
             "`Returns:` section instead of letting the summary run long."
@@ -607,8 +610,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
     RS_UNBACKTICKED_CODE_REFERENCE: RuleDoc(
         name="unbackticked-code-reference",
         summary=(
-            "A docstring wraps a code name it references — a parameter, an "
-            "import, a class, `None`/`True`/`False` — in single backticks."
+            "A docstring wraps a code name it references -- a parameter, an "
+            "import, a class, `None`/`True`/`False` -- in single backticks."
         ),
         rationale=(
             "The house style sets a code token in single backticks so prose "
@@ -617,7 +620,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "firing only where two signals agree: the word matches a name the "
             "module itself binds (a parameter, import, function, class, or "
             "accessed attribute) or a literal constant, and its shape rules "
-            "out plain English — an underscore, a digit, or an interior "
+            "out plain English -- an underscore, a digit, or an interior "
             "capital beside a lowercase letter (`skip_lines`, `HttpClient`). A "
             "literal (`None`/`True`/`False`) fires mid-sentence but not at a "
             "sentence start, where its capital could open an English clause. A "
@@ -625,8 +628,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "all-caps word that also reads as English (`Path`, `WARNING`) are "
             "left to review, since no rule can tell the reference from the "
             "word. Grounding the match in the module's own names is what lets "
-            "a code-shaped word the module never binds — a proper noun, or a "
-            "name shown only in an example — pass untouched: the shape marks a "
+            "a code-shaped word the module never binds -- a proper noun, or a "
+            "name shown only in an example -- pass untouched: the shape marks a "
             "candidate, but only a name the code defines fires."
         ),
         examples=(
@@ -648,8 +651,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
         ),
         rationale=(
             "A code span sets a name in code font, so a suffix run straight "
-            "onto its closing backtick — a possessive, a plural, or a verb "
-            "ending — reads as part of the identifier and breaks the span in "
+            "onto its closing backtick -- a possessive, a plural, or a verb "
+            "ending -- reads as part of the identifier and breaks the span in "
             "rendered Markdown. Moving the suffix outside the span keeps the "
             "prose readable and the identifier exact. The check stays "
             "mechanical: it fires on a closing backtick followed by a letter "
@@ -680,9 +683,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "consistent. This check fires only on that inconsistency, which "
             "keeps it mechanical: a block must already backtick at least one "
             "code-shaped token before a bare token in it is weighed. A bare "
-            "token qualifies only when its shape rules out plain English — an "
+            "token qualifies only when its shape rules out plain English -- an "
             "underscore, a digit, or an interior capital beside a lowercase "
-            "letter — and when the same file carries it verbatim inside a "
+            "letter -- and when the same file carries it verbatim inside a "
             "string literal, such as a table or column name in an embedded SQL "
             "statement, which is self-contained proof it names a real "
             "identifier. A name the module binds is left to RS036, which fires "
@@ -721,8 +724,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "levels the annotation is usually standing in for a type that wants "
             "a name. A two-level `Iterator[tuple[...]]` or `dict[str, "
             "list[...]]` is idiomatic and left alone; every subscript layer "
-            "beyond that counts the same — a `tuple` or a `Callable` is no "
-            "easier to read nested — so the remedy is to give the inner "
+            "beyond that counts the same -- a `tuple` or a `Callable` is no "
+            "easier to read nested -- so the remedy is to give the inner "
             "shape a name, not to reformat the annotation. Reach for the "
             "construct that fits what the shape is: a `TypeAlias` when it is "
             "genuinely just an alias, a `NamedTuple` or dataclass when the "
@@ -787,7 +790,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "reader trusts the section to be complete, so an exception the body "
             "raises with an explicit `raise SomeError(...)` but the section "
             "omits silently understates the contract. A function with no "
-            "`Raises:` section does not fire — whether to document exceptions at "
+            "`Raises:` section does not fire -- whether to document exceptions at "
             "all is the prose-side choice RS041 governs. Where an exception is "
             "both raised in code and narrated in the body, RS041 owns it and "
             "this rule stays silent."
@@ -829,7 +832,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "A durable docstring or comment describes what the code does now. A "
             "marker like `previously`, `used to`, `formerly`, `originally`, `as "
             "discussed`, `we decided`, `for now`, `changed to`, or `switched "
-            "to` narrates the edit or the design discussion instead — the story "
+            "to` narrates the edit or the design discussion instead -- the story "
             "belongs in the commit message, where it stays attached to the "
             "diff, not in prose a later reader mistakes for the current "
             "contract. This is the common shape of an agent leaking the "
@@ -837,8 +840,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "tight (ambiguous words like `currently`, `instead of`, or `note "
             "that` are left out) and a marker quoted in a backtick span is "
             "read as data, not narration, so the rule stays a mechanical floor. "
-            "The judgment ceiling — prose that narrates the edit without one of "
-            "these exact markers — is the `common-style-review` prose-economy "
+            "The judgment ceiling -- prose that narrates the edit without one of "
+            "these exact markers -- is the `common-style-review` prose-economy "
             "lens this rule is synced with. Not auto-fixable: cutting the "
             "narration cleanly needs judgment, so no `--fix`."
         ),
@@ -869,8 +872,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "an index variable on what `for item in seq:` says directly, and the "
             "indirection hides that the loop is a plain traversal. The check "
             "fires only when the index is used for nothing but subscripting that "
-            "same sequence, so a loop that also needs the index — for "
-            "arithmetic, a second sequence, or a call — is left alone rather "
+            "same sequence, so a loop that also needs the index -- for "
+            "arithmetic, a second sequence, or a call -- is left alone rather "
             "than steered toward `enumerate`, the weaker suggestion this rule "
             "deliberately does not make. No stable ruff rule expresses this: "
             "pylint's `C0200` (`consider-using-enumerate`) covers the shape but "
@@ -882,8 +885,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 bad="for i in range(len(rows)):\n    process(rows[i])",
                 good="for row in rows:\n    process(row)",
                 note=(
-                    "When the index is needed too — `rows[i]` beside `i + 1` or "
-                    "a bare `i` — the loop is left alone."
+                    "When the index is needed too -- `rows[i]` beside `i + 1` or "
+                    "a bare `i` -- the loop is left alone."
                 ),
             ),
         ),
@@ -897,7 +900,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         rationale=(
             "The house treats each Google-section entry description as a full "
             "sentence, so it opens with a capital just as RS030 requires it to "
-            "close with a period — the two rules are the opening-capital and "
+            "close with a period -- the two rules are the opening-capital and "
             "closing-period halves of one convention. ChromiumOS's Python style "
             "guide requires docstring content, including argument descriptions, "
             "to be full sentences with proper capitalization and punctuation, "
@@ -930,8 +933,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "RS001 holds an acronym to its canonical casing in a CapWords "
             "identifier; this holds the same acronym to the same casing in the "
             "prose beside it, where a miscased `ipv6` or `Nat` reads as an "
-            "ordinary word. The canonical casing is not always uppercase — "
-            "`IPv6` is mixed-case — so each acronym carries its own target "
+            "ordinary word. The canonical casing is not always uppercase -- "
+            "`IPv6` is mixed-case -- so each acronym carries its own target "
             "casing, and `--fix` recases an occurrence in place. The resolved "
             "set shares RS001's `acronyms-extra`/`acronyms-exclude` config keys. "
             "The check stays mechanical by firing only on a whole-word token, "
@@ -1042,7 +1045,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "other code not to reach into what was hidden. The check scopes to "
             "imports that share the importer's top-level package, so it governs "
             "a repo's own layering and leaves a reach into a third-party "
-            "distribution — whose internals a repo cannot restructure — alone. "
+            "distribution -- whose internals a repo cannot restructure -- alone. "
             "It follows PEP 8's `Public and internal interfaces`: an interface "
             "is internal if any containing namespace is, and other modules must "
             "not rely on indirect access to it except through a package's "
@@ -1131,6 +1134,108 @@ RULE_DOCS: dict[str, RuleDoc] = {
         ),
         reference=tuple(sorted(STRUCTURAL_BUILTINS)),
     ),
+    RS_BULLET_ITEM_CASING: RuleDoc(
+        name="bullet-item-casing",
+        summary=(
+            "A bulleted list holding a multi-sentence item opens every item "
+            "with a capital letter."
+        ),
+        rationale=(
+            "A list item running more than one sentence is prose, and prose "
+            "opens with a capital; once one item in a list is such prose, a "
+            "lowercase sibling makes the list read in two registers at once. "
+            "The rule therefore asks for consistency per list: a list with any "
+            "multi-sentence item is sentence-cased throughout, while a list "
+            "whose items are all single-sentence fragments may stay lowercase, "
+            "since a fragment continues the sentence that introduced the list. "
+            "This is RS047's opening-capital convention carried to bulleted "
+            "lists, and like RS047 it exempts an item opening with a backtick "
+            "span, a dotted path, a distinctive-shaped identifier, a digit, or "
+            "any other non-letter. Not auto-fixable: capitalizing a leading "
+            "word that is really a lowercase code name would corrupt it, so "
+            "the opener is left to review."
+        ),
+        examples=(
+            Example(
+                bad="- the thing. Does a foo.\n- the other thing",
+                good="- The thing. Does a foo.\n- The other thing.",
+                note=(
+                    "The first item runs two sentences, so the whole list is "
+                    "sentence-cased. A list of one-sentence fragments (`- the "
+                    "thing`) may stay lowercase."
+                ),
+            ),
+        ),
+    ),
+    RS_NONSTANDARD_DASH: RuleDoc(
+        name="nonstandard-dash",
+        summary=(
+            "Docstring and comment prose sets a clause off with the house "
+            "sentence dash, the spaced `--`, not an em dash, en dash, or "
+            "single hyphen."
+        ),
+        rationale=(
+            "Prose reaches for a sentence dash in several shapes -- an em "
+            "dash, spaced or glued, an en dash, a spaced single hyphen, a "
+            "glued double hyphen -- and each writer picks one by local "
+            "precedent, so files drift apart. The house standardizes on the "
+            "spaced double hyphen: it is unambiguous ASCII (an em dash, an en "
+            "dash, and a hyphen-minus render nearly alike in many editors, so "
+            "drift among them is invisible), it cannot be mistaken for a "
+            "bullet marker or a minus sign, and it greps trivially. The check "
+            "masks backtick spans and URLs, leaves an unspaced en-dash range "
+            "(`RS013–RS016`) alone, and requires letters around a "  # noqa: RUF001
+            "hyphen form, so arithmetic, negative numbers, CLI flags, and bullet "
+            "markers never fire. Auto-fixable: `--fix` rewrites each flagged "
+            "dash to the spaced `--`."
+        ),
+        examples=(
+            Example(
+                bad="# resolves the config — falling back to defaults",
+                good="# resolves the config -- falling back to defaults",
+            ),
+            Example(
+                bad='"""Returns the lease - or `None` when expired."""',
+                good='"""Returns the lease -- or `None` when expired."""',
+                note=(
+                    "A spaced single hyphen between letters is doing dash "
+                    "work; `3 - 5` and `n - 1` are left alone."
+                ),
+            ),
+        ),
+    ),
+    RS_BANNER_COMMENT: RuleDoc(
+        name="banner-comment",
+        summary=(
+            "No banner or section-divider comments: a line of rule characters "
+            "is deleted and the grouping expressed with structure."
+        ),
+        rationale=(
+            "A banner -- `# -----` frame lines boxing a `# TESTS` title, or a "
+            "lone divider -- decorates a grouping instead of expressing it. "
+            "Divider styling is rarely applied consistently, adds no "
+            "information a reader can act on, and a file that needs visual "
+            "section markers is usually asking for real structure: group the "
+            "section into a class, split the module, or give the section a "
+            "docstring. The check flags each standalone comment that is "
+            "nothing but a run of four or more rule characters, so YAML's "
+            "commented-out `# ---` document separator and the `+----+` "
+            "ASCII-table border stay exempt, and a decorated one-line title "
+            "(`# === TESTS ===`) is left to review. Not auto-fixable: "
+            "deleting the divider is trivial, but the restructuring it points "
+            "at is not."
+        ),
+        examples=(
+            Example(
+                bad="# ----------------\n# HELPERS\n# ----------------\ndef _one(): ...",
+                good="def _one(): ...",
+                note=(
+                    "Delete the divider; a file that genuinely has sections "
+                    "wants a class or a module split, not typography."
+                ),
+            ),
+        ),
+    ),
 }
 
 
@@ -1142,7 +1247,7 @@ def rule_doc(rule_id: str) -> RuleDoc | None:
 def has_guidance(rule_id: str) -> bool:
     """Reports whether a rule carries detail past its one-line summary.
 
-    True when the rule has examples, heuristic signals, or a reference table —
+    True when the rule has examples, heuristic signals, or a reference table --
     the rules whose card is worth fetching, so the discovery hint points only
     at those.
     """

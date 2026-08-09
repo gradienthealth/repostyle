@@ -13,8 +13,8 @@ from functools import lru_cache
 from pathlib import Path
 
 from repostyle._shared import (
-    _BACKTICK_SPAN_PATTERN,
     TEST_CLASS_PATTERN,
+    _blank_prose_spans,
     _has_decorator,
     _is_test_file,
     _parse_python,
@@ -89,10 +89,6 @@ _PROSE_TERM_OWNED_ACRONYMS: frozenset[str] = frozenset({"GCP"})
 _PROSE_ACRONYM_TOKEN = re.compile(
     r"(?<![A-Za-z0-9_-])[A-Za-z][A-Za-z0-9]*(?![A-Za-z0-9_-])"
 )
-# A URI, blanked before the token scan so an acronym inside a `gs://` or
-# `https://` path is not read as a bare prose reference to correct.
-_PROSE_URI = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
-
 # RS050's curated map of a disfavored Google Cloud product or brand name in
 # prose to its preferred current form. Only unambiguous substitutions live
 # here: `GCS` and `GCP` are Google's own retired shorthands, and `Big Query`,
@@ -113,9 +109,9 @@ DISFAVORED_GCP_TERMS: dict[str, str] = {
     "Pub Sub": "Pub/Sub",
 }
 
-# Each disfavored term keyed by its normalized form — internal whitespace
-# collapsed to one space, uppercased — so a case- and spacing-insensitive match
-# resolves back to its preferred replacement.
+# Each disfavored term keyed by its normalized form -- internal whitespace
+# collapsed to one space, uppercased -- so a case- and spacing-insensitive
+# match resolves back to its preferred replacement.
 _GCP_TERM_REPLACEMENT: dict[str, str] = {
     re.sub(r"\s+", " ", term).upper(): preferred
     for term, preferred in DISFAVORED_GCP_TERMS.items()
@@ -276,10 +272,10 @@ def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
     """Flags a boolean name that embeds its own negation.
 
     A name opening with a boolean prefix (`is`, `has`, `can`, `should`) and
-    carrying `not` or `no` as a later word reads as a standing negative —
-    `is_not_stale`, `has_no_results` — so every call site must double-negate it
-    (`if not is_not_stale`). Name the positive (`is_fresh`, `has_results`) and
-    negate where the value is read.
+    carrying `not` or `no` as a later word reads as a standing negative --
+    `is_not_stale`, `has_no_results` -- so every call site must double-negate
+    it (`if not is_not_stale`). Name the positive (`is_fresh`, `has_results`)
+    and negate where the value is read.
     Scope: function and method names, parameters, and names bound by assignment
     or annotation. The negation is matched only as a whole snake_case or
     CapWords word, so `is_notable` and `is_north` (where `not` or `no` is
@@ -509,18 +505,6 @@ def disfavored_gcp_terms_in_prose(text: str) -> Iterator[tuple[int, str, str]]:
         yield match.start(), found, preferred
 
 
-def _blank_prose_spans(text: str) -> str:
-    """Replaces each backtick span and URI in `text` with equal-length spaces.
-
-    Keeping the run's length preserves every other character's offset, so a
-    token position found in the blanked text indexes the original `text`.
-    """
-    without_spans = _BACKTICK_SPAN_PATTERN.sub(
-        lambda match: " " * len(match.group()), text
-    )
-    return _PROSE_URI.sub(lambda match: " " * len(match.group()), without_spans)
-
-
 @lru_cache(maxsize=128)
 def effective_prose_acronyms(pyproject: Path | None) -> dict[str, str]:
     """Returns the uppercased-to-canonical acronym map RS049 corrects prose to.
@@ -665,8 +649,8 @@ def _capwords_acronym_violations(name: str, acronyms: frozenset[str]) -> Iterato
 def _effective_acronyms(pyproject: Path | None) -> frozenset[str]:
     """Returns the acronym set, adjusted for this repo's config.
 
-    A repo adds a domain acronym through `acronyms-extra` — a DICOM repo adds
-    `UID`, `SCU`, `PACS` — or drops one too aggressive for its own names
+    A repo adds a domain acronym through `acronyms-extra` -- a DICOM repo adds
+    `UID`, `SCU`, `PACS` -- or drops one too aggressive for its own names
     through `acronyms-exclude`, tuning RS001 locally instead of editing the
     shared list every repo inherits, the same extend-and-exclude pattern
     RS034's `imperative-verbs-extra` and `imperative-verbs-exclude` use over
@@ -773,7 +757,7 @@ def _is_str_annotation(annotation: ast.expr | None) -> bool:
 
     Accepts `str`, `str | None`, and `Optional[str]`, resolving a stringized
     forward reference (`"str"`) and the `None` arm of a union too. Anything
-    else — another type, a `list[str]`, or no annotation — reads as
+    else -- another type, a `list[str]`, or no annotation -- reads as
     not-a-string, so RS051 fires only where the parameter is declared to hold a
     plain string.
     """

@@ -4,8 +4,8 @@ Two structural conventions, both derived from the code itself rather than from
 names. A module-level definition appears above the definitions it uses, so a
 module reads top-down from its public surface into the helpers beneath it (the
 newspaper layout); mutual-recursion cycles are exempt because no such order
-exists. Where the dependency graph leaves the order free — adjacent private
-helpers or classes that do not reference each other — they go alphabetically,
+exists. Where the dependency graph leaves the order free -- adjacent private
+helpers or classes that do not reference each other -- they go alphabetically,
 the one tie-break that stays stable as bodies change.
 
 Within a class, methods run dunders, then public, then private, with the public
@@ -223,7 +223,7 @@ def _collect_global_refs(table: symtable.SymbolTable) -> set[str]:
     """Returns the module globals a symbol table and its nested scopes read.
 
     `symtable` resolves each name against its scope, so a parameter or local
-    that shadows a module name is not reported — only true global references
+    that shadows a module name is not reported -- only true global references
     are, which keeps the dependency graph free of phantom edges.
     """
     names = {symbol.get_name() for symbol in table.get_symbols() if symbol.is_global()}
@@ -351,8 +351,8 @@ def _reachability(deps: dict[str, frozenset[str]]) -> dict[str, set[str]]:
     """Maps each name to every name reachable from it, transitively.
 
     A name in a dependency cycle reaches itself, so two names reach each other
-    exactly when they share a cycle — the test both the cycle exemption and the
-    independence check rely on.
+    exactly when they share a cycle -- the test both the cycle exemption and
+    the independence check rely on.
     """
     closure = {name: set(targets) for name, targets in deps.items()}
     changed = True

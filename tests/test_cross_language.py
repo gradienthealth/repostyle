@@ -4,14 +4,20 @@ import pytest
 
 from repostyle._comments import extract_comments
 from repostyle.rules import (
+    RS_BANNER_COMMENT,
+    RS_BULLET_ITEM_CASING,
     RS_COMMENT_TAG_FORMAT,
     RS_DOC_FILL,
+    RS_NONSTANDARD_DASH,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
+    check_banner_comment,
+    check_bullet_item_casing_in_comments,
     check_comment_tag_format,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
     check_doc_fill,
+    check_nonstandard_dash_in_comments,
 )
 
 
@@ -174,6 +180,44 @@ class TestTemporalMarkerCrossLanguage:
         violations = list(check_comment_temporal_markers(path, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_TEMPORAL_MARKER
+
+
+class TestNonstandardDashCrossLanguage:
+    @pytest.mark.parametrize(
+        "path",
+        [Path("c.toml"), Path("c.yaml"), Path("c.yml"), Path("s.sh")],
+        ids=["toml", "yaml", "yml", "shell"],
+    )
+    def test_EmDashInComment_FlagsAcrossLanguages(self, path: Path) -> None:
+        source = "# tuned — carefully\n"
+        violations = list(check_nonstandard_dash_in_comments(path, source))
+        assert [v.rule for v in violations] == [RS_NONSTANDARD_DASH]
+
+
+class TestBannerCommentCrossLanguage:
+    @pytest.mark.parametrize(
+        "path",
+        [Path("c.toml"), Path("c.yaml"), Path("s.sh")],
+        ids=["toml", "yaml", "shell"],
+    )
+    def test_DividerComment_FlagsAcrossLanguages(self, path: Path) -> None:
+        violations = list(check_banner_comment(path, "# =====\n"))
+        assert [v.rule for v in violations] == [RS_BANNER_COMMENT]
+
+    def test_YamlCommentedDocumentSeparator_NotFlagged(self) -> None:
+        source = "# ---\nkey: value\n"
+        assert list(check_banner_comment(Path("c.yaml"), source)) == []
+
+    def test_ShellShebang_NotFlagged(self) -> None:
+        source = "#!/usr/bin/env bash\necho hi\n"
+        assert list(check_banner_comment(Path("s.sh"), source)) == []
+
+
+class TestBulletItemCasingCrossLanguage:
+    def test_YamlCommentList_FlagsLowercaseItem(self) -> None:
+        source = "# - the thing. Does a foo.\n# - The other thing.\nkey: value\n"
+        violations = list(check_bullet_item_casing_in_comments(Path("c.yaml"), source))
+        assert [v.rule for v in violations] == [RS_BULLET_ITEM_CASING]
 
 
 class TestShellCommentRules:

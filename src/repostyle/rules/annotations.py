@@ -3,8 +3,8 @@
 A subscripted generic buried two deep inside others (`dict[str,
 tuple[list[int], str]]`) packs a data structure into a signature that a reader
 has to unpack in their head every time they meet it. Past two levels of nesting
-the annotation is usually standing in for a type that wants a name — a
-`TypeAlias`, a `NamedTuple`, or a dataclass — so the depth is a smell worth a
+the annotation is usually standing in for a type that wants a name -- a
+`TypeAlias`, a `NamedTuple`, or a dataclass -- so the depth is a smell worth a
 second look rather than a defect, and the rule warns rather than fails. A
 two-level `Iterator[tuple[...]]` or `Callable[..., Iterator[...]]` is idiomatic
 and left alone.
@@ -22,7 +22,7 @@ from repostyle.rules._violation import RS_DEEPLY_NESTED_TYPE, Violation
 # Two levels of subscripting (`Iterator[tuple[Path, str]]`, `dict[str,
 # list[int]]`) is idiomatic and reads at a glance; the warning fires only once
 # a third subscript nests inside the second. Every `ast.Subscript` layer counts
-# the same — there is no exemption for `tuple` or `Callable`, since a nested
+# the same -- there is no exemption for `tuple` or `Callable`, since a nested
 # generic is as hard to read whatever wraps it. A PEP 604 `X | Y` union is an
 # `ast.BinOp` rather than a subscript, so it adds no level of its own.
 TYPE_NESTING_LIMIT = 2
@@ -42,8 +42,8 @@ def check_deeply_nested_type(path: Path, source: str) -> Iterator[Violation]:
     """Flags a type annotation that nests subscripted generics too deeply.
 
     Every `ast.Subscript` layer counts one level of depth, and an annotation
-    nesting them past the limit of two — `list[tuple[int, list[str]]]`,
-    `dict[str, tuple[Callable[..., None], ...]]` — is reported at its opening
+    nesting them past the limit of two -- `list[tuple[int, list[str]]]`,
+    `dict[str, tuple[Callable[..., None], ...]]` -- is reported at its opening
     node as a warning. The check covers a parameter annotation, a return
     annotation, a variable annotation, and a `TypeAlias` value, in both its
     old-style and PEP 695 spellings. The remedy is to name the buried type as a

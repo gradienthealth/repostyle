@@ -1,7 +1,7 @@
 """Equality rule: `__eq__` and `__hash__` are defined as a pair, or neither.
 
-Defining `__eq__` without `__hash__` makes instances silently unhashable —
-Python sets `__hash__` to `None` on a class that overrides `__eq__` — and
+Defining `__eq__` without `__hash__` makes instances silently unhashable --
+Python sets `__hash__` to `None` on a class that overrides `__eq__` -- and
 defining `__hash__` without `__eq__` splits a value hash from identity
 equality. The eq-without-hash half is a stand-in for ruff's `PLW1641`
 (`eq-without-hash`), which is preview-gated in the pinned ruff version and so
@@ -39,8 +39,8 @@ def check_eq_hash_pairing(path: Path, source: str) -> Iterator[Violation]:
     sets `__hash__ = None` is stating the unhashable intent explicitly and is
     left alone, and a class defining `__hash__` alone while subclassing a base
     other than `object` is exempt too, since it may inherit `__eq__` from that
-    base — a relationship an AST check cannot resolve. The eq-without-hash half
-    always fires regardless of bases, because overriding `__eq__` nulls
+    base -- a relationship an AST check cannot resolve. The eq-without-hash
+    half always fires regardless of bases, because overriding `__eq__` nulls
     `__hash__` whatever a base defined.
     """
     tree = _parse_python(path, source)
@@ -64,7 +64,7 @@ def _pairing_violation(node: ast.ClassDef) -> Iterator[Violation]:
             node.col_offset + 1,
             RS_EQ_HASH_PAIRING,
             f"class '{node.name}' defines `__eq__` but not `__hash__`; Python "
-            f"sets `__hash__` to None, making instances unhashable — define "
+            f"sets `__hash__` to None, making instances unhashable -- define "
             f"`__hash__` too, or set `__hash__ = None` to opt out explicitly",
         )
     elif has_hash and not has_eq and not _has_non_object_base(node):
