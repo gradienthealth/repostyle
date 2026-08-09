@@ -1077,9 +1077,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "`NameError`, and `UnboundLocalError` each say a value was not the "
             "shape the code assumed, which is what a bug looks like from the "
             "outside. A handler that takes in two of them at once, or one of "
-            "them beside a declared exception — any name the builtins do not "
+            "them beside a declared exception -- any name the builtins do not "
             "define, whether from the stdlib, a third-party package, or this "
-            "project — cannot tell the failure it was written for from a typo "
+            "project -- cannot tell the failure it was written for from a typo "
             "in the same block, and that declared exception is already the "
             "callee's error contract, so the builtins beside it are covering "
             "something else. The fix is almost never in the handler: shrink a "
@@ -1191,7 +1191,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         ),
         examples=(
             Example(
-                bad="# resolves the config — falling back to defaults",
+                bad="# resolves the config -- falling back to defaults",
                 good="# resolves the config -- falling back to defaults",
             ),
             Example(

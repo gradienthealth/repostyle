@@ -55,17 +55,17 @@ def check_over_broad_except(path: Path, source: str) -> Iterator[Violation]:
     """Flags an `except` tuple reaching past the failure it was written for.
 
     A handler earns a finding two ways. Catching two or more structural
-    builtins at once — `AttributeError`, `TypeError`, `KeyError`, `IndexError`,
-    `NameError`, `UnboundLocalError` — means the block is being blanketed
-    rather than a known failure handled, since each of those says a value was
-    not the shape the code assumed. Catching one of them alongside a declared
-    exception says the same thing more sharply. A declared exception is any
-    name the builtins do not define, whether from the stdlib, a third-party
-    package, or this project, and it is already the callee's error contract, so
-    a builtin beside it is covering something else — usually a dereference
-    elsewhere in the same `try`. Either shape means the callee should convert
-    the failure where it arises, or the `try` covers more statements than the
-    handler was written for.
+    builtins at once -- `AttributeError`, `TypeError`, `KeyError`,
+    `IndexError`, `NameError`, `UnboundLocalError` -- means the block is being
+    blanketed rather than a known failure handled, since each of those says a
+    value was not the shape the code assumed. Catching one of them alongside a
+    declared exception says the same thing more sharply. A declared exception
+    is any name the builtins do not define, whether from the stdlib, a
+    third-party package, or this project, and it is already the callee's error
+    contract, so a builtin beside it is covering something else -- usually a
+    dereference elsewhere in the same `try`. Either shape means the callee
+    should convert the failure where it arises, or the `try` covers more
+    statements than the handler was written for.
 
     Three shapes are left alone. A handler ending in a `raise` is a boundary
     converting what it caught into one named failure, which is the fix this
