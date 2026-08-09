@@ -93,4 +93,4 @@ release-please maintains a release PR off `main`; merging it cuts the `repostyle
 
 ## Agentic conventions
 
-CI is the floor that blocks merge: ruff format and lint, pytest on the 3.11 floor and 3.13 ceiling, the conventional-commit and org PR Title checks. Style beyond what those enforce is upheld by review. Take a branch from working tree to a finished PR with `/gradient-workflow:submit-pr`; never amend or force-push a shared branch.
+CI is the floor that blocks merge: ruff format and lint, pytest on the 3.11 floor and 3.13 ceiling, the conventional-commit and org PR Title checks. Style beyond what those enforce is upheld by review. Never amend or force-push a shared branch.
