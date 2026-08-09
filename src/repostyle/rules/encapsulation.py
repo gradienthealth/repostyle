@@ -9,8 +9,8 @@ This is the enforcement dual of the `should-be-private` rule (RS029): that rule
 asks a package to hide what only it uses, this one asks other code to respect
 the hiding.
 
-The rule scopes to imports that stay within one distribution — the target and
-the importer share a top-level package — so it polices a repo's own layering
+The rule scopes to imports that stay within one distribution -- the target and
+the importer share a top-level package -- so it polices a repo's own layering
 without flagging a reach into an installed third-party dependency, whose
 internals are outside a repo's control. It follows PEP 8's `Public and internal
 interfaces`: an interface is internal if any containing namespace is, and other
@@ -36,8 +36,8 @@ def check_private_import(path: Path, source: str) -> Iterator[Violation]:
     member is internal to its own package and reachable only through the public
     surface that package re-exports. An import that stays within the owning
     package, one crossing into a third-party distribution, and one in a test
-    module — where reaching a unit under test's internals is expected — are all
-    left alone.
+    module -- where reaching a unit under test's internals is expected -- are
+    all left alone.
     """
     if _is_test_file(path):
         return

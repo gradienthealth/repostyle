@@ -97,7 +97,7 @@ def _code(snippet: str) -> str:
 def _fixable_line(rule_id: str) -> str:
     """States whether the rule is autofixable, and how."""
     if rule_id in FIXABLE_RULES:
-        return "Fixable: yes — rerun with `repostyle --fix`."
+        return "Fixable: yes -- rerun with `repostyle --fix`."
     return "Fixable: no."
 
 

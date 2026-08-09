@@ -1,9 +1,9 @@
 # The `repostyle` hook runs the RSnnn linter; the `repostyle-*` gate hooks wrap
 # third-party tools whose versions are pinned here, so a consumer bumps one
 # repostyle rev to move the whole suite instead of tracking each tool's own
-# hook repo. Each gate reads its own config from the consuming repo — a
+# hook repo. Each gate reads its own config from the consuming repo -- a
 # `[tool.*]` table in pyproject.toml for the Python gates, a `.shellcheckrc` or
-# per-hook flags for the shell gates — so the repo-specific config stays local
+# per-hook flags for the shell gates -- so the repo-specific config stays local
 # while the tool and its version live here.
 - id: repostyle
   name: repostyle

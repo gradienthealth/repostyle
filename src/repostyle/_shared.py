@@ -1,7 +1,7 @@
 """Helpers shared across the package.
 
 A helper used by a single module lives in that module; one used by two or more
-— the rule modules or the top-level runner — lives here, so its callers stay
+-- the rule modules or the top-level runner -- lives here, so its callers stay
 independent of each other.
 """
 
@@ -46,6 +46,16 @@ _INITIALISM_PATTERN = re.compile(r"(?:[A-Za-z]\.)+|\d+\.")
 _SENTENCE_ABBREVIATIONS = frozenset(
     {"etc.", "vs.", "cf.", "al.", "Dr.", "Mr.", "Mrs.", "Ms.", "St.", "Inc.", "Ltd."}
 )
+
+# A bulleted list item's marker: a dash, star, or plus then a space, opening a
+# docstring or comment line's stripped text.
+_BULLET_PATTERN = re.compile(r"^[-*+] ")
+# A markdown table row (`|...|`) or a line made only of pipe, dash, plus, and
+# equals characters (`+----+`, `====`, a `---` rule) opens content whose
+# alignment is meaningful, so it is verbatim: never filled, never reflowed, and
+# yielding no prose unit. Requiring the whole line to be those characters keeps
+# flag-like prose (`--fix ...`) and bullets (`- `) from matching.
+_VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 
 
 def find_pyproject(start: Path) -> Path | None:
@@ -164,9 +174,10 @@ def _parse_gitignore(gitignore: Path | None) -> _GitignoreRules:
     matching is `fnmatch`, as the `exclude` globs already use, so a `*` may
     cross a path separator. A `!` negation is not honored as a re-inclusion: an
     anchored one only guards its own subtree from pruning, and an unanchored
-    one — whose any-depth reach cannot be bounded cheaply — switches gitignore
-    pruning off for the whole repo. Per-directory nested `.gitignore` files are
-    not read. Returns empty rules when the file is absent or unreadable.
+    one -- whose any-depth reach cannot be bounded cheaply -- switches
+    gitignore pruning off for the whole repo. Per-directory nested `.gitignore`
+    files are not read. Returns empty rules when the file is absent or
+    unreadable.
     """
     try:
         text = gitignore.read_text(encoding="utf-8") if gitignore else ""
@@ -416,8 +427,8 @@ def _string_list(table: dict[str, object], key: str) -> tuple[str, ...]:
 def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
     """Classifies a prose unit's terminal punctuation against the house rule.
 
-    A prose unit — one spanning lines, running multiple sentences, or standing
-    as a docstring body paragraph — must close with `.`, `!`, or `?`; returns
+    A prose unit -- one spanning lines, running multiple sentences, or standing
+    as a docstring body paragraph -- must close with `.`, `!`, or `?`; returns
     `"missing"` when it does not. A single-line single-sentence fragment is a
     label and must not close with a period; returns `"extra"` when it does. A
     unit ending with a colon introduces a list, and one ending in a URL cannot
@@ -454,6 +465,80 @@ _TEMPORAL_MARKER_PATTERN = re.compile(
 # documents a marker as data (RS023's own card names `Used to`) is not itself
 # flagged, and only a bare narrative use fires.
 _BACKTICK_SPAN_PATTERN = re.compile(r"`[^`]*`")
+# A URI, blanked beside the backtick spans so a token inside a `gs://` or
+# `https://` path is not read as bare prose.
+_PROSE_URI = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
+
+# The house sentence dash, the one form prose sets a clause off with; RS054
+# flags the forms below against it and rewrites them to it under `--fix`.
+STANDARD_SENTENCE_DASH = " -- "
+
+# The unambiguous sentence-dash glyphs, matched on masked prose text: an em
+# dash matches spaced, glued, or half-spaced; an en dash matches spaced only,
+# so an unspaced range (an `RSnnn` or numeric span) is left alone. Both are
+# dashes whatever their neighbors, so their line-edge handling lives in the
+# scanner, checked against the original text rather than via lookarounds -- a
+# masked backtick span beside the dash must not hide it.
+_UNAMBIGUOUS_DASH_PATTERNS = (
+    re.compile(r" ?— ?"),
+    re.compile(r" – "),  # noqa: RUF001
+)
+# The hyphen-built forms, bounded by letter lookarounds: a hyphen is also a
+# minus, a bullet marker, and a flag prefix, so only a letter-flanked match
+# reads as a sentence dash -- arithmetic (`n - 1`), a negative number, and a
+# bullet marker never match. A doubled hyphen glued only on its right
+# (`use --fix`) is exactly a CLI flag's shape, so of the mis-spaced doubled
+# forms only the left-glued ones (`a--b`, `a-- b`), which no flag can be, are
+# matched.
+_HYPHEN_DASH_PATTERNS = (
+    re.compile(r"(?<=[A-Za-z]) - (?=[A-Za-z])"),
+    re.compile(r"(?<=[A-Za-z])(?:--|-- )(?=[A-Za-z])"),
+)
+
+
+def _nonstandard_dashes_in_prose(text: str) -> Iterator[tuple[int, str, str]]:
+    """Yields each nonstandard sentence dash in a run of prose text.
+
+    Reports a `(offset, found, replacement)` triple for every em dash, spaced
+    en dash, letter-flanked spaced hyphen, or mis-spaced double hyphen doing
+    sentence work in `text`, where `offset` is the match's 0-based position,
+    `found` is the text as written, and `replacement` is always
+    `STANDARD_SENTENCE_DASH`. Backtick code spans and URIs are blanked to
+    equal-length whitespace first, so a dash in code font (`git log -- path`)
+    or inside a URL is left alone and the offsets still index the original
+    `text`; a dash beside such a span is still caught, since its line-edge test
+    reads the original text. An em or en dash with nothing else on its line
+    before or after it -- the wrap point of a reflowed paragraph -- is skipped,
+    so a rewrite never leaves stray whitespace at a line edge. A replacement
+    changes length, so a caller rewriting in place applies the triples in
+    reverse offset order. Shared by RS054's docstring and comment checks.
+    """
+    masked = _blank_prose_spans(text)
+    matches = [
+        (match.start(), match.group())
+        for pattern in _UNAMBIGUOUS_DASH_PATTERNS
+        for match in pattern.finditer(masked)
+        if text[: match.start()].strip() and text[match.end() :].strip()
+    ]
+    matches.extend(
+        (match.start(), match.group())
+        for pattern in _HYPHEN_DASH_PATTERNS
+        for match in pattern.finditer(masked)
+    )
+    for offset, found in sorted(matches):
+        yield offset, found, STANDARD_SENTENCE_DASH
+
+
+def _blank_prose_spans(text: str) -> str:
+    """Replaces each backtick span and URI in `text` with equal-length spaces.
+
+    Keeping the run's length preserves every other character's offset, so a
+    token position found in the blanked text indexes the original `text`.
+    """
+    without_spans = _BACKTICK_SPAN_PATTERN.sub(
+        lambda match: " " * len(match.group()), text
+    )
+    return _PROSE_URI.sub(lambda match: " " * len(match.group()), without_spans)
 
 
 def _temporal_markers(text: str) -> list[str]:

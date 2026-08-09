@@ -55,7 +55,7 @@ class TestExplainRule:
     def test_FixableRule_StatesTheFixCommand(self) -> None:
         card = explain_rule("RS009")
         assert card is not None
-        assert "Fixable: yes — rerun with `repostyle --fix`." in card
+        assert "Fixable: yes -- rerun with `repostyle --fix`." in card
 
     def test_UnknownRule_ReturnsNone(self) -> None:
         assert explain_rule("RS999") is None

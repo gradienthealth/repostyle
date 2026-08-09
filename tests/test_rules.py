@@ -7,8 +7,10 @@ from repostyle.rules import (
     RS_ACRONYM_CASING,
     RS_ACRONYM_CASING_IN_PROSE,
     RS_BANNED_ABBREVIATION,
+    RS_BANNER_COMMENT,
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_BOOLEAN_PREFIX_REQUIRED,
+    RS_BULLET_ITEM_CASING,
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DISFAVORED_GCP_TERM,
@@ -27,6 +29,7 @@ from repostyle.rules import (
     RS_NO_MOCK_PATCH,
     RS_NO_NEGATED_BOOLEAN,
     RS_NO_PHI_SAFE_EXC_INFO,
+    RS_NONSTANDARD_DASH,
     RS_PORT_NO_IMPLEMENTATION,
     RS_PREDICATE_FUNCTION_NAMING,
     RS_SLEEPY_TEST,
@@ -39,8 +42,11 @@ from repostyle.rules import (
     check_acronym_casing_in_comments,
     check_acronym_casing_in_docstrings,
     check_banned_abbreviation,
+    check_banner_comment,
     check_behavior_verification_only,
     check_boolean_prefix_required,
+    check_bullet_item_casing,
+    check_bullet_item_casing_in_comments,
     check_comment_temporal_markers,
     check_comment_terminal_punctuation,
     check_conditional_test_logic,
@@ -67,6 +73,8 @@ from repostyle.rules import (
     check_no_mock_patch,
     check_no_negated_boolean,
     check_no_phi_safe_with_exc_info,
+    check_nonstandard_dash_in_comments,
+    check_nonstandard_dash_in_docstrings,
     check_port_no_implementation,
     check_predicate_function_naming,
     check_sleepy_test,
@@ -1341,7 +1349,7 @@ class TestCheckDocSummaryOverflow:
 
     def test_OverlongBodyParagraphOnly_NoViolation(self) -> None:
         # A short summary with an overlong body paragraph is RS009's rule to
-        # enforce, not RS035's — the summary line itself fits.
+        # enforce, not RS035's -- the summary line itself fits.
         source = '"""Summary.\n\n' + "abcde " * 13 + 'end\n"""'
         assert list(check_doc_summary_overflow(Path("src/x.py"), source)) == []
 
@@ -2140,6 +2148,26 @@ class TestCheckDocstringTerminalPunctuation:
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 5)]
 
+    def test_FlushLineAfterEntryBullet_StillGraded(self) -> None:
+        source = (
+            'def f(foo):\n    """Do it.\n\n    Args:\n'
+            "        foo: Something listed:\n"
+            "            - a bullet item\n"
+            "        a flush follow-on line with no mark\n"
+            '    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 7)]
+
+    def test_WrappedBulletContinuation_NotFlagged(self) -> None:
+        source = (
+            'def f():\n    """Do it.\n\n'
+            "    - a wrapped bullet item whose continuation\n"
+            "      line carries no terminal mark\n"
+            '    """\n'
+        )
+        assert list(check_docstring_terminal_punctuation(_DOC_PATH, source)) == []
+
     def test_MultiLineEntryWithoutTerminal_FlagsAtLastLine(self) -> None:
         source = (
             'def f():\n    """Do the thing.\n\n    Returns:\n'
@@ -2342,6 +2370,246 @@ class TestCheckCommentTerminalPunctuation:
         assert (
             list(check_comment_terminal_punctuation(Path("config.yaml"), source)) == []
         )
+
+
+class TestCheckBulletItemCasing:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f():\n    """Do it.\n\n    - the thing\n'
+            '    - the other thing\n    """\n',
+            'def f():\n    """Do it.\n\n    - The thing. Does a foo.\n'
+            '    - The other thing.\n    """\n',
+            'def f():\n    """Do it.\n\n    - `json` output. Goes here.\n'
+            '    - The other thing.\n    """\n',
+            'def f():\n    """Do it.\n\n    - json.dumps output. Goes here.\n'
+            '    - The other thing.\n    """\n',
+            'def f():\n    """Do it.\n\n    - skip_lines is honored. Always.\n'
+            '    - The other thing.\n    """\n',
+            'def f():\n    """Do it.\n\n    - 3 retries at most. Then stop.\n'
+            '    - The other thing.\n    """\n',
+            'def f():\n    """Do it.\n\n    ```\n    - the fence. Not prose.\n'
+            '    ```\n    """\n',
+            'def f():\n    """Do it.\n\n    - uses `foo. Bar` internally\n'
+            '    - the other thing\n    """\n',
+        ],
+        ids=[
+            "all-fragments-lowercase",
+            "multi-sentence-all-capitalized",
+            "opens-backtick-span",
+            "opens-dotted-path",
+            "opens-distinctive-token",
+            "opens-digit",
+            "bullets-inside-fence",
+            "boundary-inside-backticks",
+        ],
+    )
+    def test_ConformingList_NoViolation(self, source: str) -> None:
+        assert list(check_bullet_item_casing(_DOC_PATH, source)) == []
+
+    def test_LowercaseMultiSentenceItem_FlagsAtMarker(self) -> None:
+        source = (
+            'def f():\n    """Do it.\n\n'
+            "    - the thing. Does a foo.\n"
+            '    - The other thing.\n    """\n'
+        )
+        violations = list(check_bullet_item_casing(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_BULLET_ITEM_CASING
+        assert (violations[0].line, violations[0].col) == (4, 5)
+        assert "capital" in violations[0].message
+
+    def test_LowercaseSiblingOfMultiSentenceItem_Flags(self) -> None:
+        source = (
+            'def f():\n    """Do it.\n\n'
+            "    - The thing. Does a foo.\n"
+            '    - the other thing\n    """\n'
+        )
+        violations = list(check_bullet_item_casing(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_BULLET_ITEM_CASING, 5)]
+
+    def test_WrappedItemSecondSentenceOnContinuation_Flags(self) -> None:
+        source = (
+            'def f():\n    """Do it.\n\n'
+            "    - the thing that wraps onto a\n"
+            '      second line. Also does a foo.\n    """\n'
+        )
+        violations = list(check_bullet_item_casing(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_BULLET_ITEM_CASING, 4)]
+
+    def test_ListsSplitByParagraph_JudgedIndependently(self) -> None:
+        source = (
+            'def f():\n    """Do it.\n\n'
+            "    - The thing. Does a foo.\n\n"
+            "    A separating paragraph.\n\n"
+            '    - the other thing\n    """\n'
+        )
+        assert list(check_bullet_item_casing(_DOC_PATH, source)) == []
+
+    def test_NestedDeeperItem_JudgedAsOwnList(self) -> None:
+        source = (
+            'def f():\n    """Do it.\n\n'
+            "    - The thing. Does a foo.\n"
+            "      - nested fragment\n"
+            '    - The other thing.\n    """\n'
+        )
+        assert list(check_bullet_item_casing(_DOC_PATH, source)) == []
+
+
+class TestCheckBulletItemCasingInComments:
+    def test_AllFragmentList_NoViolation(self) -> None:
+        source = "# The plan:\n# - the thing\n# - the other thing\nx = 1\n"
+        assert list(check_bullet_item_casing_in_comments(_DOC_PATH, source)) == []
+
+    def test_LowercaseMultiSentenceItem_FlagsAtBulletLine(self) -> None:
+        source = "# - the thing. Does a foo.\n# - The other thing.\nx = 1\n"
+        violations = list(check_bullet_item_casing_in_comments(_DOC_PATH, source))
+        assert [(v.rule, v.line, v.col) for v in violations] == [
+            (RS_BULLET_ITEM_CASING, 1, 1)
+        ]
+
+    def test_WrappedCommentItem_JoinsContinuation(self) -> None:
+        source = (
+            "# - the thing that wraps onto\n"
+            "#   a second line. Also does a foo.\n"
+            "# - The other thing.\nx = 1\n"
+        )
+        violations = list(check_bullet_item_casing_in_comments(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_BULLET_ITEM_CASING, 1)]
+
+    def test_ProseLineBetweenBullets_SplitsTheList(self) -> None:
+        source = (
+            "# - The thing. Does a foo.\n"
+            "# An interrupting sentence at the margin.\n"
+            "# - the other thing\nx = 1\n"
+        )
+        assert list(check_bullet_item_casing_in_comments(_DOC_PATH, source)) == []
+
+
+class TestCheckNonstandardDashInDocstrings:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f():\n    """Returns the lease -- or `None` when expired."""\n',
+            'def f():\n    """Retries 3 - 5 times at most."""\n',
+            'def f():\n    """Computes `n - 1` for the index."""\n',
+            'def f():\n    """Pass --fix to rewrite in place."""\n',
+            'def f():\n    """See https://x.test/a--b for details."""\n',
+            'def f():\n    """Covers RS013–RS016 in one pass."""\n',  # noqa: RUF001
+            'def f():\n    """Do it.\n\n    Example:\n        run — now\n    """\n',
+        ],
+        ids=[
+            "standard-dash",
+            "numeric-range",
+            "backticked-arithmetic",
+            "cli-flag",
+            "url",
+            "unspaced-en-dash-range",
+            "em-dash-in-example-section",
+        ],
+    )
+    def test_ConformingProse_NoViolation(self, source: str) -> None:
+        assert list(check_nonstandard_dash_in_docstrings(_DOC_PATH, source)) == []
+
+    @pytest.mark.parametrize(
+        ("prose", "found"),
+        [
+            ("the lease — or nothing", " — "),
+            ("the lease—or nothing", "—"),
+            ("the lease – or nothing", " – "),  # noqa: RUF001
+            ("the lease - or nothing", " - "),
+            ("the lease--or nothing", "--"),
+        ],
+        ids=[
+            "spaced-em-dash",
+            "glued-em-dash",
+            "spaced-en-dash",
+            "spaced-hyphen",
+            "glued-double-hyphen",
+        ],
+    )
+    def test_NonstandardDash_FlagsWithFormInMessage(
+        self, prose: str, found: str
+    ) -> None:
+        source = f'def f():\n    """Returns {prose}."""\n'
+        violations = list(check_nonstandard_dash_in_docstrings(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_NONSTANDARD_DASH
+        assert repr(found) in violations[0].message
+
+    def test_EntryDescriptionDash_FlagsAtOffset(self) -> None:
+        source = (
+            'def f(bar):\n    """Do it.\n\n    Args:\n'
+            '        bar: A bar — the good kind.\n    """\n'
+        )
+        violations = list(check_nonstandard_dash_in_docstrings(_DOC_PATH, source))
+        assert [(v.rule, v.line, v.col) for v in violations] == [
+            (RS_NONSTANDARD_DASH, 5, 19)
+        ]
+
+
+class TestCheckNonstandardDashInComments:
+    def test_StandardDash_NoViolation(self) -> None:
+        source = "# resolves the config -- falling back\nx = 1\n"
+        assert list(check_nonstandard_dash_in_comments(_DOC_PATH, source)) == []
+
+    def test_TrailingCommentDash_Flags(self) -> None:
+        source = "x = 1  # a fallback – slower but safe\n"  # noqa: RUF001
+        violations = list(check_nonstandard_dash_in_comments(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_NONSTANDARD_DASH, 1)]
+
+    def test_CommentedOutCode_NotFlagged(self) -> None:
+        source = "# width - margin\nx = 1\n"
+        assert list(check_nonstandard_dash_in_comments(_DOC_PATH, source)) == []
+
+    def test_TwoFaultsOnOneLine_FlagsBoth(self) -> None:
+        source = "# a fallback — slower — but safe\nx = 1\n"
+        violations = list(check_nonstandard_dash_in_comments(_DOC_PATH, source))
+        assert [v.rule for v in violations] == [RS_NONSTANDARD_DASH] * 2
+
+
+class TestCheckBannerComment:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "# ---\nx = 1\n",
+            "# --- see the note below\nx = 1\n",
+            "# +----+\n# | a  |\n# +----+\nx = 1\n",
+            "x = 1  # ----\n",
+            "# === TESTS ===\nx = 1\n",
+            "# A plain prose comment.\nx = 1\n",
+        ],
+        ids=[
+            "three-dashes",
+            "dashes-then-prose",
+            "ascii-table-border",
+            "trailing-divider",
+            "decorated-one-line-title",
+            "prose",
+        ],
+    )
+    def test_ConformingComment_NoViolation(self, source: str) -> None:
+        assert list(check_banner_comment(_DOC_PATH, source)) == []
+
+    @pytest.mark.parametrize(
+        "line",
+        ["# -----", "#####", "# ====", "# ~~~~", "# ____", "# ****"],
+        ids=["dashes", "hashes", "equals", "tildes", "underscores", "stars"],
+    )
+    def test_DividerLine_Flags(self, line: str) -> None:
+        violations = list(check_banner_comment(_DOC_PATH, f"{line}\nx = 1\n"))
+        assert [(v.rule, v.line, v.col) for v in violations] == [
+            (RS_BANNER_COMMENT, 1, 1)
+        ]
+        assert "banner" in violations[0].message
+
+    def test_FramedBanner_FlagsEachFrameLine(self) -> None:
+        source = "# -----------\n# TESTS\n# -----------\nx = 1\n"
+        violations = list(check_banner_comment(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_BANNER_COMMENT, 1),
+            (RS_BANNER_COMMENT, 3),
+        ]
 
 
 def _naming_scope_target(tmp_path: Path, globs_value: str, relative: str) -> Path:

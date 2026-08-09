@@ -11,7 +11,7 @@ and leaves keyword-only ones uncounted.
 This rule is a stand-in for ruff's `PLR0917` (`too-many-positional-
 arguments`), which is preview-gated in the pinned ruff version and so
 cannot be selected without turning on `preview` globally for every
-consuming repo. It mirrors the semantics of `PLR0917` — the default cap of
+consuming repo. It mirrors the semantics of `PLR0917` -- the default cap of
 five, counting positional-only and positional-or-keyword parameters
 while excluding the implicit `self`/`cls` of a method and exempting an
 `@override`. When `PLR0917` graduates to stable in the pinned ruff

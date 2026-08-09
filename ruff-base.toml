@@ -48,7 +48,7 @@ ignore = [
 # and the PLR caps on returns/branches/statements.
 #
 # FBT (flake8-boolean-trap) flags boolean-typed positional arguments and bare
-# True/False passed positionally — a bool reads clearer by keyword. The whole
+# True/False passed positionally -- a bool reads clearer by keyword. The whole
 # group is selected so the trap is caught at the definition site (FBT001/002),
 # not only at call sites (FBT003).
 #
@@ -58,7 +58,7 @@ ignore = [
 # (heavy/optional/platform-specific) keeps its if/try guard at module top
 # level.
 #
-# PLR0913 (too-many-arguments) is deliberately left out — it fires on many
+# PLR0913 (too-many-arguments) is deliberately left out -- it fires on many
 # legitimate wide signatures, and is better adopted once enforcement is scoped
 # to a PR's changed lines, not the whole tree.
 #
@@ -74,7 +74,7 @@ ignore = [
 # G (flake8-logging-format) and LOG (flake8-logging) govern logging-call shape.
 # G flags an f-string-, %-, or +-built log message; the argument should stay a
 # lazy %-arg so the record renders only when it is emitted, which also keeps
-# PHI out of an eagerly-rendered string — the complement to RS008's
+# PHI out of an eagerly-rendered string -- the complement to RS008's
 # PHI-safe-logging ban. LOG flags the deprecated `logging.warn` and `exc_info`
 # misuse.
 #
@@ -84,14 +84,14 @@ ignore = [
 # argument of a classmethod/method to be `cls`/`self`.
 #
 # RET (flake8-return) flags an `else` after `return`, an unnecessary `else`,
-# and a mismatched implicit/explicit return — guard-clause hygiene that keeps a
-# function's exits uniform.
+# and a mismatched implicit/explicit return -- guard-clause hygiene that keeps
+# a function's exits uniform.
 #
 # T20 (flake8-print) flags a `print()` in production; observability goes
 # through logging, not stdout. A genuine CLI entrypoint that prints for the
 # user is exempted with a per-file ignore in the consuming repo.
 #
-# TRY (tryceratops) flags error-handling smells — a vanilla `raise Exception`,
+# TRY (tryceratops) flags error-handling smells -- a vanilla `raise Exception`,
 # a long `try` body, a `return` inside `try`. TRY003 alone is turned off in the
 # `ignore` list above.
 select = [
@@ -126,9 +126,9 @@ select = [
     "W",       # pycodestyle warnings
 ]
 # D401 enforces PEP 257's imperative one-line summary ("Return the lease", not
-# "Returns the lease"). The house convention is the opposite — a descriptive
-# third-person summary, matching Google's own style guide rather than PEP 257 —
-# so D401 stays off. The google convention's default ignore already excludes
+# "Returns the lease"). The house convention is the opposite -- a descriptive
+# third-person summary, matching Google's own style guide rather than PEP 257
+# -- so D401 stays off. The google convention's default ignore already excludes
 # it.
 
 [lint.pycodestyle]

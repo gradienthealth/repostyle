@@ -3,7 +3,7 @@
 This backs the CLI's `--diff` mode: a finding is reported only when its own
 line is one the change touched, so adopting a rule does not block a pull
 request on its pre-existing backlog. The intersection is on the finding's own
-line — a whole-unit finding reported at a `def` re-arms only when that line
+line -- a whole-unit finding reported at a `def` re-arms only when that line
 changes, not on an edit elsewhere in its body.
 """
 
@@ -20,10 +20,10 @@ def changed_lines(path: Path, base: str) -> set[int] | None:
     """Returns the new-file line numbers `path` adds or modifies versus `base`.
 
     Returns:
-        `None` when the change set cannot be trusted — git is unavailable,
-        `base` is unknown, or `path` is untracked — so the caller reports every
-        finding rather than hide one, or an empty set for a tracked file with
-        no diff against `base`.
+        `None` when the change set cannot be trusted -- git is unavailable,
+        `base` is unknown, or `path` is untracked -- so the caller reports
+        every finding rather than hide one, or an empty set for a tracked file
+        with no diff against `base`.
     """
     diff = _run_git(["diff", "--unified=0", base, "--", path.name], path.parent)
     if diff.returncode != 0:

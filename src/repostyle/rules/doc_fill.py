@@ -10,7 +10,12 @@ from pathlib import Path
 from typing import NamedTuple
 
 from repostyle._comments import COMMENT_SUFFIXES, extract_comments
-from repostyle._shared import _join_source_lines, _parse_python
+from repostyle._shared import (
+    _BULLET_PATTERN,
+    _VERBATIM_LINE_PATTERN,
+    _join_source_lines,
+    _parse_python,
+)
 from repostyle.rules._violation import RS_DOC_FILL, RS_DOC_SUMMARY_OVERFLOW, Violation
 
 DOC_FILL_COLUMNS = 79
@@ -30,16 +35,9 @@ _SECTION_HEADERS = frozenset(
 )
 _LABEL_LINE_PATTERN = re.compile(r"^[A-Z][A-Za-z]*([ -][A-Z][A-Za-z]*)*:(\s|$)")
 _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
-_BULLET_PATTERN = re.compile(r"^[-*+] ")
 _COMMENT_DIRECTIVE_PATTERN = re.compile(
     r"^#+\s*(!|noqa\b|nosec\b|type:|ruff:|pragma\b|codespell:)"
 )
-# A markdown table row (`|...|`) or a line made only of pipe, dash, plus, and
-# equals characters (`+----+`, `====`, a `---` rule) opens content whose
-# alignment is meaningful, so it is verbatim: never filled and never reflowed.
-# Requiring the whole line to be those characters keeps flag-like prose
-# (`--fix ...`) and bullets (`- `) from matching.
-_VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 
 
 def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
@@ -76,9 +74,9 @@ def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
     PEP 257 and Google style require a docstring's summary to be exactly one
     physical line, so unlike a body paragraph it has no second line to spread
     overflow onto: `check_doc_fill` excludes it for exactly that reason, and
-    this rule covers the line `check_doc_fill` leaves out — the whole line of a
-    single-line docstring, or the opening line of a multi-line one. There is no
-    mechanical fix; the summary must be shortened by hand.
+    this rule covers the line `check_doc_fill` leaves out -- the whole line of
+    a single-line docstring, or the opening line of a multi-line one. There is
+    no mechanical fix; the summary must be shortened by hand.
     """
     if path.suffix != ".py":
         return

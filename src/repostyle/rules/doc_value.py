@@ -11,17 +11,17 @@ warns when a function has a `Raises:` section but an exception its body raises
 outright is missing from it.
 
 RS041 and RS043 are complementary halves of the same concern, split by their
-signal. RS041 is prose-driven — it fires on an exception narrated in the body
+signal. RS041 is prose-driven -- it fires on an exception narrated in the body
 with a raise verb, the only signal available when the exception propagates from
-a callee. RS043 is AST-driven — it fires on an explicit `raise SomeError(...)`
+a callee. RS043 is AST-driven -- it fires on an explicit `raise SomeError(...)`
 statement absent from an existing `Raises:` section. Where both could reach one
 exception, RS043 yields, skipping any exception RS041 already narrates.
 
 RS018 has two triggers. The presence trigger fires when a complex or
 many-argumented public function carries no docstring. The `Returns:` trigger
-fires when a documented function returns a multi-element `tuple` — an anonymous
-composite whose parts a single summary line cannot name; a scalar, a named
-type, or a homogeneous collection is left to the summary line.
+fires when a documented function returns a multi-element `tuple` -- an
+anonymous composite whose parts a single summary line cannot name; a scalar, a
+named type, or a homogeneous collection is left to the summary line.
 """
 
 from __future__ import annotations
@@ -75,9 +75,9 @@ _ARGS_CAPTIONS = frozenset({"Args", "Arguments", "Keyword Args", "Keyword Argume
 _SENTENCE_PUNCTUATION = re.compile(r"[.;]")
 
 # A parameter counts as "described" only when it is the subject of a body
-# sentence — it leads the clause, after an optional article, `each`, or "Takes"
-# — not merely referenced as an object inside contract prose that states when
-# the function returns or no-ops.
+# sentence -- it leads the clause, after an optional article, `each`, or
+# "Takes" -- not merely referenced as an object inside contract prose that
+# states when the function returns or no-ops.
 _SUBJECT_LEAD_PATTERN = re.compile(
     r"^(?:the|an?|each|takes(?:\s+an?)?)\s+", re.IGNORECASE
 )
@@ -86,7 +86,7 @@ _SUBJECT_LEAD_PATTERN = re.compile(
 # parameter's backtick-wrapped name applies here to the bare verb instead. The
 # verb must be followed by one of a closed set of common openers for an actual
 # return description (an article, a literal, a pronoun, or a backtick), not
-# just any word — otherwise "Return visits are limited to ..." (a domain noun
+# just any word -- otherwise "Return visits are limited to ..." (a domain noun
 # phrase, not the verb) would false-positive on a bare `^returns?\b` match.
 _RETURN_LEAD_PATTERN = re.compile(
     r"^returns?\s+"
@@ -105,7 +105,7 @@ _RAISE_VERB_PATTERN = re.compile(
 )
 # A raise verb directly preceded by a negator ("never raises", "without
 # raising", "rather than re-raising") states that the exception is *not* raised
-# — a legitimate body-prose claim no `Raises:` entry could carry.
+# -- a legitimate body-prose claim no `Raises:` entry could carry.
 _RAISE_NEGATION_PATTERN = re.compile(
     r"\b(?:never|not|cannot|without|instead\s+of|rather\s+than|no\s+longer)\s+"
     r"(?:be(?:ing)?\s+)?$",
@@ -217,7 +217,7 @@ def check_raises_section_incomplete(path: Path, source: str) -> Iterator[Violati
     SomeError(...)` statement while no `Raises:` entry names it. Once a
     function documents its exceptions at all, the section should be complete,
     so a reader trusts it; a raise the section omits silently understates the
-    contract. A function with no `Raises:` section does not fire — whether to
+    contract. A function with no `Raises:` section does not fire -- whether to
     document exceptions at all is a presence choice RS041 governs from the
     prose side. A bare `raise` re-raising the caught exception and a `raise` of
     a non-class expression are ignored, since neither names a specific type,
@@ -373,9 +373,9 @@ def _exception_type_name(exc: ast.expr) -> str | None:
 
     A raised `Call` unwraps to its callee, so `raise FooError(...)` and `raise
     FooError` both resolve to `FooError`; a dotted `pkg.FooError` resolves to
-    its final attribute. A target whose name does not start with a capital — a
-    re-raised alias like `exc`, or a lowercase factory call — is treated as not
-    naming a specific type and returns `None`.
+    its final attribute. A target whose name does not start with a capital -- a
+    re-raised alias like `exc`, or a lowercase factory call -- is treated as
+    not naming a specific type and returns `None`.
     """
     call = exc.func if isinstance(exc, ast.Call) else exc
     if isinstance(call, ast.Name) and call.id[:1].isupper():
@@ -432,7 +432,7 @@ def _public_functions(
 
     A definition is in scope when the file is not a test module and the
     function is neither underscore- nor `test_`-prefixed nor an `@overload`
-    stub — the shared subject both documentation-value rules inspect.
+    stub -- the shared subject both documentation-value rules inspect.
     """
     if _is_test_file(path):
         return
@@ -534,8 +534,8 @@ def _split_into_clauses(body: str) -> list[str]:
 
     Newlines fold to spaces first, so a clause does not shift when the prose is
     rewrapped to a different width. A `.` or `;` ends a clause only outside a
-    backtick span — the dot of a dotted code reference like `pkg.mod.Error`
-    stays within its clause rather than fragmenting it — and a comma never
+    backtick span -- the dot of a dotted code reference like `pkg.mod.Error`
+    stays within its clause rather than fragmenting it -- and a comma never
     does, so a name or verb listed mid-clause is not read as a clause of its
     own. A body with an unbalanced backtick has no well-formed spans to
     protect, so it falls back to a plain punctuation split rather than let one

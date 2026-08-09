@@ -18,7 +18,7 @@ import re
 # a trailing `\b`, so `Returned` or `Returning` does not false-match `Return`.
 #
 # Base list adapted from pydocstyle's own `imperatives.txt` (the word list
-# behind ruff/pydocstyle's D401, which checks the opposite convention — a
+# behind ruff/pydocstyle's D401, which checks the opposite convention -- a
 # docstring opening should be imperative, not descriptive). MIT licensed;
 # Copyright (c) 2012 GreenSteam, 2014-2020 Amir Rachum, 2020 Sambhav Kothari.
 # https://github.com/PyCQA/pydocstyle/blob/master/src/pydocstyle/data/imperatives.txt
@@ -298,7 +298,7 @@ IMPERATIVE_VERBS: tuple[str, ...] = (
     "Yield",
 )
 # Every verb above conjugates by the suffix rule below except a genuine stem
-# change (`Have`), so the mapping is derived rather than hand-typed — a future
+# change (`Have`), so the mapping is derived rather than hand-typed -- a future
 # addition needs only the infinitive.
 _IRREGULAR_CONJUGATIONS: dict[str, str] = {"Have": "Has"}
 _ES_CONJUGATION_SUFFIXES = ("s", "x", "z", "ch", "sh", "o")

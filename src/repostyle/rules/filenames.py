@@ -1,17 +1,17 @@
 """Filename-convention rule: preferred extensions and multi-word casing.
 
 Two checks bundled under RS033, both scoped to a file's name on disk rather
-than its content, and both skip `.py` files — a Python module's name is already
-governed by import-identifier conventions elsewhere. Each check reads its own
-`[tool.repostyle]` config key and falls back to a shipped default when the key
-is absent, rather than reporting nothing: the defaults reflect a documented,
-spec- or style-guide-level convention rather than a Gradient-specific house
-preference, so a repo that never configures this rule still gets a defensible
-baseline. A repo that disagrees overrides the relevant key. A file whose name a
-tool or ecosystem convention fixes (`README.md`, `CLAUDE.md`) is exempt from
-both checks by default via `DEFAULT_EXEMPT_FILENAMES`; a repo extends that set
-through `filename-ignore` for any further fixed-name file rather than renaming
-it.
+than its content, and both skip `.py` files -- a Python module's name is
+already governed by import-identifier conventions elsewhere. Each check reads
+its own `[tool.repostyle]` config key and falls back to a shipped default when
+the key is absent, rather than reporting nothing: the defaults reflect a
+documented, spec- or style-guide-level convention rather than a
+Gradient-specific house preference, so a repo that never configures this rule
+still gets a defensible baseline. A repo that disagrees overrides the relevant
+key. A file whose name a tool or ecosystem convention fixes (`README.md`,
+`CLAUDE.md`) is exempt from both checks by default via
+`DEFAULT_EXEMPT_FILENAMES`; a repo extends that set through `filename-ignore`
+for any further fixed-name file rather than renaming it.
 """
 
 from __future__ import annotations

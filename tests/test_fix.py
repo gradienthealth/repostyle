@@ -1,11 +1,15 @@
 from pathlib import Path
 
+import pytest
+
 from repostyle.rules import (
     check_acronym_casing_in_comments,
     check_acronym_casing_in_docstrings,
     check_comment_terminal_punctuation,
     check_disfavored_gcp_term_in_comments,
     check_disfavored_gcp_term_in_docstrings,
+    check_nonstandard_dash_in_comments,
+    check_nonstandard_dash_in_docstrings,
     fix_acronym_casing_in_comments,
     fix_acronym_casing_in_docstrings,
     fix_comment_terminal_punctuation,
@@ -13,6 +17,8 @@ from repostyle.rules import (
     fix_disfavored_gcp_term_in_docstrings,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
+    fix_nonstandard_dash_in_comments,
+    fix_nonstandard_dash_in_docstrings,
 )
 from repostyle.runner import fix_path
 
@@ -52,6 +58,15 @@ class TestFixDocstringTerminalPunctuation:
         assert fix_docstring_terminal_punctuation(_PY, '"""Resolve the lease"""\n') == (
             '"""Resolve the lease."""\n'
         )
+
+    def test_WrappedBulletContinuation_LeftUntouched(self) -> None:
+        source = (
+            'def f():\n    """Do it.\n\n'
+            "    - a wrapped bullet item whose continuation\n"
+            "      line carries no terminal mark\n"
+            '    """\n'
+        )
+        assert fix_docstring_terminal_punctuation(_PY, source) == source
 
     def test_BodyParagraph_AppendsPeriodOnLastLine(self) -> None:
         source = 'def f():\n    """Do it.\n\n    The body has no mark\n    """\n'
@@ -211,6 +226,60 @@ class TestFixGCPProductNameInComments:
         assert fix_disfavored_gcp_term_in_comments(_MD, "# GCS\n") == "# GCS\n"
 
 
+class TestFixNonstandardDash:
+    @pytest.mark.parametrize(
+        ("bad", "good"),
+        [
+            ("a — b", "a -- b"),
+            ("a—b", "a -- b"),
+            ("a – b", "a -- b"),  # noqa: RUF001
+            ("a - b", "a -- b"),
+            ("a--b", "a -- b"),
+        ],
+        ids=[
+            "spaced-em-dash",
+            "glued-em-dash",
+            "spaced-en-dash",
+            "spaced-hyphen",
+            "glued-double-hyphen",
+        ],
+    )
+    def test_DocstringForm_RewritesToStandard(self, bad: str, good: str) -> None:
+        source = f'def f():\n    """Returns {bad} now."""\n'
+        assert fix_nonstandard_dash_in_docstrings(_PY, source) == (
+            f'def f():\n    """Returns {good} now."""\n'
+        )
+
+    def test_TwoFaultsOneLine_RewritesRightToLeft(self) -> None:
+        source = 'def f():\n    """Runs a — b — c now."""\n'
+        assert fix_nonstandard_dash_in_docstrings(_PY, source) == (
+            'def f():\n    """Runs a -- b -- c now."""\n'
+        )
+
+    def test_FixedDocstring_LeavesNoRemainingViolation(self) -> None:
+        source = 'def f():\n    """Returns a — b now."""\n'
+        fixed = fix_nonstandard_dash_in_docstrings(_PY, source)
+        assert list(check_nonstandard_dash_in_docstrings(_PY, fixed)) == []
+
+    def test_SuppressedLine_LeftUntouched(self) -> None:
+        source = 'def f():\n    """Returns a — b now."""\n'
+        assert fix_nonstandard_dash_in_docstrings(_PY, source, frozenset({2})) == source
+
+    def test_CommentForm_RewritesInPlace(self) -> None:
+        source = "# tuned — carefully\nx = 1\n"
+        fixed = fix_nonstandard_dash_in_comments(_PY, source)
+        assert fixed == "# tuned -- carefully\nx = 1\n"
+        assert list(check_nonstandard_dash_in_comments(_PY, fixed)) == []
+
+    def test_NonPythonComment_FixIsNoOp(self) -> None:
+        source = "# tuned — carefully\n"
+        assert fix_nonstandard_dash_in_comments(Path("c.yaml"), source) == source
+
+    def test_StandardDash_ReturnsSourceUnchanged(self) -> None:
+        source = 'def f():\n    """Returns a -- b now."""\n'
+        assert fix_nonstandard_dash_in_docstrings(_PY, source) == source
+
+
 class TestFixPath:
     def test_EnabledFixers_ComposeOnOneFile(self, tmp_path: Path) -> None:
         source = (
@@ -222,6 +291,23 @@ class TestFixPath:
         assert target.read_text(encoding="utf-8") == (
             'def f():\n    """Use `dict` here.\n\n'
             '    The body line has no mark.\n    """\n'
+        )
+
+    def test_DashRewriteThenReflow_ComposeInOrder(self, tmp_path: Path) -> None:
+        # The dash rewrite lengthens the 79-column body line to 80, so the
+        # final wrap proves the reflow ran after it.
+        source = (
+            'def f():\n    """Do it.\n\n'
+            "    resolves the config — falling back to the defaults when the "
+            'file is absent.\n    """\n'
+        )
+        target = _write_project(tmp_path, source, '["RS009", "RS054"]')
+        assert fix_path(target, {"RS009", "RS054"}) is True
+        assert target.read_text(encoding="utf-8") == (
+            'def f():\n    """Do it.\n\n'
+            "    resolves the config -- falling back to the defaults when the "
+            "file is\n    absent.\n"
+            '    """\n'
         )
 
     def test_OnlyOneRuleEnabled_OtherFixersSkipped(self, tmp_path: Path) -> None:

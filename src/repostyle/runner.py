@@ -27,6 +27,7 @@ from repostyle.rules import (
     RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_NO_DOUBLE_BACKTICKS,
+    RS_NONSTANDARD_DASH,
     RS_TERMINAL_PUNCTUATION,
     Violation,
     fix_acronym_casing_in_comments,
@@ -37,6 +38,8 @@ from repostyle.rules import (
     fix_doc_fill,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
+    fix_nonstandard_dash_in_comments,
+    fix_nonstandard_dash_in_docstrings,
     run_package_rule,
     run_rule,
 )
@@ -44,9 +47,10 @@ from repostyle.suppressions import filter_suppressed, suppressed_lines
 
 # Each fixer rewrites one rule's findings, taking `(path, source,
 # skip_lines)` and returning the rewritten source. They run in this
-# order so the surface edits (backticks, terminal punctuation) settle
-# before the reflow rewraps the corrected prose; each re-parses the
-# source it is handed, so chaining their edits is safe.
+# order so the surface edits (backticks, dashes, terminal punctuation)
+# settle before the reflow rewraps the corrected prose -- a dash rewrite
+# changes line length, so the reflow must run after it; each re-parses
+# the source it is handed, so chaining their edits is safe.
 _Fixer = Callable[[Path, str, frozenset[int]], str]
 _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_NO_DOUBLE_BACKTICKS, fix_double_backticks),
@@ -54,6 +58,8 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_ACRONYM_CASING_IN_PROSE, fix_acronym_casing_in_comments),
     (RS_DISFAVORED_GCP_TERM, fix_disfavored_gcp_term_in_docstrings),
     (RS_DISFAVORED_GCP_TERM, fix_disfavored_gcp_term_in_comments),
+    (RS_NONSTANDARD_DASH, fix_nonstandard_dash_in_docstrings),
+    (RS_NONSTANDARD_DASH, fix_nonstandard_dash_in_comments),
     (RS_TERMINAL_PUNCTUATION, fix_docstring_terminal_punctuation),
     (RS_TERMINAL_PUNCTUATION, fix_comment_terminal_punctuation),
     (RS_DOC_FILL, fix_doc_fill),
@@ -231,7 +237,7 @@ def lint_package(
 
     A package rule sees every first-party file under the repo root so its
     cross-module view is whole, but findings are reported only on the paths
-    passed in — keeping it sound under pre-commit's per-file batching. Returns
+    passed in -- keeping it sound under pre-commit's per-file batching. Returns
     findings keyed by each path's resolved location.
 
     Args:
@@ -304,7 +310,7 @@ def _walk_matching(
     CPU-bound (DEV-1522).
 
     When the config sets `respect-gitignore`, a directory the repo's root
-    `.gitignore` names is pruned too, on both walks — a gitignored tree is
+    `.gitignore` names is pruned too, on both walks -- a gitignored tree is
     treated as not part of the repo at all, so it is invisible even to the
     whole-package index. That is the opposite of `exclude`, which keeps a file
     in the tree and only silences its findings.
@@ -356,7 +362,7 @@ def _is_pruned_dir(
     subtree, or when the repo's `.gitignore` names it and `respect-gitignore`
     is set. An empty `table` (the whole-package walk, which does not apply
     excludes) matches no `exclude` glob, but the `.gitignore` prune still
-    applies there — a gitignored tree is not part of the repo for any rule,
+    applies there -- a gitignored tree is not part of the repo for any rule,
     including the cross-module index.
     """
     name = directory.name
