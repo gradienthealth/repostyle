@@ -2148,6 +2148,17 @@ class TestCheckDocstringTerminalPunctuation:
         violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 5)]
 
+    def test_FlushLineAfterEntryBullet_StillGraded(self) -> None:
+        source = (
+            'def f(foo):\n    """Do it.\n\n    Args:\n'
+            "        foo: Something listed:\n"
+            "            - a bullet item\n"
+            "        a flush follow-on line with no mark\n"
+            '    """\n'
+        )
+        violations = list(check_docstring_terminal_punctuation(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_TERMINAL_PUNCTUATION, 7)]
+
     def test_WrappedBulletContinuation_NotFlagged(self) -> None:
         source = (
             'def f():\n    """Do it.\n\n'

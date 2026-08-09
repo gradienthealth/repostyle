@@ -1645,8 +1645,13 @@ class _DocstringSegmenter:
         An entry opens on a `name:`-style caption at the entry margin; a line
         that carries no caption continues the open entry, whether it wraps at a
         deeper indent or at the entry margin, so a `Returns:` description
-        wrapped at one indent stays a single multi-line entry.
+        wrapped at one indent stays a single multi-line entry. An open bullet
+        is closed first, so a flush follow-on line after a bullet item opens
+        its own unit rather than silently joining the bullet -- only a
+        deeper-indented line wraps an item.
         """
+        if self._open and self._open_kind == "bullet":
+            self.close()
         if self._entry_indent is None:
             self._entry_indent = line.relative_indent
         starts_entry = (
