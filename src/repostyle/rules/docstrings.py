@@ -42,7 +42,9 @@ from repostyle.rules._violation import (
     RS_ACRONYM_CASING_IN_PROSE,
     RS_BULLET_ITEM_CASING,
     RS_DISFAVORED_GCP_TERM,
+    RS_DOCSTRING_SECTION_ALIAS,
     RS_DOCSTRING_SECTION_ORDER,
+    RS_DUPLICATE_DOCSTRING_SECTION,
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
@@ -131,6 +133,20 @@ _SECTION_RANKS: dict[str, int] = {
     "Example:": 3,
     "Examples:": 3,
 }
+# The header aliases the segmenter accepts but the canonical Google spelling
+# supersedes. `Note:`/`Notes:` and `Example:`/`Examples:` are not aliases:
+# singular versus plural there is the author's semantic choice.
+_SECTION_ALIASES: dict[str, str] = {
+    "Arguments:": "Args:",
+    "Return:": "Returns:",
+    "Yield:": "Yields:",
+}
+# Each recognized header's section family, for the duplicate check: a family
+# reached under two spellings (an `Args:` after an `Arguments:`) is still one
+# section documented twice.
+_SECTION_FAMILIES: dict[str, str] = {
+    header: _SECTION_ALIASES.get(header, header) for header in _SECTION_HEADERS
+} | {"Notes:": "Note:", "Examples:": "Example:"}
 
 # The Python literal constants read as code in prose just as a name does, so
 # RS036 treats them as always-known references beside the module's own names.
@@ -259,6 +275,107 @@ def check_docstring_section_order(path: Path, source: str) -> Iterator[Violation
                 )
             else:
                 latest_rank, latest_header = rank, line.text
+
+
+def check_docstring_section_alias(path: Path, source: str) -> Iterator[Violation]:
+    """A section header uses the canonical Google spelling, not an alias.
+
+    The segmenter accepts `Arguments:`, `Return:`, and `Yield:` so their bodies
+    are still graded, but Google's own headers are `Args:`, `Returns:`, and
+    `Yields:`, and one spelling per corpus keeps a section greppable. Each
+    alias header is flagged and, under `--fix`, rewritten to its canonical form
+    in place. `Notes:` and `Examples:` are not aliases: singular versus plural
+    there is the author's semantic choice.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for lineno, column, found, canonical in _docstring_section_alias_faults(
+            constant
+        ):
+            yield Violation(
+                lineno,
+                column + 1,
+                RS_DOCSTRING_SECTION_ALIAS,
+                f"the `{found}` header is an alias of the canonical Google "
+                f"header; write `{canonical}`",
+            )
+
+
+def fix_docstring_section_alias(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Rewrites each alias section header to its canonical form, RS058's fix.
+
+    Each header the check flags is replaced in place with its canonical
+    spelling; nothing else on the line moves. A header whose line is in
+    `skip_lines` is left alone.
+
+    Returns:
+        The source with each alias header rewritten, unchanged when nothing
+        rewrites.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for lineno, column, found, canonical in _docstring_section_alias_faults(
+            constant
+        ):
+            if lineno in skip_lines:
+                continue
+            line = source_lines[lineno - 1]
+            offset = line.find(found, column)
+            if offset != -1:
+                source_lines[lineno - 1] = (
+                    line[:offset] + canonical + line[offset + len(found) :]
+                )
+                changed = True
+    return _join_source_lines(source, source_lines) if changed else source
+
+
+def check_duplicate_docstring_section(path: Path, source: str) -> Iterator[Violation]:
+    """A docstring holds at most one section per family.
+
+    A second `Args:`, `Returns:`, or `Raises:` -- under the same spelling or an
+    alias, an `Args:` after an `Arguments:` -- splits one section's content
+    across two places, so a reader stops at the first and misses the rest. The
+    duplicate is flagged at its own header; the fix is to merge its entries
+    into the first.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        lines = _doc_lines(constant)
+        first_headers: dict[str, str] = {}
+        for index in _unfenced_margin_lines(lines):
+            line = lines[index]
+            family = _SECTION_FAMILIES.get(line.text)
+            if family is None:
+                continue
+            if family in first_headers:
+                yield Violation(
+                    line.lineno,
+                    line.column + 1,
+                    RS_DUPLICATE_DOCSTRING_SECTION,
+                    f"a second `{line.text}` section duplicates the earlier "
+                    f"`{first_headers[family]}`; merge its entries into the first",
+                )
+            else:
+                first_headers[family] = line.text
 
 
 def check_no_double_backticks_in_md(path: Path, source: str) -> Iterator[Violation]:
@@ -1203,6 +1320,26 @@ def _blank_outside_docstring(line: str, lineno: int, constant: ast.Constant) -> 
     start = constant.col_offset if lineno == constant.lineno else 0
     end = constant.end_col_offset if lineno == constant.end_lineno else len(line)
     return " " * start + line[start:end] + " " * (len(line) - end)
+
+
+def _docstring_section_alias_faults(
+    constant: ast.Constant,
+) -> Iterator[tuple[int, int, str, str]]:
+    """Yields `(lineno, column, found, canonical)` for each alias header.
+
+    Only a margin line outside a fenced block is read, the same positions the
+    section checks read, so an entry caption or a fence line never yields.
+    """
+    lines = _doc_lines(constant)
+    for index in _unfenced_margin_lines(lines):
+        canonical = _SECTION_ALIASES.get(lines[index].text)
+        if canonical is not None:
+            yield (
+                lines[index].lineno,
+                lines[index].column,
+                lines[index].text,
+                canonical,
+            )
 
 
 def fix_docstring_terminal_punctuation(

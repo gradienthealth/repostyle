@@ -26,6 +26,7 @@ from repostyle.rules import (
     RS_ACRONYM_CASING_IN_PROSE,
     RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
+    RS_DOCSTRING_SECTION_ALIAS,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NONSTANDARD_DASH,
     RS_TERMINAL_PUNCTUATION,
@@ -36,6 +37,7 @@ from repostyle.rules import (
     fix_disfavored_gcp_term_in_comments,
     fix_disfavored_gcp_term_in_docstrings,
     fix_doc_fill,
+    fix_docstring_section_alias,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
     fix_nonstandard_dash_in_comments,
@@ -54,6 +56,7 @@ from repostyle.suppressions import filter_suppressed, suppressed_lines
 _Fixer = Callable[[Path, str, frozenset[int]], str]
 _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_NO_DOUBLE_BACKTICKS, fix_double_backticks),
+    (RS_DOCSTRING_SECTION_ALIAS, fix_docstring_section_alias),
     (RS_ACRONYM_CASING_IN_PROSE, fix_acronym_casing_in_docstrings),
     (RS_ACRONYM_CASING_IN_PROSE, fix_acronym_casing_in_comments),
     (RS_DISFAVORED_GCP_TERM, fix_disfavored_gcp_term_in_docstrings),

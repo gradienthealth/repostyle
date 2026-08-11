@@ -16,7 +16,9 @@ from repostyle.rules import (
     RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
+    RS_DOCSTRING_SECTION_ALIAS,
     RS_DOCSTRING_SECTION_ORDER,
+    RS_DUPLICATE_DOCSTRING_SECTION,
     RS_DURATION_AS_TIMEDELTA,
     RS_EQ_HASH_PAIRING,
     RS_EXCEPTION_ALIAS,
@@ -57,9 +59,11 @@ from repostyle.rules import (
     check_disfavored_gcp_term_in_docstrings,
     check_doc_fill,
     check_doc_summary_overflow,
+    check_docstring_section_alias,
     check_docstring_section_order,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
+    check_duplicate_docstring_section,
     check_duration_as_timedelta,
     check_eq_hash_pairing,
     check_exception_alias,
@@ -2408,6 +2412,101 @@ class TestCheckDocstringSectionOrder:
         assert [(v.rule, v.line) for v in violations] == [
             (RS_DOCSTRING_SECTION_ORDER, 7),
             (RS_DOCSTRING_SECTION_ORDER, 10),
+        ]
+
+
+class TestCheckDocstringSectionAlias:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f(x):\n    """Do the thing.\n\n    Args:\n'
+            "        x: An x.\n\n    Returns:\n        The thing.\n\n"
+            '    Yields:\n        Each thing.\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Notes:\n'
+            '        Plural notes are not an alias.\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Examples:\n'
+            '        >>> f()\n    """\n',
+            'def f():\n    """Do the thing.\n\n    ```\n    Return:\n'
+            '        inside a fence\n    ```\n    """\n',
+        ],
+        ids=[
+            "canonical-spellings",
+            "plural-notes-not-alias",
+            "plural-examples-not-alias",
+            "alias-inside-fence",
+        ],
+    )
+    def test_ConformingDocstring_NoViolation(self, source: str) -> None:
+        assert list(check_docstring_section_alias(_DOC_PATH, source)) == []
+
+    @pytest.mark.parametrize(
+        ("alias", "canonical"),
+        [
+            ("Arguments:", "Args:"),
+            ("Return:", "Returns:"),
+            ("Yield:", "Yields:"),
+        ],
+        ids=["arguments", "return", "yield"],
+    )
+    def test_AliasHeader_FlagsWithCanonical(self, alias: str, canonical: str) -> None:
+        source = (
+            f'def f(x):\n    """Do the thing.\n\n    {alias}\n'
+            '        x: An x.\n    """\n'
+        )
+        violations = list(check_docstring_section_alias(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_DOCSTRING_SECTION_ALIAS
+        assert (violations[0].line, violations[0].col) == (4, 5)
+        assert f"`{canonical}`" in violations[0].message
+
+
+class TestCheckDuplicateDocstringSection:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f(x):\n    """Do the thing.\n\n    Args:\n'
+            "        x: An x.\n\n    Returns:\n        The thing.\n\n"
+            '    Raises:\n        ValueError: If x is bad.\n    """\n',
+            'def f(x):\n    """Do the thing.\n\n    Returns:\n'
+            '        The thing.\n\n    Yields:\n        Each thing.\n    """\n',
+        ],
+        ids=["one-of-each", "returns-and-yields-distinct-families"],
+    )
+    def test_ConformingDocstring_NoViolation(self, source: str) -> None:
+        assert list(check_duplicate_docstring_section(_DOC_PATH, source)) == []
+
+    def test_SecondArgsSection_FlagsAtDuplicate(self) -> None:
+        source = (
+            'def f(x, y):\n    """Do the thing.\n\n    Args:\n'
+            "        x: An x.\n\n    Args:\n"
+            '        y: A y.\n    """\n'
+        )
+        violations = list(check_duplicate_docstring_section(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_DUPLICATE_DOCSTRING_SECTION
+        assert (violations[0].line, violations[0].col) == (7, 5)
+
+    def test_ArgsAfterArguments_FlagsAliasAsSameFamily(self) -> None:
+        source = (
+            'def f(x, y):\n    """Do the thing.\n\n    Arguments:\n'
+            "        x: An x.\n\n    Args:\n"
+            '        y: A y.\n    """\n'
+        )
+        violations = list(check_duplicate_docstring_section(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_DUPLICATE_DOCSTRING_SECTION, 7)
+        ]
+        assert "`Arguments:`" in violations[0].message
+
+    def test_NotesAfterNote_FlagsAsSameFamily(self) -> None:
+        source = (
+            'def f():\n    """Do the thing.\n\n    Note:\n'
+            "        A note.\n\n    Notes:\n"
+            '        More notes.\n    """\n'
+        )
+        violations = list(check_duplicate_docstring_section(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_DUPLICATE_DOCSTRING_SECTION, 7)
         ]
 
 

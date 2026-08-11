@@ -24,7 +24,9 @@ from repostyle.rules._violation import (
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
+    RS_DOCSTRING_SECTION_ALIAS,
     RS_DOCSTRING_SECTION_ORDER,
+    RS_DUPLICATE_DOCSTRING_SECTION,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
     RS_EQ_HASH_PAIRING,
@@ -91,9 +93,11 @@ from repostyle.rules.docstrings import (
     check_bullet_item_casing,
     check_bullet_item_casing_in_comments,
     check_disfavored_gcp_term_in_docstrings,
+    check_docstring_section_alias,
     check_docstring_section_order,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
+    check_duplicate_docstring_section,
     check_field_comment_as_docstring,
     check_filler_docstring_opening,
     check_glued_code_span_in_comments,
@@ -239,6 +243,8 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
     RS_BANNER_COMMENT: (check_banner_comment,),
     RS_INVALID_DOCSTRING_SECTION: (check_invalid_docstring_section,),
     RS_DOCSTRING_SECTION_ORDER: (check_docstring_section_order,),
+    RS_DOCSTRING_SECTION_ALIAS: (check_docstring_section_alias,),
+    RS_DUPLICATE_DOCSTRING_SECTION: (check_duplicate_docstring_section,),
 }
 
 
@@ -293,6 +299,8 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_BANNER_COMMENT: Severity.WARNING,
     RS_INVALID_DOCSTRING_SECTION: Severity.WARNING,
     RS_DOCSTRING_SECTION_ORDER: Severity.WARNING,
+    RS_DOCSTRING_SECTION_ALIAS: Severity.WARNING,
+    RS_DUPLICATE_DOCSTRING_SECTION: Severity.WARNING,
 }
 
 
@@ -304,6 +312,7 @@ FIXABLE_RULES: frozenset[str] = frozenset(
         RS_ACRONYM_CASING_IN_PROSE,
         RS_DISFAVORED_GCP_TERM,
         RS_DOC_FILL,
+        RS_DOCSTRING_SECTION_ALIAS,
         RS_NO_DOUBLE_BACKTICKS,
         RS_NONSTANDARD_DASH,
         RS_TERMINAL_PUNCTUATION,

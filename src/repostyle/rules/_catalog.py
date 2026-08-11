@@ -37,7 +37,9 @@ from repostyle.rules._violation import (
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
+    RS_DOCSTRING_SECTION_ALIAS,
     RS_DOCSTRING_SECTION_ORDER,
+    RS_DUPLICATE_DOCSTRING_SECTION,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
     RS_EQ_HASH_PAIRING,
@@ -1277,6 +1279,40 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     "body prose (or a `Note:` section) instead."
                 ),
             ),
+        ),
+    ),
+    RS_DOCSTRING_SECTION_ALIAS: RuleDoc(
+        name="docstring-section-alias",
+        summary=(
+            "A section header uses the canonical Google spelling: `Args:`, "
+            "not `Arguments:`; `Returns:`, not `Return:`; `Yields:`, not "
+            "`Yield:`."
+        ),
+        rationale=(
+            "The alias headers parse, so their bodies are still graded, but "
+            "one spelling per corpus keeps a section greppable and the "
+            "docstrings uniform. `Notes:` and `Examples:` are not aliases: "
+            "singular versus plural there is the author's semantic choice. "
+            "Auto-fixable: `--fix` rewrites each alias header to its "
+            "canonical form in place."
+        ),
+    ),
+    RS_DUPLICATE_DOCSTRING_SECTION: RuleDoc(
+        name="duplicate-docstring-section",
+        summary=(
+            "A docstring holds at most one section per family; a second "
+            "`Args:` (or an `Args:` after an `Arguments:`) merges into the "
+            "first."
+        ),
+        rationale=(
+            "A duplicated section splits one kind of content across two "
+            "places, so a reader stops at the first block and misses the "
+            "rest. The duplicate is flagged at its own header; move its "
+            "entries into the first block and delete it. Aliases count as "
+            "one family, so an `Args:` after an `Arguments:` is a duplicate, "
+            "as is a `Notes:` after a `Note:`. Not auto-fixable: merging two "
+            "blocks can collide on an entry documented twice, which needs a "
+            "human reading."
         ),
     ),
     RS_DOCSTRING_SECTION_ORDER: RuleDoc(
