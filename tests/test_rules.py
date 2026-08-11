@@ -16,12 +16,14 @@ from repostyle.rules import (
     RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
+    RS_DOCSTRING_SECTION_ORDER,
     RS_DURATION_AS_TIMEDELTA,
     RS_EQ_HASH_PAIRING,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_GCP_BARE_IDENTIFIER,
     RS_GLUED_CODE_SPAN,
+    RS_INVALID_DOCSTRING_SECTION,
     RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -55,6 +57,7 @@ from repostyle.rules import (
     check_disfavored_gcp_term_in_docstrings,
     check_doc_fill,
     check_doc_summary_overflow,
+    check_docstring_section_order,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_duration_as_timedelta,
@@ -65,6 +68,7 @@ from repostyle.rules import (
     check_glued_code_span_in_comments,
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
+    check_invalid_docstring_section,
     check_lowercase_entry_description,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
@@ -2272,6 +2276,138 @@ class TestCheckLowercaseEntryDescription:
         violations = list(check_lowercase_entry_description(_DOC_PATH, source))
         assert [(v.rule, v.line) for v in violations] == [
             (RS_LOWERCASE_ENTRY_DESCRIPTION, 6)
+        ]
+
+
+class TestCheckInvalidDocstringSection:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f(x):\n    """Do the thing.\n\n    Args:\n'
+            "        x: An x.\n\n    Returns:\n        The thing.\n\n"
+            "    Raises:\n        ValueError: If x is bad.\n\n    Note:\n"
+            '        A note.\n\n    Example:\n        >>> f(1)\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Attributes:\n'
+            '        name: A name.\n    """\n',
+            'def f():\n    """Do the thing.\n\n    The check covers:\n\n'
+            '    - one case\n    - another case\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Reads the config from:\n'
+            '        pyproject.toml, walking upward.\n    """\n',
+            'def f():\n    """Do the thing.\n\n    ```\n    Warns:\n'
+            '        inside a fence\n    ```\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Raises:\n'
+            '        TruRezError: If the check failed.\n            Wrapped.\n    """\n',
+        ],
+        ids=[
+            "recognized-sections",
+            "attributes-left-to-rs004",
+            "colon-line-no-indented-body",
+            "lowercase-words-not-header-shaped",
+            "header-inside-fence",
+            "indented-entry-caption-not-header",
+        ],
+    )
+    def test_ConformingDocstring_NoViolation(self, source: str) -> None:
+        assert list(check_invalid_docstring_section(_DOC_PATH, source)) == []
+
+    def test_WarnsSection_FlagsAtHeader(self) -> None:
+        source = (
+            'def f():\n    """Verifies the dataset.\n\n    Raises:\n'
+            "        TruRezError: If a check failed.\n\n    Warns:\n"
+            '        RangeWarning: If a decode exceeds the range.\n    """\n'
+        )
+        violations = list(check_invalid_docstring_section(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_INVALID_DOCSTRING_SECTION
+        assert (violations[0].line, violations[0].col) == (7, 5)
+        assert "'Warns:'" in violations[0].message
+
+    @pytest.mark.parametrize(
+        ("header", "body"),
+        [
+            ("Todo:", "drop the shim."),
+            ("Keyword Args:", "extra: An extra."),
+            ("Design Notes:", "The layout is deliberate."),
+        ],
+        ids=["napoleon-import", "two-word-napoleon", "invented-two-word"],
+    )
+    def test_UnrecognizedHeader_FlagsViolation(self, header: str, body: str) -> None:
+        source = (
+            f'def f():\n    """Do the thing.\n\n    {header}\n        {body}\n    """\n'
+        )
+        violations = list(check_invalid_docstring_section(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_INVALID_DOCSTRING_SECTION, 4)
+        ]
+
+    def test_ModuleDocstringWarns_FlagsAtHeader(self) -> None:
+        source = '"""Do the module thing.\n\nWarns:\n    RangeWarning: Nope.\n"""\n'
+        violations = list(check_invalid_docstring_section(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_INVALID_DOCSTRING_SECTION, 3)
+        ]
+
+
+class TestCheckDocstringSectionOrder:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f(x):\n    """Do the thing.\n\n    Args:\n'
+            "        x: An x.\n\n    Returns:\n        The thing.\n\n"
+            "    Raises:\n        ValueError: If x is bad.\n\n"
+            '    Example:\n        >>> f(1)\n    """\n',
+            'def f(x):\n    """Do the thing.\n\n    Args:\n'
+            "        x: An x.\n\n    Yields:\n        Each thing.\n\n"
+            '    Raises:\n        ValueError: If x is bad.\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Raises:\n'
+            '        ValueError: If the input is bad.\n    """\n',
+            'def f(x):\n    """Do the thing.\n\n    Note:\n        A note.\n\n'
+            '    Args:\n        x: An x.\n    """\n',
+        ],
+        ids=[
+            "canonical-order",
+            "yields-in-returns-slot",
+            "single-section",
+            "note-unranked",
+        ],
+    )
+    def test_ConformingOrder_NoViolation(self, source: str) -> None:
+        assert list(check_docstring_section_order(_DOC_PATH, source)) == []
+
+    def test_RaisesAboveReturns_FlagsAtReturns(self) -> None:
+        source = (
+            'def f():\n    """Do the thing.\n\n    Raises:\n'
+            "        ValueError: If the input is bad.\n\n    Returns:\n"
+            '        The thing.\n    """\n'
+        )
+        violations = list(check_docstring_section_order(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_DOCSTRING_SECTION_ORDER
+        assert (violations[0].line, violations[0].col) == (7, 5)
+        assert "`Returns:` section sits below `Raises:`" in violations[0].message
+
+    def test_ExampleAboveArgs_FlagsAtArgs(self) -> None:
+        source = (
+            'def f(x):\n    """Do the thing.\n\n    Example:\n'
+            "        >>> f(1)\n\n    Args:\n"
+            '        x: An x.\n    """\n'
+        )
+        violations = list(check_docstring_section_order(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_DOCSTRING_SECTION_ORDER, 7)
+        ]
+
+    def test_TwoSectionsBelowRaises_FlagsEach(self) -> None:
+        source = (
+            'def f(x):\n    """Do the thing.\n\n    Raises:\n'
+            "        ValueError: If x is bad.\n\n    Args:\n"
+            "        x: An x.\n\n    Returns:\n"
+            '        The thing.\n    """\n'
+        )
+        violations = list(check_docstring_section_order(_DOC_PATH, source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_DOCSTRING_SECTION_ORDER, 7),
+            (RS_DOCSTRING_SECTION_ORDER, 10),
         ]
 
 

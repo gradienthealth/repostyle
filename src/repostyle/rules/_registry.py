@@ -24,6 +24,7 @@ from repostyle.rules._violation import (
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
+    RS_DOCSTRING_SECTION_ORDER,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
     RS_EQ_HASH_PAIRING,
@@ -35,6 +36,7 @@ from repostyle.rules._violation import (
     RS_GCP_BARE_IDENTIFIER,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
+    RS_INVALID_DOCSTRING_SECTION,
     RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -89,6 +91,7 @@ from repostyle.rules.docstrings import (
     check_bullet_item_casing,
     check_bullet_item_casing_in_comments,
     check_disfavored_gcp_term_in_docstrings,
+    check_docstring_section_order,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
     check_field_comment_as_docstring,
@@ -97,6 +100,7 @@ from repostyle.rules.docstrings import (
     check_glued_code_span_in_docstrings,
     check_glued_code_span_in_md,
     check_imperative_docstring_opening,
+    check_invalid_docstring_section,
     check_lowercase_entry_description,
     check_no_attributes_block,
     check_no_double_backticks_in_docstrings,
@@ -233,6 +237,8 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
         check_nonstandard_dash_in_comments,
     ),
     RS_BANNER_COMMENT: (check_banner_comment,),
+    RS_INVALID_DOCSTRING_SECTION: (check_invalid_docstring_section,),
+    RS_DOCSTRING_SECTION_ORDER: (check_docstring_section_order,),
 }
 
 
@@ -285,6 +291,8 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_BULLET_ITEM_CASING: Severity.WARNING,
     RS_NONSTANDARD_DASH: Severity.WARNING,
     RS_BANNER_COMMENT: Severity.WARNING,
+    RS_INVALID_DOCSTRING_SECTION: Severity.WARNING,
+    RS_DOCSTRING_SECTION_ORDER: Severity.WARNING,
 }
 
 

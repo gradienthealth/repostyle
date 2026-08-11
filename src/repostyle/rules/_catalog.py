@@ -37,6 +37,7 @@ from repostyle.rules._violation import (
     RS_DOC_FILL,
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOC_VALUE_SIGNAL,
+    RS_DOCSTRING_SECTION_ORDER,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
     RS_EQ_HASH_PAIRING,
@@ -48,6 +49,7 @@ from repostyle.rules._violation import (
     RS_GCP_BARE_IDENTIFIER,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
+    RS_INVALID_DOCSTRING_SECTION,
     RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -1232,6 +1234,74 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 note=(
                     "Delete the divider; a file that genuinely has sections "
                     "wants a class or a module split, not typography."
+                ),
+            ),
+        ),
+    ),
+    RS_INVALID_DOCSTRING_SECTION: RuleDoc(
+        name="invalid-docstring-section",
+        summary=(
+            "A docstring section header comes from the recognized Google set "
+            "-- `Args:`, `Returns:`, `Yields:`, `Raises:`, `Note:`, "
+            "`Example:` -- not an invented or Sphinx-imported one."
+        ),
+        rationale=(
+            "A header outside the recognized set -- `Warns:`, `Todo:`, "
+            "`Design Notes:` -- hides its body from every rule that grades "
+            "section content: RS030, RS041, RS043, and RS047 all read it as "
+            "ordinary prose, and tooling walking the Google sections skips "
+            "it. The check fires on a margin-level line of up to three "
+            "capitalized words closing with a colon, with an indented body "
+            "beneath it; a header-shaped line with no indented body reads as "
+            "prose and is left alone. Not auto-fixable: where the body "
+            "belongs -- folded into prose, or recast under `Raises:` or "
+            "`Note:` -- depends on what it says."
+        ),
+        examples=(
+            Example(
+                bad=(
+                    '"""Verifies the dataset.\n\n'
+                    "    Warns:\n"
+                    "        RangeWarning: If a decode exceeds the range.\n"
+                    '    """'
+                ),
+                good=(
+                    '"""Verifies the dataset.\n\n'
+                    "    Warns `RangeWarning` when a decode exceeds the\n"
+                    "    range.\n"
+                    '    """'
+                ),
+                note=(
+                    "`Warns:` renders under Sphinx's napoleon preset but is "
+                    "not in Google's own section set; state the warning in "
+                    "body prose (or a `Note:` section) instead."
+                ),
+            ),
+        ),
+    ),
+    RS_DOCSTRING_SECTION_ORDER: RuleDoc(
+        name="docstring-section-order",
+        summary=(
+            "Docstring sections follow the canonical Google order: `Args:`, "
+            "then `Returns:` or `Yields:`, then `Raises:`, then `Example:`."
+        ),
+        rationale=(
+            "The canonical order reads inputs, then outputs, then failures, "
+            "then the example exercising them, so a reader lands on each "
+            "section where every other docstring put it. The violation "
+            "points at the section sitting below one that should follow it; "
+            "the fix is to move the whole section block, body included. "
+            "`Note:` and `Attributes:` hold no fixed slot and never fire."
+        ),
+        examples=(
+            Example(
+                bad=(
+                    "Raises:\n    ValueError: If `x` is bad.\n\n"
+                    "Returns:\n    The lease."
+                ),
+                good=(
+                    "Returns:\n    The lease.\n\n"
+                    "Raises:\n    ValueError: If `x` is bad."
                 ),
             ),
         ),
