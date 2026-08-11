@@ -15,6 +15,7 @@ from repostyle.rules import (
     fix_comment_terminal_punctuation,
     fix_disfavored_gcp_term_in_comments,
     fix_disfavored_gcp_term_in_docstrings,
+    fix_docstring_section_alias,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
     fix_nonstandard_dash_in_comments,
@@ -24,6 +25,37 @@ from repostyle.runner import fix_path
 
 _PY = Path("src/x.py")
 _MD = Path("README.md")
+
+
+class TestFixDocstringSectionAlias:
+    def test_AliasHeaders_RewriteToCanonical(self) -> None:
+        source = (
+            'def f(x):\n    """Do the thing.\n\n    Arguments:\n'
+            "        x: An x.\n\n    Return:\n"
+            '        The thing.\n    """\n'
+        )
+        expected = (
+            'def f(x):\n    """Do the thing.\n\n    Args:\n'
+            "        x: An x.\n\n    Returns:\n"
+            '        The thing.\n    """\n'
+        )
+        assert fix_docstring_section_alias(_PY, source) == expected
+
+    def test_LineSuppressed_LeavesHeader(self) -> None:
+        source = (
+            'def f(x):\n    """Do the thing.\n\n    Arguments:\n'
+            '        x: An x.\n    """\n'
+        )
+        assert (
+            fix_docstring_section_alias(_PY, source, skip_lines=frozenset({4}))
+            == source
+        )
+
+    def test_CanonicalHeaders_ReturnsSourceUnchanged(self) -> None:
+        source = (
+            'def f(x):\n    """Do the thing.\n\n    Args:\n        x: An x.\n    """\n'
+        )
+        assert fix_docstring_section_alias(_PY, source) == source
 
 
 class TestFixDoubleBackticks:

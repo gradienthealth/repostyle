@@ -42,10 +42,14 @@ from repostyle.rules._violation import (
     RS_ACRONYM_CASING_IN_PROSE,
     RS_BULLET_ITEM_CASING,
     RS_DISFAVORED_GCP_TERM,
+    RS_DOCSTRING_SECTION_ALIAS,
+    RS_DOCSTRING_SECTION_ORDER,
+    RS_DUPLICATE_DOCSTRING_SECTION,
     RS_FIELD_COMMENT_AS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
+    RS_INVALID_DOCSTRING_SECTION,
     RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_ATTRIBUTES_BLOCK,
     RS_NO_DOUBLE_BACKTICKS,
@@ -109,6 +113,40 @@ _SECTION_HEADERS = (
 # `name (type):`, `ValueError:`), which opens a fresh entry. A line without one
 # continues the entry it follows.
 _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
+# A line shaped like a section header: one to three space-separated words, each
+# opening with a capital, the colon closing the line -- `Warns:`,
+# `Keyword Args:`, `Design Notes:`. The shape catches an invented or imported
+# header without matching wrapped prose, whose lowercase connectives fall
+# outside it.
+_SECTION_SHAPE_PATTERN = re.compile(r"^[A-Z][A-Za-z]*(?: [A-Z][A-Za-z]*){0,2}:$")
+# The canonical Google order of the sections that have one -- inputs, then
+# outputs, then failures, then the example exercising them. `Note:` and
+# `Attributes:` hold no fixed slot and are unranked.
+_SECTION_RANKS: dict[str, int] = {
+    "Args:": 0,
+    "Arguments:": 0,
+    "Returns:": 1,
+    "Return:": 1,
+    "Yields:": 1,
+    "Yield:": 1,
+    "Raises:": 2,
+    "Example:": 3,
+    "Examples:": 3,
+}
+# The header aliases the segmenter accepts but the canonical Google spelling
+# supersedes. `Note:`/`Notes:` and `Example:`/`Examples:` are not aliases:
+# singular versus plural there is the author's semantic choice.
+_SECTION_ALIASES: dict[str, str] = {
+    "Arguments:": "Args:",
+    "Return:": "Returns:",
+    "Yield:": "Yields:",
+}
+# Each recognized header's section family, for the duplicate check: a family
+# reached under two spellings (an `Args:` after an `Arguments:`) is still one
+# section documented twice.
+_SECTION_FAMILIES: dict[str, str] = {
+    header: _SECTION_ALIASES.get(header, header) for header in _SECTION_HEADERS
+} | {"Notes:": "Note:", "Examples:": "Example:"}
 
 # The Python literal constants read as code in prose just as a name does, so
 # RS036 treats them as always-known references beside the module's own names.
@@ -161,6 +199,183 @@ def check_no_attributes_block(path: Path, source: str) -> Iterator[Violation]:
             RS_NO_ATTRIBUTES_BLOCK,
             "use per-field attribute docstrings, not a Google `Attributes:` block",
         )
+
+
+def check_invalid_docstring_section(path: Path, source: str) -> Iterator[Violation]:
+    """A docstring section header names a recognized Google section.
+
+    A margin-level line shaped like a section header -- up to three capitalized
+    words closing the line with a colon, an indented body beneath -- introduces
+    a section, and the house recognizes only the Google set: `Args:`,
+    `Returns:`, `Yields:`, `Raises:`, `Note:`, and `Example:` (`Attributes:` is
+    recognized too, and left to RS004 to ban). An invented or Sphinx-imported
+    header such as `Warns:` or `Design Notes:` hides its body from every rule
+    that grades section content -- RS030, RS041, RS043, and RS047 all read it
+    as ordinary prose -- so its content belongs in body prose or under a
+    recognized header. A header-shaped line with no indented body reads as
+    prose -- a list introduction, a fragment -- and is left alone, as is any
+    line inside a fenced block.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        lines = _doc_lines(constant)
+        for index in _unfenced_margin_lines(lines):
+            text = lines[index].text
+            if text in _SECTION_HEADERS or not _SECTION_SHAPE_PATTERN.match(text):
+                continue
+            if not _has_indented_section_body(lines, index):
+                continue
+            yield Violation(
+                lines[index].lineno,
+                lines[index].column + 1,
+                RS_INVALID_DOCSTRING_SECTION,
+                f"'{text}' is not a recognized Google docstring section; use "
+                "`Args:`, `Returns:`, `Yields:`, `Raises:`, `Note:`, or "
+                "`Example:`, or fold the content into prose",
+            )
+
+
+def check_docstring_section_order(path: Path, source: str) -> Iterator[Violation]:
+    """Docstring sections follow the canonical Google order.
+
+    The sections with a fixed slot read inputs, then outputs, then failures,
+    then the example exercising them: `Args:`, then `Returns:` or `Yields:`,
+    then `Raises:`, then `Example:`. A section sitting below one that should
+    follow it -- a `Raises:` above the `Returns:` -- is flagged at its own
+    header. `Note:` and `Attributes:` hold no fixed slot and never fire.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        lines = _doc_lines(constant)
+        latest_rank = -1
+        latest_header = ""
+        for index in _unfenced_margin_lines(lines):
+            line = lines[index]
+            rank = _SECTION_RANKS.get(line.text)
+            if rank is None:
+                continue
+            if rank < latest_rank:
+                yield Violation(
+                    line.lineno,
+                    line.column + 1,
+                    RS_DOCSTRING_SECTION_ORDER,
+                    f"the `{line.text}` section sits below `{latest_header}`; "
+                    "order sections `Args:`, `Returns:`/`Yields:`, `Raises:`, "
+                    "`Example:`",
+                )
+            else:
+                latest_rank, latest_header = rank, line.text
+
+
+def check_docstring_section_alias(path: Path, source: str) -> Iterator[Violation]:
+    """A section header uses the canonical Google spelling, not an alias.
+
+    The segmenter accepts `Arguments:`, `Return:`, and `Yield:` so their bodies
+    are still graded, but Google's own headers are `Args:`, `Returns:`, and
+    `Yields:`, and one spelling per corpus keeps a section greppable. Each
+    alias header is flagged and, under `--fix`, rewritten to its canonical form
+    in place. `Notes:` and `Examples:` are not aliases: singular versus plural
+    there is the author's semantic choice.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for lineno, column, found, canonical in _docstring_section_alias_faults(
+            constant
+        ):
+            yield Violation(
+                lineno,
+                column + 1,
+                RS_DOCSTRING_SECTION_ALIAS,
+                f"the `{found}` header is an alias of the canonical Google "
+                f"header; write `{canonical}`",
+            )
+
+
+def fix_docstring_section_alias(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Rewrites each alias section header to its canonical form, RS058's fix.
+
+    Each header the check flags is replaced in place with its canonical
+    spelling; nothing else on the line moves. A header whose line is in
+    `skip_lines` is left alone.
+
+    Returns:
+        The source with each alias header rewritten, unchanged when nothing
+        rewrites.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        for lineno, column, found, canonical in _docstring_section_alias_faults(
+            constant
+        ):
+            if lineno in skip_lines:
+                continue
+            line = source_lines[lineno - 1]
+            offset = line.find(found, column)
+            if offset != -1:
+                source_lines[lineno - 1] = (
+                    line[:offset] + canonical + line[offset + len(found) :]
+                )
+                changed = True
+    return _join_source_lines(source, source_lines) if changed else source
+
+
+def check_duplicate_docstring_section(path: Path, source: str) -> Iterator[Violation]:
+    """A docstring holds at most one section per family.
+
+    A second `Args:`, `Returns:`, or `Raises:` -- under the same spelling or an
+    alias, an `Args:` after an `Arguments:` -- splits one section's content
+    across two places, so a reader stops at the first and misses the rest. The
+    duplicate is flagged at its own header; the fix is to merge its entries
+    into the first.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    for node in _walk_docstring_owners(tree):
+        constant = _docstring_constant(node)
+        if constant is None:
+            continue
+        lines = _doc_lines(constant)
+        first_headers: dict[str, str] = {}
+        for index in _unfenced_margin_lines(lines):
+            line = lines[index]
+            family = _SECTION_FAMILIES.get(line.text)
+            if family is None:
+                continue
+            if family in first_headers:
+                yield Violation(
+                    line.lineno,
+                    line.column + 1,
+                    RS_DUPLICATE_DOCSTRING_SECTION,
+                    f"a second `{line.text}` section duplicates the earlier "
+                    f"`{first_headers[family]}`; merge its entries into the first",
+                )
+            else:
+                first_headers[family] = line.text
 
 
 def check_no_double_backticks_in_md(path: Path, source: str) -> Iterator[Violation]:
@@ -1107,6 +1322,26 @@ def _blank_outside_docstring(line: str, lineno: int, constant: ast.Constant) -> 
     return " " * start + line[start:end] + " " * (len(line) - end)
 
 
+def _docstring_section_alias_faults(
+    constant: ast.Constant,
+) -> Iterator[tuple[int, int, str, str]]:
+    """Yields `(lineno, column, found, canonical)` for each alias header.
+
+    Only a margin line outside a fenced block is read, the same positions the
+    section checks read, so an entry caption or a fence line never yields.
+    """
+    lines = _doc_lines(constant)
+    for index in _unfenced_margin_lines(lines):
+        canonical = _SECTION_ALIASES.get(lines[index].text)
+        if canonical is not None:
+            yield (
+                lines[index].lineno,
+                lines[index].column,
+                lines[index].text,
+                canonical,
+            )
+
+
 def fix_docstring_terminal_punctuation(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
@@ -1537,6 +1772,19 @@ def _first_bare_token(
     return None
 
 
+def _has_indented_section_body(lines: list[_DocLine], index: int) -> bool:
+    """Reports whether the line at `index` owns an indented section body.
+
+    A section header's body sits indented past the margin on the next non-blank
+    line; a header-shaped line followed at the margin, or one ending the
+    docstring, is prose rather than a section.
+    """
+    for line in lines[index + 1 :]:
+        if line.text:
+            return line.relative_indent > 0
+    return False
+
+
 def _is_distinctive_code_token(name: str) -> bool:
     """Reports whether a token's shape rules out an ordinary English word.
 
@@ -1832,6 +2080,22 @@ def _terminal_punctuation_message(kind: str) -> str:
         "entry": "section entry",
     }[kind]
     return f"{subject} should end with terminal punctuation (`.`, `!`, or `?`)"
+
+
+def _unfenced_margin_lines(lines: list[_DocLine]) -> Iterator[int]:
+    """Yields the index of each non-blank margin line outside a fenced block.
+
+    The margin lines are where a section header can sit; a section's body,
+    being indented past the margin, never yields, so an entry caption such as
+    `ValueError:` is not read as a header.
+    """
+    in_fence = False
+    for index, line in enumerate(lines):
+        if line.text.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and line.relative_indent == 0 and line.text:
+            yield index
 
 
 def _unfenced_md_lines(source: str) -> Iterator[tuple[int, str]]:
