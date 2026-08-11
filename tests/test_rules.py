@@ -2428,12 +2428,15 @@ class TestCheckDocstringSectionAlias:
             '        >>> f()\n    """\n',
             'def f():\n    """Do the thing.\n\n    ```\n    Return:\n'
             '        inside a fence\n    ```\n    """\n',
+            'def f():\n    """Do the thing.\n\n    Raises:\n'
+            '        Return:\n            An indented entry caption.\n    """\n',
         ],
         ids=[
             "canonical-spellings",
             "plural-notes-not-alias",
             "plural-examples-not-alias",
             "alias-inside-fence",
+            "indented-caption-not-header",
         ],
     )
     def test_ConformingDocstring_NoViolation(self, source: str) -> None:
