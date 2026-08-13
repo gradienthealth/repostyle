@@ -341,7 +341,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "scope defines. Fixtures resolve through the requesting class, "
             "the test module, and each `conftest.py` above it; what pytest "
             "supplies from outside that chain is unknowable, so the rule "
-            "declines to guess.",
+            "declines to guess. A `@pytest.mark.parametrize` argument reads "
+            "as one of those undefined fixtures, so a parametrized test goes "
+            "unexamined.",
             "A deliberate single-file pin -- a value with no second home and "
             "no executable surface -- takes `# style: ignore[RS060]` with the "
             "reason it cannot be checked anywhere better.",

@@ -2136,6 +2136,15 @@ class TestCheckFileLiteralRestatement:
         )
         assert list(check_file_literal_restatement(_TEST_PATH, source)) == []
 
+    def test_ConstantHoldingThePathString_NoViolation(self) -> None:
+        """A string spelling `Path` is not a `Path` expression."""
+        source = (
+            'import yaml\nfrom pathlib import Path\n\n_LABEL = "Path"\n\n\n'
+            "def test_Label_IsCanonical():\n"
+            '    assert _LABEL.lower() == "path"\n'
+        )
+        assert list(check_file_literal_restatement(_TEST_PATH, source)) == []
+
     @pytest.mark.parametrize(
         "signature",
         ["shared_compose", "*, shared_compose", "shared_compose, /"],

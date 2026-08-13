@@ -413,11 +413,11 @@ def _binds_repo_file(node: ast.Assign, known: set[str]) -> bool:
 
     A `Path` expression binds one outright; so does an expression joining onto
     a name already known to hold one, which is how a constant built from a
-    resolved repository root reads.
+    resolved repository root reads. The reference has to be to the name `Path`
+    itself, so a constant whose value is the string `Path` binds nothing.
     """
-    return "'Path'" in ast.dump(node.value) or bool(
-        _referenced_names(node.value) & known
-    )
+    referenced = _referenced_names(node.value)
+    return "Path" in referenced or bool(referenced & known)
 
 
 def _fixture_scopes(tree: ast.AST) -> dict[tuple[str, str], _TestFunction]:
