@@ -241,6 +241,14 @@ def _skip_yaml_single(line: str, index: int) -> int:
 # practice.
 _HEREDOC_WORD_PATTERN = re.compile(r"\\?[A-Za-z_][A-Za-z0-9_]*")
 
+# The shell contexts the scan nests, innermost last in `_ShellState.contexts`.
+# A substitution marker also stands for a `(` group opened inside one, so the
+# group's `)` does not close the substitution early.
+_DOUBLE_QUOTED = '"'
+_SINGLE_QUOTED = "'"
+_SUBSTITUTION = "("
+_BACKTICK = "`"
+
 
 def _shell_comments(source: str) -> Iterator[_CommentToken]:
     """Yields each `#` comment in shell `source`, line by line.
@@ -248,11 +256,11 @@ def _shell_comments(source: str) -> Iterator[_CommentToken]:
     A `#` opens a comment only at the line start or after whitespace, so a
     `${var#pat}` expansion, a `$#`, and a `#` glued inside a word stay code. A
     quoted string, an ANSI-C `$'...'` string, and an arithmetic `$(( ))`
-    expansion are skipped, so a `#` inside them is never a comment; a string or
-    heredoc body spanning lines carries forward in `_ShellState`. A `#!`
+    expansion are skipped, so a `#` inside them is never a comment; the open
+    contexts and any heredoc body carry forward in `_ShellState`. A `#!`
     shebang is yielded like any comment.
     """
-    state = _ShellState(None, None)
+    state = _ShellState((), None)
     for lineno, line in enumerate(source.splitlines(), start=1):
         column, state = _shell_scan_line(line, state)
         if column is not None:
@@ -262,38 +270,51 @@ def _shell_comments(source: str) -> Iterator[_CommentToken]:
 def _shell_scan_line(line: str, state: _ShellState) -> tuple[int | None, _ShellState]:
     """Finds a `#` comment in one shell line, resuming any cross-line state.
 
-    A string open from a prior line is closed first, then the rest of the line
-    scans as code; a line inside a heredoc body yields no comment until the
-    terminator line closes it. Returns the comment column (or `None`) and the
-    state still open at the line's end.
+    Contexts open from a prior line resume where they left off; a line inside a
+    heredoc body yields no comment until the terminator line closes it. Returns
+    the comment column (or `None`) and the state still open at the line's end.
     """
-    if state.open_quote is not None:
-        end = _shell_string_end(line, 0, state.open_quote)
-        if end is None:
-            return None, state
-        return _shell_scan_code(line, end)
+    if state.contexts:
+        return _shell_scan(line, state.contexts)
     if state.heredoc is not None:
         if _heredoc_terminated(line, state.heredoc):
-            return None, _ShellState(None, None)
+            return None, _ShellState((), None)
         return None, state
-    return _shell_scan_code(line, 0)
+    return _shell_scan(line, ())
 
 
-def _shell_scan_code(line: str, start: int) -> tuple[int | None, _ShellState]:
-    """Scans `line` from `start` for a `#` comment, outside any open string.
+def _shell_scan(line: str, contexts: tuple[str, ...]) -> tuple[int | None, _ShellState]:
+    """Scans `line` for a `#` comment under the contexts open around it.
 
-    Skips a backslash-escaped character, an ANSI-C `$'...'` string, an
-    arithmetic `$(( ))` expansion, a `<<<` here-string, and a quoted string, so
-    neither a `#` inside one nor a here-string's own `<<<` is misread. A
-    heredoc redirection is recorded but the scan continues, so a trailing
-    comment on the redirection line is still found. Returns the `#` column (or
-    `None`) and the state open at the line's end.
+    Quoting nests, so which characters matter depends on the innermost open
+    context rather than on the line alone: `$(...)` and a backtick substitution
+    start a fresh code context inside a double-quoted string, and a quote of
+    the other style inside any string is literal. Tracking that is what keeps a
+    `sed 's/"/X/'` inside `"$( )"` from closing the outer string and stranding
+    every later `#` inside a phantom one.
+
+    Outside a string, a backslash-escaped character, an ANSI-C `$'...'` string,
+    an arithmetic `$(( ))` expansion, and a `<<<` here-string are skipped
+    whole, so neither a `#` inside one nor a here-string's own `<<` is misread.
+    A heredoc redirection is recorded but the scan continues, so a trailing
+    comment on the redirection line is still found.
+
+    Returns:
+        The `#` column (or `None`) and the state open at the line's end.
     """
-    index = start
+    stack = list(contexts)
     pending: _Heredoc | None = None
+    index = 0
     while index < len(line):
+        innermost = stack[-1] if stack else None
+        if innermost == _SINGLE_QUOTED:
+            index = _scan_single_quoted(line, index, stack)
+            continue
+        if innermost == _DOUBLE_QUOTED:
+            index = _scan_double_quoted(line, index, stack)
+            continue
         if line[index] == "#" and _opens_comment(line, index):
-            return index, _ShellState(None, pending)
+            return index, _ShellState(tuple(stack), pending)
         step = _shell_skip(line, index)
         if step is not None:
             index = step
@@ -303,14 +324,8 @@ def _shell_scan_code(line: str, start: int) -> tuple[int | None, _ShellState]:
             heredoc, index = opener
             pending = pending or heredoc
             continue
-        if line[index] in "\"'":
-            end = _shell_string_end(line, index + 1, line[index])
-            if end is None:
-                return None, _ShellState(line[index], pending)
-            index = end
-            continue
-        index += 1
-    return None, _ShellState(None, pending)
+        index = _scan_code(line, index, stack)
+    return None, _ShellState(tuple(stack), pending)
 
 
 def _heredoc_opener(line: str, index: int) -> tuple[_Heredoc, int] | None:
@@ -373,6 +388,73 @@ def _opens_comment(line: str, index: int) -> bool:
     return index == 0 or line[index - 1] in " \t"
 
 
+def _scan_code(line: str, index: int, stack: list[str]) -> int:
+    """Advances one character through a code context, updating `stack`.
+
+    A quote opens the string it delimits. A backtick opens a substitution, or
+    closes the one it already opened. A `$(` opens a command substitution, and
+    a `(` nested inside one is pushed too so its `)` does not close the
+    substitution early. A `(` at the top level is ignored, since a `case`
+    pattern and a function header carry unpaired parentheses.
+    """
+    char = line[index]
+    innermost = stack[-1] if stack else None
+    if char == _BACKTICK:
+        if innermost == _BACKTICK:
+            stack.pop()
+        else:
+            stack.append(_BACKTICK)
+        return index + 1
+    if line.startswith("$(", index):
+        stack.append(_SUBSTITUTION)
+        return index + 2
+    if char in (_DOUBLE_QUOTED, _SINGLE_QUOTED):
+        stack.append(char)
+        return index + 1
+    if char == "(" and _SUBSTITUTION in stack:
+        stack.append(_SUBSTITUTION)
+    elif char == ")" and innermost == _SUBSTITUTION:
+        stack.pop()
+    return index + 1
+
+
+def _scan_double_quoted(line: str, index: int, stack: list[str]) -> int:
+    r"""Advances one character through a double-quoted string.
+
+    A backslash escapes the next character, so `\"` does not end the string,
+    and a `'` inside is literal. A `$(` or a backtick opens a nested code
+    context where quoting starts afresh, so a quote inside it belongs to that
+    context rather than closing this string. `stack` is pushed or popped
+    accordingly.
+    """
+    char = line[index]
+    if char == "\\":
+        return index + 2
+    if char == _DOUBLE_QUOTED:
+        stack.pop()
+        return index + 1
+    if line.startswith("$(", index):
+        stack.append(_SUBSTITUTION)
+        return index + 2
+    if char == _BACKTICK:
+        stack.append(_BACKTICK)
+        return index + 1
+    return index + 1
+
+
+def _scan_single_quoted(line: str, index: int, stack: list[str]) -> int:
+    r"""Advances one character through a single-quoted string.
+
+    A single-quoted string has no escapes at all, so a backslash is literal
+    there and only a `'` ends it, popping `stack`. That is why `'it'\''s'` is
+    three adjacent strings rather than one holding an escaped quote, and why a
+    `"` inside is just a character.
+    """
+    if line[index] == _SINGLE_QUOTED:
+        stack.pop()
+    return index + 1
+
+
 def _shell_skip(line: str, index: int) -> int | None:
     r"""Returns the index past a construct skipped whole, or `None`.
 
@@ -428,23 +510,6 @@ def _shell_arithmetic_end(line: str, index: int) -> int:
     return len(line)
 
 
-def _shell_string_end(line: str, index: int, quote: str) -> int | None:
-    """Returns the index past a `quote`-delimited string, or `None` if open.
-
-    A double-quoted string honours backslash escapes; a single-quoted one is
-    literal. `None` means the string runs past the line's end, so the caller
-    carries it to the next line.
-    """
-    while index < len(line):
-        if quote == '"' and line[index] == "\\":
-            index += 2
-            continue
-        if line[index] == quote:
-            return index + 1
-        index += 1
-    return None
-
-
 def _token(lineno: int, line: str, column: int) -> _CommentToken:
     """Builds a comment token for the `#` at `column` on `line`."""
     return _CommentToken(lineno, column, line[column:], bool(line[:column].strip()))
@@ -458,7 +523,7 @@ class _Heredoc(NamedTuple):
 
 
 class _ShellState(NamedTuple):
-    open_quote: str | None
-    """A `'` or `"` opened on a prior line and still unclosed, else `None`."""
+    contexts: tuple[str, ...]
+    """Strings and substitutions open at a line's end, innermost last."""
     heredoc: _Heredoc | None
     """An open heredoc whose body suppresses comments, else `None`."""
