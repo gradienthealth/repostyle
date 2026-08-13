@@ -45,13 +45,19 @@ _COMMENT_DIRECTIVE_PATTERN = re.compile(
 )
 # A line whose meaning rests on whitespace a reflow cannot reproduce, making it
 # preformatted rather than prose: a trailing `\`, the shell and C line
-# continuation that binds it to the line below, or an interior run of two or
+# continuation that binds it to the line below, or an interior run of three or
 # more spaces, which aligns a column. A reflow joins a unit's lines and
 # re-splits them on single spaces, so it would hand back a continuation that
 # has swallowed the line under it -- a copied command that no longer runs -- or
 # a two-column list collapsed into a paragraph. Both shapes are verbatim: never
 # filled, never reflowed, and yielding no prose unit.
-_PREFORMATTED_LINE_PATTERN = re.compile(r"\\$|\S {2,}\S")
+#
+# Three and not two, because two spaces after a full stop is a sentence-spacing
+# convention rather than an alignment. Treating that as preformatted exempts
+# every paragraph written that way from the rule entirely, which is a silent
+# loss of enforcement in any consumer following it. A column gap is wider: the
+# shell headers this pattern was written for align at three and four.
+_PREFORMATTED_LINE_PATTERN = re.compile(r"\\$|\S {3,}\S")
 
 
 def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:

@@ -22,6 +22,12 @@ _ALIGNED_LIST = (
     "#   ENVIRONMENT   environment name, for the beacon\n"
     "#   BEACON_LOG    Cloud Logging log name for the deploy beacon\n"
 )
+# Prose spaced two-per-sentence, the convention the preformatted test has to
+# stay clear of: an alignment gap is wider, so this is a paragraph.
+_TWO_SPACE_SENTENCES = (
+    "# This sentence ends here.  And this one runs well past the limit, so the"
+    " rule has something to report.\n"
+)
 # A tab-indented block from a shell script, each line inside 79 characters but
 # past the limit once the tab reaches its stop.
 _TAB_INDENTED = (
@@ -135,6 +141,17 @@ class TestReflowDocFill:
     )
     def test_PreformattedComment_ReturnsUnchanged(self, source: str) -> None:
         assert fix_doc_fill(_SHELL, source) == source
+
+    def test_TwoSpaceSentenceSpacing_StaysProse(self) -> None:
+        """Sentence spacing must not read as an alignment and exempt the unit.
+
+        The preformatted test is what keeps a continuation or a column gap out
+        of the reflow, and a run of two spaces after a full stop is neither.
+        Counting it as one would take every paragraph in a codebase spaced that
+        way out of the rule's reach, reporting nothing on any of them.
+        """
+        assert list(check_doc_fill(_SHELL, _TWO_SPACE_SENTENCES))
+        assert fix_doc_fill(_SHELL, _TWO_SPACE_SENTENCES) != _TWO_SPACE_SENTENCES
 
     @pytest.mark.parametrize(
         "source",
