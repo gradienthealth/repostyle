@@ -38,6 +38,15 @@ _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
 _COMMENT_DIRECTIVE_PATTERN = re.compile(
     r"^#+\s*(!|noqa\b|nosec\b|type:|ruff:|pragma\b|codespell:)"
 )
+# A line whose meaning rests on whitespace a reflow cannot reproduce, making it
+# preformatted rather than prose: a trailing `\`, the shell and C line
+# continuation that binds it to the line below, or an interior run of two or
+# more spaces, which aligns a column. A reflow joins a unit's lines and
+# re-splits them on single spaces, so it would hand back a continuation that
+# has swallowed the line under it -- a copied command that no longer runs -- or
+# a two-column list collapsed into a paragraph. Both shapes are verbatim: never
+# filled, never reflowed, and yielding no prose unit.
+_PREFORMATTED_LINE_PATTERN = re.compile(r"\\$|\S {2,}\S")
 
 
 def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
@@ -48,10 +57,11 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     available. A backtick `...` span is one unbreakable token, so a space
     inside it is not an available break, as with a URL. Summary lines,
     single-line docstrings, section headers, label lines, code fences, doctest
-    lines, comment directives, and lines carrying URLs are exempt, as is a unit
-    with a backtick span hard-wrapped across lines; bullets and section entries
-    wrap as hanging paragraphs. Docstrings are read from Python only; comments
-    are read from Python, TOML, YAML, and shell alike.
+    lines, comment directives, preformatted lines, and lines carrying URLs are
+    exempt, as is a unit with a backtick span hard-wrapped across lines;
+    bullets and section entries wrap as hanging paragraphs. Docstrings are read
+    from Python only; comments are read from Python, TOML, YAML, and shell
+    alike.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -110,12 +120,14 @@ def fix_doc_fill(
 ) -> str:
     """Rewraps docstring and comment paragraphs in `source` to 79 columns.
 
-    Each fillable unit is greedily refilled at its hanging indent; the verbatim
-    structures RS009 exempts (code fences, doctests, table and rule lines,
-    section headers) are left untouched, as are units on a line in `skip_lines`
-    and units with a backtick span hard-wrapped across source lines. The
-    source's line ending is preserved. Docstrings reflow in Python; comments
-    reflow in Python, TOML, YAML, and shell alike.
+    Only a unit `check_doc_fill` reports a finding on is rewritten, so the
+    rewrite never reaches prose the rule accepts. Such a unit is greedily
+    refilled at its hanging indent; the verbatim structures RS009 exempts (code
+    fences, doctests, table and rule lines, preformatted lines, section
+    headers) are left untouched, as are units on a line in `skip_lines` and
+    units with a backtick span hard-wrapped across source lines. The source's
+    line ending is preserved. Docstrings reflow in Python; comments reflow in
+    Python, TOML, YAML, and shell alike.
 
     Returns:
         The source with fillable paragraphs rewrapped, unchanged when nothing
@@ -129,6 +141,12 @@ def fix_doc_fill(
     replacements: list[_Replacement] = []
     for unit in _fillable_units(path, source):
         if any(line.lineno in skip_lines for line in unit):
+            continue
+        # A unit the check passes is left alone, or the rewrite would edit
+        # prose RS009 raised nothing about: an over-long line with no legal
+        # break before the limit, or one carrying a URL, is exempt in the check
+        # and has to stay exempt here.
+        if not any(_unit_violations(unit)):
             continue
         rewrapped = _reflow_unit(unit)
         if rewrapped is None:
@@ -307,9 +325,9 @@ class _ParagraphGrouper:
     def _consume_verbatim(self, line: _FillLine) -> bool:
         """Closes the unit and reports whether `line` is unfillable.
 
-        Blank lines, code fences, doctests, and table or rule lines are
-        verbatim: they never join a paragraph. A fence line also toggles
-        whether subsequent lines sit inside a fenced block.
+        Blank lines, code fences, doctests, table or rule lines, and
+        preformatted lines are verbatim: they never join a paragraph. A fence
+        line also toggles whether subsequent lines sit inside a fenced block.
         """
         if not line.text:
             self.close()
@@ -321,7 +339,9 @@ class _ParagraphGrouper:
         if self._in_fence or line.text.startswith((">>>", "... ")):
             self.close()
             return True
-        if _VERBATIM_LINE_PATTERN.match(line.text):
+        if _VERBATIM_LINE_PATTERN.match(line.text) or _PREFORMATTED_LINE_PATTERN.search(
+            line.text
+        ):
             self.close()
             return True
         return False

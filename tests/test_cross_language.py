@@ -235,6 +235,14 @@ class TestShellCommentRules:
         violations = list(check_doc_fill(Path("s.sh"), source))
         assert any(v.rule == RS_DOC_FILL for v in violations)
 
+    def test_LineContinuationBlock_SkipsDocFill(self) -> None:
+        source = (
+            "#   sudo systemd-run --pipe --wait --collect --same-dir \\\n"
+            "#        --setenv=ENVIRONMENT=merlin \\\n"
+            "#        ./bootstrap.sh\n"
+        )
+        assert list(check_doc_fill(Path("s.sh"), source)) == []
+
     def test_Shebang_IsSkippedByProseRules(self) -> None:
         source = "#!/usr/bin/env bash\n"
         assert list(check_comment_terminal_punctuation(Path("s.sh"), source)) == []

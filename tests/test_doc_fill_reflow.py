@@ -5,8 +5,23 @@ import pytest
 from repostyle.rules.doc_fill import check_doc_fill, fix_doc_fill
 
 _PY = Path("src/x.py")
+_SHELL = Path("deploy/bootstrap.sh")
 _MOVES_WHOLE = '"""Summary.\n\n' + "aaaaa " * 11 + "`dict[str, int]` done.\n" + '"""\n'
 _OVERFLOWS = '"""Summary.\n\n`' + "word " * 16 + 'x`\n"""\n'
+# A copyable command whose `\` continuations carry the line breaks, and a
+# two-column settings list whose interior padding carries the alignment.
+_LINE_CONTINUATIONS = (
+    "#        [--setenv=HTTP_PROXY=http://proxy:3128] \\\n"
+    "#        [--setenv=NO_PROXY=localhost,127.0.0.1] \\\n"
+    "#        ./bootstrap.sh\n"
+)
+_ALIGNED_LIST = (
+    "# Reads its settings from /etc/dicom-ingestor/reconcile.env:\n"
+    "#   RELEASE_URI   gs:// prefix the deploy workflow publishes to\n"
+    "#   COMPOSE_DIR   directory holding docker-compose.yaml, env, and .env.local\n"
+    "#   ENVIRONMENT   environment name, for the beacon\n"
+    "#   BEACON_LOG    Cloud Logging log name for the deploy beacon\n"
+)
 
 
 class TestReflowDocFill:
@@ -104,6 +119,26 @@ class TestReflowDocFill:
         ],
     )
     def test_FilledOrVerbatimContent_ReturnsUnchanged(self, source: str) -> None:
+        assert fix_doc_fill(_PY, source) == source
+
+    @pytest.mark.parametrize(
+        "source",
+        [_LINE_CONTINUATIONS, _ALIGNED_LIST],
+        ids=["line_continuations", "aligned_list"],
+    )
+    def test_PreformattedComment_ReturnsUnchanged(self, source: str) -> None:
+        assert fix_doc_fill(_SHELL, source) == source
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            '"""Summary.\n\nSee https://example.com/' + "a" * 60 + '\n"""\n',
+            '"""Summary.\n\n' + "a" * 80 + ' bb\n"""\n',
+        ],
+        ids=["url_line", "unbreakable_token"],
+    )
+    def test_UnflaggedUnit_ReturnsUnchanged(self, source: str) -> None:
+        assert list(check_doc_fill(_PY, source)) == []
         assert fix_doc_fill(_PY, source) == source
 
     def test_InlineClosingQuote_SkipsUnit(self) -> None:

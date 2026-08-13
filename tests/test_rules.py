@@ -1272,6 +1272,9 @@ class TestCheckDocFill:
             '"""Summary.\n\n>>> compute(\n...     1)\n"""',
             '"""Summary.\n\n| a | b |\n| - | - |\n| 1 | 2 |\n"""',
             '"""Summary.\n\n+---+\n| x |\n+---+\n"""',
+            "# curl --proxy http://proxy:3128 \\\n#     https://example.com\nx = 1",
+            "# RELEASE_URI   where the workflow publishes\n"
+            "# COMPOSE_DIR   where the compose file lives\nx = 1",
             "# aaa\n#\n# bbb\nx = 1",
             "# aaa\nx = 1\n# bbb\ny = 2",
             "# aaa  # noqa: E501 a very long suppression explanation here\nx = 1",
@@ -1294,6 +1297,8 @@ class TestCheckDocFill:
             "doctest_lines",
             "markdown_table",
             "ascii_diagram",
+            "line_continuation",
+            "column_aligned_list",
             "blank_separated_comments",
             "code_separated_comment_blocks",
             "directive_comment",

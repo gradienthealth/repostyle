@@ -202,9 +202,12 @@ RULE_DOCS: dict[str, RuleDoc] = {
         rationale=(
             "A paragraph wrapped well short of the limit, or running past it, "
             "reads as ragged and churns diffs when reflowed by hand. Fill each "
-            "prose paragraph to 79 columns. Docstrings are checked in Python; "
-            "comments in Python, TOML, YAML, and shell alike. `--fix` rewrites Python "
-            "in place."
+            "prose paragraph to 79 columns. Only prose is filled: a preformatted "
+            "line — one ending in a `\\` continuation, or holding an interior run "
+            "of spaces that aligns a column — is verbatim, since a reflow emits "
+            "single-spaced text and would corrupt it. Docstrings are checked in "
+            "Python; comments in Python, TOML, YAML, and shell alike. `--fix` "
+            "rewrites Python in place."
         ),
     ),
     RS_BANNED_ABBREVIATION: RuleDoc(
