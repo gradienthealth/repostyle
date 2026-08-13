@@ -507,11 +507,11 @@ def _display_width(text: str) -> int:
     """Returns the columns `text` occupies, counting a tab to its next stop.
 
     The single measurement the check and the reflow share, so what RS009 flags
-    as over-long and what the reflow refuses to emit are the same width. A
-    tab-indented comment is a character shorter than it looks to `len`, which
-    would otherwise let the reflow fill a line to 77 characters and 84 columns.
-    `text` is measured from the start of a line, which is what every caller
-    passes.
+    as over-long and what the reflow refuses to emit are the same width. A tab
+    counts as one character to `len` but advances to its next stop for a
+    reader, which would otherwise let the reflow fill a line to 77 characters
+    and 84 columns. `text` is measured from the start of a line, which is what
+    every caller passes.
     """
     return len(_expand_tabs(text))
 
