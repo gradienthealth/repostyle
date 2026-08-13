@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.26.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.25.0...repostyle-v0.26.0) (2026-08-13)
+
+
+### Features
+
+* **NO-ISSUE:** add the docstring section vocabulary, order, alias, and duplicate rules ([#135](https://github.com/gradienthealth/repostyle/issues/135)) ([8452dd8](https://github.com/gradienthealth/repostyle/commit/8452dd874c5ffaf7c7129df38d8760531b3beed2))
+* **NO-ISSUE:** flag a test that restates one repo file's literals ([#137](https://github.com/gradienthealth/repostyle/issues/137)) ([d62ff6f](https://github.com/gradienthealth/repostyle/commit/d62ff6f63e6f196f472ee2805a71d6117b6fc8ff))
+
 ## [0.25.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.24.0...repostyle-v0.25.0) (2026-08-09)
 
 
