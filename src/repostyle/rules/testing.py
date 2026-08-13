@@ -581,8 +581,13 @@ def _requested_fixtures(
     matching how pytest shadows a fixture; one that neither scope defines comes
     from `conftest.py` or from pytest itself and can supply anything.
     """
+    arguments = function.args
     requested: list[_TestFunction] = []
-    for argument in function.args.args:
+    for argument in (
+        *arguments.posonlyargs,
+        *arguments.args,
+        *arguments.kwonlyargs,
+    ):
         if argument.arg in _SELF_ARGUMENTS:
             continue
         fixture = scopes.get((owner, argument.arg)) or scopes.get(("", argument.arg))

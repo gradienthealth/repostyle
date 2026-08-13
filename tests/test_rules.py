@@ -2066,6 +2066,12 @@ _RESTATEMENT_HEADER = (
 )
 
 
+def _line_of(source: str, prefix: str) -> int:
+    """Returns the 1-based line where `source` first opens with `prefix`."""
+    lines = source.splitlines()
+    return next(index for index, line in enumerate(lines, 1) if line.startswith(prefix))
+
+
 class TestCheckFileLiteralRestatement:
     @pytest.mark.parametrize(
         "body",
@@ -2096,7 +2102,20 @@ class TestCheckFileLiteralRestatement:
         )
         violations = list(check_file_literal_restatement(_TEST_PATH, source))
         assert len(violations) == 1
-        assert violations[0].line == 18
+        assert violations[0].line == _line_of(source, "    def test_Drain_RunsAsUser")
+
+    def test_HelperTakingArguments_FlagsViolation(self) -> None:
+        source = (
+            f"{_RESTATEMENT_HEADER}"
+            "def _service(compose, name):\n"
+            "    return compose[name]\n"
+            "\n\n"
+            "def test_Drain_RunsAsUser():\n"
+            '    assert _service(_compose(), "drain")["user"] == "1000:1000"\n'
+        )
+        violations = list(check_file_literal_restatement(_TEST_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_FILE_LITERAL_RESTATEMENT
 
     @pytest.mark.parametrize(
         "body",
@@ -2117,10 +2136,15 @@ class TestCheckFileLiteralRestatement:
         )
         assert list(check_file_literal_restatement(_TEST_PATH, source)) == []
 
-    def test_FixtureFromAnotherModule_NoViolation(self) -> None:
+    @pytest.mark.parametrize(
+        "signature",
+        ["tmp_path", "*, tmp_path", "tmp_path, /"],
+        ids=["positional", "keyword_only", "positional_only"],
+    )
+    def test_FixtureFromAnotherModule_NoViolation(self, signature: str) -> None:
         source = (
-            f"{_RESTATEMENT_HEADER}def test_Drain_RunsAsUser(tmp_path):\n"
-            '    assert (tmp_path / "x").name == "x"\n'
+            f"{_RESTATEMENT_HEADER}def test_Drain_RunsAsUser({signature}):\n"
+            '    assert _compose()["user"] == "1000"\n'
         )
         assert list(check_file_literal_restatement(_TEST_PATH, source)) == []
 
