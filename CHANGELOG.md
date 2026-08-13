@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.26.0...repostyle-v0.26.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** repair RS009 column measurement and the shell comment scan ([#138](https://github.com/gradienthealth/repostyle/issues/138)) ([7239b4a](https://github.com/gradienthealth/repostyle/commit/7239b4a2394384fa66592ca819b7d1d9163bdc65))
+
 ## [0.26.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.25.0...repostyle-v0.26.0) (2026-08-13)
 
 
