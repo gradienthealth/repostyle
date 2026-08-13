@@ -234,7 +234,7 @@ This scopes repostyle's own `RSnnn` rules. Ruff has no diff mode, so to scope th
 repostyle --fix $(git diff --name-only)
 ```
 
-`--fix` rewrites the fixable rules — `RS009` reflow, `RS005` double-to-single backticks, `RS030` terminal punctuation, `RS049` acronym recasing, `RS050` Google Cloud term rewrites, `RS054` dash standardization, and `RS058` section-header canonicalization (`_registry.FIXABLE_RULES`). For `RS009` it greedily refills each paragraph at its hanging indent, leaving verbatim structures (code fences, doctests, tables, rules, section headers) untouched and respecting `# style: ignore` directives. It exits non-zero when it changed a file, so a pre-commit run stops and you re-stage the rewritten files.
+`--fix` rewrites the fixable rules — `RS009` reflow, `RS005` double-to-single backticks, `RS030` terminal punctuation, `RS049` acronym recasing, `RS050` Google Cloud term rewrites, `RS054` dash standardization, and `RS058` section-header canonicalization (`_registry.FIXABLE_RULES`). For `RS009` it greedily refills each paragraph the check reported a finding on, at that paragraph's hanging indent, and leaves prose the rule accepts alone. Verbatim structures (code fences, doctests, tables, rules, section headers) and preformatted lines — one ending in a `\` continuation, or holding an interior run of spaces that aligns a column — are untouched, and `# style: ignore` directives are respected. It exits non-zero when it changed a file, so a pre-commit run stops and you re-stage the rewritten files.
 
 ## Explain a rule
 

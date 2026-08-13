@@ -20,6 +20,11 @@ from repostyle.rules._violation import RS_DOC_FILL, RS_DOC_SUMMARY_OVERFLOW, Vio
 
 DOC_FILL_COLUMNS = 79
 
+# The columns a tab advances to, the POSIX and stdlib default. Fixed rather
+# than configurable: the limit it feeds is fixed too, and a repo that renders
+# tabs at some other width would need both to move together.
+_TAB_STOP = 8
+
 _SECTION_HEADERS = frozenset(
     {
         "Args:",
@@ -38,6 +43,21 @@ _SECTION_ENTRY_PATTERN = re.compile(r"^\S+:(\s|$)")
 _COMMENT_DIRECTIVE_PATTERN = re.compile(
     r"^#+\s*(!|noqa\b|nosec\b|type:|ruff:|pragma\b|codespell:)"
 )
+# A line whose meaning rests on whitespace a reflow cannot reproduce, making it
+# preformatted rather than prose: a trailing `\`, the shell and C line
+# continuation that binds it to the line below, or an interior run of three or
+# more spaces, which aligns a column. A reflow joins a unit's lines and
+# re-splits them on single spaces, so it would hand back a continuation that
+# has swallowed the line under it -- a copied command that no longer runs -- or
+# a two-column list collapsed into a paragraph. Both shapes are verbatim: never
+# filled, never reflowed, and yielding no prose unit.
+#
+# Three and not two, because two spaces after a full stop is a sentence-spacing
+# convention rather than an alignment. Treating that as preformatted exempts
+# every paragraph written that way from the rule entirely, which is a silent
+# loss of enforcement in any consumer following it. A column gap is wider: the
+# shell headers this pattern was written for align at three and four.
+_PREFORMATTED_LINE_PATTERN = re.compile(r"\\$|\S {3,}\S")
 
 
 def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
@@ -48,10 +68,11 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     available. A backtick `...` span is one unbreakable token, so a space
     inside it is not an available break, as with a URL. Summary lines,
     single-line docstrings, section headers, label lines, code fences, doctest
-    lines, comment directives, and lines carrying URLs are exempt, as is a unit
-    with a backtick span hard-wrapped across lines; bullets and section entries
-    wrap as hanging paragraphs. Docstrings are read from Python only; comments
-    are read from Python, TOML, YAML, and shell alike.
+    lines, comment directives, preformatted lines, and lines carrying URLs are
+    exempt, as is a unit with a backtick span hard-wrapped across lines;
+    bullets and section entries wrap as hanging paragraphs. Docstrings are read
+    from Python only; comments are read from Python, TOML, YAML, and shell
+    alike.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -89,7 +110,7 @@ def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
             continue
         lineno = node.value.lineno
         rendered = source_lines[lineno - 1].rstrip()
-        if len(rendered) <= DOC_FILL_COLUMNS:
+        if _display_width(rendered) <= DOC_FILL_COLUMNS:
             continue
         indent = len(rendered) - len(rendered.lstrip())
         yield Violation(
@@ -110,12 +131,14 @@ def fix_doc_fill(
 ) -> str:
     """Rewraps docstring and comment paragraphs in `source` to 79 columns.
 
-    Each fillable unit is greedily refilled at its hanging indent; the verbatim
-    structures RS009 exempts (code fences, doctests, table and rule lines,
-    section headers) are left untouched, as are units on a line in `skip_lines`
-    and units with a backtick span hard-wrapped across source lines. The
-    source's line ending is preserved. Docstrings reflow in Python; comments
-    reflow in Python, TOML, YAML, and shell alike.
+    Only a unit `check_doc_fill` reports a finding on is rewritten, so the
+    rewrite never reaches prose the rule accepts. Such a unit is greedily
+    refilled at its hanging indent; the verbatim structures RS009 exempts (code
+    fences, doctests, table and rule lines, preformatted lines, section
+    headers) are left untouched, as are units on a line in `skip_lines` and
+    units with a backtick span hard-wrapped across source lines. The source's
+    line ending is preserved. Docstrings reflow in Python; comments reflow in
+    Python, TOML, YAML, and shell alike.
 
     Returns:
         The source with fillable paragraphs rewrapped, unchanged when nothing
@@ -129,6 +152,12 @@ def fix_doc_fill(
     replacements: list[_Replacement] = []
     for unit in _fillable_units(path, source):
         if any(line.lineno in skip_lines for line in unit):
+            continue
+        # A unit the check passes is left alone, or the rewrite would edit
+        # prose RS009 raised nothing about: an over-long line with no legal
+        # break before the limit, or one carrying a URL, is exempt in the check
+        # and has to stay exempt here.
+        if not any(_unit_violations(unit)):
             continue
         rewrapped = _reflow_unit(unit)
         if rewrapped is None:
@@ -307,9 +336,9 @@ class _ParagraphGrouper:
     def _consume_verbatim(self, line: _FillLine) -> bool:
         """Closes the unit and reports whether `line` is unfillable.
 
-        Blank lines, code fences, doctests, and table or rule lines are
-        verbatim: they never join a paragraph. A fence line also toggles
-        whether subsequent lines sit inside a fenced block.
+        Blank lines, code fences, doctests, table or rule lines, and
+        preformatted lines are verbatim: they never join a paragraph. A fence
+        line also toggles whether subsequent lines sit inside a fenced block.
         """
         if not line.text:
             self.close()
@@ -321,7 +350,9 @@ class _ParagraphGrouper:
         if self._in_fence or line.text.startswith((">>>", "... ")):
             self.close()
             return True
-        if _VERBATIM_LINE_PATTERN.match(line.text):
+        if _VERBATIM_LINE_PATTERN.match(line.text) or _PREFORMATTED_LINE_PATTERN.search(
+            line.text
+        ):
             self.close()
             return True
         return False
@@ -369,7 +400,7 @@ class _ParagraphGrouper:
 def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
     for line, following in itertools.pairwise(unit):
         first_word = _atomic_tokens(following.text)[0]
-        if len(line.rendered) + 1 + len(first_word) <= DOC_FILL_COLUMNS:
+        if _display_width(f"{line.rendered} {first_word}") <= DOC_FILL_COLUMNS:
             yield Violation(
                 line.lineno,
                 line.indent + 1,
@@ -378,7 +409,7 @@ def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
                 f"{DOC_FILL_COLUMNS} columns",
             )
     for line in unit:
-        if len(line.rendered) <= DOC_FILL_COLUMNS or "://" in line.rendered:
+        if _display_width(line.rendered) <= DOC_FILL_COLUMNS or "://" in line.rendered:
             continue
         if not _has_break_before_limit(line):
             continue
@@ -395,15 +426,18 @@ def _has_break_before_limit(line: _FillLine) -> bool:
 
     A space inside a backtick `...` span is not a legal break, as with a URL,
     so a line may pass the limit without one. Backticks that do not pair up
-    cannot delimit a span, so every space then counts.
+    cannot delimit a span, so every space then counts. The line is scanned with
+    its tabs expanded, so an index is a column and the break has to fall within
+    the limit as a reader sees it.
     """
-    prefix_length = len(line.rendered) - len(line.text)
+    expanded = _expand_tabs(line.rendered)
+    prefix_width = _display_width(line.rendered[: len(line.rendered) - len(line.text)])
     backticks_paired = line.rendered.count("`") % 2 == 0
     in_span = False
-    for index, char in enumerate(line.rendered[: DOC_FILL_COLUMNS + 1]):
+    for index, char in enumerate(expanded[: DOC_FILL_COLUMNS + 1]):
         if char == "`" and backticks_paired:
             in_span = not in_span
-        elif char == " " and not in_span and index > prefix_length:
+        elif char == " " and not in_span and index > prefix_width:
             return True
     return False
 
@@ -416,6 +450,9 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     source lines is skipped too, since rejoining it would have to invent the
     whitespace the break elided. The first line keeps the unit's leading
     whitespace and any marker; continuation lines wrap to the hanging indent.
+    Both are emitted with the unit's own indent characters, tabs included, but
+    measured at their expanded width, so no returned line runs past the limit
+    as a reader sees it.
     """
     if any('"""' in line.text or "'''" in line.text for line in unit):
         return None
@@ -428,8 +465,9 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     lines: list[str] = []
     current = lead + words[0]
     for word in words[1:]:
-        if len(current) + 1 + len(word) <= DOC_FILL_COLUMNS:
-            current = f"{current} {word}"
+        extended = f"{current} {word}"
+        if _display_width(extended) <= DOC_FILL_COLUMNS:
+            current = extended
         else:
             lines.append(current)
             current = cont + word
@@ -463,6 +501,24 @@ def _atomic_tokens(text: str) -> list[str]:
     if current:
         tokens.append(current)
     return tokens
+
+
+def _display_width(text: str) -> int:
+    """Returns the columns `text` occupies, counting a tab to its next stop.
+
+    The single measurement the check and the reflow share, so what RS009 flags
+    as over-long and what the reflow refuses to emit are the same width. A tab
+    counts as one character to `len` but advances to its next stop for a
+    reader, which would otherwise let the reflow fill a line to 77 characters
+    and 84 columns. `text` is measured from the start of a line, which is what
+    every caller passes.
+    """
+    return len(_expand_tabs(text))
+
+
+def _expand_tabs(text: str) -> str:
+    """Replaces each tab in `text` with spaces up to its next tab stop."""
+    return text.expandtabs(_TAB_STOP)
 
 
 def _hanging_indent(unit: list[_FillLine]) -> int:

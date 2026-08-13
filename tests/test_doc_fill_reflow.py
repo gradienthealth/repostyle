@@ -2,11 +2,39 @@ from pathlib import Path
 
 import pytest
 
-from repostyle.rules.doc_fill import check_doc_fill, fix_doc_fill
+from repostyle.rules.doc_fill import DOC_FILL_COLUMNS, check_doc_fill, fix_doc_fill
 
 _PY = Path("src/x.py")
+_SHELL = Path("deploy/bootstrap.sh")
 _MOVES_WHOLE = '"""Summary.\n\n' + "aaaaa " * 11 + "`dict[str, int]` done.\n" + '"""\n'
 _OVERFLOWS = '"""Summary.\n\n`' + "word " * 16 + 'x`\n"""\n'
+# A copyable command whose `\` continuations carry the line breaks, and a
+# two-column settings list whose interior padding carries the alignment.
+_LINE_CONTINUATIONS = (
+    "#        [--setenv=HTTP_PROXY=http://proxy:3128] \\\n"
+    "#        [--setenv=NO_PROXY=localhost,127.0.0.1] \\\n"
+    "#        ./bootstrap.sh\n"
+)
+_ALIGNED_LIST = (
+    "# Reads its settings from /etc/dicom-ingestor/reconcile.env:\n"
+    "#   RELEASE_URI   gs:// prefix the deploy workflow publishes to\n"
+    "#   COMPOSE_DIR   directory holding docker-compose.yaml, env, and .env.local\n"
+    "#   ENVIRONMENT   environment name, for the beacon\n"
+    "#   BEACON_LOG    Cloud Logging log name for the deploy beacon\n"
+)
+# Prose spaced two-per-sentence, the convention the preformatted test has to
+# stay clear of: an alignment gap is wider, so this is a paragraph.
+_TWO_SPACE_SENTENCES = (
+    "# This sentence ends here.  And this one runs well past the limit, so the"
+    " rule has something to report.\n"
+)
+# A tab-indented block from a shell script, each line inside 79 characters but
+# past the limit once the tab reaches its stop.
+_TAB_INDENTED = (
+    "\t# here on a re-run. Only worth saying when a source was actually named: a\n"
+    "\t# run that omitted it has the destination itself missing, which is the\n"
+    "\t# first-run case above.\n"
+)
 
 
 class TestReflowDocFill:
@@ -105,6 +133,44 @@ class TestReflowDocFill:
     )
     def test_FilledOrVerbatimContent_ReturnsUnchanged(self, source: str) -> None:
         assert fix_doc_fill(_PY, source) == source
+
+    @pytest.mark.parametrize(
+        "source",
+        [_LINE_CONTINUATIONS, _ALIGNED_LIST],
+        ids=["line_continuations", "aligned_list"],
+    )
+    def test_PreformattedComment_ReturnsUnchanged(self, source: str) -> None:
+        assert fix_doc_fill(_SHELL, source) == source
+
+    def test_TwoSpaceSentenceSpacing_StaysProse(self) -> None:
+        """Sentence spacing must not read as an alignment and exempt the unit.
+
+        The preformatted test is what keeps a continuation or a column gap out
+        of the reflow, and a run of two spaces after a full stop is neither.
+        Counting it as one would take every paragraph in a codebase spaced that
+        way out of the rule's reach, reporting nothing on any of them.
+        """
+        assert list(check_doc_fill(_SHELL, _TWO_SPACE_SENTENCES))
+        assert fix_doc_fill(_SHELL, _TWO_SPACE_SENTENCES) != _TWO_SPACE_SENTENCES
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            '"""Summary.\n\nSee https://example.com/' + "a" * 60 + '\n"""\n',
+            '"""Summary.\n\n' + "a" * 80 + ' bb\n"""\n',
+        ],
+        ids=["url_line", "unbreakable_token"],
+    )
+    def test_UnflaggedUnit_ReturnsUnchanged(self, source: str) -> None:
+        assert list(check_doc_fill(_PY, source)) == []
+        assert fix_doc_fill(_PY, source) == source
+
+    def test_TabIndentedComment_EmitsNoLinePastLimit(self) -> None:
+        rewritten = fix_doc_fill(_SHELL, _TAB_INDENTED)
+        assert rewritten != _TAB_INDENTED
+        # `expandtabs` with no argument is the same tab stop a terminal uses.
+        widths = [len(line.expandtabs()) for line in rewritten.splitlines()]
+        assert max(widths) <= DOC_FILL_COLUMNS
 
     def test_InlineClosingQuote_SkipsUnit(self) -> None:
         source = '"""Summary.\n\naaa\nbbb"""\n'

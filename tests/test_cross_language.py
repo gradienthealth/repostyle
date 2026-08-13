@@ -146,6 +146,61 @@ class TestExtractComments:
         source = 'x="line1\nline2 # not"\nz=1  # real\n'
         assert _comments(Path("s.sh"), source) == [(3, 5, True, "real")]
 
+    @pytest.mark.parametrize(
+        "substitution",
+        [
+            'x="$(sed \'s/"/X/\')"\n',
+            'x="`sed \'s/"/X/\'`"\n',
+            # The construct from a deployed bootstrap.sh that surfaced this:
+            # the `$(` spans the line break, so the `\"` closing the outer
+            # string is nine lines away and the sed expression holds an odd
+            # count of its own.
+            'sa_key_account="$(sed -n \\\n'
+            '\t\'s/.*"client_email"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p\''
+            ' "${SA_KEY_DEST}")"\n',
+        ],
+        ids=["dollar_paren", "backtick", "dollar_paren_spanning_lines"],
+    )
+    def test_ShellQuoteInsideSubstitution_LeavesLaterCommentsVisible(
+        self, substitution: str
+    ) -> None:
+        source = substitution + "# real\n"
+        lineno = len(source.splitlines())
+        assert _comments(Path("s.sh"), source) == [(lineno, 0, False, "real")]
+
+    @pytest.mark.parametrize(
+        "code",
+        [
+            'echo "it\'s fine"\n',
+            'echo "say \\"hi\\" now"\n',
+            "echo 'it'\\''s'\n",
+            "echo 'a\\'\n",
+            'echo "${x:-"d"}"\n',
+        ],
+        ids=[
+            "apostrophe_in_double",
+            "escaped_double_in_double",
+            "quote_concatenation_idiom",
+            "backslash_in_single",
+            "quote_in_parameter_expansion",
+        ],
+    )
+    def test_ShellQuoteInsideOtherQuoteStyle_LeavesLaterCommentsVisible(
+        self, code: str
+    ) -> None:
+        assert _comments(Path("s.sh"), code + "# real\n") == [(2, 0, False, "real")]
+
+    @pytest.mark.parametrize(
+        "body",
+        ["it's fine\n", 'say "hi"\n', "it's \"odd\n"],
+        ids=["apostrophe", "double_quote", "unbalanced_both"],
+    )
+    def test_ShellQuoteInsideHeredocBody_LeavesLaterCommentsVisible(
+        self, body: str
+    ) -> None:
+        source = "cat <<EOF\n" + body + "EOF\n# real\n"
+        assert _comments(Path("s.sh"), source) == [(4, 0, False, "real")]
+
     def test_ShellShebang_IsYieldedAsAComment(self) -> None:
         source = "#!/usr/bin/env bash\nx=1  # real\n"
         assert _comments(Path("s.sh"), source) == [
@@ -234,6 +289,31 @@ class TestShellCommentRules:
         source = "# a short first line\n# and a second line that could have joined the first\n"
         violations = list(check_doc_fill(Path("s.sh"), source))
         assert any(v.rule == RS_DOC_FILL for v in violations)
+
+    def test_TabExpandedLinePastLimit_FlagsDocFill(self) -> None:
+        # 74 characters, so within the limit until the leading tab reaches its
+        # stop and puts the line at 81 columns.
+        source = (
+            "\t# here on a re-run. Only worth saying when a source was actually named: a\n"
+            "\t# run that omitted it has the destination itself missing, which is the\n"
+        )
+        violations = list(check_doc_fill(Path("s.sh"), source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_DOC_FILL, 1)]
+        assert "exceeds" in violations[0].message
+
+    def test_TabIndentedFilledBlock_SkipsDocFill(self) -> None:
+        # Filled to 79 columns with the tab expanded; only a tab counted as one
+        # character would leave room for the next line's first word.
+        source = "\t# " + "a" * 69 + "\n\t# end.\n"
+        assert list(check_doc_fill(Path("s.sh"), source)) == []
+
+    def test_LineContinuationBlock_SkipsDocFill(self) -> None:
+        source = (
+            "#   sudo systemd-run --pipe --wait --collect --same-dir \\\n"
+            "#        --setenv=ENVIRONMENT=merlin \\\n"
+            "#        ./bootstrap.sh\n"
+        )
+        assert list(check_doc_fill(Path("s.sh"), source)) == []
 
     def test_Shebang_IsSkippedByProseRules(self) -> None:
         source = "#!/usr/bin/env bash\n"
