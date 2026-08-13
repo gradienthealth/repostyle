@@ -23,6 +23,7 @@ from repostyle.rules import (
     RS_EQ_HASH_PAIRING,
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
+    RS_FILE_LITERAL_RESTATEMENT,
     RS_GCP_BARE_IDENTIFIER,
     RS_GLUED_CODE_SPAN,
     RS_INVALID_DOCSTRING_SECTION,
@@ -68,6 +69,7 @@ from repostyle.rules import (
     check_eq_hash_pairing,
     check_exception_alias,
     check_excessive_mocking,
+    check_file_literal_restatement,
     check_gcp_bare_identifier,
     check_glued_code_span_in_comments,
     check_glued_code_span_in_docstrings,
@@ -2046,6 +2048,88 @@ class TestCheckBehaviorVerificationOnly:
     )
     def test_AnyStateAssert_NoViolation(self, source: str) -> None:
         assert list(check_behavior_verification_only(_TEST_PATH, source)) == []
+
+
+_RESTATEMENT_HEADER = (
+    "import yaml\n"
+    "from pathlib import Path\n"
+    "\n"
+    "_ROOT = Path(__file__).resolve().parents[2]\n"
+    '_COMPOSE = _ROOT / "compose.yaml"\n'
+    '_WORKFLOW = _ROOT / "ci.yaml"\n'
+    "\n"
+    "\n"
+    "def _compose():\n"
+    "    return yaml.safe_load(_COMPOSE.read_text())\n"
+    "\n"
+    "\n"
+)
+
+
+class TestCheckFileLiteralRestatement:
+    @pytest.mark.parametrize(
+        "body",
+        [
+            '    assert _compose()["services"]["drain"]["user"] == "1000:1000"\n',
+            '    assert "healthcheck" not in _compose()["services"]["drain"]\n',
+            '    rules = _compose()["command"]\n'
+            '    assert rules.index("- *.part") < rules.index("+ [0-9]*/**")\n',
+        ],
+        ids=["scalar_literal", "membership_literal", "ordering_of_read_strings"],
+    )
+    def test_AssertionOverOneReadFile_FlagsViolation(self, body: str) -> None:
+        source = f"{_RESTATEMENT_HEADER}def test_Drain_RunsAsUser():\n{body}"
+        violations = list(check_file_literal_restatement(_TEST_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_FILE_LITERAL_RESTATEMENT
+
+    def test_FixtureSuppliedFile_FlagsViolation(self) -> None:
+        source = (
+            f"{_RESTATEMENT_HEADER}"
+            "class TestDrain:\n"
+            "    @pytest.fixture\n"
+            "    def drain(self):\n"
+            '        return _compose()["services"]["drain"]\n'
+            "\n"
+            "    def test_Drain_RunsAsUser(self, drain):\n"
+            '        assert drain["user"] == "1000:1000"\n'
+        )
+        violations = list(check_file_literal_restatement(_TEST_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].line == 18
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "    workflow = yaml.safe_load(_WORKFLOW.read_text())\n"
+            '    assert _compose()["image"] == workflow["image"]\n',
+            '    services = _compose()["services"]\n'
+            '    assert [name for name in services if "user" not in services[name]] == []\n',
+            "    assert _COMPOSE.stat().st_mode & 0o111 == 0\n",
+            "    assert render(_compose()) == 3\n",
+        ],
+        ids=["two_files", "property_over_entries", "file_metadata", "exercises_code"],
+    )
+    def test_AssertionBeyondOneFilesLiterals_NoViolation(self, body: str) -> None:
+        source = (
+            f"{_RESTATEMENT_HEADER}from myapp import render\n"
+            f"\n\ndef test_Drain_RunsAsUser():\n{body}"
+        )
+        assert list(check_file_literal_restatement(_TEST_PATH, source)) == []
+
+    def test_FixtureFromAnotherModule_NoViolation(self) -> None:
+        source = (
+            f"{_RESTATEMENT_HEADER}def test_Drain_RunsAsUser(tmp_path):\n"
+            '    assert (tmp_path / "x").name == "x"\n'
+        )
+        assert list(check_file_literal_restatement(_TEST_PATH, source)) == []
+
+    def test_ProductionModule_NotChecked(self) -> None:
+        source = (
+            f"{_RESTATEMENT_HEADER}def test_Drain_RunsAsUser():\n"
+            '    assert _compose()["user"] == "1000"\n'
+        )
+        assert list(check_file_literal_restatement(Path("src/x.py"), source)) == []
 
 
 _DOC_PATH = Path("src/x.py")

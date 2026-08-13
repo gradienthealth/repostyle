@@ -8,6 +8,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from repostyle._shared import (
+    _has_decorator,
     _is_test_file,
     _matches_config_glob,
     _parse_python,
@@ -20,6 +21,7 @@ from repostyle.rules._violation import (
     RS_BEHAVIOR_VERIFICATION_ONLY,
     RS_CONDITIONAL_TEST_LOGIC,
     RS_EXCESSIVE_MOCKING,
+    RS_FILE_LITERAL_RESTATEMENT,
     RS_NO_MOCK_PATCH,
     RS_SLEEPY_TEST,
     RS_TEST_NAMING,
@@ -36,7 +38,40 @@ MOCK_CONSTRUCTORS = frozenset(
 )
 FORBIDDEN_MOCK_MODULES = frozenset({"unittest.mock", "mock"})
 EXCESSIVE_MOCK_LIMIT = 3
+# What a test may reach and still be reading a file rather than exercising
+# code: the parsers, the path and typing vocabulary the reading needs, and
+# pytest itself. An import outside this set is the unit under test.
+FILE_PARSER_MODULES = frozenset(
+    {
+        "collections",
+        "configparser",
+        "json",
+        "pathlib",
+        "pytest",
+        "re",
+        "tomllib",
+        "typing",
+        "yaml",
+    }
+)
+# Metadata a diff cannot show, so a test asserting it is not restating the
+# file's own text.
+FILE_METADATA_NAMES = frozenset({"access", "lstat", "st_mode", "stat"})
+# Constructors that leave a literal argument a literal, so a collection built
+# from one still states its own value.
+LITERAL_COLLECTION_BUILTINS = frozenset({"frozenset", "list", "set", "sorted", "tuple"})
 _BRANCH_STATEMENTS = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.Try)
+_FIXTURE_DECORATORS = frozenset({"fixture"})
+_QUANTIFIERS = (
+    ast.AsyncFor,
+    ast.DictComp,
+    ast.For,
+    ast.GeneratorExp,
+    ast.ListComp,
+    ast.SetComp,
+)
+_SELF_ARGUMENTS = frozenset({"cls", "self"})
+_TestFunction = ast.AsyncFunctionDef | ast.FunctionDef
 
 
 def check_test_naming(path: Path, source: str) -> Iterator[Violation]:
@@ -204,6 +239,42 @@ def check_behavior_verification_only(path: Path, source: str) -> Iterator[Violat
             )
 
 
+def check_file_literal_restatement(path: Path, source: str) -> Iterator[Violation]:
+    """Warns when a test only quotes back literals from one repo file.
+
+    A test that parses a single file, compares what it finds to literals, and
+    exercises nothing beyond the parser restates that file: one edit changes
+    the assertion and the value together, and no rewrite preserving the
+    behavior a caller relies on can break it. Three shapes are left alone, each
+    pinning something a single edit can still break -- a test reaching two or
+    more files, one comparing a value it derived to another derived value, and
+    one asserting a property across every entry it read.
+    """
+    if not _is_test_file(path):
+        return
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    scopes = _fixture_scopes(tree)
+    constants = _file_constants(tree)
+    helpers = _module_helpers(tree)
+    for owner, function in _classified_test_functions(tree):
+        names = _reached_names(function, owner, scopes, helpers)
+        if names is None or _exercises_code(names, tree) or _quantifies(function):
+            continue
+        restated = sorted(names & constants)
+        if len(restated) != 1 or not _pins_literals(function):
+            continue
+        yield Violation(
+            function.lineno,
+            function.col_offset + 1,
+            RS_FILE_LITERAL_RESTATEMENT,
+            f"test '{function.name}' asserts only literals it read through "
+            f"`{restated[0]}`; assert the property where it executes, or pin "
+            f"it against the second file that has to agree",
+        )
+
+
 def _branch_asserts_directly(node: ast.stmt) -> bool:
     """Reports whether a branch or loop statement asserts in its own body."""
     bodies: list[list[ast.stmt]] = [node.body, getattr(node, "orelse", [])]
@@ -211,6 +282,93 @@ def _branch_asserts_directly(node: ast.stmt) -> bool:
         bodies.append(node.finalbody)
         bodies.extend(handler.body for handler in node.handlers)
     return any(isinstance(stmt, ast.Assert) for body in bodies for stmt in body)
+
+
+def _classified_test_functions(tree: ast.AST) -> Iterator[tuple[str, _TestFunction]]:
+    """Yields each test function beside the name of the class holding it.
+
+    A function defined outside a class takes the empty string, which is the key
+    its module-level fixtures are stored under.
+    """
+    for owner, function in _scoped_functions(tree):
+        if function.name.startswith("test_"):
+            yield owner, function
+
+
+def _exercises_code(names: set[str], tree: ast.AST) -> bool:
+    """Reports whether a test reaches past parsing the file it read.
+
+    A name bound by an import outside the parser vocabulary is the unit under
+    test, and a name reading file metadata asserts something the file's own
+    text does not state.
+    """
+    if names & FILE_METADATA_NAMES:
+        return True
+    return any(
+        bound in names
+        for node in ast.walk(tree)
+        for root, bound in _import_bindings(node)
+        if root not in FILE_PARSER_MODULES
+    )
+
+
+def _file_constants(tree: ast.AST) -> set[str]:
+    """Returns the module-level names bound to a repo file.
+
+    A name assigned a `Path` expression seeds the set, and one assigned from a
+    name already in it joins, so a constant built by joining onto a resolved
+    repository root counts as the file it names.
+    """
+    assignments = [
+        node for node in getattr(tree, "body", []) if isinstance(node, ast.Assign)
+    ]
+    names: set[str] = set()
+    bound = -1
+    while bound != len(names):
+        bound = len(names)
+        for node in assignments:
+            if _binds_repo_file(node, names):
+                names |= {
+                    target.id for target in node.targets if isinstance(target, ast.Name)
+                }
+    return names
+
+
+def _binds_repo_file(node: ast.Assign, known: set[str]) -> bool:
+    """Reports whether an assignment binds a name to a repo file.
+
+    A `Path` expression binds one outright; so does an expression joining onto
+    a name already known to hold one, which is how a constant built from a
+    resolved repository root reads.
+    """
+    return "'Path'" in ast.dump(node.value) or bool(
+        _referenced_names(node.value) & known
+    )
+
+
+def _fixture_scopes(tree: ast.AST) -> dict[tuple[str, str], _TestFunction]:
+    """Returns each fixture keyed by the class holding it and its own name.
+
+    A module-level fixture takes the empty string as its class, so a lookup
+    falls back to it when the requesting class defines no fixture of that name.
+    """
+    return {
+        (owner, function.name): function
+        for owner, function in _scoped_functions(tree)
+        if _has_decorator(function, _FIXTURE_DECORATORS)
+    }
+
+
+def _import_bindings(node: ast.AST) -> Iterator[tuple[str, str]]:
+    """Yields the root module and bound name of each import a node makes."""
+    if isinstance(node, ast.ImportFrom):
+        root = (node.module or "").split(".")[0]
+        for alias in node.names:
+            yield root, alias.asname or alias.name
+    elif isinstance(node, ast.Import):
+        for alias in node.names:
+            root = alias.name.split(".")[0]
+            yield root, alias.asname or root
 
 
 def _is_choreography_call(node: ast.AST) -> bool:
@@ -238,6 +396,50 @@ def _is_in_test_naming_scope(path: Path) -> bool:
     if _string_list(table, TEST_NAMING_GLOBS_KEY):
         return _matches_config_glob(path, pyproject, table, TEST_NAMING_GLOBS_KEY)
     return UNIT_TEST_PATH_FRAGMENT in _posix(path)
+
+
+def _pins_literals(function: _TestFunction) -> bool:
+    """Reports whether every comparison a test asserts faces a literal.
+
+    A test qualifies when it asserts at least one comparison and none of them
+    weighs one derived value against another, since such a comparison holds two
+    places to one agreement rather than restating a single one.
+    """
+    comparisons = [
+        node.test
+        for node in ast.walk(function)
+        if isinstance(node, ast.Assert) and isinstance(node.test, ast.Compare)
+    ]
+    return bool(comparisons) and all(
+        any(_is_literal(side) for side in (test.left, *test.comparators))
+        or all(_restates_content(side) for side in (test.left, *test.comparators))
+        for test in comparisons
+    )
+
+
+def _is_literal(node: ast.AST) -> bool:
+    """Reports whether an expression is a literal the source states outright.
+
+    A constant, a negated constant, a collection whose entries are all
+    literals, and a bare conversion of one all qualify; anything read from a
+    parsed structure does not.
+    """
+    if isinstance(node, ast.Constant):
+        return True
+    if isinstance(node, ast.UnaryOp):
+        return _is_literal(node.operand)
+    if isinstance(node, ast.List | ast.Set | ast.Tuple):
+        return all(_is_literal(element) for element in node.elts)
+    if isinstance(node, ast.Dict):
+        keys = [key for key in node.keys if key is not None]
+        return all(_is_literal(entry) for entry in (*keys, *node.values))
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in LITERAL_COLLECTION_BUILTINS
+    ):
+        return all(_is_literal(argument) for argument in node.args)
+    return False
 
 
 def _is_mock_decorator(decorator: ast.expr) -> bool:
@@ -271,6 +473,16 @@ def _mock_construct_name(func: ast.expr) -> str | None:
     return None
 
 
+def _module_helpers(tree: ast.AST) -> dict[str, _TestFunction]:
+    """Returns the module-level functions that are not themselves tests."""
+    return {
+        node.name: node
+        for node in getattr(tree, "body", [])
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and not node.name.startswith("test_")
+    }
+
+
 def _offending_mock_import(node: ast.AST) -> str | None:
     """Returns the rendered forbidden mock import a node makes, or `None`."""
     if isinstance(node, ast.Import):
@@ -296,6 +508,132 @@ def _offending_plain_import(node: ast.Import) -> str | None:
         if alias.name in FORBIDDEN_MOCK_MODULES or root == "mock":
             return f"import {alias.name}"
     return None
+
+
+def _quantifies(function: _TestFunction) -> bool:
+    """Reports whether a test asserts across every entry it read.
+
+    A comprehension or loop in the test's own body states a property that holds
+    for each entry, which an edit adding an entry can still break, so it is not
+    a restatement of what the file happens to say today.
+    """
+    return any(isinstance(node, _QUANTIFIERS) for node in ast.walk(function))
+
+
+def _reached_names(
+    function: _TestFunction,
+    owner: str,
+    scopes: dict[tuple[str, str], _TestFunction],
+    helpers: dict[str, _TestFunction],
+    seen: set[str] | None = None,
+    *,
+    should_resolve_fixtures: bool = True,
+) -> set[str] | None:
+    """Returns every name a test reaches through its fixtures and helpers.
+
+    Resolution is `None` when any fixture on the path is undefined in this
+    module, since what it supplies cannot be known from this file alone. A
+    module helper is expanded by name only: its parameters are ordinary
+    arguments its callers pass, not fixtures pytest resolves.
+    """
+    seen = set() if seen is None else seen
+    names = _referenced_names(function)
+    for name in sorted(names & helpers.keys() - seen):
+        seen.add(name)
+        reached = _reached_names(
+            helpers[name], owner, scopes, helpers, seen, should_resolve_fixtures=False
+        )
+        if reached is None:
+            return None
+        names |= reached
+    if not should_resolve_fixtures:
+        return names
+    requested = _requested_fixtures(function, owner, scopes)
+    if requested is None:
+        return None
+    for fixture in requested:
+        if fixture.name in seen:
+            continue
+        seen.add(fixture.name)
+        reached = _reached_names(fixture, owner, scopes, helpers, seen)
+        if reached is None:
+            return None
+        names |= reached
+    return names
+
+
+def _referenced_names(node: ast.AST) -> set[str]:
+    """Returns the names and attributes an expression or body references."""
+    names = {inner.id for inner in ast.walk(node) if isinstance(inner, ast.Name)}
+    return names | {
+        inner.attr for inner in ast.walk(node) if isinstance(inner, ast.Attribute)
+    }
+
+
+def _requested_fixtures(
+    function: _TestFunction,
+    owner: str,
+    scopes: dict[tuple[str, str], _TestFunction],
+) -> list[_TestFunction] | None:
+    """Returns the fixtures a definition requests, or `None` if one is foreign.
+
+    A parameter resolves against the holding class first and the module next,
+    matching how pytest shadows a fixture; one that neither scope defines comes
+    from `conftest.py` or from pytest itself and can supply anything.
+    """
+    requested: list[_TestFunction] = []
+    for argument in function.args.args:
+        if argument.arg in _SELF_ARGUMENTS:
+            continue
+        fixture = scopes.get((owner, argument.arg)) or scopes.get(("", argument.arg))
+        if fixture is None:
+            return None
+        requested.append(fixture)
+    return requested
+
+
+def _restates_content(operand: ast.expr) -> bool:
+    """Reports whether an operand carries a string the parsed file supplied.
+
+    A string indexing into the structure names where to look, so it is
+    excluded; a string anywhere else in the operand is the file's own content
+    quoted back, which is what an ordering or membership check compares.
+    """
+    keys = _subscript_key_ids(operand)
+    return any(
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and id(node) not in keys
+        for node in ast.walk(operand)
+    )
+
+
+def _scoped_functions(tree: ast.AST) -> Iterator[tuple[str, _TestFunction]]:
+    """Yields every function beside the name of the class that holds it.
+
+    A function defined at module level takes the empty string, so the two
+    scopes pytest resolves a fixture through share one key space.
+    """
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for member in node.body:
+            if isinstance(member, ast.FunctionDef | ast.AsyncFunctionDef):
+                yield node.name, member
+    for node in getattr(tree, "body", []):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            yield "", node
+
+
+def _subscript_key_ids(node: ast.AST) -> set[int]:
+    """Returns the identities of the constants used as subscript keys."""
+    return {
+        id(inner)
+        for outer in ast.walk(node)
+        if isinstance(outer, ast.Subscript)
+        for inner in ast.walk(outer.slice)
+        if isinstance(inner, ast.Constant)
+    }
 
 
 def _test_functions(
