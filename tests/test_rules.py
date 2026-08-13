@@ -2138,7 +2138,7 @@ class TestCheckFileLiteralRestatement:
 
     @pytest.mark.parametrize(
         "signature",
-        ["tmp_path", "*, tmp_path", "tmp_path, /"],
+        ["shared_compose", "*, shared_compose", "shared_compose, /"],
         ids=["positional", "keyword_only", "positional_only"],
     )
     def test_FixtureFromAnotherModule_NoViolation(self, signature: str) -> None:
@@ -2147,6 +2147,54 @@ class TestCheckFileLiteralRestatement:
             '    assert _compose()["user"] == "1000"\n'
         )
         assert list(check_file_literal_restatement(_TEST_PATH, source)) == []
+
+    def test_InertPytestFixture_FlagsViolation(self) -> None:
+        """`tmp_path` supplies a temporary directory, never a repo file."""
+        source = (
+            f"{_RESTATEMENT_HEADER}def test_Drain_RunsAsUser(tmp_path):\n"
+            '    assert _compose()["user"] == "1000"\n'
+        )
+        violations = list(check_file_literal_restatement(_TEST_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_FILE_LITERAL_RESTATEMENT
+
+    def test_ConftestFixture_ResolvesAndFlagsViolation(self, tmp_path: Path) -> None:
+        conftest = tmp_path / "conftest.py"
+        conftest.write_text(
+            "import pytest\nimport yaml\nfrom pathlib import Path\n\n"
+            '_COMPOSE = Path(__file__).parent / "compose.yaml"\n\n\n'
+            "@pytest.fixture\ndef drain():\n"
+            '    return yaml.safe_load(_COMPOSE.read_text())["drain"]\n'
+        )
+        test_file = tmp_path / "test_drain.py"
+        source = (
+            "def test_Drain_RunsAsUser(drain):\n"
+            '    assert drain["user"] == "1000:1000"\n'
+        )
+        test_file.write_text(source)
+
+        violations = list(check_file_literal_restatement(test_file, source))
+
+        assert len(violations) == 1
+        assert violations[0].rule == RS_FILE_LITERAL_RESTATEMENT
+
+    def test_ConftestFixtureBuildingAProductObject_NoViolation(
+        self, tmp_path: Path
+    ) -> None:
+        conftest = tmp_path / "conftest.py"
+        conftest.write_text(
+            "import pytest\nfrom myapp import Settings\n\n\n"
+            "@pytest.fixture\ndef drain():\n"
+            '    return Settings().services["drain"]\n'
+        )
+        test_file = tmp_path / "test_drain.py"
+        source = (
+            "def test_Drain_RunsAsUser(drain):\n"
+            '    assert drain["user"] == "1000:1000"\n'
+        )
+        test_file.write_text(source)
+
+        assert list(check_file_literal_restatement(test_file, source)) == []
 
     def test_ProductionModule_NotChecked(self) -> None:
         source = (

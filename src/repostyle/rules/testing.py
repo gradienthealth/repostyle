@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 import re
 from collections.abc import Iterator
+from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 from repostyle._shared import (
@@ -57,6 +59,25 @@ FILE_PARSER_MODULES = frozenset(
 # Metadata a diff cannot show, so a test asserting it is not restating the
 # file's own text.
 FILE_METADATA_NAMES = frozenset({"access", "lstat", "st_mode", "stat"})
+# Built-in pytest fixtures that supply a temporary directory, a capture, or a
+# patcher, never a repo file or a unit under test. A test requesting one is
+# still fully resolved, unlike `request` or a mock factory, which can supply
+# anything and leave the test unanalyzable.
+INERT_PYTEST_FIXTURES = frozenset(
+    {
+        "capfd",
+        "capfdbinary",
+        "caplog",
+        "capsys",
+        "capsysbinary",
+        "monkeypatch",
+        "recwarn",
+        "tmp_path",
+        "tmp_path_factory",
+        "tmpdir",
+        "tmpdir_factory",
+    }
+)
 # Constructors that leave a literal argument a literal, so a collection built
 # from one still states its own value.
 LITERAL_COLLECTION_BUILTINS = frozenset({"frozenset", "list", "set", "sorted", "tuple"})
@@ -72,6 +93,20 @@ _QUANTIFIERS = (
 )
 _SELF_ARGUMENTS = frozenset({"cls", "self"})
 _TestFunction = ast.AsyncFunctionDef | ast.FunctionDef
+
+
+@dataclass(frozen=True)
+class _ResolvedScope:
+    """Everything a test module can reach, its `conftest.py` chain included."""
+
+    fixtures: dict[tuple[str, str], _TestFunction]
+    """Each fixture keyed by the class holding it and its own name."""
+    helpers: dict[str, _TestFunction]
+    """The module-level functions that are not themselves tests."""
+    constants: set[str]
+    """The names bound to a repo file."""
+    trees: tuple[ast.AST, ...]
+    """The test module and each `conftest.py` above it, nearest first."""
 
 
 def check_test_naming(path: Path, source: str) -> Iterator[Violation]:
@@ -255,14 +290,12 @@ def check_file_literal_restatement(path: Path, source: str) -> Iterator[Violatio
     tree = _parse_python(path, source)
     if tree is None:
         return
-    scopes = _fixture_scopes(tree)
-    constants = _file_constants(tree)
-    helpers = _module_helpers(tree)
+    scope = _resolved_scope(path, tree)
     for owner, function in _classified_test_functions(tree):
-        names = _reached_names(function, owner, scopes, helpers)
-        if names is None or _exercises_code(names, tree) or _quantifies(function):
+        names = _reached_names(function, owner, scope.fixtures, scope.helpers)
+        if names is None or _exercises_code(names, scope) or _quantifies(function):
             continue
-        restated = sorted(names & constants)
+        restated = sorted(names & scope.constants)
         if len(restated) != 1 or not _pins_literals(function):
             continue
         yield Violation(
@@ -295,17 +328,58 @@ def _classified_test_functions(tree: ast.AST) -> Iterator[tuple[str, _TestFuncti
             yield owner, function
 
 
-def _exercises_code(names: set[str], tree: ast.AST) -> bool:
+def _resolved_scope(path: Path, tree: ast.AST) -> _ResolvedScope:
+    """Merges a test module's own scope with every `conftest.py` above it.
+
+    A nearer definition shadows a farther one, matching how pytest resolves a
+    fixture, so the module's own names win over the closest `conftest.py` and
+    that one wins over its parents.
+    """
+    trees = [tree, *_conftest_trees(path)]
+    fixtures: dict[tuple[str, str], _TestFunction] = {}
+    helpers: dict[str, _TestFunction] = {}
+    constants: set[str] = set()
+    for module in reversed(trees):
+        fixtures.update(_fixture_scopes(module))
+        helpers.update(_module_helpers(module))
+        constants |= _file_constants(module)
+    return _ResolvedScope(fixtures, helpers, constants, tuple(trees))
+
+
+def _conftest_trees(path: Path) -> list[ast.AST]:
+    """Parses each `conftest.py` from a test's directory up to the root.
+
+    The nearest one comes first. A directory holding no readable `conftest.py`
+    contributes nothing, which leaves a test whose fixtures live outside the
+    project unresolved rather than guessed at.
+    """
+    pyproject = find_pyproject(path)
+    root = pyproject.parent if pyproject is not None else None
+    trees: list[ast.AST] = []
+    directory = path.parent
+    while True:
+        conftest = directory / "conftest.py"
+        parsed = _parse_conftest(conftest) if conftest != path else None
+        if parsed is not None:
+            trees.append(parsed)
+        if directory == root or directory == directory.parent:
+            return trees
+        directory = directory.parent
+
+
+def _exercises_code(names: set[str], scope: _ResolvedScope) -> bool:
     """Reports whether a test reaches past parsing the file it read.
 
     A name bound by an import outside the parser vocabulary is the unit under
     test, and a name reading file metadata asserts something the file's own
-    text does not state.
+    text does not state. Every module in scope is searched, since a fixture a
+    `conftest.py` supplies is built from that module's imports.
     """
     if names & FILE_METADATA_NAMES:
         return True
     return any(
         bound in names
+        for tree in scope.trees
         for node in ast.walk(tree)
         for root, bound in _import_bindings(node)
         if root not in FILE_PARSER_MODULES
@@ -396,6 +470,20 @@ def _is_in_test_naming_scope(path: Path) -> bool:
     if _string_list(table, TEST_NAMING_GLOBS_KEY):
         return _matches_config_glob(path, pyproject, table, TEST_NAMING_GLOBS_KEY)
     return UNIT_TEST_PATH_FRAGMENT in _posix(path)
+
+
+@cache
+def _parse_conftest(conftest: Path) -> ast.AST | None:
+    """Parses a `conftest.py`, or returns `None` when it cannot be read.
+
+    Cached because every test module under a directory resolves through the
+    same file, and a lint run reads one snapshot of the tree.
+    """
+    try:
+        source = conftest.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    return _parse_python(conftest, source)
 
 
 def _pins_literals(function: _TestFunction) -> bool:
@@ -588,7 +676,7 @@ def _requested_fixtures(
         *arguments.args,
         *arguments.kwonlyargs,
     ):
-        if argument.arg in _SELF_ARGUMENTS:
+        if argument.arg in _SELF_ARGUMENTS or argument.arg in INERT_PYTEST_FIXTURES:
             continue
         fixture = scopes.get((owner, argument.arg)) or scopes.get(("", argument.arg))
         if fixture is None:

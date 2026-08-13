@@ -337,9 +337,11 @@ RULE_DOCS: dict[str, RuleDoc] = {
         signals=(
             "The rule stays silent on a test that reads two or more files, one "
             "comparing a derived value to another derived value, one asserting "
-            "across every entry it read, and one requesting a fixture this "
-            "module does not define, since what that fixture supplies is "
-            "unknowable from the file alone.",
+            "across every entry it read, and one whose fixture no module in "
+            "scope defines. Fixtures resolve through the requesting class, "
+            "the test module, and each `conftest.py` above it; what pytest "
+            "supplies from outside that chain is unknowable, so the rule "
+            "declines to guess.",
             "A deliberate single-file pin -- a value with no second home and "
             "no executable surface -- takes `# style: ignore[RS060]` with the "
             "reason it cannot be checked anywhere better.",
