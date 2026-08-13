@@ -20,6 +20,11 @@ from repostyle.rules._violation import RS_DOC_FILL, RS_DOC_SUMMARY_OVERFLOW, Vio
 
 DOC_FILL_COLUMNS = 79
 
+# The columns a tab advances to, the POSIX and stdlib default. Fixed rather
+# than configurable: the limit it feeds is fixed too, and a repo that renders
+# tabs at some other width would need both to move together.
+_TAB_STOP = 8
+
 _SECTION_HEADERS = frozenset(
     {
         "Args:",
@@ -99,7 +104,7 @@ def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
             continue
         lineno = node.value.lineno
         rendered = source_lines[lineno - 1].rstrip()
-        if len(rendered) <= DOC_FILL_COLUMNS:
+        if _display_width(rendered) <= DOC_FILL_COLUMNS:
             continue
         indent = len(rendered) - len(rendered.lstrip())
         yield Violation(
@@ -389,7 +394,7 @@ class _ParagraphGrouper:
 def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
     for line, following in itertools.pairwise(unit):
         first_word = _atomic_tokens(following.text)[0]
-        if len(line.rendered) + 1 + len(first_word) <= DOC_FILL_COLUMNS:
+        if _display_width(f"{line.rendered} {first_word}") <= DOC_FILL_COLUMNS:
             yield Violation(
                 line.lineno,
                 line.indent + 1,
@@ -398,7 +403,7 @@ def _unit_violations(unit: list[_FillLine]) -> Iterator[Violation]:
                 f"{DOC_FILL_COLUMNS} columns",
             )
     for line in unit:
-        if len(line.rendered) <= DOC_FILL_COLUMNS or "://" in line.rendered:
+        if _display_width(line.rendered) <= DOC_FILL_COLUMNS or "://" in line.rendered:
             continue
         if not _has_break_before_limit(line):
             continue
@@ -415,15 +420,18 @@ def _has_break_before_limit(line: _FillLine) -> bool:
 
     A space inside a backtick `...` span is not a legal break, as with a URL,
     so a line may pass the limit without one. Backticks that do not pair up
-    cannot delimit a span, so every space then counts.
+    cannot delimit a span, so every space then counts. The line is scanned with
+    its tabs expanded, so an index is a column and the break has to fall within
+    the limit as a reader sees it.
     """
-    prefix_length = len(line.rendered) - len(line.text)
+    expanded = _expand_tabs(line.rendered)
+    prefix_width = _display_width(line.rendered[: len(line.rendered) - len(line.text)])
     backticks_paired = line.rendered.count("`") % 2 == 0
     in_span = False
-    for index, char in enumerate(line.rendered[: DOC_FILL_COLUMNS + 1]):
+    for index, char in enumerate(expanded[: DOC_FILL_COLUMNS + 1]):
         if char == "`" and backticks_paired:
             in_span = not in_span
-        elif char == " " and not in_span and index > prefix_length:
+        elif char == " " and not in_span and index > prefix_width:
             return True
     return False
 
@@ -436,6 +444,9 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     source lines is skipped too, since rejoining it would have to invent the
     whitespace the break elided. The first line keeps the unit's leading
     whitespace and any marker; continuation lines wrap to the hanging indent.
+    Both are emitted with the unit's own indent characters, tabs included, but
+    measured at their expanded width, so no returned line runs past the limit
+    as a reader sees it.
     """
     if any('"""' in line.text or "'''" in line.text for line in unit):
         return None
@@ -448,8 +459,9 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     lines: list[str] = []
     current = lead + words[0]
     for word in words[1:]:
-        if len(current) + 1 + len(word) <= DOC_FILL_COLUMNS:
-            current = f"{current} {word}"
+        extended = f"{current} {word}"
+        if _display_width(extended) <= DOC_FILL_COLUMNS:
+            current = extended
         else:
             lines.append(current)
             current = cont + word
@@ -483,6 +495,24 @@ def _atomic_tokens(text: str) -> list[str]:
     if current:
         tokens.append(current)
     return tokens
+
+
+def _display_width(text: str) -> int:
+    """Returns the columns `text` occupies, counting a tab to its next stop.
+
+    The single measurement the check and the reflow share, so what RS009 flags
+    as over-long and what the reflow refuses to emit are the same width. A
+    tab-indented comment is a character shorter than it looks to `len`, which
+    would otherwise let the reflow fill a line to 77 characters and 84 columns.
+    `text` is measured from the start of a line, which is what every caller
+    passes.
+    """
+    return len(_expand_tabs(text))
+
+
+def _expand_tabs(text: str) -> str:
+    """Replaces each tab in `text` with spaces up to its next tab stop."""
+    return text.expandtabs(_TAB_STOP)
 
 
 def _hanging_indent(unit: list[_FillLine]) -> int:

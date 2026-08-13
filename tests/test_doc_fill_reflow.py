@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from repostyle.rules.doc_fill import check_doc_fill, fix_doc_fill
+from repostyle.rules.doc_fill import DOC_FILL_COLUMNS, check_doc_fill, fix_doc_fill
 
 _PY = Path("src/x.py")
 _SHELL = Path("deploy/bootstrap.sh")
@@ -21,6 +21,13 @@ _ALIGNED_LIST = (
     "#   COMPOSE_DIR   directory holding docker-compose.yaml, env, and .env.local\n"
     "#   ENVIRONMENT   environment name, for the beacon\n"
     "#   BEACON_LOG    Cloud Logging log name for the deploy beacon\n"
+)
+# A tab-indented block from a shell script, each line inside 79 characters but
+# past the limit once the tab reaches its stop.
+_TAB_INDENTED = (
+    "\t# here on a re-run. Only worth saying when a source was actually named: a\n"
+    "\t# run that omitted it has the destination itself missing, which is the\n"
+    "\t# first-run case above.\n"
 )
 
 
@@ -140,6 +147,13 @@ class TestReflowDocFill:
     def test_UnflaggedUnit_ReturnsUnchanged(self, source: str) -> None:
         assert list(check_doc_fill(_PY, source)) == []
         assert fix_doc_fill(_PY, source) == source
+
+    def test_TabIndentedComment_EmitsNoLinePastLimit(self) -> None:
+        rewritten = fix_doc_fill(_SHELL, _TAB_INDENTED)
+        assert rewritten != _TAB_INDENTED
+        # `expandtabs` with no argument is the same tab stop a terminal uses.
+        widths = [len(line.expandtabs()) for line in rewritten.splitlines()]
+        assert max(widths) <= DOC_FILL_COLUMNS
 
     def test_InlineClosingQuote_SkipsUnit(self) -> None:
         source = '"""Summary.\n\naaa\nbbb"""\n'

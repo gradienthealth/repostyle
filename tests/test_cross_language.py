@@ -235,6 +235,23 @@ class TestShellCommentRules:
         violations = list(check_doc_fill(Path("s.sh"), source))
         assert any(v.rule == RS_DOC_FILL for v in violations)
 
+    def test_TabExpandedLinePastLimit_FlagsDocFill(self) -> None:
+        # 74 characters, so within the limit until the leading tab reaches its
+        # stop and puts the line at 81 columns.
+        source = (
+            "\t# here on a re-run. Only worth saying when a source was actually named: a\n"
+            "\t# run that omitted it has the destination itself missing, which is the\n"
+        )
+        violations = list(check_doc_fill(Path("s.sh"), source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_DOC_FILL, 1)]
+        assert "exceeds" in violations[0].message
+
+    def test_TabIndentedFilledBlock_SkipsDocFill(self) -> None:
+        # Filled to 79 columns with the tab expanded; only a tab counted as one
+        # character would leave room for the next line's first word.
+        source = "\t# " + "a" * 69 + "\n\t# end.\n"
+        assert list(check_doc_fill(Path("s.sh"), source)) == []
+
     def test_LineContinuationBlock_SkipsDocFill(self) -> None:
         source = (
             "#   sudo systemd-run --pipe --wait --collect --same-dir \\\n"
