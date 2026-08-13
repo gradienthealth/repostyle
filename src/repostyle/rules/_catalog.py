@@ -46,6 +46,7 @@ from repostyle.rules._violation import (
     RS_EXCEPTION_ALIAS,
     RS_EXCESSIVE_MOCKING,
     RS_FIELD_COMMENT_AS_DOCSTRING,
+    RS_FILE_LITERAL_RESTATEMENT,
     RS_FILENAME_CONVENTION,
     RS_FILLER_DOCSTRING_OPENING,
     RS_GCP_BARE_IDENTIFIER,
@@ -314,6 +315,55 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 ),
                 good="repository.save(patient)\nassert repository.stored == [patient]",
                 note="Assert the fake's recorded state, not that a method was called.",
+            ),
+        ),
+    ),
+    RS_FILE_LITERAL_RESTATEMENT: RuleDoc(
+        name="file-literal-restatement",
+        summary="A test asserts only literals it read from a single repo file.",
+        rationale=(
+            "A test that parses one file, compares what it finds to literals, "
+            "and exercises nothing beyond the parser restates that file: the "
+            "edit that changes the value changes the assertion beside it, and "
+            "no rewrite preserving the behavior a caller relies on can break "
+            "it. Such a test costs a second edit site and reads as coverage "
+            "without supplying any. Two fixes work. Where the property is "
+            "executable -- a container starts, a script runs, a config loads "
+            "-- assert it where it executes, since that survives a rewrite of "
+            "the file. Where the value has to agree with a second file, read "
+            "both and assert they match, which catches the one-sided edit no "
+            "single diff shows."
+        ),
+        signals=(
+            "The rule stays silent on a test that reads two or more files, one "
+            "comparing a derived value to another derived value, one asserting "
+            "across every entry it read, and one whose fixture no module in "
+            "scope defines. Fixtures resolve through the requesting class, "
+            "the test module, and each `conftest.py` above it; what pytest "
+            "supplies from outside that chain is unknowable, so the rule "
+            "declines to guess. A `@pytest.mark.parametrize` argument reads "
+            "as one of those undefined fixtures, so a parametrized test goes "
+            "unexamined.",
+            "A deliberate single-file pin -- a value with no second home and "
+            "no executable surface -- takes `# style: ignore[RS060]` with the "
+            "reason it cannot be checked anywhere better.",
+        ),
+        examples=(
+            Example(
+                bad=(
+                    "compose = yaml.safe_load(_COMPOSE_PATH.read_text())\n"
+                    'assert compose["services"]["drain"]["user"] == "1000:1000"'
+                ),
+                good=(
+                    "compose = yaml.safe_load(_COMPOSE_PATH.read_text())\n"
+                    "declared = _DOCKERFILE_PATH.read_text()\n"
+                    'assert compose["services"]["drain"]["user"].split(":")[0] '
+                    "in declared"
+                ),
+                note=(
+                    "The uid has to match the one the image declares, so read "
+                    "both files rather than quoting the number twice."
+                ),
             ),
         ),
     ),
