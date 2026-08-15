@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.26.1...repostyle-v0.27.0) (2026-08-15)
+
+
+### Features
+
+* **NO-ISSUE:** add RS061 banning double space after sentence-ending punctuation ([#140](https://github.com/gradienthealth/repostyle/issues/140)) ([f268a68](https://github.com/gradienthealth/repostyle/commit/f268a6857f3900a0ec48b714756717baf2d3a4ea))
+
 ## [0.26.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.26.0...repostyle-v0.26.1) (2026-08-13)
 
 
