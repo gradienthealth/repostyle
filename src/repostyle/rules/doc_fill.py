@@ -16,7 +16,12 @@ from repostyle._shared import (
     _join_source_lines,
     _parse_python,
 )
-from repostyle.rules._violation import RS_DOC_FILL, RS_DOC_SUMMARY_OVERFLOW, Violation
+from repostyle.rules._violation import (
+    RS_DOC_FILL,
+    RS_DOC_SUMMARY_OVERFLOW,
+    RS_DOUBLE_SPACE_AFTER_PERIOD,
+    Violation,
+)
 
 DOC_FILL_COLUMNS = 79
 
@@ -548,3 +553,112 @@ def _span_crosses_line(unit: list[_FillLine]) -> bool:
         if open_span:
             return True
     return False
+
+
+# ---------------------------------------------------------------------------
+# RS061 -- double space after sentence-ending punctuation
+# ---------------------------------------------------------------------------
+
+_DOUBLE_SPACE_RE = re.compile(r"([.!?]) {2,}")
+
+
+def check_double_space_after_period(path: Path, source: str) -> Iterator[Violation]:
+    """Prose uses a single space after sentence-ending punctuation.
+
+    A `.`, `!`, or `?` followed by two or more spaces in a docstring or
+    comment is the old typewriter convention. Docstrings are checked in
+    Python only; comments are checked in Python, TOML, YAML, and shell
+    alike.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return
+    tree = _parse_python(path, source)
+    if path.suffix == ".py" and tree is None:
+        return
+    source_lines = source.splitlines()
+    if tree is not None:
+        for node in ast.walk(tree):
+            if not _is_bare_string_literal_statement(node):
+                continue
+            start = node.value.lineno
+            end = node.value.end_lineno or start
+            for lineno in range(start, end + 1):
+                for match in _DOUBLE_SPACE_RE.finditer(source_lines[lineno - 1]):
+                    yield Violation(
+                        lineno,
+                        match.start() + 1,
+                        RS_DOUBLE_SPACE_AFTER_PERIOD,
+                        "double space after sentence-ending punctuation; use a single space",
+                    )
+    for comment in extract_comments(path, source):
+        for match in _DOUBLE_SPACE_RE.finditer(comment.string):
+            yield Violation(
+                comment.lineno,
+                comment.column + match.start() + 1,
+                RS_DOUBLE_SPACE_AFTER_PERIOD,
+                "double space after sentence-ending punctuation; use a single space",
+            )
+
+
+def fix_double_space_in_docstrings(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Collapses double spaces after sentence-ending punctuation in docstrings.
+
+    Returns:
+        The source with double spaces collapsed, unchanged when nothing
+        matches or the file is not Python.
+    """
+    if path.suffix != ".py":
+        return source
+    tree = _parse_python(path, source)
+    if tree is None:
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for node in ast.walk(tree):
+        if not _is_bare_string_literal_statement(node):
+            continue
+        start = node.value.lineno
+        end = node.value.end_lineno or start
+        for lineno in range(start, end + 1):
+            if lineno in skip_lines:
+                continue
+            line = source_lines[lineno - 1]
+            fixed = _DOUBLE_SPACE_RE.sub(r"\1 ", line)
+            if fixed != line:
+                source_lines[lineno - 1] = fixed
+                changed = True
+    if not changed:
+        return source
+    return _join_source_lines(source, source_lines)
+
+
+def fix_double_space_in_comments(
+    path: Path, source: str, skip_lines: frozenset[int] = frozenset()
+) -> str:
+    """Collapses double spaces after sentence-ending punctuation in comments.
+
+    Operates on Python, TOML, YAML, and shell comments alike.
+
+    Returns:
+        The source with double spaces collapsed, unchanged when nothing
+        matches.
+    """
+    if path.suffix not in COMMENT_SUFFIXES:
+        return source
+    source_lines = source.splitlines()
+    changed = False
+    for comment in extract_comments(path, source):
+        if comment.lineno in skip_lines:
+            continue
+        line = source_lines[comment.lineno - 1]
+        col = comment.column
+        comment_part = line[col:]
+        fixed_comment = _DOUBLE_SPACE_RE.sub(r"\1 ", comment_part)
+        if fixed_comment != comment_part:
+            source_lines[comment.lineno - 1] = line[:col] + fixed_comment
+            changed = True
+    if not changed:
+        return source
+    return _join_source_lines(source, source_lines)

@@ -8,6 +8,7 @@ from repostyle.rules import (
     check_comment_terminal_punctuation,
     check_disfavored_gcp_term_in_comments,
     check_disfavored_gcp_term_in_docstrings,
+    check_double_space_after_period,
     check_nonstandard_dash_in_comments,
     check_nonstandard_dash_in_docstrings,
     fix_acronym_casing_in_comments,
@@ -18,6 +19,8 @@ from repostyle.rules import (
     fix_docstring_section_alias,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
+    fix_double_space_in_comments,
+    fix_double_space_in_docstrings,
     fix_nonstandard_dash_in_comments,
     fix_nonstandard_dash_in_docstrings,
 )
@@ -386,6 +389,100 @@ class TestFixPath:
     def test_NonSourceSuffix_NoOp(self, tmp_path: Path) -> None:
         target = _write_project(tmp_path, "See ``X``.\n", '["RS005"]', name="data.txt")
         assert fix_path(target, {"RS005"}) is False
+
+
+class TestFixDoubleSpaceInDocstrings:
+    def test_SingleLineDocstring_CollapsesToOne(self) -> None:
+        source = 'def f():\n    """First.  Second."""\n'
+        assert fix_double_space_in_docstrings(_PY, source) == (
+            'def f():\n    """First. Second."""\n'
+        )
+
+    def test_MultiLineDocstring_CollapsesBody(self) -> None:
+        source = 'def f():\n    """Summary.\n\n    One.  Two.\n    """\n'
+        assert fix_double_space_in_docstrings(_PY, source) == (
+            'def f():\n    """Summary.\n\n    One. Two.\n    """\n'
+        )
+
+    def test_ThreeSpaces_CollapsesToOne(self) -> None:
+        source = 'def f():\n    """Foo.   Bar."""\n'
+        assert fix_double_space_in_docstrings(_PY, source) == (
+            'def f():\n    """Foo. Bar."""\n'
+        )
+
+    def test_NoDoubleSpace_ReturnsUnchanged(self) -> None:
+        source = 'def f():\n    """One. Two."""\n'
+        assert fix_double_space_in_docstrings(_PY, source) == source
+
+    def test_NonPythonFile_ReturnsUnchanged(self) -> None:
+        source = "# First.  Second.\n"
+        assert fix_double_space_in_docstrings(Path("config.yaml"), source) == source
+
+    def test_SuppressedLine_LeavesUntouched(self) -> None:
+        source = 'def f():\n    """First.  Second."""\n'
+        assert fix_double_space_in_docstrings(_PY, source, frozenset({2})) == source
+
+    def test_ExclamationMark_CollapsesToOne(self) -> None:
+        source = 'def f():\n    """Warning!  Do not proceed."""\n'
+        assert fix_double_space_in_docstrings(_PY, source) == (
+            'def f():\n    """Warning! Do not proceed."""\n'
+        )
+
+    def test_QuestionMark_CollapsesToOne(self) -> None:
+        source = 'def f():\n    """Ready?  Let us check."""\n'
+        assert fix_double_space_in_docstrings(_PY, source) == (
+            'def f():\n    """Ready? Let us check."""\n'
+        )
+
+    def test_RoundTrip_NoCheckViolationsAfterFix(self) -> None:
+        source = 'def f():\n    """One.  Two.  Three."""\n'
+        fixed = fix_double_space_in_docstrings(_PY, source)
+        violations = [
+            v for v in check_double_space_after_period(_PY, fixed) if v.rule == "RS061"
+        ]
+        assert violations == []
+
+
+class TestFixDoubleSpaceInComments:
+    def test_PythonComment_CollapsesToOne(self) -> None:
+        source = "# First.  Second.\n"
+        assert fix_double_space_in_comments(_PY, source) == "# First. Second.\n"
+
+    def test_TrailingComment_FixesCommentOnly(self) -> None:
+        source = 'x = "a.  b"  # First.  Second.\n'
+        assert fix_double_space_in_comments(_PY, source) == (
+            'x = "a.  b"  # First. Second.\n'
+        )
+
+    def test_YamlComment_CollapsesToOne(self) -> None:
+        source = "# First.  Second.\n"
+        assert fix_double_space_in_comments(Path("config.yaml"), source) == (
+            "# First. Second.\n"
+        )
+
+    def test_TomlComment_CollapsesToOne(self) -> None:
+        source = "# First.  Second.\n"
+        assert fix_double_space_in_comments(Path("config.toml"), source) == (
+            "# First. Second.\n"
+        )
+
+    def test_ShellComment_CollapsesToOne(self) -> None:
+        source = "# First.  Second.\n"
+        assert fix_double_space_in_comments(Path("script.sh"), source) == (
+            "# First. Second.\n"
+        )
+
+    def test_NoDoubleSpace_ReturnsUnchanged(self) -> None:
+        source = "# First. Second.\n"
+        assert fix_double_space_in_comments(_PY, source) == source
+
+    def test_SuppressedLine_LeavesUntouched(self) -> None:
+        source = "# First.  Second.\n"
+        assert fix_double_space_in_comments(_PY, source, frozenset({1})) == source
+
+    def test_UnsupportedSuffix_ReturnsUnchanged(self) -> None:
+        source = "# First.  Second.\n"
+        assert fix_double_space_in_comments(Path("data.txt"), source) == source
 
 
 def _write_project(

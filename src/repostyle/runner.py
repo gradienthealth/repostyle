@@ -27,6 +27,7 @@ from repostyle.rules import (
     RS_DISFAVORED_GCP_TERM,
     RS_DOC_FILL,
     RS_DOCSTRING_SECTION_ALIAS,
+    RS_DOUBLE_SPACE_AFTER_PERIOD,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NONSTANDARD_DASH,
     RS_TERMINAL_PUNCTUATION,
@@ -40,6 +41,8 @@ from repostyle.rules import (
     fix_docstring_section_alias,
     fix_docstring_terminal_punctuation,
     fix_double_backticks,
+    fix_double_space_in_comments,
+    fix_double_space_in_docstrings,
     fix_nonstandard_dash_in_comments,
     fix_nonstandard_dash_in_docstrings,
     run_package_rule,
@@ -65,6 +68,8 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_NONSTANDARD_DASH, fix_nonstandard_dash_in_comments),
     (RS_TERMINAL_PUNCTUATION, fix_docstring_terminal_punctuation),
     (RS_TERMINAL_PUNCTUATION, fix_comment_terminal_punctuation),
+    (RS_DOUBLE_SPACE_AFTER_PERIOD, fix_double_space_in_docstrings),
+    (RS_DOUBLE_SPACE_AFTER_PERIOD, fix_double_space_in_comments),
     (RS_DOC_FILL, fix_doc_fill),
 )
 

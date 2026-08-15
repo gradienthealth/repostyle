@@ -39,6 +39,7 @@ from repostyle.rules._violation import (
     RS_DOC_VALUE_SIGNAL,
     RS_DOCSTRING_SECTION_ALIAS,
     RS_DOCSTRING_SECTION_ORDER,
+    RS_DOUBLE_SPACE_AFTER_PERIOD,
     RS_DUPLICATE_DOCSTRING_SECTION,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
@@ -1394,6 +1395,14 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     "Raises:\n    ValueError: If `x` is bad."
                 ),
             ),
+        ),
+    ),
+    RS_DOUBLE_SPACE_AFTER_PERIOD: RuleDoc(
+        name="double-space-after-period",
+        summary=(
+            "Prose uses a single space after sentence-ending punctuation "
+            "(`.`, `!`, `?`), not the old typewriter double space; comments "
+            "are checked in Python, TOML, YAML, and shell."
         ),
     ),
 }

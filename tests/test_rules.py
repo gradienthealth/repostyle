@@ -18,6 +18,7 @@ from repostyle.rules import (
     RS_DOC_SUMMARY_OVERFLOW,
     RS_DOCSTRING_SECTION_ALIAS,
     RS_DOCSTRING_SECTION_ORDER,
+    RS_DOUBLE_SPACE_AFTER_PERIOD,
     RS_DUPLICATE_DOCSTRING_SECTION,
     RS_DURATION_AS_TIMEDELTA,
     RS_EQ_HASH_PAIRING,
@@ -64,6 +65,7 @@ from repostyle.rules import (
     check_docstring_section_order,
     check_docstring_temporal_markers,
     check_docstring_terminal_punctuation,
+    check_double_space_after_period,
     check_duplicate_docstring_section,
     check_duration_as_timedelta,
     check_eq_hash_pairing,
@@ -3018,6 +3020,71 @@ class TestCheckBannerComment:
             (RS_BANNER_COMMENT, 1),
             (RS_BANNER_COMMENT, 3),
         ]
+
+
+class TestCheckDoubleSpaceAfterPeriod:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f():\n    """First sentence.  Second sentence."""\n',
+            'def f():\n    """Summary.\n\n    First.  Second.\n    """\n',
+            'def f():\n    """Summary.   Three spaces here."""\n',
+            'def f():\n    """Warning!  Do not proceed."""\n',
+            'def f():\n    """Is it ready?  Let us check."""\n',
+        ],
+        ids=[
+            "single-line",
+            "body-paragraph",
+            "three-spaces",
+            "exclamation-mark",
+            "question-mark",
+        ],
+    )
+    def test_DocstringDoubleSpace_Flags(self, source: str) -> None:
+        violations = list(check_double_space_after_period(Path("src/x.py"), source))
+        assert len(violations) >= 1
+        assert violations[0].rule == RS_DOUBLE_SPACE_AFTER_PERIOD
+
+    def test_CommentDoubleSpace_Flags(self) -> None:
+        source = "# First sentence.  Second sentence.\n"
+        violations = list(check_double_space_after_period(Path("src/x.py"), source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_DOUBLE_SPACE_AFTER_PERIOD
+
+    @pytest.mark.parametrize(
+        ("path", "source"),
+        [
+            (Path("config.yaml"), "# First.  Second.\n"),
+            (Path("config.toml"), "# First.  Second.\n"),
+            (Path("script.sh"), "# First.  Second.\n"),
+        ],
+        ids=["yaml", "toml", "shell"],
+    )
+    def test_CrossLanguageComment_Flags(self, path: Path, source: str) -> None:
+        violations = list(check_double_space_after_period(path, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_DOUBLE_SPACE_AFTER_PERIOD
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f():\n    """First sentence. Second sentence."""\n',
+            "# Single space after period. Like this.\n",
+            'x = "hello.  world"\n',
+        ],
+        ids=["single-space-docstring", "single-space-comment", "string-literal"],
+    )
+    def test_ConformingProse_NoViolation(self, source: str) -> None:
+        assert list(check_double_space_after_period(Path("src/x.py"), source)) == []
+
+    def test_UnsupportedSuffix_NoViolation(self) -> None:
+        source = "First.  Second.\n"
+        assert list(check_double_space_after_period(Path("data.txt"), source)) == []
+
+    def test_MultipleOccurrences_FlagsEach(self) -> None:
+        source = 'def f():\n    """One.  Two.  Three."""\n'
+        violations = list(check_double_space_after_period(Path("src/x.py"), source))
+        assert len(violations) == 2
 
 
 def _naming_scope_target(tmp_path: Path, globs_value: str, relative: str) -> Path:

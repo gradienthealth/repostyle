@@ -26,6 +26,7 @@ from repostyle.rules._violation import (
     RS_DOC_VALUE_SIGNAL,
     RS_DOCSTRING_SECTION_ALIAS,
     RS_DOCSTRING_SECTION_ORDER,
+    RS_DOUBLE_SPACE_AFTER_PERIOD,
     RS_DUPLICATE_DOCSTRING_SECTION,
     RS_DURATION_AS_TIMEDELTA,
     RS_ELEMENT_ORDER,
@@ -81,7 +82,11 @@ from repostyle.rules.comments import (
     check_tag_comment_continuation_indent,
 )
 from repostyle.rules.complexity import check_cognitive_complexity
-from repostyle.rules.doc_fill import check_doc_fill, check_doc_summary_overflow
+from repostyle.rules.doc_fill import (
+    check_doc_fill,
+    check_doc_summary_overflow,
+    check_double_space_after_period,
+)
 from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
@@ -248,6 +253,7 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
     RS_DOCSTRING_SECTION_ORDER: (check_docstring_section_order,),
     RS_DOCSTRING_SECTION_ALIAS: (check_docstring_section_alias,),
     RS_DUPLICATE_DOCSTRING_SECTION: (check_duplicate_docstring_section,),
+    RS_DOUBLE_SPACE_AFTER_PERIOD: (check_double_space_after_period,),
 }
 
 
@@ -305,6 +311,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_DOCSTRING_SECTION_ORDER: Severity.WARNING,
     RS_DOCSTRING_SECTION_ALIAS: Severity.WARNING,
     RS_DUPLICATE_DOCSTRING_SECTION: Severity.WARNING,
+    RS_DOUBLE_SPACE_AFTER_PERIOD: Severity.WARNING,
 }
 
 
@@ -317,6 +324,7 @@ FIXABLE_RULES: frozenset[str] = frozenset(
         RS_DISFAVORED_GCP_TERM,
         RS_DOC_FILL,
         RS_DOCSTRING_SECTION_ALIAS,
+        RS_DOUBLE_SPACE_AFTER_PERIOD,
         RS_NO_DOUBLE_BACKTICKS,
         RS_NONSTANDARD_DASH,
         RS_TERMINAL_PUNCTUATION,
