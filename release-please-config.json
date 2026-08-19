@@ -4,6 +4,7 @@
   "include-component-in-tag": true,
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
+  "pull-request-title-pattern": "chore(NO-ISSUE): release${component} ${version}",
   "packages": {
     ".": {
       "package-name": "repostyle",
