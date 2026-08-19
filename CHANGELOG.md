@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.27.0...repostyle-v0.28.0) (2026-08-19)
+
+
+### Features
+
+* **NO-ISSUE:** license under Apache-2.0 and publish to PyPI ([#142](https://github.com/gradienthealth/repostyle/issues/142)) ([b820f38](https://github.com/gradienthealth/repostyle/commit/b820f3842bc0746d4f24020aabdd97360398c15e))
+
 ## [0.27.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.26.1...repostyle-v0.27.0) (2026-08-15)
 
 
