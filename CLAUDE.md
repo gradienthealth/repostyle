@@ -1,10 +1,10 @@
 # repostyle
 
-A stdlib-only AST/token/line linter for repo-style conventions that ruff cannot express, shared across gradienthealth repos and run as a pre-commit remote hook. It is the extraction of fhir-ingestor's `scripts/check_repo_style.py` into a versioned package, so the `RSnnn` rules here are the canonical source the other repos consume. Most rules are Python-specific (AST-based); the comment-convention rules RS009 (paragraph wrapping), RS022 (tag format), RS030 (terminal punctuation), RS045 (temporal / diff-narrative markers), RS049 (acronym casing in prose), RS050 (disfavored Google Cloud product name), RS053 (bullet-list casing), RS054 (sentence-dash standard), and RS055 (banner comments) also run over TOML, YAML, and shell comments through a shared `#`-comment extractor, so a `#` comment is held to the same conventions whatever the language.
+A stdlib-only AST/token/line linter for repo-style conventions that ruff cannot express, published to PyPI as `repostyle` and run as a pre-commit remote hook or an installed package. It grew out of one service's in-tree style script, and the `RSnnn` rules here are now the canonical source every consuming repo reads. Most rules are Python-specific (AST-based); the comment-convention rules RS009 (paragraph wrapping), RS022 (tag format), RS030 (terminal punctuation), RS045 (temporal / diff-narrative markers), RS049 (acronym casing in prose), RS050 (disfavored Google Cloud product name), RS053 (bullet-list casing), RS054 (sentence-dash standard), and RS055 (banner comments) also run over TOML, YAML, and shell comments through a shared `#`-comment extractor, so a `#` comment is held to the same conventions whatever the language.
 
 ## Project context
 
-Consuming repos add the hook to their `.pre-commit-config.yaml` pinned to a `repostyle-vX.Y.Z` tag, select the rule subset they want through a `[tool.repostyle]` table in their `pyproject.toml`, and inherit the base ruff settings from `ruff-base.toml`. RS006 (port purity) is tied to fhir-ingestor's hexagonal layout and RS003 (mock ban) presumes a `tests/fakes/` directory; a repo without those conventions should not select them. RS002 (test naming) defaults to the `tests/unit/` layout but re-scopes through `test-naming-globs`, so a repo keeping its unit tests elsewhere can still select it. The rest are general.
+Consuming repos add the hook to their `.pre-commit-config.yaml` pinned to a `repostyle-vX.Y.Z` tag, select the rule subset they want through a `[tool.repostyle]` table in their `pyproject.toml`, and inherit the base ruff settings from `ruff-base.toml`. RS006 (port purity) presumes a hexagonal `application/ports/` layer and RS003 (mock ban) presumes a `tests/fakes/` directory; a repo without those conventions should not select them. RS002 (test naming) and RS006 default to the `tests/unit/` and `application/ports/` layouts but re-scope through `test-naming-globs` and `port-path-globs`, so a repo keeping either elsewhere can still select them. The rest are general.
 
 The `RSnnn` rules are the *subject matter* this package enforces on other repos. Their definitions, scope, and rationale live in the rule docstrings in the themed modules under `src/repostyle/rules/`; read the relevant module before changing rule behavior.
 
@@ -52,7 +52,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
 
 ## Style this repo holds itself to
 
-These are the general conventions from fhir-ingestor's `docs/code-style.md` and `docs/testing.md` (the deeper rationale lives there) — the subset that applies to this package's own code. Several are rules this package itself defines, so it holds itself to them too.
+These are the general house conventions — the subset that applies to this package's own code. Several are rules this package itself defines, so it holds itself to them too.
 
 - Descriptive Google-style docstrings stating the unit's own contract in the third person (`Returns the lease.`, not `Return the lease.`; RS034 catches the common openings) — no caller postulation, no implementation mechanics, no narration of rejected alternatives. Comments only where the *why* is non-obvious.
 - Line length 88; docstring and comment paragraphs fill to 79 columns (RS009), and a docstring summary line stays within 79 columns too, shortened by hand since it cannot be reflowed (RS035, warning).
@@ -79,18 +79,17 @@ The repo squash-merges, so the PR title becomes the commit subject on `main`, an
 - `feat(PROC-123)!: ...` or a `BREAKING CHANGE:` footer — bumps the major (the minor while the package is pre-1.0).
 - `chore`, `docs`, `ci`, `refactor`, `test` produce a changelog entry but no release.
 
-The scope carries the ticket so the title satisfies both the conventional-commit check and the org-wide PR Title Check. The subject after the type is lowercase. Commit subjects (within a branch) stay imperative and need no ticket — the title carries it.
+The scope carries the ticket so the title records it alongside the conventional-commit type. The subject after the type is lowercase. Commit subjects (within a branch) stay imperative and need no ticket — the title carries it.
 
 ## Release
 
-release-please maintains a release PR off `main`; merging it cuts the `repostyle-vX.Y.Z` tag, the GitHub Release, and the `CHANGELOG.md` entry, then the workflow builds the wheel and publishes it to the internal Artifact Registry at `us-central1-python.pkg.dev/gradient-health-resources/python-packages`. The version in `pyproject.toml` is release-please-managed; never edit it by hand. Consumers pin the `repostyle-v` tag in their pre-commit config, or `pip install` from the registry index for non-hook use.
+release-please maintains a release PR off `main`; merging it cuts the `repostyle-vX.Y.Z` tag, the GitHub Release, and the `CHANGELOG.md` entry, then the workflow builds the wheel and publishes it to PyPI through trusted publishing, so no API token is stored in the repo. A `workflow_dispatch` run republishes the current `main` to either TestPyPI or PyPI. The version in `pyproject.toml` is release-please-managed; never edit it by hand. Consumers pin the `repostyle-v` tag in their pre-commit config, or `pip install repostyle` for non-hook use.
 
 ## Where to find context
 
-- The fuller style and testing rationale lives in `../fhir-ingestor/docs/` (`code-style.md`, `testing.md`), the origin of these conventions.
-- Sibling gradienthealth repos are checked out under `../`.
+- The judgment half of the house style — what a linter cannot decide — lives in `docs/judgment-conventions.md`; the Google Cloud naming convention behind RS050 and RS051 lives in `docs/gcp-naming.md`.
 - Resolve the Linear ticket in the PR title before reading a diff; do not invent motivation when the ticket or MCP tools are unreachable.
 
 ## Agentic conventions
 
-CI is the floor that blocks merge: ruff format and lint, pytest on the 3.11 floor and 3.13 ceiling, the conventional-commit and org PR Title checks. Style beyond what those enforce is upheld by review. Never amend or force-push a shared branch.
+CI is the floor that blocks merge: ruff format and lint, pytest on the 3.11 floor and 3.13 ceiling, and the conventional-commit PR title check. Style beyond what those enforce is upheld by review. Never amend or force-push a shared branch.

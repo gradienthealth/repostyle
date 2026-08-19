@@ -858,9 +858,9 @@ def check_docstring_temporal_markers(path: Path, source: str) -> Iterator[Violat
     the diff's story into the code. A marker quoted inside a backtick span is a
     referenced token, not narration, and is left alone. Each prose unit --
     summary, body paragraph, or section entry -- is scanned; a code span,
-    doctest, or `Example:` block is not. This is the mechanical floor under the
-    `common-style-review` prose-economy lens, which judges the ambiguous cases
-    this tight set deliberately leaves out.
+    doctest, or `Example:` block is not. This is the mechanical floor under
+    review, which judges the ambiguous cases this tight set deliberately leaves
+    out.
     """
     tree = _parse_python(path, source)
     if tree is None:

@@ -16,7 +16,7 @@ _LINE_CONTINUATIONS = (
     "#        ./bootstrap.sh\n"
 )
 _ALIGNED_LIST = (
-    "# Reads its settings from /etc/dicom-ingestor/reconcile.env:\n"
+    "# Reads its settings from /etc/reconciler/reconcile.env:\n"
     "#   RELEASE_URI   gs:// prefix the deploy workflow publishes to\n"
     "#   COMPOSE_DIR   directory holding docker-compose.yaml, env, and .env.local\n"
     "#   ENVIRONMENT   environment name, for the beacon\n"

@@ -1,6 +1,6 @@
 # Google Cloud naming conventions
 
-Gradient runs on Google Cloud, and two kinds of naming drift without a written convention. This doc records both, and maps each to the enforcement layer that owns it: a `repostyle` rule reaches the mechanizable subset, and a `common-style-review` lens plus this doc cover what resists a rule.
+Two kinds of Google Cloud naming drift without a written convention. This doc records both, and maps each to the enforcement layer that owns it: a `repostyle` rule reaches the mechanizable subset, and review against this doc covers what resists a rule.
 
 The two facets are independent. Facet 1 is about identifiers in our own code; Facet 2 is about product and brand names in prose.
 
@@ -23,10 +23,10 @@ A reader who sees a bare `name` parameter cannot tell which of the three it hold
 
 ### Worked example
 
-`core/src/gcs.py::create_gcs_bucket` shows the trap. It takes `bucket_name` (actually the Pulumi logical name, passed as the resource's first positional argument) alongside `gcp_name` (the actual bucket id, passed as `name=`):
+A bucket-creating helper shows the trap. It takes `bucket_name` (actually the Pulumi logical name, passed as the resource's first positional argument) alongside `gcp_name` (the actual bucket id, passed as `name=`):
 
 ```python
-def create_gcs_bucket(bucket_name: str, ..., gcp_name: str | None = None):
+def create_bucket(bucket_name: str, ..., gcp_name: str | None = None):
     bucket = gcp.storage.Bucket(
         bucket_name,            # the Pulumi logical name (a URN handle)
         name=gcp_name or bucket_name,  # the bucket id
@@ -34,14 +34,14 @@ def create_gcs_bucket(bucket_name: str, ..., gcp_name: str | None = None):
     )
 ```
 
-Under this convention the first argument is a `logical_name` and the id argument is a `bucket_id`, so a reader can tell them apart without tracing the dataflow. `project` vs `project_id` vs `project_name` is similarly ad hoc across the flat `core/` modules and reads the same way once `*_id` is the rule.
+Under this convention the first argument is a `logical_name` and the id argument is a `bucket_id`, so a reader can tell them apart without tracing the dataflow. `project` vs `project_id` vs `project_name` drifts the same way and reads the same way once `*_id` is the rule.
 
 ### Enforcement
 
 Deciding whether a given `*_name` holds a bare id, a path, or a URN name is dataflow-dependent, and a linter sees only the identifier, so the full convention is judgment, not a rule:
 
-- **Judgment** — the `common-style-review` naming lens (section Q) reviews the subtle name / id / logical-name calls on a changed line.
-- **Mechanical** — `repostyle` **RS051** (`gcp-bare-identifier`), a warning over the unambiguous subset: a `str`-typed parameter named exactly for a Google Cloud resource collection (`project`, `bucket`, `dataset`, `topic`, `subscription`, `instance`) wants the `_id` suffix. A `*_name` parameter passed straight to a Pulumi `project=` / id argument stays with the judgment lens, since that call is dataflow-dependent. The judgment lens remains the primary enforcement.
+- **Judgment** — review covers the subtle name / id / logical-name calls on a changed line.
+- **Mechanical** — `repostyle` **RS051** (`gcp-bare-identifier`), a warning over the unambiguous subset: a `str`-typed parameter named exactly for a Google Cloud resource collection (`project`, `bucket`, `dataset`, `topic`, `subscription`, `instance`) wants the `_id` suffix. A `*_name` parameter passed straight to a Pulumi `project=` / id argument stays with review, since that call is dataflow-dependent. Review remains the primary enforcement.
 
 ## Facet 2 — Google Cloud product and brand names in prose
 

@@ -29,10 +29,10 @@ import re
 # homograph, since blacklisting them would itself false-positive on their many
 # genuinely correct imperative uses. This list takes the same trade-off,
 # reinforced for `Check`, `Report`, `Format`, `Handle`, and `Set` by a survey
-# of gradienthealth's other Python repos (dicom-ingestor, fhir-ingestor) that
-# independently found real imperative-mood openings for each with no
-# noun-phrase false positive. `Route` carries the same risk but is not itself a
-# pydocstyle entry; it stays in the list solely on that survey's evidence.
+# of two other Python repos in this org that independently found real
+# imperative-mood openings for each with no noun-phrase false positive. `Route`
+# carries the same risk but is not itself a pydocstyle entry; it stays in the
+# list solely on that survey's evidence.
 #
 # A handful of pydocstyle's entries are dropped anyway because the noun reading
 # dominates in this codebase's own domain rather than software generally:

@@ -183,6 +183,13 @@ RULE_DOCS: dict[str, RuleDoc] = {
     RS_PORT_NO_IMPLEMENTATION: RuleDoc(
         name="port-no-implementation",
         summary="A port module declares contracts only; it holds no implementation.",
+        rationale=(
+            "Scoped to files whose path holds the `application/ports/` fragment "
+            "of a hexagonal layout, or to the files matching `port-path-globs` "
+            "in `[tool.repostyle]` when a repo sets that key, which replaces the "
+            "default fragment rather than extending it. A repo whose ports sit "
+            "elsewhere states its own layout there."
+        ),
     ),
     RS_DURATION_AS_TIMEDELTA: RuleDoc(
         name="duration-as-timedelta",
@@ -900,9 +907,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "that` are left out) and a marker quoted in a backtick span is "
             "read as data, not narration, so the rule stays a mechanical floor. "
             "The judgment ceiling -- prose that narrates the edit without one of "
-            "these exact markers -- is the `common-style-review` prose-economy "
-            "lens this rule is synced with. Not auto-fixable: cutting the "
-            "narration cleanly needs judgment, so no `--fix`."
+            "these exact markers -- is left to review. Not auto-fixable: cutting "
+            "the narration cleanly needs judgment, so no `--fix`."
         ),
         examples=(
             Example(
@@ -1159,19 +1165,19 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 bad=(
                     "try:\n"
                     "    return has_uncompressed_length(dataset)\n"
-                    "except (TruRezError, AttributeError, TypeError, KeyError):\n"
+                    "except (PayloadError, AttributeError, TypeError, KeyError):\n"
                     "    return False"
                 ),
                 good=(
                     "try:\n"
                     "    return has_uncompressed_length(dataset)\n"
-                    "except TruRezError:\n"
+                    "except PayloadError:\n"
                     "    return False"
                 ),
                 note=(
                     "The builtins came from `int(dataset.Rows)` inside the "
                     "callee. Reading that attribute through a helper that "
-                    "raises `TruRezError` leaves the handler one type wide."
+                    "raises `PayloadError` leaves the handler one type wide."
                 ),
             ),
             Example(
