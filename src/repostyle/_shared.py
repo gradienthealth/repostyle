@@ -451,10 +451,10 @@ def _strip_trailing_closers(text: str) -> str:
 
 
 # The RS045 marker set: temporal and edit-narrative phrases that almost always
-# narrate the change rather than the code, kept deliberately tight and synced
-# with the `common-style-review` prose-economy lens's do-not-flag entry. The
-# phrases are matched on a word boundary, case-insensitively, so an identifier
-# fragment like `switched_to` (joined by an underscore) never matches.
+# narrate the change rather than the code, kept deliberately tight so the rule
+# stays a floor under review rather than competing with it. The phrases are
+# matched on a word boundary, case-insensitively, so an identifier fragment
+# like `switched_to` (joined by an underscore) never matches.
 _TEMPORAL_MARKER_PATTERN = re.compile(
     r"\b(previously|used to|formerly|originally|as discussed|we decided"
     r"|for now|changed to|switched to)\b",

@@ -3,15 +3,24 @@ name: Release and Publish
 # release-please derives the next semver from Conventional-Commit PR titles on
 # main, maintains a release PR, and on merge of that PR creates the
 # `repostyle-vX.Y.Z` tag + GitHub Release + CHANGELOG. The build and publish
-# jobs then ship the wheel to the internal Artifact Registry. A manual
-# `workflow_dispatch` rebuilds and republishes the current main, e.g. to
-# recover a failed upload without cutting a new release.
+# jobs then ship the wheel to PyPI through trusted publishing, so no API token
+# is stored here. A manual `workflow_dispatch` rebuilds and republishes the
+# current main -- pick `testpypi` for a dry run, `pypi` to recover a failed
+# upload without cutting a new release.
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target index'
+        required: true
+        type: choice
+        options:
+          - testpypi
+          - pypi
 
 permissions:
   contents: write
@@ -59,17 +68,20 @@ jobs:
           name: python-package-distributions
           path: dist/
 
-  publish-to-artifact-registry:
-    name: Publish to Artifact Registry
+  publish-to-pypi:
+    name: Publish to PyPI
     needs:
       - release-please
       - build
     if: |
       needs.release-please.outputs.release_created == 'true' ||
-      github.event_name == 'workflow_dispatch'
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'pypi')
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/repostyle
     permissions:
-      contents: read
+      id-token: write
     steps:
       - name: Download the dists
         uses: actions/download-artifact@v4
@@ -77,19 +89,27 @@ jobs:
           name: python-package-distributions
           path: dist/
 
-      - id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.REPOSTYLE_CI_SA_KEY }}
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+  publish-to-testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'testpypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/repostyle
+    permissions:
+      id-token: write
+    steps:
+      - name: Download the dists
+        uses: actions/download-artifact@v4
         with:
-          python-version: '3.11'
+          name: python-package-distributions
+          path: dist/
 
-      - name: Publish to Artifact Registry
-        run: |
-          pip install --quiet twine keyrings.google-artifactregistry-auth
-          twine upload \
-            --repository-url https://us-central1-python.pkg.dev/gradient-health-resources/python-packages/ \
-            dist/*
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

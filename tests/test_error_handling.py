@@ -25,7 +25,7 @@ class TestCheckOverBroadExcept:
             pytest.param(
                 "try:\n"
                 "    f()\n"
-                "except (TruRezError, AttributeError, TypeError, KeyError):\n"
+                "except (PayloadError, AttributeError, TypeError, KeyError):\n"
                 "    pass\n",
                 id="project-exception-with-structural-builtins",
             ),

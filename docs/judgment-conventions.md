@@ -1,13 +1,13 @@
 # Judgment conventions
 
-The Gradient-wide judgment layer of the Python house style — the conventions a tool cannot decide, held up by review and by the `python-style-review` skill. This is the canonical source: each repo's `CLAUDE.md` references it, and the skill distills it so it can review without this checkout present.
+The judgment layer of the Python house style — the conventions a tool cannot decide, held up by review. This is the canonical source: each consuming repo's `CLAUDE.md` references it rather than restating it.
 
 ## Two layers
 
 The house style has two layers, and they do not overlap:
 
 - **Mechanical** — the `RSnnn` rules in this package plus `ruff`, `mypy`, and `pydoclint`. AST/token/line-decidable conventions: acronym casing, abbreviations, docstring shape, fill width, import order, member order, comment-tag format, and the naming rules that graduated here from review (a negated boolean is `RS024`, a production `make_` is `RS025`, a `bool`-annotated name missing its `is_`/`has_` prefix is `RS026`). These fail CI; an engineer never argues with them.
-- **Judgment** — the conventions below. They need a reader to decide whether a docstring is about the right subject, whether a comment earns its place, whether a verb means what the tree uses it to mean. They are upheld by review and by the `python-style-review` skill, never by a linter.
+- **Judgment** — the conventions below. They need a reader to decide whether a docstring is about the right subject, whether a comment earns its place, whether a verb means what the tree uses it to mean. They are upheld by review, never by a linter.
 
 A convention belongs in exactly one layer. When a judgment convention turns out to be mechanically decidable with near-zero false positives, it graduates to an `RSnnn` rule and leaves this doc — the trajectory that produced `RS024`, `RS025`, and `RS026`. What remains here is judgment that resisted that graduation.
 
@@ -70,6 +70,6 @@ The most common find on a polished branch is a docstring or comment a later edit
 
 ## Using this canon
 
-- **Repos** reference this doc from their `CLAUDE.md` style section rather than restating the conventions, so the canon has one home. Repo-specific conventions (a hexagonal `ports` layer, a test-naming scheme) stay in that repo's docs; what lives here is org-wide.
-- **The `python-style-review` skill** distills these into its lens criteria so it can review without this checkout present, and cites this doc as the source of truth.
+- **Repos** reference this doc from their `CLAUDE.md` style section rather than restating the conventions, so the canon has one home. Repo-specific conventions (a hexagonal `ports` layer, a test-naming scheme) stay in that repo's docs; what lives here applies across repos.
+- **Reviewers** — human or agent — cite this doc as the source of truth rather than restating a convention in a comment thread.
 - **Graduation** is one-directional: a judgment convention that becomes mechanically decidable moves to an `RSnnn` rule and is struck from this doc, with a pointer left behind (as `make_` and the negated boolean were). This doc only ever shrinks as the linter grows.

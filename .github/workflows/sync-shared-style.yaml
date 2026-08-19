@@ -23,21 +23,32 @@ permissions:
   contents: read
 
 jobs:
+  # The consumer list lives in the STYLE_SYNC_REPOS repository variable -- a
+  # JSON array of repo names under this owner -- rather than in the matrix, so
+  # adding or removing a consumer is a `gh variable set` and not a commit. Set
+  # it with `gh variable set STYLE_SYNC_REPOS --repo <owner>/repostyle`.
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.list.outputs.repos }}
+    steps:
+      - id: list
+        env:
+          # Read through env rather than interpolated into the script, so the
+          # variable's value is data to the shell and never part of it.
+          REPOS: ${{ vars.STYLE_SYNC_REPOS }}
+        run: echo "repos=${REPOS:-[]}" >> "$GITHUB_OUTPUT"
+
   sync:
+    needs: resolve
+    # An unset or empty variable leaves nothing to sync, and an empty matrix is
+    # itself an error, so skip the job rather than fail it.
+    if: needs.resolve.outputs.repos != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Consumer repos that vendor these files, kept alphabetical. Add a repo
-        # here once it vendors docs/judgment-conventions.md,
-        # docs/gcp-naming.md, and ruff-base.toml.
-        repo:
-          - dicom-ingestor
-          - fhir-ingestor
-          - gradient-beam
-          - gradient-pulumi-infrastructure
-          - hl7-ingestor
-          - trurez
+        repo: ${{ fromJSON(needs.resolve.outputs.repos) }}
     steps:
       - name: Check out the style sources
         uses: actions/checkout@v4

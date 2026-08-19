@@ -6,22 +6,27 @@ requires = ["setuptools>=61.0"]
 name = "repostyle"
 description = "Shared repo-style lint rules for gradienthealth Python repos, plus a base ruff config."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 # Managed by release-please from Conventional-Commit PR titles; do not edit by
 # hand.
 version = "0.27.0"
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/gradienthealth/repostyle"
+Repository = "https://github.com/gradienthealth/repostyle"
+
 [project.optional-dependencies]
 dev = ["pytest"]
 # The house third-party lint gates, version-pinned so every consuming repo gets
 # the same versions through one `repostyle[gates]` dependency rather than
-# tracking each tool itself. A consumer installs this extra from the private
-# index it already uses for repostyle, keeps its own `local` hooks, and reads
-# each tool's `[tool.*]` table from its own pyproject. This is the package
-# counterpart to the exported `repostyle-*` pre-commit hooks: same tools, same
-# pinned versions, for a repo that consumes repostyle as a package over the
-# index instead of cloning this private repo as a hook. mypy, pyright, and
+# tracking each tool itself. A consumer installs this extra alongside
+# repostyle, keeps its own `local` hooks, and reads each tool's `[tool.*]`
+# table from its own pyproject. This is the package counterpart to the exported
+# `repostyle-*` pre-commit hooks: same tools, same pinned versions, for a repo
+# that consumes repostyle as a package instead of as a hook. mypy, pyright, and
 # pip-audit are absent by design; they need the consuming repo's full
 # environment, not repostyle's pinned set.
 gates = [

@@ -241,7 +241,7 @@ class TestCheckAcronymCasingInDocstrings:
             "Uses `ipv6` and `json` in code font.",
             "See http://host/api/json now.",
             "A smart approach to the problem.",
-            "Imported from fhir-ingestor upstream.",
+            "Imported from fhir-parser upstream.",
         ],
         ids=[
             "correctly-cased-no-op",
@@ -1053,7 +1053,7 @@ class TestCheckPortNoImplementation:
     def test_PortDocstringMentionsImpl_FlagsViolation(
         self, source: str, token: str
     ) -> None:
-        path = Path("src/fhir_ingestor/application/ports/example.py")
+        path = Path("src/example_service/application/ports/example.py")
         violations = list(check_port_no_implementation(path, source))
         assert len(violations) == 1
         assert violations[0].rule == RS_PORT_NO_IMPLEMENTATION
@@ -1061,13 +1061,35 @@ class TestCheckPortNoImplementation:
 
     def test_PortDocstringContractOnly_NoViolation(self) -> None:
         source = '"""Yield a lease on a pending row for the duration of the context."""'
-        path = Path("src/fhir_ingestor/application/ports/example.py")
+        path = Path("src/example_service/application/ports/example.py")
         assert list(check_port_no_implementation(path, source)) == []
 
     def test_AdapterFileMentionsImpl_NotChecked(self) -> None:
         source = '"""Backed by sqlalchemy."""'
-        path = Path("src/fhir_ingestor/infrastructure/adapters/example.py")
+        path = Path("src/example_service/infrastructure/adapters/example.py")
         assert list(check_port_no_implementation(path, source)) == []
+
+    @pytest.mark.parametrize(
+        "globs_value",
+        ['["contracts/*.py"]', '"contracts/*.py"'],
+        ids=["list", "bare_string"],
+    )
+    def test_ConfiguredGlobs_CheckMatchingFile(
+        self, tmp_path: Path, globs_value: str
+    ) -> None:
+        target = _port_scope_target(tmp_path, globs_value, "contracts/lease.py")
+        violations = list(
+            check_port_no_implementation(target, '"""Uses httpx under the hood."""')
+        )
+        assert len(violations) == 1
+        assert violations[0].rule == RS_PORT_NO_IMPLEMENTATION
+
+    def test_ConfiguredGlobs_ReplaceDefaultScope(self, tmp_path: Path) -> None:
+        target = _port_scope_target(
+            tmp_path, '["contracts/*.py"]', "application/ports/lease.py"
+        )
+        source = '"""Uses httpx under the hood."""'
+        assert list(check_port_no_implementation(target, source)) == []
 
 
 class TestCheckDurationAsTimedelta:
@@ -2472,7 +2494,7 @@ class TestCheckInvalidDocstringSection:
             'def f():\n    """Do the thing.\n\n    ```\n    Warns:\n'
             '        inside a fence\n    ```\n    """\n',
             'def f():\n    """Do the thing.\n\n    Raises:\n'
-            '        TruRezError: If the check failed.\n            Wrapped.\n    """\n',
+            '        PayloadError: If the check failed.\n            Wrapped.\n    """\n',
         ],
         ids=[
             "recognized-sections",
@@ -2489,7 +2511,7 @@ class TestCheckInvalidDocstringSection:
     def test_WarnsSection_FlagsAtHeader(self) -> None:
         source = (
             'def f():\n    """Verifies the dataset.\n\n    Raises:\n'
-            "        TruRezError: If a check failed.\n\n    Warns:\n"
+            "        PayloadError: If a check failed.\n\n    Warns:\n"
             '        RangeWarning: If a decode exceeds the range.\n    """\n'
         )
         violations = list(check_invalid_docstring_section(_DOC_PATH, source))
@@ -3095,5 +3117,18 @@ def _naming_scope_target(tmp_path: Path, globs_value: str, relative: str) -> Pat
     """
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\ntest-naming-globs = {globs_value}\n", encoding="utf-8"
+    )
+    return tmp_path / relative
+
+
+def _port_scope_target(tmp_path: Path, globs_value: str, relative: str) -> Path:
+    """Writes a pyproject configuring `port-path-globs` and returns a path.
+
+    The returned path sits under `tmp_path` at `relative`; the file itself is
+    never written, since `check_port_no_implementation` takes the source
+    separately.
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.repostyle]\nport-path-globs = {globs_value}\n", encoding="utf-8"
     )
     return tmp_path / relative
