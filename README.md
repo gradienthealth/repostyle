@@ -177,7 +177,9 @@ A repo already lists its vendored and generated trees in `.gitignore`. Rather th
 respect-gitignore = true  # prune directories the root .gitignore names
 ```
 
-The flag is off by default, so no existing repo's behavior changes and a repo that gitignores a path it does want linted is not surprised. Built-in structural pruning (a dot-directory, `venv`, `node_modules`, and build outputs) applies regardless of this flag.
+The flag is off by default, so no existing repo's behavior changes and a repo that gitignores a path it does want linted is not surprised. Built-in structural pruning applies regardless of this flag: version-control metadata, caches, `venv`, `node_modules`, build outputs, and any directory holding its own `.git`. That last one keeps a nested checkout — most often a `git worktree` parked under `.claude/` — from being walked as part of the outer repo, which would otherwise dominate the scan and mask RS029 findings, since a copy of a module counts as a second module referencing every name the original defines.
+
+The nested-checkout prune has no opt-out, but it only ever prunes a directory *below* the walk root, so a checkout is still lintable two ways: name one of its files explicitly, since a file argument bypasses the walk, or run repostyle from inside the checkout, since its own root is never pruned. Neither adds the tree back to the outer repo's cross-module index; to keep a name public that only a nested checkout references, list it in `public-names`.
 
 A gitignored path is treated as not part of the repo at all: a pruned directory is invisible to every rule, including the RS029 whole-package visibility index. This is the deliberate split from `exclude`, which keeps a file in the tree and only silences its findings — a generated stub kept in the tree by `exclude` still counts as a cross-module reference for RS029, a gitignored one does not.
 

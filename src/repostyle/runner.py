@@ -82,7 +82,9 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
 # files in one: pre-commit hands this linter the workflow YAML under `.github`
 # and the markdown under `.claude`, and a walk that skipped them would put a
 # finding the gate reports beyond the reach of `--update-baseline`, which can
-# only grandfather what it walks.
+# only grandfather what it walks. A worktree nested under one of those is
+# pruned by `_is_nested_checkout` instead, on the structure rather than on the
+# name of the directory holding it.
 _SKIPPED_DIRS = frozenset(
     {
         "build",
@@ -259,10 +261,11 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
     """Replaces each directory argument with the lintable files beneath it.
 
     Recurses each directory for files matching `LINTABLE_SUFFIXES`, skipping
-    the `_SKIPPED_DIRS` names, and drops a duplicate resolved path reachable
-    from more than one argument. A file argument passes through unchanged
-    regardless of suffix. A file matching a `[tool.repostyle] exclude` glob is
-    dropped whether it was walked from a directory or passed explicitly.
+    the `_SKIPPED_DIRS` names and any nested checkout, and drops a duplicate
+    resolved path reachable from more than one argument. A file argument passes
+    through unchanged regardless of suffix. A file matching a
+    `[tool.repostyle] exclude` glob is dropped whether it was walked from a
+    directory or passed explicitly.
     """
     expanded: list[Path] = []
     seen: set[Path] = set()
@@ -360,10 +363,10 @@ def _package_files(root: Path) -> list[tuple[Path, str]]:
     public name used only by excluded generated code (a `_grpc`/`_pb2` stub)
     must still count as a cross-module reference, or RS029 would flag it
     should-be-private on the strength of the exclude alone. The structural
-    `_SKIPPED_DIRS` prune and, under `respect-gitignore`, the `.gitignore`
-    prune still apply, so a working-tree `venv` or a gitignored tree is not
-    read: a gitignored path is treated as outside the repo entirely, unlike an
-    excluded one.
+    `_SKIPPED_DIRS` and nested-checkout prunes and, under `respect-gitignore`,
+    the `.gitignore` prune still apply, so a working-tree `venv`, a second
+    checkout of the repo, or a gitignored tree is not read: each is outside
+    this package, unlike an excluded file.
     """
     root = root.resolve()
     base = root if root.is_dir() else root.parent
@@ -386,10 +389,12 @@ def _walk_matching(
     Descends with `os.walk`, dropping a pruned directory subtree before its
     files are enumerated: a `_SKIPPED_DIRS` name (a `venv`, `node_modules`, a
     build output, or a dot-prefixed cache) is never entered, so its files are
-    never stat-ed or read. Pruning during the walk keeps a run over a
-    venv-heavy working tree from going CPU-bound (DEV-1522). A dot-prefixed
-    file matching `suffixes` is walked like any other, so a repo's
-    `.pre-commit-config.yaml` is linted where it sits.
+    never stat-ed or read. A directory holding its own `.git` is pruned the
+    same way, so a nested checkout is not walked as part of this repo. Pruning
+    during the walk keeps a run over a venv-heavy working tree from going
+    CPU-bound (DEV-1522). A dot-prefixed file matching `suffixes` is walked
+    like any other, so a repo's `.pre-commit-config.yaml` is linted where it
+    sits.
 
     When the config sets `respect-gitignore`, a directory the repo's root
     `.gitignore` names is pruned too, on both walks -- a gitignored tree is
@@ -404,9 +409,9 @@ def _walk_matching(
     excluded file stays readable by the cross-module rules that must still
     count it.
 
-    Only children below `root` are pruned, never the ancestors above it, so a
-    repo checked out under a pruned name (`~/.cache/worktrees/...`) is still
-    walked rather than skipped whole.
+    Only children below `root` are pruned, never `root` itself, so a run from
+    inside a worktree or under a pruned name (`~/.cache/worktrees/...`) walks
+    that tree rather than skipping it whole.
     """
     pyproject = find_pyproject(root)
     table = _repostyle_table(pyproject)
@@ -437,20 +442,33 @@ def _is_pruned_dir(
 ) -> bool:
     """Reports whether a directory's subtree is pruned from a walk.
 
-    A `_SKIPPED_DIRS` name is always pruned. Otherwise the directory is pruned
-    when the config's `exclude` globs match its whole subtree, or when the
-    repo's `.gitignore` names it and `respect-gitignore` is set. An empty
-    `table` (the whole-package walk, which does not apply excludes) matches no
-    `exclude` glob, but the `.gitignore` prune still applies there -- a
-    gitignored tree is not part of the repo for any rule, including the
-    cross-module index.
+    A `_SKIPPED_DIRS` name or a nested repository checkout is always pruned.
+    Otherwise the directory is pruned when the config's `exclude` globs match
+    its whole subtree, or when the repo's `.gitignore` names it and
+    `respect-gitignore` is set. An empty `table` (the whole-package walk, which
+    does not apply excludes) matches no `exclude` glob, but the `.gitignore`
+    prune still applies there -- a gitignored tree is not part of the repo for
+    any rule, including the cross-module index.
     """
     name = directory.name
-    if name in _SKIPPED_DIRS:
+    if name in _SKIPPED_DIRS or _is_nested_checkout(directory):
         return True
     if _dir_matches_config_glob(directory, pyproject, table, "exclude"):
         return True
     return _gitignore_prunes_dir(directory, pyproject, gitignore)
+
+
+def _is_nested_checkout(directory: Path) -> bool:
+    """Reports whether a directory holds a separate repository's working tree.
+
+    A `.git` entry marks the root of a checkout -- a directory in a clone, a
+    file in a linked worktree. That tree is another project rather than part of
+    this one, so the walk stops at its root. A `git worktree` under `.claude/`
+    is a whole second copy of the repo, and reading one both dominates the
+    package scan and silences RS029: the copy of a module counts as a second
+    module referencing every name the original defines.
+    """
+    return (directory / ".git").exists()
 
 
 def fix_path(path: Path, enabled: set[str]) -> bool:

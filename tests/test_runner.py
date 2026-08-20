@@ -401,6 +401,97 @@ class TestPackageWalkPruning:
         }
 
 
+class TestNestedCheckoutPruning:
+    """A directory holding its own `.git` is another repo, so it is pruned.
+
+    A `git worktree` parked under `.claude/` is a whole second copy of the
+    repo. Reading it dominates the package scan, and it silences RS029: the
+    copy of a module counts as a second module referencing every name the
+    original defines. A subproject with no `.git` of its own is part of this
+    repo and stays in the index.
+    """
+
+    def test_LinkedWorktree_PrunedFromPackageIndex(self, tmp_path: Path) -> None:
+        """A worktree's `.git` file marks the tree as a separate checkout."""
+        (tmp_path / "pyproject.toml").write_text("[tool.repostyle]\n", encoding="utf-8")
+        worktree = tmp_path / ".claude" / "worktrees" / "wt"
+        worktree.mkdir(parents=True)
+        (worktree / ".git").write_text("gitdir: /elsewhere\n", encoding="utf-8")
+        (worktree / "copy.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        read = {path.resolve() for path, _ in _package_files(tmp_path)}
+        assert read == {(tmp_path / "app.py").resolve()}
+
+    def test_ClonedRepository_PrunedFromPackageIndex(self, tmp_path: Path) -> None:
+        """A clone's `.git` directory marks the tree the same way."""
+        (tmp_path / "pyproject.toml").write_text("[tool.repostyle]\n", encoding="utf-8")
+        clone = tmp_path / "vendor" / "dep"
+        (clone / ".git").mkdir(parents=True)
+        (clone / "dep.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        read = {path.resolve() for path, _ in _package_files(tmp_path)}
+        assert read == {(tmp_path / "app.py").resolve()}
+
+    def test_NestedCheckout_DroppedFromDirectoryExpansion(self, tmp_path: Path) -> None:
+        """The same prune applies when a directory argument is expanded."""
+        worktree = tmp_path / "wt"
+        worktree.mkdir()
+        (worktree / ".git").write_text("gitdir: /elsewhere\n", encoding="utf-8")
+        (worktree / "copy.py").write_text("x = 1\n", encoding="utf-8")
+        target = tmp_path / "app.py"
+        target.write_text("y = 2\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [target]
+
+    def test_SubprojectWithoutGit_StaysInPackageIndex(self, tmp_path: Path) -> None:
+        """A monorepo subproject is part of this repo, so it is still read.
+
+        Its own `pyproject.toml` does not make it a separate checkout, and
+        pruning on that file instead would drop a real cross-module reference.
+        """
+        (tmp_path / "pyproject.toml").write_text("[tool.repostyle]\n", encoding="utf-8")
+        subproject = tmp_path / "packages" / "sub"
+        subproject.mkdir(parents=True)
+        (subproject / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+        (subproject / "mod.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        read = {path.resolve() for path, _ in _package_files(tmp_path)}
+        assert read == {
+            (tmp_path / "app.py").resolve(),
+            (subproject / "mod.py").resolve(),
+        }
+
+    def test_WalkRoot_NeverPrunedByItsOwnGit(self, tmp_path: Path) -> None:
+        """A run from inside a checkout walks it, since only children prune."""
+        (tmp_path / ".git").write_text("gitdir: /elsewhere\n", encoding="utf-8")
+        (tmp_path / "pyproject.toml").write_text("[tool.repostyle]\n", encoding="utf-8")
+        (tmp_path / "app.py").write_text("y = 2\n", encoding="utf-8")
+        read = {path.resolve() for path, _ in _package_files(tmp_path)}
+        assert read == {(tmp_path / "app.py").resolve()}
+
+    def test_WorktreeCopyOfAModule_NoLongerMasksTheFinding(
+        self, tmp_path: Path
+    ) -> None:
+        """A stale worktree copy stops counting as a cross-module reference.
+
+        `helper` is used only inside `app.py`, so RS029 fires. A byte-identical
+        copy under a worktree would otherwise register as another module using
+        the name and silence the rule.
+        """
+        (tmp_path / "pyproject.toml").write_text("[tool.repostyle]\n", encoding="utf-8")
+        source = (
+            '__all__ = ["run"]\n\n\ndef helper():\n    return 1\n\n\n'
+            "def run():\n    return helper()\n"
+        )
+        target = tmp_path / "app.py"
+        target.write_text(source, encoding="utf-8")
+        worktree = tmp_path / ".claude" / "worktrees" / "wt"
+        worktree.mkdir(parents=True)
+        (worktree / ".git").write_text("gitdir: /elsewhere\n", encoding="utf-8")
+        (worktree / "app.py").write_text(source, encoding="utf-8")
+        findings = lint_package([target], {RS_SHOULD_BE_PRIVATE}, root_paths=[tmp_path])
+        assert [v.line for v in findings[target.resolve()]] == [4]
+
+
 class TestParseGitignore:
     """Parsing a repo's `.gitignore` into repostyle's pruning rules."""
 
