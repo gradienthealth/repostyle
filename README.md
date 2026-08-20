@@ -127,6 +127,8 @@ Enabled rules are `select` minus `ignore`. If the table is missing or empty, all
 
 The `--warnings-as-errors` flag does the same for one run without touching config. That is how a repo measures its backlog before committing to the switch.
 
+Adopt the key only behind `--diff` scoping. Unscoped, it makes every run a whole-tree gate, so the first one fails on the repo's entire grandfathered backlog. That backlog measured 172 warnings in claude-plugins, 115 in fhir-ingestor, 234 in dicom-ingestor, and 5294 in gradient-beam. Scope enforcement to changed lines first (see below), then flip the key.
+
 Until a repo flips the switch, every run ends with a stderr line counting the findings that printed as warnings without failing. It reads `repostyle: 12 warning(s) reported without failing the run`, so an advisory backlog stays visible to whoever, or whatever, reads the output.
 
 ## Exclude paths from scanning
@@ -239,6 +241,37 @@ repostyle --diff --diff-base origin/main $(git diff --name-only origin/main)
 ```
 
 `--diff` intersects each finding's line with the lines that differ from `--diff-base` (default `HEAD`); a finding on an untracked file or one that cannot be diffed is reported in full, so nothing is hidden by accident. The intersection is on the finding's own line, so a whole-unit finding (a complexity rule reported at the `def`) re-arms only when that line itself changes.
+
+A hook entry carrying `args: [--diff]` scopes local commits, and it does not cover CI. `--diff-base` defaults to `HEAD`, so under a CI `pre-commit run --all-files` on a clean checkout every file diffs empty against `HEAD` and every finding is filtered away. The hook passes green having checked nothing. Enforcement in CI takes a second, explicit step naming the pull request's base ref:
+
+```yaml
+# .pre-commit-config.yaml -- the hook entry, for local commits.
+repos:
+  - repo: https://github.com/gradienthealth/repostyle
+    rev: repostyle-vX.Y.Z
+    hooks:
+      - id: repostyle
+        args: [--diff] # grade only the lines the commit touches
+```
+
+```yaml
+# The workflow step, for the pull request.
+steps:
+  - uses: actions/checkout@v4
+    with:
+      fetch-depth: 0 # --diff-base needs the base commit
+  - name: repostyle on the changed lines
+    if: github.event_name == 'pull_request'
+    run: |
+      base="origin/${{ github.base_ref }}"
+      mapfile -t changed < <(git diff --name-only --diff-filter=d "$base"...HEAD \
+        -- '*.py' '*.md' '*.toml' '*.yaml' '*.yml')
+      if [ ${#changed[@]} -gt 0 ]; then
+        repostyle --diff --diff-base "$base" "${changed[@]}"
+      fi
+```
+
+`fetch-depth: 0` gives the checkout the base ref to diff against. Without it `--diff-base` does not resolve, and the run fails open, reporting every finding in full.
 
 This scopes repostyle's own `RSnnn` rules. Ruff has no diff mode, so to scope the ruff rules to a PR's lines, filter ruff's output in CI with [reviewdog](https://github.com/reviewdog/reviewdog) (`-filter-mode=added`) or graylint locally.
 

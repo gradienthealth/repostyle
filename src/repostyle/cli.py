@@ -138,7 +138,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         "--diff-base",
         default="HEAD",
         metavar="REF",
-        help="the git ref --diff compares against (default HEAD)",
+        help="the ref --diff compares against (default HEAD; name the PR base in CI)",
     )
     parser.add_argument(
         "--fix",
@@ -148,7 +148,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--warnings-as-errors",
         action="store_true",
-        help="fail on every finding, whatever its default severity",
+        help="fail on every finding, whatever its default severity (pair with --diff)",
     )
     parser.add_argument(
         "--no-explain-hint",
