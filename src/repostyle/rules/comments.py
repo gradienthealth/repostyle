@@ -110,9 +110,10 @@ _TABLE_BORDER_PATTERN = re.compile(r"\+[-=+]*\+")
 # `###`) rather than decorating a title, and only a hash run standing alone as
 # the whole comment reads as a divider.
 _FRAMED_TITLE_PATTERN = re.compile(r"^[-=*~_+]{3,}\s|\s[-=*~_+]{3,}$")
-# PEP 263's encoding declaration reads as a `-*-` half-frame on both sides but
-# is a parser directive, not decoration.
-_CODING_DECLARATION_PATTERN = re.compile(r"coding[:=]\s*[-\w.]+")
+# PEP 263's encoding declaration reads as a `-*-` frame on both sides but is a
+# parser directive, not decoration. Anchoring on the `-*-` frame rather than on
+# `coding` alone keeps a title that happens to say "coding" a banner.
+_CODING_DECLARATION_PATTERN = re.compile(r"^-\*-\s.*coding[:=].*\s-\*-$")
 
 # A comment's first token, with the character that immediately follows
 # it captured separately. A tag is used tag-style -- written in all caps
@@ -613,7 +614,7 @@ def _is_banner_text(text: str) -> bool:
     `text` is the comment with its leading hash stripped and stripped of
     surrounding whitespace.
     """
-    if _CODING_DECLARATION_PATTERN.search(text):
+    if _CODING_DECLARATION_PATTERN.match(text):
         return False
     if not set(text) - _BANNER_CHARACTERS:
         return len(text) >= 4 and not _TABLE_BORDER_PATTERN.fullmatch(text)

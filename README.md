@@ -123,9 +123,11 @@ Enabled rules are `select` minus `ignore`. If the table is missing or empty, all
 
 `error` promotes chosen advisory (warning-severity) rules to error severity, so a finding from one prints as an error and fails the run, exactly as a natively-error rule does. It is the surgical option: a repo gates on a trusted subset while leaving the false-positive-prone heuristic rules advisory. A promoted rule that is disabled never fires, so its promotion is inert; promoting a rule that is already error by default is a harmless no-op. An unknown id in `error` is rejected the same way `select`/`ignore` validate their ids.
 
-`warnings-as-errors = true` promotes every rule at once, so no finding is advisory and nothing passes silently. It subsumes `error`, and a repo that has adopted it narrows the gate back through `ignore` — dropping the rule everywhere — rather than by shortening a promotion list. The `--warnings-as-errors` flag does the same for one run without touching config, which is how a repo measures the size of its backlog before committing to the switch. An unknown id in `error` is still rejected under it, so a typo does not become inert.
+`warnings-as-errors = true` promotes every rule at once, so no finding is advisory. It subsumes `error`. A repo that has adopted it narrows the gate back through `ignore`, dropping the rule everywhere, rather than by shortening a promotion list. An unknown id in `error` is still rejected under it, so a typo does not become inert.
 
-Until a repo flips the switch, every run ends with a stderr line counting the findings that printed as warnings without failing — `repostyle: 12 warning(s) reported without failing the run` — so an advisory backlog stays visible to whoever, or whatever, is reading the output.
+The `--warnings-as-errors` flag does the same for one run without touching config. That is how a repo measures its backlog before committing to the switch.
+
+Until a repo flips the switch, every run ends with a stderr line counting the findings that printed as warnings without failing. It reads `repostyle: 12 warning(s) reported without failing the run`, so an advisory backlog stays visible to whoever, or whatever, reads the output.
 
 ## Exclude paths from scanning
 

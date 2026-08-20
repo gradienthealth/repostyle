@@ -143,7 +143,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--fix",
         action="store_true",
-        help="fix fixable findings (RS005, RS009, RS030) in place before reporting",
+        help="fix the mechanically-fixable findings in place before reporting",
     )
     parser.add_argument(
         "--warnings-as-errors",
