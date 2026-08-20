@@ -127,6 +127,8 @@ Enabled rules are `select` minus `ignore`. If the table is missing or empty, all
 
 The `--warnings-as-errors` flag does the same for one run without touching config. That is how a repo measures its backlog before committing to the switch.
 
+Severity defaults to error, and the advisory rules are the listed exception (`_registry.RULE_SEVERITY`). Of the 61 rules, 42 are warnings, so the key flips those and leaves the 19 that already fail a run.
+
 Adopt the key only behind `--diff` scoping. Unscoped, it makes every run a whole-tree gate, so the first one fails on the repo's entire grandfathered backlog. When the switch landed, that backlog measured 172 warnings in claude-plugins, 115 in fhir-ingestor, 234 in dicom-ingestor, and 5294 in gradient-beam. Scope enforcement to changed lines first (see below), then flip the key.
 
 Until a repo flips the switch, every run ends with a stderr line counting the findings that printed as warnings without failing. It reads `repostyle: 12 warning(s) reported without failing the run`, so an advisory backlog stays visible to whoever, or whatever, reads the output.
