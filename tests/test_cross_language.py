@@ -259,13 +259,51 @@ class TestBannerCommentCrossLanguage:
         violations = list(check_banner_comment(path, "# =====\n"))
         assert [v.rule for v in violations] == [RS_BANNER_COMMENT]
 
-    def test_YamlCommentedDocumentSeparator_NotFlagged(self) -> None:
-        source = "# ---\nkey: value\n"
-        assert list(check_banner_comment(Path("c.yaml"), source)) == []
+    @pytest.mark.parametrize(
+        "comment",
+        [
+            "# ---------- main ----------",
+            "# --- Main ---",
+            "# === TESTS ===",
+            "# --- Main event loop",
+            "# -------- Export Service Tables  ------------",
+            "# Bucket names ----------",
+        ],
+        ids=["padded", "tight", "equals", "half-frame", "ragged", "trailing"],
+    )
+    def test_FramedTitle_FlagsWhateverItsShape(self, comment: str) -> None:
+        violations = list(check_banner_comment(Path("m.py"), f"{comment}\nx = 1\n"))
+        assert [v.rule for v in violations] == [RS_BANNER_COMMENT]
 
-    def test_ShellShebang_NotFlagged(self) -> None:
-        source = "#!/usr/bin/env bash\necho hi\n"
-        assert list(check_banner_comment(Path("s.sh"), source)) == []
+    @pytest.mark.parametrize(
+        ("path", "source"),
+        [
+            (Path("c.yaml"), "# ---\nkey: value\n"),
+            (Path("s.sh"), "#!/usr/bin/env bash\necho hi\n"),
+            (Path("m.py"), "# -*- coding: utf-8 -*-\nx = 1\n"),
+            (Path("m.py"), "# ---8<--- cut here\nx = 1\n"),
+            (Path("m.py"), "# -----> the retry path\nx = 1\n"),
+            (Path("m.py"), "# Handlers for the BigQuery MCP tool.\nx = 1\n"),
+            (Path("m.py"), "## note on the constant\nx = 1\n"),
+            (Path("m.py"), "# +----+\nx = 1\n"),
+        ],
+        ids=[
+            "yaml-doc-separator",
+            "shebang",
+            "coding-declaration",
+            "scissors",
+            "arrow",
+            "sentence",
+            "comment-level",
+            "table-border",
+        ],
+    )
+    def test_NonDecoration_NotFlagged(self, path: Path, source: str) -> None:
+        assert list(check_banner_comment(path, source)) == []
+
+    def test_TrailingFramedTitle_NotFlagged(self) -> None:
+        source = "x = 1  # --- main ---\n"
+        assert list(check_banner_comment(Path("m.py"), source)) == []
 
 
 class TestBulletItemCasingCrossLanguage:

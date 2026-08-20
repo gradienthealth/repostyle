@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 from repostyle.changed_lines import changed_lines
 from repostyle.explain import discovery_hint, explain_rule
@@ -94,20 +95,31 @@ def _run_lint(argv: list[str]) -> int:
     except ValueError as error:
         print(f"repostyle: {error}", file=sys.stderr)
         return 2
+    if options.warnings_as_errors:
+        promoted = set(ALL_RULE_IDS)
     package = lint_package(paths, enabled, root_paths=original_paths)
     failed = False
     fixed: list[Path] = []
     fired: set[str] = set()
+    tolerated = 0
     for path in paths:
         if options.fix and fix_path(path, enabled):
             fixed.append(path)
         extra = package.get(path.resolve(), [])
-        path_failed, path_rules = _report_path(path, enabled, promoted, options, extra)
-        failed = path_failed or failed
-        fired |= path_rules
+        report = _report_path(path, enabled, promoted, options, extra)
+        failed = report.failed or failed
+        fired |= report.fired
+        tolerated += report.tolerated
     if fixed:
         listed = ", ".join(str(path) for path in fixed)
         print(f"repostyle: fixed {listed}; review and re-stage", file=sys.stderr)
+    if tolerated:
+        print(
+            f"repostyle: {tolerated} warning(s) reported without failing the "
+            "run; set `[tool.repostyle] warnings-as-errors = true` to gate on "
+            "them",
+            file=sys.stderr,
+        )
     if not options.no_explain_hint:
         for rule_id in sorted(rule for rule in fired if has_guidance(rule)):
             print(discovery_hint(rule_id), file=sys.stderr)
@@ -134,11 +146,28 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="fix fixable findings (RS005, RS009, RS030) in place before reporting",
     )
     parser.add_argument(
+        "--warnings-as-errors",
+        action="store_true",
+        help="fail on every finding, whatever its default severity",
+    )
+    parser.add_argument(
         "--no-explain-hint",
         action="store_true",
         help="suppress the per-rule 'run explain' pointer printed on findings",
     )
     return parser.parse_args(argv)
+
+
+class _PathReport(NamedTuple):
+    """What reporting one path produced.
+
+    `tolerated` counts the findings that printed as warnings, so the caller can
+    say how much the run let through.
+    """
+
+    failed: bool
+    fired: set[str]
+    tolerated: int
 
 
 def _report_path(
@@ -147,14 +176,14 @@ def _report_path(
     promoted: set[str],
     options: argparse.Namespace,
     extra: list[Violation],
-) -> tuple[bool, set[str]]:
-    """Prints a path's findings, returning pass/fail and the rules that fired.
+) -> _PathReport:
+    """Prints a path's findings and reports what they came to.
 
     `extra` carries whole-package findings already scoped to this path, merged
     with the per-file findings before diff-filtering and printing. A rule in
     `promoted` prints and fails as an error whatever its default severity, so a
-    repo hard-fails on a trusted subset of the advisory rules. The returned
-    rule set is the rules that produced a finding on this path.
+    repo hard-fails on a trusted subset of the advisory rules, or on all of
+    them under `warnings-as-errors`.
     """
     violations = sorted(set(lint_path(path, enabled)) | set(extra))
     if options.diff:
@@ -163,12 +192,14 @@ def _report_path(
             violations = [v for v in violations if v.line in touched]
     failed = False
     fired: set[str] = set()
+    tolerated = 0
     for line, col, rule, message in violations:
         severity = Severity.ERROR if rule in promoted else severity_of(rule)
         print(f"{path}:{line}:{col}: {severity.value}: {rule} {message}")
         failed = failed or severity is Severity.ERROR
+        tolerated += severity is Severity.WARNING
         fired.add(rule)
-    return failed, fired
+    return _PathReport(failed, fired, tolerated)
 
 
 if __name__ == "__main__":

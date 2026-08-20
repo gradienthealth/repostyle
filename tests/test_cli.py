@@ -191,6 +191,50 @@ class TestErrorPromotion:
         assert f"{target}:2:5: error: RS001" in out
 
 
+class TestWarningsAsErrors:
+    def test_ConfigKey_PrintsAdvisoryFindingAsErrorAndFails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(
+            tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]', "[]", warnings_as_errors=True
+        )
+        exit_code = main([str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert f"{target}:1:1: error: RS034" in out
+
+    def test_Flag_PromotesWithoutConfig(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(
+            tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]', "[]"
+        )
+        exit_code = main(["--warnings-as-errors", str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert f"{target}:1:1: error: RS034" in out
+
+    def test_ToleratedWarning_CountsItOnStderr(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(
+            tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]', "[]"
+        )
+        exit_code = main([str(target)])
+        err = capsys.readouterr().err
+        assert exit_code == 0
+        assert "1 warning(s) reported without failing the run" in err
+
+    def test_NoToleratedWarning_SaysNothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(tmp_path, "x = 1\n", '["RS034"]', "[]")
+        exit_code = main([str(target)])
+        err = capsys.readouterr().err
+        assert exit_code == 0
+        assert "without failing the run" not in err
+
+
 _UNDERWRAPPED_DOCSTRING = 'def f():\n    """Summary.\n\n    aaa\n    bbb\n    """\n'
 
 
@@ -293,10 +337,17 @@ def _write_project(tmp_path: Path, source: str, select: str) -> Path:
 
 
 def _write_promotion_project(
-    tmp_path: Path, source: str, select: str, error: str
+    tmp_path: Path,
+    source: str,
+    select: str,
+    error: str,
+    *,
+    warnings_as_errors: bool = False,
 ) -> Path:
+    switch = f"warnings-as-errors = {str(warnings_as_errors).lower()}\n"
     (tmp_path / "pyproject.toml").write_text(
-        f"[tool.repostyle]\nselect = {select}\nerror = {error}\n", encoding="utf-8"
+        f"[tool.repostyle]\nselect = {select}\nerror = {error}\n{switch}",
+        encoding="utf-8",
     )
     target = tmp_path / "x.py"
     target.write_text(source, encoding="utf-8")

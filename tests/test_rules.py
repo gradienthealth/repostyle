@@ -3005,23 +3005,31 @@ class TestCheckBannerComment:
         "source",
         [
             "# ---\nx = 1\n",
-            "# --- see the note below\nx = 1\n",
             "# +----+\n# | a  |\n# +----+\nx = 1\n",
             "x = 1  # ----\n",
-            "# === TESTS ===\nx = 1\n",
             "# A plain prose comment.\nx = 1\n",
         ],
         ids=[
             "three-dashes",
-            "dashes-then-prose",
             "ascii-table-border",
             "trailing-divider",
-            "decorated-one-line-title",
             "prose",
         ],
     )
     def test_ConformingComment_NoViolation(self, source: str) -> None:
         assert list(check_banner_comment(_DOC_PATH, source)) == []
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "# --- see the note below\nx = 1\n",
+            "# === TESTS ===\nx = 1\n",
+        ],
+        ids=["half-frame", "decorated-one-line-title"],
+    )
+    def test_FramedTitle_Flags(self, source: str) -> None:
+        violations = list(check_banner_comment(_DOC_PATH, source))
+        assert [v.rule for v in violations] == [RS_BANNER_COMMENT]
 
     @pytest.mark.parametrize(
         "line",
