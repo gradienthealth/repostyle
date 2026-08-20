@@ -19,6 +19,7 @@ from repostyle._shared import (
     _repostyle_table,
     find_pyproject,
 )
+from repostyle.baseline import DEFAULT_BASELINE_NAME
 from repostyle.rules import (
     ALL_RULE_IDS,
     FIXABLE_RULES,
@@ -93,7 +94,7 @@ class _ResolvedRules(NamedTuple):
 
     `enabled` is `select` minus `ignore`; `promoted` holds the ids that print
     as errors and fail the run even where their default severity is warning --
-    the `error` list, or every id when `warnings-as-errors` is set.
+    every id, or the `error` list alone under `warnings-as-errors = false`.
     """
 
     enabled: set[str]
@@ -113,10 +114,49 @@ def resolve_rules_for_paths(paths: Iterable[Path]) -> _ResolvedRules:
     """
     paths = list(paths)
     if not paths:
-        return _ResolvedRules(set(ALL_RULE_IDS), set())
+        return _ResolvedRules(set(ALL_RULE_IDS), set(ALL_RULE_IDS))
     pyproject = find_pyproject(paths[0])
     config = load_config(pyproject) if pyproject is not None else None
     return _ResolvedRules(resolve_enabled_rules(config), resolve_promoted_rules(config))
+
+
+def resolve_baseline_path(paths: Iterable[Path]) -> Path | None:
+    """Returns the baseline file the repo holding `paths` uses, if any.
+
+    The path is `[tool.repostyle] baseline` resolved against the directory of
+    the `pyproject.toml` that declares it, so a run from any directory reads
+    one file. An unset key falls back to `DEFAULT_BASELINE_NAME` beside the
+    `pyproject.toml`, which is only consulted when it exists, so a repo that
+    has not adopted a baseline needs no config.
+    """
+    paths = list(paths)
+    if not paths:
+        return None
+    pyproject = find_pyproject(paths[0])
+    if pyproject is None:
+        return None
+    configured = _repostyle_table(pyproject).get("baseline")
+    if isinstance(configured, str) and configured:
+        return pyproject.parent / configured
+    default = pyproject.parent / DEFAULT_BASELINE_NAME
+    return default if default.is_file() else None
+
+
+def repo_root(paths: Iterable[Path]) -> Path:
+    """Returns the directory baseline keys are relative to.
+
+    The `pyproject.toml` directory is the root, falling back to the first
+    path's own directory outside a project, so a key is stable wherever the run
+    is invoked from.
+    """
+    paths = list(paths)
+    if not paths:
+        return Path.cwd()
+    pyproject = find_pyproject(paths[0])
+    if pyproject is not None:
+        return pyproject.parent
+    first = paths[0].resolve()
+    return first if first.is_dir() else first.parent
 
 
 def load_config(pyproject: Path) -> dict | None:
@@ -157,24 +197,23 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
 def resolve_promoted_rules(config: dict | None) -> set[str]:
     """Resolves the ids promoted to error from a `[tool.repostyle]` table.
 
-    `error` lists advisory (warning-severity) rules to treat as errors, so a
-    finding from one prints as an error and fails the run. A missing or empty
-    `error` promotes nothing, and promoting a natively-error rule is a harmless
-    no-op. The list is validated like `select`/`ignore`, so a disabled rule may
-    still be promoted (the promotion is inert until the rule fires) but an
-    unknown id is rejected rather than silently dropped.
+    Every selected rule is an error by default, so a repo gates on the rule set
+    it selects rather than on a severity split it did not choose. The backlog
+    that default would otherwise fail on is held by the baseline instead, which
+    separates old findings from new ones by record rather than by severity.
 
-    `warnings-as-errors = true` promotes every id, subsuming `error`. A repo
-    setting it narrows the gate back with `ignore` rather than by shortening a
-    promotion list.
+    `warnings-as-errors = false` restores the per-rule default severities, and
+    `error` then lists the advisory rules to promote anyway. Promoting a
+    natively-error rule is a harmless no-op, and a disabled rule may be
+    promoted (the promotion is inert until the rule fires).
 
     Raises:
         ValueError: When `error` names an unknown id, matching how
             `resolve_enabled_rules` validates `select` and `ignore`.
     """
-    if not config:
-        return set()
     known = set(ALL_RULE_IDS)
+    if not config:
+        return known
     promoted = set(config.get("error", []))
     unknown = promoted - known
     if unknown:
@@ -182,7 +221,7 @@ def resolve_promoted_rules(config: dict | None) -> set[str]:
             "unknown repostyle rule id(s): "
             f"{', '.join(sorted(unknown))}. Known ids: {', '.join(sorted(known))}."
         )
-    return known if config.get("warnings-as-errors") else promoted
+    return promoted if config.get("warnings-as-errors") is False else known
 
 
 def expand_paths(paths: Iterable[Path]) -> list[Path]:

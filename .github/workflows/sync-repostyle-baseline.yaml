@@ -1,0 +1,94 @@
+name: sync repostyle baselines
+
+# Refreshes each consumer repo's `.repostyle-baseline.json`, the record of the
+# findings that repo already had when it adopted a rule. A refresh lowers a
+# count to what the tree now holds and admits the backlog of rules the baseline
+# predates, so clearing debt is permanent and a repostyle release that adds
+# rules does not redden anyone's build. It never raises a count for a rule the
+# baseline already knew, so new code cannot grandfather itself by waiting for
+# the next sync.
+#
+# Runs after a repostyle release, when the rule set is what changed, and weekly
+# to bank the debt cleared in between.
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # The consumer list is the same STYLE_SYNC_REPOS repository variable the
+  # shared-style sync reads -- a JSON array of repo names under this owner --
+  # so a repo is added to both syncs at once with `gh variable set`.
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.list.outputs.repos }}
+    steps:
+      - id: list
+        env:
+          # Read through env rather than interpolated into the script, so the
+          # variable's value is data to the shell and never part of it.
+          REPOS: ${{ vars.STYLE_SYNC_REPOS }}
+        run: echo "repos=${REPOS:-[]}" >> "$GITHUB_OUTPUT"
+
+  sync:
+    needs: resolve
+    # An unset or empty variable leaves nothing to sync, and an empty matrix is
+    # itself an error, so skip the job rather than fail it.
+    if: needs.resolve.outputs.repos != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJSON(needs.resolve.outputs.repos) }}
+    steps:
+      - name: Mint a gradienthealth-bot token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: "4149742" # gradienthealth-bot
+          private-key: ${{ secrets.GH_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ matrix.repo }}
+
+      - name: Check out ${{ matrix.repo }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ matrix.repo }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Refresh the baseline
+        # The latest published repostyle, matching what the consumer's own
+        # hooks resolve, so the baseline records the rule set the repo is
+        # actually held to.
+        run: uvx repostyle --update-baseline --no-explain-hint .
+
+      - name: Open a refresh pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: sync/repostyle-baseline
+          add-paths: .repostyle-baseline.json
+          commit-message: "chore: refresh the repostyle baseline"
+          title: "chore(NO-ISSUE): refresh the repostyle baseline"
+          body: |
+            Automated refresh of `.repostyle-baseline.json`, the record of the
+            findings this repo already had when it adopted each repostyle rule.
+
+            A lowered count is debt this repo cleared, banked so the finding
+            cannot come back. A new rule id is a rule repostyle gained since the
+            last refresh, whose existing findings are grandfathered rather than
+            failing your next build. A count is never raised for a rule the
+            baseline already knew, so nothing here grandfathers new code.
+
+            Merging keeps the gate where it is. Not merging leaves the older
+            baseline in force, which is stricter, not looser.
+          delete-branch: true

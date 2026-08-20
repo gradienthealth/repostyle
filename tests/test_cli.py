@@ -27,7 +27,7 @@ class TestMain:
     ) -> None:
         monkeypatch.setitem(RULE_SEVERITY, RS_ACRONYM_CASING, Severity.WARNING)
         target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
-        exit_code = main([str(target)])
+        exit_code = main(["--no-warnings-as-errors", str(target)])
         out = capsys.readouterr().out
         assert exit_code == 0
         assert f"{target}:2:5: warning: RS001" in out
@@ -54,7 +54,7 @@ class TestMain:
         assert f"{target}:2:1: error: RS001" in out
         assert f"{target}:1:1:" not in out
 
-    def test_DiffModeWithUnknownBase_ReportsEveryFinding(
+    def test_DiffModeWithUnknownBase_RefusesTheRun(
         self,
         git_repo: Path,
         git: Callable[..., None],
@@ -66,9 +66,10 @@ class TestMain:
         target = git_repo / "x.py"
         target.write_text("class FhirClient: ...\n", encoding="utf-8")
         exit_code = main(["--diff", "--diff-base", "no-such-ref", str(target)])
-        out = capsys.readouterr().out
-        assert exit_code == 1
-        assert f"{target}:1:1: error: RS001" in out
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert "cannot resolve no-such-ref" in captured.err
+        assert captured.out == ""
 
     def test_CleanPath_ReturnsZeroAndPrintsNothing(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -325,6 +326,138 @@ class TestDiscoveryHint:
         target = _write_project(tmp_path, source, '["RS004"]')
         main([str(target)])
         assert "explain" not in capsys.readouterr().err
+
+
+_TWO_ACRONYM_CLASSES = "class FhirClient: ...\nclass JsonThing: ...\n"
+
+
+class TestBaseline:
+    def test_WrittenBaseline_GrandfathersTheTree(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _TWO_ACRONYM_CLASSES, '["RS001"]')
+        assert main(["--write-baseline", str(tmp_path)]) == 0
+        capsys.readouterr()
+        exit_code = main([str(target)])
+        assert exit_code == 0
+        assert capsys.readouterr().out == ""
+
+    def test_FindingBeyondTheBaseline_StillFails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _TWO_ACRONYM_CLASSES, '["RS001"]')
+        main(["--write-baseline", str(tmp_path)])
+        capsys.readouterr()
+        target.write_text(
+            _TWO_ACRONYM_CLASSES + "class JwtThing: ...\n", encoding="utf-8"
+        )
+        exit_code = main([str(target)])
+        assert exit_code == 1
+        assert "RS001" in capsys.readouterr().out
+
+    def test_NoBaselineFlag_ReportsTheGrandfatheredFindings(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _TWO_ACRONYM_CLASSES, '["RS001"]')
+        main(["--write-baseline", str(tmp_path)])
+        capsys.readouterr()
+        exit_code = main(["--no-baseline", str(target)])
+        assert exit_code == 1
+        assert capsys.readouterr().out.count("RS001") == 2
+
+    def test_UpdateBaseline_DropsFindingsSinceFixed(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _TWO_ACRONYM_CLASSES, '["RS001"]')
+        main(["--write-baseline", str(tmp_path)])
+        target.write_text("class FHIRClient: ...\nclass JsonThing: ...\n", "utf-8")
+        main(["--update-baseline", str(tmp_path)])
+        capsys.readouterr()
+        target.write_text(_TWO_ACRONYM_CLASSES, encoding="utf-8")
+        exit_code = main([str(target)])
+        assert exit_code == 1
+        assert capsys.readouterr().out.count("RS001") == 1
+
+    def test_UpdateBaseline_RefusesToGrandfatherNewFindings(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _TWO_ACRONYM_CLASSES, '["RS001"]')
+        main(["--write-baseline", str(tmp_path)])
+        target.write_text(
+            _TWO_ACRONYM_CLASSES + "class JwtThing: ...\n", encoding="utf-8"
+        )
+        main(["--update-baseline", str(tmp_path)])
+        capsys.readouterr()
+        exit_code = main([str(target)])
+        assert exit_code == 1
+        assert capsys.readouterr().out.count("RS001") == 1
+
+    def test_UnreadableBaseline_ReportsEverythingAndSaysSo(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _TWO_ACRONYM_CLASSES, '["RS001"]')
+        (tmp_path / ".repostyle-baseline.json").write_text("{oops", encoding="utf-8")
+        exit_code = main([str(target)])
+        captured = capsys.readouterr()
+        assert exit_code == 1
+        assert "unreadable baseline" in captured.err
+        assert captured.out.count("RS001") == 2
+
+
+class TestWarningsAsErrorsDefault:
+    def test_AdvisoryRuleWithNoConfig_FailsTheRun(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]')
+        exit_code = main([str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert f"{target}:1:1: error: RS034" in out
+
+    def test_OptOutInConfig_RestoresTheDefaultSeverity(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_promotion_project(
+            tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]', "[]"
+        )
+        exit_code = main([str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert f"{target}:1:1: warning: RS034" in out
+
+    def test_OptOutFlag_RestoresTheDefaultSeverity(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]')
+        exit_code = main(["--no-warnings-as-errors", str(target)])
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert f"{target}:1:1: warning: RS034" in out
+
+
+class TestDiffDeprecation:
+    def test_DiffFlag_SaysItIsDeprecated(
+        self,
+        git_repo: Path,
+        git: Callable[..., None],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        (git_repo / "pyproject.toml").write_text(
+            '[tool.repostyle]\nselect = ["RS001"]\n', encoding="utf-8"
+        )
+        target = git_repo / "x.py"
+        target.write_text("class FhirClient: ...\n", encoding="utf-8")
+        git("add", "x.py", "pyproject.toml")
+        git("commit", "-m", "base")
+        main(["--diff", "--diff-base", "HEAD", str(target)])
+        assert "--diff is deprecated" in capsys.readouterr().err
+
+    def test_WithoutDiffFlag_SaysNothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        main([str(target)])
+        assert "deprecated" not in capsys.readouterr().err
 
 
 def _write_project(tmp_path: Path, source: str, select: str) -> Path:
