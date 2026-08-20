@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.31.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.31.0...repostyle-v0.31.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** prune nested repository checkouts from the walks ([#156](https://github.com/gradienthealth/repostyle/issues/156)) ([9ca6d08](https://github.com/gradienthealth/repostyle/commit/9ca6d0821f391dfd77056f76e327e1e398dbfd86))
+
+
+### Performance Improvements
+
+* **NO-ISSUE:** cache the per-file AST walk shared across rules ([#153](https://github.com/gradienthealth/repostyle/issues/153)) ([19c0c01](https://github.com/gradienthealth/repostyle/commit/19c0c018fe62d98dd291de6ce06905a3fe5deac5))
+* **NO-ISSUE:** index cross-module references once in RS029 ([#155](https://github.com/gradienthealth/repostyle/issues/155)) ([f088086](https://github.com/gradienthealth/repostyle/commit/f088086760eaa1a3631f35d65ee2b6f6f61be21b))
+
 ## [0.31.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.30.0...repostyle-v0.31.0) (2026-08-20)
 
 
