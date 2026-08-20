@@ -295,14 +295,13 @@ def fix_comment_terminal_punctuation(
     A prose comment missing terminal punctuation gains a trailing `.`; a
     fragment carrying one drops it, including a period sitting before trailing
     closers (`note.)`), so the repair matches what the rule flags. A comment
-    whose line is in `skip_lines` is left untouched. The fix runs on Python
-    only, though the check spans TOML, YAML, and shell too.
+    whose line is in `skip_lines` is left untouched.
 
     Returns:
         The source with each flagged comment's terminal punctuation repaired,
         unchanged when nothing repairs.
     """
-    if path.suffix != ".py":
+    if path.suffix not in COMMENT_SUFFIXES:
         return source
     source_lines = source.splitlines()
     changed = False
@@ -424,14 +423,13 @@ def fix_acronym_casing_in_comments(
 
     Each occurrence the comment check flags is replaced in place with the
     acronym's canonical casing; the rewrite is case-only and never changes
-    length. A comment whose line is in `skip_lines` is left untouched. The fix
-    runs on Python only, though the check spans TOML, YAML, and shell too.
+    length. A comment whose line is in `skip_lines` is left untouched.
 
     Returns:
         The source with each flagged acronym recased, unchanged when nothing
         recases.
     """
-    if path.suffix != ".py":
+    if path.suffix not in COMMENT_SUFFIXES:
         return source
     canonical_casing = effective_prose_acronyms(find_pyproject(path))
     if not canonical_casing:
@@ -487,14 +485,13 @@ def fix_disfavored_gcp_term_in_comments(
     Each occurrence the comment check flags is replaced in place with its
     preferred form. A replacement changes length, so a comment's faults are
     applied right to left, keeping each earlier offset valid. A comment whose
-    line is in `skip_lines` is left untouched. The fix runs on Python only,
-    though the check spans TOML, YAML, and shell too.
+    line is in `skip_lines` is left untouched.
 
     Returns:
         The source with each flagged name rewritten, unchanged when nothing
         rewrites.
     """
-    if path.suffix != ".py":
+    if path.suffix not in COMMENT_SUFFIXES:
         return source
     source_lines = source.splitlines()
     changed = False
@@ -545,14 +542,13 @@ def fix_nonstandard_dash_in_comments(
     Each occurrence the comment check flags is replaced in place with the house
     ` -- `. A replacement changes length, so a comment's faults are applied
     right to left, keeping each earlier offset valid. A comment whose line is
-    in `skip_lines` is left untouched. The fix runs on Python only, though the
-    check spans TOML, YAML, and shell too.
+    in `skip_lines` is left untouched.
 
     Returns:
         The source with each flagged dash rewritten, unchanged when nothing
         rewrites.
     """
-    if path.suffix != ".py":
+    if path.suffix not in COMMENT_SUFFIXES:
         return source
     source_lines = source.splitlines()
     changed = False

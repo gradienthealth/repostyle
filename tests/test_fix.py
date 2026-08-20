@@ -161,6 +161,12 @@ class TestFixCommentTerminalPunctuation:
         source = "x = 1  # Frobnicate the widget here.\n"
         assert fix_comment_terminal_punctuation(_PY, source, frozenset({1})) == source
 
+    def test_YamlComment_RemovesTrailingPeriod(self) -> None:
+        source = "k: v  # Frobnicate the widget here.\n"
+        assert fix_comment_terminal_punctuation(Path("c.yaml"), source) == (
+            "k: v  # Frobnicate the widget here\n"
+        )
+
     def test_MarkdownPath_ReturnsSourceUnchanged(self) -> None:
         assert (
             fix_comment_terminal_punctuation(_MD, "# Title here\n") == "# Title here\n"
@@ -205,6 +211,12 @@ class TestFixAcronymCasingInComments:
         source = "# handles ipv6 and the Nat gateway\nx = 1\n"
         fixed = fix_acronym_casing_in_comments(_PY, source)
         assert list(check_acronym_casing_in_comments(_PY, fixed)) == []
+
+    def test_YamlComment_RecasesInPlace(self) -> None:
+        source = "k: v  # routes ipv6 traffic\n"
+        assert fix_acronym_casing_in_comments(Path("c.yaml"), source) == (
+            "k: v  # routes IPv6 traffic\n"
+        )
 
     def test_MarkdownPath_ReturnsSourceUnchanged(self) -> None:
         assert fix_acronym_casing_in_comments(_MD, "# ipv6\n") == "# ipv6\n"
@@ -257,6 +269,12 @@ class TestFixGCPProductNameInComments:
         fixed = fix_disfavored_gcp_term_in_comments(_PY, source)
         assert list(check_disfavored_gcp_term_in_comments(_PY, fixed)) == []
 
+    def test_YamlComment_RewritesInPlace(self) -> None:
+        source = "k: v  # the GCS staging bucket\n"
+        assert fix_disfavored_gcp_term_in_comments(Path("c.yaml"), source) == (
+            "k: v  # the Cloud Storage staging bucket\n"
+        )
+
     def test_MarkdownPath_ReturnsSourceUnchanged(self) -> None:
         assert fix_disfavored_gcp_term_in_comments(_MD, "# GCS\n") == "# GCS\n"
 
@@ -306,9 +324,10 @@ class TestFixNonstandardDash:
         assert fixed == "# tuned -- carefully\nx = 1\n"
         assert list(check_nonstandard_dash_in_comments(_PY, fixed)) == []
 
-    def test_NonPythonComment_FixIsNoOp(self) -> None:
-        source = "# tuned — carefully\n"
-        assert fix_nonstandard_dash_in_comments(Path("c.yaml"), source) == source
+    def test_YamlComment_RewritesInPlace(self) -> None:
+        source = "# tuned — carefully\nk: v\n"
+        fixed = fix_nonstandard_dash_in_comments(Path("c.yaml"), source)
+        assert fixed == "# tuned -- carefully\nk: v\n"
 
     def test_StandardDash_ReturnsSourceUnchanged(self) -> None:
         source = 'def f():\n    """Returns a -- b now."""\n'
