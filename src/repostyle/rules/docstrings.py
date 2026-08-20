@@ -36,6 +36,7 @@ from repostyle._shared import (
     _string_list,
     _temporal_markers,
     _terminal_punctuation_fault,
+    _walk_tree,
     find_pyproject,
 )
 from repostyle.rules._violation import (
@@ -1502,7 +1503,7 @@ def _comment_symbol_location(
 
 def _dataclass_classes(tree: ast.Module) -> Iterator[ast.ClassDef]:
     """Yields every `@dataclass`-decorated class in `tree`."""
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.ClassDef) and _has_dataclass_decorator(node):
             yield node
 
@@ -1585,6 +1586,7 @@ def _opens_with_lowercase_prose(description: str) -> bool:
     return "." not in token and not _is_distinctive_code_token(token)
 
 
+@lru_cache(maxsize=128)
 def _sibling_symbol_evidence(tree: ast.AST) -> frozenset[str]:
     """Returns the string-literal tokens proving a bare prose word is code.
 
@@ -1602,6 +1604,7 @@ def _sibling_symbol_evidence(tree: ast.AST) -> frozenset[str]:
     return _string_literal_symbols(tree, docstring_ids) - _module_bound_names(tree)
 
 
+@lru_cache(maxsize=128)
 def _module_bound_names(tree: ast.Module) -> frozenset[str]:
     """Returns every name the module binds, reads, or accesses as an attribute.
 
@@ -1612,7 +1615,7 @@ def _module_bound_names(tree: ast.Module) -> frozenset[str]:
     plain-English collisions this wide net catches.
     """
     names: set[str] = set()
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
             names.add(node.name)
         elif isinstance(node, ast.arg):
@@ -1653,7 +1656,7 @@ def _string_literal_symbols(
     identifier rather than reading as English.
     """
     symbols: set[str] = set()
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if (
             isinstance(node, ast.Constant)
             and isinstance(node.value, str)
@@ -2051,7 +2054,7 @@ def _summary_comment_owners(
     tree: ast.Module,
 ) -> Iterator[ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef]:
     """Yields every class and function definition in `tree`."""
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef):
             yield node
 
@@ -2109,11 +2112,19 @@ def _unfenced_md_lines(source: str) -> Iterator[tuple[int, str]]:
             yield index, line
 
 
+# Every docstring rule filters the same nodes out of the same tree, so the
+# filter is cached beside the walk it reads. Returning a tuple rather than
+# yielding is what lets it be: a cached generator would be exhausted by its
+# first caller.
+@lru_cache(maxsize=128)
 def _walk_docstring_owners(
     tree: ast.AST,
-) -> Iterator[ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module]:
-    for node in ast.walk(tree):
+) -> tuple[ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module, ...]:
+    """Returns each node in `tree` able to carry a docstring, in walk order."""
+    return tuple(
+        node
+        for node in _walk_tree(tree)
         if isinstance(
             node, ast.AsyncFunctionDef | ast.ClassDef | ast.FunctionDef | ast.Module
-        ):
-            yield node
+        )
+    )

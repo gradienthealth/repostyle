@@ -17,6 +17,7 @@ from repostyle._shared import (
     _posix,
     _repostyle_table,
     _string_list,
+    _walk_tree,
     find_pyproject,
 )
 from repostyle.rules._violation import (
@@ -124,7 +125,7 @@ def check_test_naming(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
         if not node.name.startswith("test_"):
@@ -146,7 +147,7 @@ def check_no_mock_patch(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         offending = _offending_mock_import(node)
         if offending is None:
             continue
@@ -380,7 +381,7 @@ def _exercises_code(names: set[str], scope: _ResolvedScope) -> bool:
     return any(
         bound in names
         for tree in scope.trees
-        for node in ast.walk(tree)
+        for node in _walk_tree(tree)
         for root, bound in _import_bindings(node)
         if root not in FILE_PARSER_MODULES
     )
@@ -652,10 +653,13 @@ def _reached_names(
 
 def _referenced_names(node: ast.AST) -> set[str]:
     """Returns the names and attributes an expression or body references."""
-    names = {inner.id for inner in ast.walk(node) if isinstance(inner, ast.Name)}
-    return names | {
-        inner.attr for inner in ast.walk(node) if isinstance(inner, ast.Attribute)
-    }
+    names: set[str] = set()
+    for inner in ast.walk(node):
+        if isinstance(inner, ast.Name):
+            names.add(inner.id)
+        elif isinstance(inner, ast.Attribute):
+            names.add(inner.attr)
+    return names
 
 
 def _requested_fixtures(
@@ -707,7 +711,7 @@ def _scoped_functions(tree: ast.AST) -> Iterator[tuple[str, _TestFunction]]:
     A function defined at module level takes the empty string, so the two
     scopes pytest resolves a fixture through share one key space.
     """
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.ClassDef):
             continue
         for member in node.body:
@@ -733,7 +737,7 @@ def _test_functions(
     tree: ast.AST,
 ) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:
     """Yields the `test`-prefixed functions and methods defined in the tree."""
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(
             node, ast.FunctionDef | ast.AsyncFunctionDef
         ) and node.name.startswith("test"):

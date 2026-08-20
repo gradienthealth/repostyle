@@ -13,6 +13,7 @@ from repostyle._shared import (
     _posix,
     _repostyle_table,
     _string_list,
+    _walk_tree,
     find_pyproject,
 )
 from repostyle.rules._violation import RS_PORT_NO_IMPLEMENTATION, Violation
@@ -47,7 +48,7 @@ def check_port_no_implementation(path: Path, source: str) -> Iterator[Violation]
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
             continue
         for token, pattern in _PORT_TOKEN_PATTERNS:

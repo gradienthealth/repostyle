@@ -24,7 +24,7 @@ import symtable
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._shared import TEST_CLASS_PATTERN, _parse_python
+from repostyle._shared import TEST_CLASS_PATTERN, _parse_python, _walk_tree
 from repostyle.rules._violation import RS_ELEMENT_ORDER, Violation
 
 _ENUM_BASES = frozenset({"Enum", "IntEnum", "StrEnum", "Flag", "IntFlag", "ReprEnum"})
@@ -36,7 +36,7 @@ def check_class_member_order(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if not isinstance(tree, ast.Module):
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.ClassDef):
             yield from _enum_member_order(node)
             yield from _method_member_order(node)

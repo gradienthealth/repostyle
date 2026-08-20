@@ -6,7 +6,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._shared import _parse_python
+from repostyle._shared import _parse_python, _walk_tree
 from repostyle.rules._violation import RS_NO_PHI_SAFE_EXC_INFO, Violation
 
 _LOGGING_CALL_NAMES = frozenset(
@@ -28,7 +28,7 @@ def check_no_phi_safe_with_exc_info(path: Path, source: str) -> Iterator[Violati
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.Call):
             continue
         func = node.func

@@ -13,7 +13,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._shared import _parse_python
+from repostyle._shared import _parse_python, _walk_tree
 from repostyle.rules._violation import RS_COGNITIVE_COMPLEXITY, Violation
 
 COGNITIVE_COMPLEXITY_LIMIT = 15
@@ -33,7 +33,7 @@ def check_cognitive_complexity(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
         score = score_block(node.body, 0)

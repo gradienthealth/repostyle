@@ -24,7 +24,7 @@ from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
-from repostyle._shared import _parse_python, _posix, find_pyproject
+from repostyle._shared import _parse_python, _posix, _walk_tree, find_pyproject
 from repostyle.rules._violation import RS_SHOULD_BE_PRIVATE, Violation
 
 
@@ -124,7 +124,7 @@ def _collect_definitions(tree: ast.AST, facts: _ModuleFacts) -> None:
 
 def _collect_references(tree: ast.AST, facts: _ModuleFacts) -> None:
     """Records the imports, name loads, and broad references across `tree`."""
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.Import | ast.ImportFrom):
             facts.imported |= _bound_import_names(node)
         elif isinstance(node, ast.Name):

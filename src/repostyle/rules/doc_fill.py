@@ -15,6 +15,7 @@ from repostyle._shared import (
     _VERBATIM_LINE_PATTERN,
     _join_source_lines,
     _parse_python,
+    _walk_tree,
 )
 from repostyle.rules._violation import (
     RS_DOC_FILL,
@@ -111,7 +112,7 @@ def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     source_lines = source.splitlines()
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not _is_bare_string_literal_statement(node):
             continue
         lineno = node.value.lineno
@@ -212,7 +213,7 @@ def fix_double_space_in_docstrings(
         return source
     source_lines = source.splitlines()
     changed = False
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not _is_bare_string_literal_statement(node):
             continue
         start = node.value.lineno
@@ -268,7 +269,7 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
     source_lines = source.splitlines()
     tree = _parse_python(path, source)
     if tree is not None:
-        for node in ast.walk(tree):
+        for node in _walk_tree(tree):
             if _is_bare_string_literal_statement(node):
                 end = node.value.end_lineno
                 if end is None or end == node.value.lineno:
@@ -329,7 +330,7 @@ def _docstring_double_space_faults(
     """Yields double-space violations from docstring lines."""
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not _is_bare_string_literal_statement(node):
             continue
         start = node.value.lineno

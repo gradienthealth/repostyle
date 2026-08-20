@@ -31,7 +31,7 @@ import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
-from repostyle._shared import _has_decorator, _is_test_file, _parse_python
+from repostyle._shared import _has_decorator, _is_test_file, _parse_python, _walk_tree
 from repostyle.rules._violation import (
     RS_ARG_DESCRIBED_IN_PROSE,
     RS_DOC_VALUE_SIGNAL,
@@ -439,7 +439,7 @@ def _public_functions(
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
         if node.name.startswith(("_", "test_")):

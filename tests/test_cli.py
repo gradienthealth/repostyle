@@ -269,6 +269,14 @@ class TestFix:
         assert target.read_text(encoding="utf-8") == _UNDERWRAPPED_DOCSTRING
         assert "under-wrapped" in capsys.readouterr().out
 
+    def test_FixThenReport_ReportsTheRewrittenFile(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _UNDERWRAPPED_DOCSTRING, '["RS009"]')
+        main(["--fix", str(target)])
+        assert target.read_text(encoding="utf-8") != _UNDERWRAPPED_DOCSTRING
+        assert "RS009" not in capsys.readouterr().out
+
 
 class TestExplain:
     def test_KnownRule_PrintsCardAndReturnsZero(
