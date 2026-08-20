@@ -15,7 +15,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._shared import _parse_python
+from repostyle._shared import _parse_python, _walk_tree
 from repostyle.rules._violation import RS_RANGE_LEN_REINDEX, Violation
 
 
@@ -37,7 +37,7 @@ def check_range_len_reindex(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.For | ast.AsyncFor):
             yield from _reindex_violation(node)
 

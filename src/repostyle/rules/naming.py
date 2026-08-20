@@ -20,6 +20,7 @@ from repostyle._shared import (
     _parse_python,
     _repostyle_table,
     _string_list,
+    _walk_tree,
     find_pyproject,
 )
 from repostyle.rules._violation import (
@@ -224,7 +225,7 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
     if tree is None:
         return
     acronyms = _effective_acronyms(find_pyproject(path))
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         for name, lineno, col_offset in _acronym_named_targets(node):
             yield from _acronym_violations(name, lineno, col_offset, acronyms)
 
@@ -244,7 +245,7 @@ def check_banned_abbreviation(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         for name, lineno, col_offset in _abbreviation_named_targets(node):
             yield from _abbreviation_violations(name, lineno, col_offset)
 
@@ -261,7 +262,7 @@ def check_discouraged_class_suffix(path: Path, source: str) -> Iterator[Violatio
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.ClassDef) or TEST_CLASS_PATTERN.match(node.name):
             continue
         for suffix in DISCOURAGED_CLASS_SUFFIXES:
@@ -292,7 +293,7 @@ def check_no_negated_boolean(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         for name, lineno, col_offset in _negated_boolean_named_targets(node):
             yield from _negated_boolean_violations(name, lineno, col_offset)
 
@@ -312,7 +313,7 @@ def check_boolean_prefix_required(path: Path, source: str) -> Iterator[Violation
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         for name, lineno, col_offset in _boolean_prefix_named_targets(node):
             yield from _boolean_prefix_violations(name, lineno, col_offset)
 
@@ -337,7 +338,7 @@ def check_predicate_function_naming(path: Path, source: str) -> Iterator[Violati
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             yield from _predicate_naming_violation(node)
 
@@ -380,7 +381,7 @@ def check_exception_alias(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.ExceptHandler) or node.name is None:
             continue
         name = node.name
@@ -414,7 +415,7 @@ def check_no_make_in_production(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(
             node, ast.FunctionDef | ast.AsyncFunctionDef
         ) and node.name.startswith("make_"):
@@ -447,7 +448,7 @@ def check_gcp_bare_identifier(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
         for arg in _function_parameters(node):

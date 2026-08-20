@@ -15,7 +15,7 @@ import builtins
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-from repostyle._shared import _parse_python
+from repostyle._shared import _parse_python, _walk_tree
 from repostyle.rules._violation import RS_OVER_BROAD_EXCEPT, Violation
 
 STRUCTURAL_BUILTINS = frozenset(
@@ -81,7 +81,7 @@ def check_over_broad_except(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.ExceptHandler):
             yield from _over_broad_violation(node)
 

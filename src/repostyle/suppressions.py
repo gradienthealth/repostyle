@@ -24,7 +24,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from repostyle._comments import extract_comments
-from repostyle._shared import _parse_python
+from repostyle._shared import _parse_python, _walk_tree
 from repostyle.rules import Violation
 
 _RULE_LIST = r"(?:\[([\sA-Z0-9,]*)\])?"
@@ -121,7 +121,7 @@ def _statement_spans(path: Path, source: str) -> tuple[tuple[int, int], ...]:
     if tree is None:
         return ()
     spans: list[tuple[int, int]] = []
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if not isinstance(node, ast.stmt):
             continue
         decorators = getattr(node, "decorator_list", [])

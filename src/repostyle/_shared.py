@@ -556,3 +556,21 @@ def _temporal_markers(text: str) -> list[str]:
         if marker not in seen:
             seen.append(marker)
     return seen
+
+
+# Cached because every rule scanning a file re-walks the same tree, and
+# `ast.walk` costs two Python-level calls per node -- the largest single cost
+# in a run before this. The key is the tree itself, an AST node hashing by
+# identity, so an entry belongs to the exact tree `_parse_python` returned;
+# holding that reference also pins it, leaving no way for a later tree to reuse
+# a freed address and collide. Sized to match `_parse_python`, so a tree still
+# held by the parse cache keeps its node list.
+@lru_cache(maxsize=128)
+def _walk_tree(tree: ast.AST) -> tuple[ast.AST, ...]:
+    """Returns every node under `tree`, in `ast.walk` order.
+
+    Callers share one tuple, so they read the nodes and never rewrite a tree.
+    Pass a whole module tree: a subtree is walked once per file anyway, and
+    caching one would evict the module lists that carry the win.
+    """
+    return tuple(ast.walk(tree))

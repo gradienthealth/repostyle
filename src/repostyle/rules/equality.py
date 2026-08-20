@@ -17,7 +17,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._shared import _parse_python
+from repostyle._shared import _parse_python, _walk_tree
 from repostyle.rules._violation import RS_EQ_HASH_PAIRING, Violation
 
 # A class decorated with one of these synthesizes both `__eq__` and `__hash__`
@@ -46,7 +46,7 @@ def check_eq_hash_pairing(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         if isinstance(node, ast.ClassDef):
             yield from _pairing_violation(node)
 

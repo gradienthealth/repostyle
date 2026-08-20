@@ -24,7 +24,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._shared import _is_test_file, _parse_python
+from repostyle._shared import _is_test_file, _parse_python, _walk_tree
 from repostyle.rules._violation import RS_PRIVATE_IMPORT, Violation
 
 
@@ -46,7 +46,7 @@ def check_private_import(path: Path, source: str) -> Iterator[Violation]:
         return
     importer = _dotted_module(path)
     importer_top = importer.split(".", 1)[0]
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         for dotted in _import_candidates(node, importer_top):
             owner = _private_owner(dotted, importer_top)
             if owner is not None and not _is_inside(importer, owner):

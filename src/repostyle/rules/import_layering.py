@@ -17,6 +17,7 @@ from repostyle._shared import (
     _parse_python,
     _posix,
     _repostyle_table,
+    _walk_tree,
     find_pyproject,
 )
 from repostyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
@@ -45,7 +46,7 @@ def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    for node in ast.walk(tree):
+    for node in _walk_tree(tree):
         for name in _imported_sources(node):
             if _is_banned(name, banned):
                 yield Violation(
