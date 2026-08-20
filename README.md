@@ -145,13 +145,17 @@ These rules read docstrings and comments alike. The comment half of each runs ov
 
 ### Which rules to enable
 
-Most rules are repo-agnostic and safe to enable anywhere. Three assume a particular layout, so a repo that does not share it should leave them out:
+Most rules are repo-agnostic and safe to enable anywhere. Three assume a particular layout:
 
-- **RS002** expects PascalCase test names under `tests/unit/`. A repo whose unit tests sit elsewhere re-scopes it with `test-naming-globs`. A repo with a different naming convention should not select it.
-- **RS006** bans implementation libraries inside `application/ports/`, the port layer of a hexagonal architecture. A repo whose ports sit elsewhere re-scopes it with `port-path-globs`. A repo with no port layer should not select it.
-- **RS003** presumes a `tests/fakes/` directory. Select it only where that convention holds.
+| Rule | Assumes | Re-scope with |
+| -- | -- | -- |
+| RS002 | PascalCase test names under `tests/unit/` | `test-naming-globs` |
+| RS003 | a `tests/fakes/` directory holding the fakes | — |
+| RS006 | a hexagonal port layer at `application/ports/` | `port-path-globs` |
 
-One more rule reports nothing until configured: RS017 has no bans until a `banned-imports` table names them, so selecting it early is harmless.
+A repo that keeps the same convention in another place re-scopes the rule with the config key. A repo that does not share the convention at all should leave the rule out.
+
+RS017 reports nothing until a `banned-imports` table names its bans, so selecting it early is harmless.
 
 The test rules (RS002, RS003, RS013 through RS016, and RS060) only examine test functions in test files, so they are inert everywhere else.
 
@@ -166,7 +170,11 @@ RS001  RS002  RS003  RS004  RS005  RS006  RS007  RS008  RS009  RS010
 RS011  RS013  RS014  RS017  RS022  RS023  RS025  RS028  RS042
 ```
 
-Those 19 are the mechanical rules whose findings are objective. The rest warn for one of two reasons. Some are heuristics that mark where to look rather than assert a defect, so a human decides: the complexity and threshold rules (RS012, RS027, RS040), the test-quality signals (RS015, RS016, RS060), the documentation-value signals (RS018, RS020, RS021), and the layout and encapsulation smells (RS019, RS029, RS048, RS052). The others are simply new, and warn until their false-positive rate on the existing repos has been measured.
+Those 19 are the mechanical rules whose findings are objective. The rest warn for one of two reasons.
+
+Some are heuristics that mark where to look rather than assert a defect, so a human decides. Those are the complexity and threshold rules (RS012, RS027, RS040), the test-quality signals (RS015, RS016, RS060), the documentation-value signals (RS018, RS020, RS021), and the layout and encapsulation smells (RS019, RS029, RS048, RS052).
+
+The others are simply new. They warn until their false-positive rate on the existing repos has been measured.
 
 A run that tolerated warnings closes with a count on stderr, so an advisory backlog is never silent:
 
@@ -180,9 +188,9 @@ The `--warnings-as-errors` and `--no-warnings-as-errors` flags override the conf
 
 Two rules duplicate a ruff rule that is still behind ruff's preview gate. Enabling either through ruff would mean setting `preview = true` in the shared `ruff-base.toml`, which turns on preview behavior for every rule and the formatter across all consuming repos. They live here instead until the ruff rules graduate.
 
-**RS027** mirrors [`PLR0917`](https://docs.astral.sh/ruff/rules/too-many-positional-arguments/) exactly: the cap of five, the positional-only counting, the `self` and `cls` exclusion, and the `@override` exemption. A keyword-only parameter never counts, so a keyword-only builder is left alone. When `PLR0917` goes stable, select it in `ruff-base.toml` and delete RS027 (PROC-2319). Note that `PLR0917` is a hard error, so adopting it raises the severity.
+RS027 mirrors [`PLR0917`](https://docs.astral.sh/ruff/rules/too-many-positional-arguments/) exactly: the cap of five, the positional-only counting, the `self` and `cls` exclusion, and the `@override` exemption. A keyword-only parameter never counts, so a keyword-only builder is left alone. When `PLR0917` goes stable, select it in `ruff-base.toml` and delete RS027 (PROC-2319). Note that `PLR0917` is a hard error, so adopting it raises the severity.
 
-**RS042** goes further than [`PLW1641`](https://docs.astral.sh/ruff/rules/eq-without-hash/), which flags only `__eq__` without `__hash__`. RS042 flags `__hash__` without `__eq__` as well. When `PLW1641` goes stable, select it in `ruff-base.toml` and drop RS042's eq-without-hash half, keeping the other half here.
+RS042 goes further than [`PLW1641`](https://docs.astral.sh/ruff/rules/eq-without-hash/), which flags only `__eq__` without `__hash__`. RS042 flags `__hash__` without `__eq__` as well. When `PLW1641` goes stable, select it in `ruff-base.toml` and drop RS042's eq-without-hash half, keeping the other half here.
 
 ## Select rules per repo
 
@@ -218,7 +226,9 @@ Refresh it after clearing debt:
 repostyle --update-baseline .
 ```
 
-A refresh lowers a count to what the tree now holds, so a fix is permanent. It admits the backlog of rules the baseline predates, so a release that adds rules does not redden the build. It never raises a count for a rule the baseline already knew, so new code cannot grandfather itself by refreshing. A file the run did not scan keeps its counts, so refreshing part of a tree does not strip the rest.
+A refresh lowers a count to what the tree now holds, so a fix is permanent. It admits the backlog of rules the baseline predates, so a release that adds rules does not redden the build.
+
+A refresh never raises a count for a rule the baseline already knew, so new code cannot grandfather itself by refreshing. A file the run did not scan keeps its counts, so refreshing part of a tree does not strip the rest.
 
 The `sync repostyle baselines` workflow runs a refresh across the consuming repos after each release and opens the pull request.
 
@@ -250,7 +260,9 @@ respect-gitignore = true # prune directories the root .gitignore names
 
 The root `.gitignore` is the one beside the discovered `pyproject.toml`. The flag is off by default, so no existing repo's behavior changes and a repo that gitignores a path it does want linted is not surprised.
 
-A gitignored path is treated as not part of the repo at all. A pruned directory is invisible to every rule, including the RS029 whole-package visibility index. That is the deliberate split from `exclude`: an excluded file stays in the tree and only its findings are silenced, so a generated stub kept by `exclude` still counts as a cross-module reference for RS029, while a gitignored one does not.
+A gitignored path is treated as not part of the repo at all. A pruned directory is invisible to every rule, including the RS029 whole-package visibility index.
+
+That is the deliberate split from `exclude`, which keeps a file in the tree and silences only its findings. A generated stub kept by `exclude` still counts as a cross-module reference for RS029. A gitignored one does not.
 
 ### The supported `.gitignore` subset
 
@@ -261,7 +273,9 @@ The matcher honors enough of `.gitignore` syntax for the vendored-tree case:
 - A leading-slash `/foo` or an internal-slash `foo/bar` anchors to the repo root. A bare name matches a directory so named at any depth.
 - Glob matching is `fnmatch`, the same as the `exclude` globs, so `*` spans `/`.
 
-Two constructs are deliberately unsupported. A `!` negation is never honored as a re-inclusion: an anchored one only spares its own subtree from pruning, and an unanchored one switches gitignore pruning off for the whole repo, since its any-depth reach cannot be bounded cheaply. Per-directory `.gitignore` files below the root are not read. Where either bound matters, use `exclude`, which is unaffected.
+Two constructs are deliberately unsupported. The first is the `!` negation, which is never honored as a re-inclusion. An anchored one only spares its own subtree from pruning. An unanchored one switches gitignore pruning off for the whole repo, because its any-depth reach cannot be bounded cheaply.
+
+The second is a per-directory `.gitignore` below the root, which is not read at all. Where either bound matters, use `exclude`, which is unaffected.
 
 ### Structural pruning
 
@@ -314,11 +328,13 @@ comment-tags = ["TODO", "FIXME", "NOTE", "HACK"]
 comment-ticket-pattern = "[A-Z]+-\\d+|NO-ISSUE"
 ```
 
-A comment whose leading token is an allowed tag, or a known alias such as `XXX`, `BUG`, or `TBD`, is held to the canonical form, and an alias steers toward the first allowed tag. An unknown tag, wrong casing, a missing or malformed ticket, or a wrong separator is flagged. A comment whose leading token is neither a tag nor an alias is ordinary prose and is left alone. The default ticket pattern is the Linear id shape plus the literal `NO-ISSUE`.
+A comment whose leading token is an allowed tag, or a known alias such as `XXX`, `BUG`, or `TBD`, is held to the canonical form. An alias steers toward the first allowed tag. An unknown tag, wrong casing, a missing or malformed ticket, or a wrong separator is flagged.
+
+A comment whose leading token is neither a tag nor an alias is ordinary prose and is left alone. The default ticket pattern is the Linear id shape plus the literal `NO-ISSUE`.
 
 ### Filenames (RS033)
 
-RS033 checks a non-Python file's extension and casing. It ships defaults for both rather than reporting nothing until configured: `.yaml` over `.yml`, which yaml.org has recommended since 2006, and kebab-case for a multi-word name, which Google's developer documentation style guide prefers because a search engine reads a hyphen as a word break and an underscore not.
+RS033 checks a non-Python file's extension and casing, and ships a default for each rather than reporting nothing until configured. The extension default is `.yaml` over `.yml`, which yaml.org has recommended since 2006. The casing default is kebab-case for a multi-word name, which Google's developer documentation style guide prefers because a search engine reads a hyphen as a word break and an underscore not.
 
 ```toml
 [tool.repostyle]
@@ -329,7 +345,7 @@ filename-ignore = [".github/workflows/*.yml"] # globs exempted from both checks
 ".yml" = ".yaml"
 ```
 
-A curated set of fixed names is exempt from both checks by default, matched case-sensitively on the basename, so a repo never has to list them: `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `LICENSE`, `CODEOWNERS`, `CLAUDE.md`, and `AGENTS.md`.
+A curated set of fixed names is exempt from both checks by default, so a repo never has to list them. The set is `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `LICENSE`, `CODEOWNERS`, `CLAUDE.md`, and `AGENTS.md`, matched case-sensitively on the basename.
 
 `filename-extensions` replaces the default mapping wholesale rather than merging into it, so repeat `.yml = ".yaml"` alongside any extra entries, or declare the table empty to disable the extension check. `filename-case` and `filename-ignore` apply to the extension check and the casing check alike. `filename-ignore` globs use `fnmatch` semantics against the repo-relative path, and extend the built-in exempt set for any further fixed name a tool mandates.
 
@@ -407,7 +423,7 @@ Eight rules are fixable:
 | RS058 | Rewrites the alias section header to its canonical spelling. |
 | RS061 | Collapses the double space after sentence-ending punctuation. |
 
-The RS009 fixer refills only paragraphs the check flagged and leaves prose the rule accepts alone. It never touches a verbatim structure — a code fence, doctest, table, rule, or section header — nor a preformatted line, meaning one ending in a `\` continuation or holding an interior run of spaces that aligns a column. It respects `# style: ignore` directives.
+The RS009 fixer refills only paragraphs the check flagged, and leaves prose the rule accepts alone. It never touches a verbatim structure such as a code fence, doctest, table, rule, or section header. It never touches a preformatted line either, meaning one ending in a `\` continuation or holding an interior run of spaces that aligns a column. It respects `# style: ignore` directives.
 
 A comment fixer reaches every language its check reads, so a `#` comment is repaired in TOML, YAML, and shell as well as Python. A docstring fixer acts on Python alone.
 
@@ -527,7 +543,9 @@ ignore-words-list = "datas,ehr,fo,hist"
 
 The two shell gates configure differently, since neither tool reads `pyproject.toml`. `shellcheck` reads a `.shellcheckrc` at the repo root, so a repo tuning it commits that file — `disable=SC1091` to skip unfollowable `source` targets, for example.
 
-`shfmt` takes flags rather than a config file. The `repostyle-shfmt` hook runs `shfmt -d -i 2 -ci`, enforcing the house default of two-space, switch-case indentation per Google's Shell Style Guide, which forbids tabs. It fails on any file that is not already formatted, so a consumer gets the house dialect with no per-repo config. A repo wanting a different indent overrides through the hook's `args`, such as `args: ["-i", "4"]`, since shfmt honors the last `-i` it is given.
+`shfmt` takes flags rather than a config file. The `repostyle-shfmt` hook runs `shfmt -d -i 2 -ci`, which enforces the house default of two-space, switch-case indentation per Google's Shell Style Guide, which forbids tabs. The hook fails on any file that is not already formatted, so a consumer gets the house dialect with no per-repo config.
+
+A repo wanting a different indent overrides through the hook's `args`, such as `args: ["-i", "4"]`, since shfmt honors the last `-i` it is given.
 
 ### As a package extra
 
@@ -559,7 +577,9 @@ lint = [
 
 ### Gates that stay consumer-side
 
-`mypy`, `pyright`, and `pip-audit` are not exported. The first two need the consuming repo's full dependency set installed to resolve types, and `pip-audit` audits that repo's own lockfile through `uv`, so all three run in the repo's own environment rather than a pre-commit-isolated one. Keep them as `local` hooks and hold their config to the same house baseline:
+`mypy`, `pyright`, and `pip-audit` are not exported. The first two need the consuming repo's full dependency set installed to resolve types, and `pip-audit` audits that repo's own lockfile through `uv`. All three therefore run in the repo's own environment rather than a pre-commit-isolated one.
+
+Keep them as `local` hooks and hold their config to the same house baseline:
 
 ```yaml
 - repo: local
@@ -601,7 +621,7 @@ The base ruff config enforces docstring *style* through the `D` rules, but no ru
 
 ## The judgment layer
 
-The `RSnnn` rules and ruff own what a tool can decide. The conventions that need a reader live in [`docs/judgment-conventions.md`](docs/judgment-conventions.md): whether a docstring is about the right subject, whether a verb means what the tree uses it to mean, whether a test pins the contract or the implementation.
+The `RSnnn` rules and ruff own what a tool can decide. The conventions that need a reader live in [`docs/judgment-conventions.md`](docs/judgment-conventions.md). Those cover whether a docstring is about the right subject, whether a verb means what the tree uses it to mean, and whether a test pins the contract or the implementation.
 
 Each consuming repo's `CLAUDE.md` references that doc, so a coding agent reads the judgment conventions alongside the mechanical ones. A judgment convention that becomes mechanically decidable graduates to an `RSnnn` rule and leaves the doc, as `make_` did when it became RS025. The doc only shrinks as the linter grows.
 

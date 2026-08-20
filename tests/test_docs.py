@@ -28,6 +28,20 @@ class TestReadmeRuleTables:
         assert set(_FIX_ROW.findall(section)) == set(FIXABLE_RULES)
 
 
+class TestReadmeCounts:
+    def test_StatedTotal_MatchesTheRegistry(self) -> None:
+        text = _README.read_text(encoding="utf-8")
+        assert f"It ships {len(ALL_RULE_IDS)} rules" in text
+
+    def test_StatedSeveritySplit_MatchesTheRegistry(self) -> None:
+        severities = list(_rule_table().values())
+        errors = severities.count("error")
+        warnings = severities.count("warning")
+        text = _README.read_text(encoding="utf-8")
+        assert f"{errors} rules hard-fail and the other {warnings}" in text
+        assert f"Those {errors} are the mechanical rules" in text
+
+
 def _rule_table() -> dict[str, str]:
     """Returns the id-to-severity pairs the README's rule tables list."""
     return dict(_TABLE_ROW.findall(_README.read_text(encoding="utf-8")))

@@ -28,38 +28,45 @@ RS018 flags the presence and shape of under-documentation. Whether the prose is 
 
 A comment earns its place only for a non-obvious *why*: a hidden constraint, a subtle invariant, a bug workaround, or surprising third-party behavior. The identifiers already show the *what*.
 
-- **What-narration** restating the line below it (`# increment the counter`) → cut it.
-- **Absence narration** (`# no error handling needed here`, `# intentionally empty`) → cut it. An absence is not a comment-worthy fact.
-- **Ticket references** (`PROC-1234`, `#1234`) on ordinary new code → cut them. The ticket lives in the pull request title and the commit, and `git blame` supplies provenance. Keep one only where it carries out-of-band context the reader needs, such as a workaround for an incident or a flag added after an outage. Keep one in a regression test too, where it pins why that specific behavior is defended. RS022 owns the shape of a tag comment; whether it earns its place is judgment.
+- What-narration restating the line below it (`# increment the counter`) → cut it.
+- Absence narration (`# no error handling needed here`, `# intentionally empty`) → cut it. An absence is not a comment-worthy fact.
+- A ticket reference (`PROC-1234`, `#1234`) on ordinary new code → cut it. The ticket lives in the pull request title and the commit, and `git blame` supplies provenance.
+
+Keep a ticket reference only where it carries out-of-band context the reader needs, such as a workaround for an incident or a flag added after an outage. Keep one in a regression test too, where it pins why that specific behavior is defended. RS022 owns the shape of a tag comment. Whether it earns its place is judgment.
 
 ## C. Verbs encode cost and failure mode
 
 The verb tells a reader, without opening the body, whether a call does I/O, can raise, or mutates. A name is syntactically valid whatever verb it picks, so only judgment catches a verb that lies.
 
-- **`build_`** is pure in-memory assembly with no I/O. A `build_` that writes a file or hits the network is mis-verbed, and wants to be `create_` or to have the I/O split out.
-- **`create_`** changes the world: it writes, registers, or calls a remote. The `create_app` and `create_*_router` web-factory idiom is the sanctioned exception, since it assembles in memory despite the verb.
-- **`from_<x>`** is an alternate constructor, a classmethod returning an instance, matching the stdlib's `datetime.fromisoformat`.
-- **`make_`** is for test fixtures only. A production `make_` is now RS025.
-- **Retrieval is layered.** At the transport layer, `get_` and `post_` mirror the HTTP verb they issue. `fetch_` is slow or fallible domain retrieval, meaning a remote read that can fail or block. A plain `get_` elsewhere is a cheap, in-memory, roughly constant-time lookup that does not fail, so a `get_` making a network call wants to be `fetch_`.
-- **One verb per concept.** `parse_`, `write_`, `render_`, and `resolve_` each name one operation. Do not introduce a synonym such as `compute_`, `calculate_`, or `derive_` when the tree already settled on one, and check the surrounding modules for the established verb.
-- **`validate_`, `check_`, and `ensure_`** return a verdict or raise. They never silently return `None` on both success and failure, and a predicate that swallows its result is mis-named. This stays judgment rather than a rule because whether a function signals failure can hinge on a helper it calls, which a linter cannot see.
+- `build_` is pure in-memory assembly with no I/O. A `build_` that writes a file or hits the network wants to be `create_`, or to have the I/O split out.
+- `create_` changes the world: it writes, registers, or calls a remote. The `create_app` and `create_*_router` web-factory idiom is the sanctioned exception, since it assembles in memory despite the verb.
+- `from_<x>` is an alternate constructor, a classmethod returning an instance, matching the stdlib's `datetime.fromisoformat`.
+- `make_` is for test fixtures only. A production `make_` is now RS025.
+- `parse_`, `write_`, `render_`, and `resolve_` each name one operation. Do not introduce a synonym such as `compute_`, `calculate_`, or `derive_` when the tree already settled on one.
+- `validate_`, `check_`, and `ensure_` return a verdict or raise. They never silently return `None` on both success and failure.
+
+Retrieval is layered. At the transport layer, `get_` and `post_` mirror the HTTP verb they issue. `fetch_` is slow or fallible domain retrieval, meaning a remote read that can fail or block. A plain `get_` elsewhere is a cheap, in-memory, roughly constant-time lookup that does not fail, so a `get_` making a network call wants to be `fetch_`.
+
+The predicate verbs stay judgment rather than a rule because whether a function signals failure can hinge on a helper it calls, which a linter cannot see. A predicate that swallows its result is mis-named.
 
 ## D. Nouns name identity, and clarity beats brevity
 
-**A noun names what an object *is***, by its responsibility, not by a vague role. RS011 bans the literal `Manager`, `Helper`, `Util`, and `Utils` suffixes. Judgment catches the misses those four words cannot enumerate, such as a `Processor` or `Coordinator` that names what a class loosely does. A class whose best name is a verb usually wants to be a function.
+A noun names what an object *is*, by its responsibility, not by a vague role. RS011 bans the literal `Manager`, `Helper`, `Util`, and `Utils` suffixes. Judgment catches the misses those four words cannot enumerate, such as a `Processor` or `Coordinator` that names what a class loosely does. A class whose best name is a verb usually wants to be a function.
 
-**A boolean reads as a positive yes/no question**, prefixed `is_`, `has_`, `can_`, or `should_`. RS024 rejects an embedded `not` or `no`, and RS026 requires the prefix on a `bool`-annotated name. Judgment catches what neither reaches: a boolean that reads negative through a prefix-merged word, such as `is_invalid` forcing `if not is_invalid` where `is_valid` reads better, and a `bool`-returning function or property not phrased as a question at all, such as `valid()` for `is_valid()`, whose return type RS026's annotation match does not see.
+A boolean reads as a positive yes/no question, prefixed `is_`, `has_`, `can_`, or `should_`. RS024 rejects an embedded `not` or `no`, and RS026 requires the prefix on a `bool`-annotated name.
 
-**Clarity beats brevity.** This codebase is verbose on purpose, and a longer name that removes a guess wins. RS010 owns the fixed abbreviation list. Judgment catches the wide-scope, too-terse name it cannot pre-enumerate: a module-level `data`, `tmp`, or `val`, or a single-letter variable outside a loop, each of which forces the reader to reconstruct intent.
+Judgment catches two misses neither reaches. The first is a boolean that reads negative through a prefix-merged word, such as `is_invalid`, which forces `if not is_invalid` where `is_valid` reads better. The second is a `bool`-returning function or property not phrased as a question at all, such as `valid()` for `is_valid()`, whose return type RS026's annotation match does not see.
+
+Clarity beats brevity. This codebase is verbose on purpose, and a longer name that removes a guess wins. RS010 owns the fixed abbreviation list. Judgment catches the wide-scope, too-terse name it cannot pre-enumerate: a module-level `data`, `tmp`, or `val`, or a single-letter variable outside a loop, each of which forces the reader to reconstruct intent.
 
 ## E. Tests pin contract, not implementation
 
 Ask this of every assertion: if a refactor preserves the behavior the user actually relies on, would this assertion still pass? If not, it pins implementation. The mechanical test smells are gated by RS013 through RS016. What follows is the semantic residue those token checks cannot see.
 
-- **Verbatim message-layout pinning.** A `match=` regex or a `str(exc) ==` comparison that pins a message's layout — its word order and separators — instead of the fields it must surface. A single important identifier such as `match=r"access_token"` is fine. The smell is a multi-token regex mirroring an f-string line.
-- **Constant pinning.** An assertion equal to a constant defined next to the code under test. It fails only if someone edits both sides at once, which is not a realistic regression.
-- **Constant-coupled numerics.** A hardcoded number justified as "greater than *some magic constant in the source*". Import the constant and test the boundary, or rename the test to the looser guarantee it actually defends.
-- **Incidental call counts.** `assert spy.call_count == 3` where the 3 is incidental. This is acceptable only when the count *is* the contract, as in "a 5-item page deduped to 1 request".
+- Verbatim message-layout pinning: a `match=` regex or a `str(exc) ==` comparison that pins a message's word order and separators instead of the fields it must surface. A single important identifier such as `match=r"access_token"` is fine, and the smell is a multi-token regex mirroring an f-string line.
+- Constant pinning: an assertion equal to a constant defined next to the code under test. It fails only if someone edits both sides at once, which is not a realistic regression.
+- Constant-coupled numerics: a hardcoded number justified as "greater than *some magic constant in the source*". Import the constant and test the boundary, or rename the test to the looser guarantee it actually defends.
+- Incidental call counts: `assert spy.call_count == 3` where the 3 is incidental. This is acceptable only when the count *is* the contract, as in "a 5-item page deduped to 1 request".
 
 Prefer asserting the fields a message must surface over its exact layout. Looping `for sub in ["401", "invalid_client"]: assert sub in str(exc.value)` survives a formatting refactor that `match=r"401 invalid_client: ..."` does not.
 
@@ -73,8 +80,8 @@ The most common find on a polished branch is a docstring or comment that a later
 
 ## Using this canon
 
-**Repos** reference this doc from their `CLAUDE.md` style section rather than restating the conventions, so the canon has one home. Repo-specific conventions, such as a hexagonal ports layer or a test-naming scheme, stay in that repo's own docs. What lives here applies across repos.
+Repos reference this doc from their `CLAUDE.md` style section rather than restating the conventions, so the canon has one home. Repo-specific conventions, such as a hexagonal ports layer or a test-naming scheme, stay in that repo's own docs. What lives here applies across repos.
 
-**Reviewers**, human or agent, cite this doc as the source of truth rather than restating a convention in a comment thread.
+Reviewers, human or agent, cite this doc as the source of truth rather than restating a convention in a comment thread.
 
-**Graduation is one-directional.** A judgment convention that becomes mechanically decidable moves to an `RSnnn` rule and is struck from this doc, with a pointer left behind. `make_` and the negated boolean both went that way. This doc only ever shrinks as the linter grows.
+Graduation is one-directional. A judgment convention that becomes mechanically decidable moves to an `RSnnn` rule and is struck from this doc, with a pointer left behind. `make_` and the negated boolean both went that way. This doc only ever shrinks as the linter grows.
