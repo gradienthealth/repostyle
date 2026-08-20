@@ -274,7 +274,8 @@ class TestFix:
     ) -> None:
         target = _write_project(tmp_path, _UNDERWRAPPED_DOCSTRING, '["RS009"]')
         main(["--fix", str(target)])
-        assert "under-wrapped" not in capsys.readouterr().out
+        assert target.read_text(encoding="utf-8") != _UNDERWRAPPED_DOCSTRING
+        assert "RS009" not in capsys.readouterr().out
 
 
 class TestExplain:
