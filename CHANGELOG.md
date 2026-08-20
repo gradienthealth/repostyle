@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.29.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.28.0...repostyle-v0.29.0) (2026-08-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **NO-ISSUE:** gate on every rule and grandfather the backlog with a baseline ([#147](https://github.com/gradienthealth/repostyle/issues/147))
+
+### Features
+
+* **NO-ISSUE:** ban framed-title banner comments and add a warnings-as-errors switch ([#145](https://github.com/gradienthealth/repostyle/issues/145)) ([ba3c57b](https://github.com/gradienthealth/repostyle/commit/ba3c57b07636dcd739f5c01d196edd84109ecc30))
+* **NO-ISSUE:** gate on every rule and grandfather the backlog with a baseline ([#147](https://github.com/gradienthealth/repostyle/issues/147)) ([72d56d2](https://github.com/gradienthealth/repostyle/commit/72d56d2ce48d9381fb5db7b2bd4952e64775a166))
+
 ## [0.28.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.27.0...repostyle-v0.28.0) (2026-08-19)
 
 
