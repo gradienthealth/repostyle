@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.31.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.30.0...repostyle-v0.31.0) (2026-08-20)
+
+
+### Features
+
+* **NO-ISSUE:** scope a style suppression to a statement span ([#150](https://github.com/gradienthealth/repostyle/issues/150)) ([494db59](https://github.com/gradienthealth/repostyle/commit/494db595fd314a7cdcf74f385bf80d3a7cc0989a))
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** leave a dotted name out of the RS049 and RS050 prose scans ([#152](https://github.com/gradienthealth/repostyle/issues/152)) ([717291d](https://github.com/gradienthealth/repostyle/commit/717291d0ac873ef07e91c9bcbb0756f4159f2b3b))
+
 ## [0.30.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.29.0...repostyle-v0.30.0) (2026-08-20)
 
 
