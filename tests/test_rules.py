@@ -3005,23 +3005,56 @@ class TestCheckBannerComment:
         "source",
         [
             "# ---\nx = 1\n",
-            "# --- see the note below\nx = 1\n",
             "# +----+\n# | a  |\n# +----+\nx = 1\n",
             "x = 1  # ----\n",
-            "# === TESTS ===\nx = 1\n",
+            "x = 1  # --- main ---\n",
             "# A plain prose comment.\nx = 1\n",
+            "# -*- coding: utf-8 -*-\nx = 1\n",
+            "# ---8<--- cut here\nx = 1\n",
+            "# -----> the retry path\nx = 1\n",
+            "## note on the constant\nx = 1\n",
         ],
         ids=[
             "three-dashes",
-            "dashes-then-prose",
             "ascii-table-border",
             "trailing-divider",
-            "decorated-one-line-title",
+            "trailing-framed-title",
             "prose",
+            "coding-declaration",
+            "scissors",
+            "arrow",
+            "comment-level",
         ],
     )
     def test_ConformingComment_NoViolation(self, source: str) -> None:
         assert list(check_banner_comment(_DOC_PATH, source)) == []
+
+    @pytest.mark.parametrize(
+        "comment",
+        [
+            "# --- see the note below",
+            "# === TESTS ===",
+            "# ---------- main ----------",
+            "# --- Main ---",
+            "# --- Main event loop",
+            "# -------- Export Service Tables  ------------",
+            "# Bucket names ----------",
+            "# --- coding: the encoding step ---",
+        ],
+        ids=[
+            "half-frame",
+            "decorated-one-line-title",
+            "padded",
+            "tight",
+            "unclosed",
+            "ragged",
+            "trailing-frame",
+            "says-coding",
+        ],
+    )
+    def test_FramedTitle_FlagsWhateverItsShape(self, comment: str) -> None:
+        violations = list(check_banner_comment(_DOC_PATH, f"{comment}\nx = 1\n"))
+        assert [v.rule for v in violations] == [RS_BANNER_COMMENT]
 
     @pytest.mark.parametrize(
         "line",

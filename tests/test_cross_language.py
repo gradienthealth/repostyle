@@ -259,6 +259,15 @@ class TestBannerCommentCrossLanguage:
         violations = list(check_banner_comment(path, "# =====\n"))
         assert [v.rule for v in violations] == [RS_BANNER_COMMENT]
 
+    @pytest.mark.parametrize(
+        "path",
+        [Path("c.toml"), Path("c.yaml"), Path("s.sh")],
+        ids=["toml", "yaml", "shell"],
+    )
+    def test_FramedTitle_FlagsAcrossLanguages(self, path: Path) -> None:
+        violations = list(check_banner_comment(path, "# --- Buckets ---\n"))
+        assert [v.rule for v in violations] == [RS_BANNER_COMMENT]
+
     def test_YamlCommentedDocumentSeparator_NotFlagged(self) -> None:
         source = "# ---\nkey: value\n"
         assert list(check_banner_comment(Path("c.yaml"), source)) == []

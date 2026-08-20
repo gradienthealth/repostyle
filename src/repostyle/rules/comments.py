@@ -37,10 +37,12 @@ dash, a spaced en dash, or a mis-spaced hyphen form is flagged and, under
 `--fix`, rewritten to the house ` -- `. It spans the same four languages; the
 fix repairs Python in place.
 
-RS055 bans the banner comment -- a standalone line that is nothing but a run of
-rule characters, alone or framing a section title. The grouping a banner
-decorates belongs to structure (a class, a module split, a section docstring),
-so the divider is deleted rather than styled. It spans the same four languages.
+RS055 bans the banner comment -- a standalone line drawn out of rule
+characters, whether a bare divider or a framed section title like
+`# --- main ---`. A file reaching for one wants higher-level modularization, so
+the ban is outright rather than a canonical shape: split the module, gather the
+section into a class, or open the run with a sentence comment. It spans the
+same four languages.
 """
 
 from __future__ import annotations
@@ -100,6 +102,18 @@ _BANNER_CHARACTERS = frozenset("-=#*~_+")
 # A `+----+` box edge is ASCII-table content -- verbatim to RS009 -- not a
 # banner.
 _TABLE_BORDER_PATTERN = re.compile(r"\+[-=+]*\+")
+# A title framed by rule characters: `# --- main ---`, `# === TESTS ===`, or a
+# half-frame like `# --- main`. The run is bounded by whitespace on the title
+# side, so an ASCII scissors (`---8<---`) and an arrow (`----->`) fall through
+# as ordinary content rather than framing. `#` is absent from the class it
+# draws from: a leading run of hashes marks a comment level (`## note`, shdoc's
+# `###`) rather than decorating a title, and only a hash run standing alone as
+# the whole comment reads as a divider.
+_FRAMED_TITLE_PATTERN = re.compile(r"^[-=*~_+]{3,}\s|\s[-=*~_+]{3,}$")
+# PEP 263's encoding declaration reads as a `-*-` frame on both sides but is a
+# parser directive, not decoration. Anchoring on the `-*-` frame rather than on
+# `coding` alone keeps a title that happens to say "coding" a banner.
+_CODING_DECLARATION_PATTERN = re.compile(r"^-\*-\s.*coding[:=].*\s-\*-$")
 
 # A comment's first token, with the character that immediately follows
 # it captured separately. A tag is used tag-style -- written in all caps
@@ -556,20 +570,24 @@ def fix_nonstandard_dash_in_comments(
 
 
 def check_banner_comment(path: Path, source: str) -> Iterator[Violation]:
-    """Flags a banner or section-divider comment.
+    """Flags a banner, section-divider, or framed-title comment.
 
-    A standalone comment whose text is nothing but a run of rule characters --
-    `# -----`, `# =====`, `#####`, or the frame lines boxing a `# TESTS` title
-    -- decorates a grouping the code should express with structure: a class, a
-    module split, or a section docstring. Divider styling is rarely applied
-    consistently and adds no information, so the divider is flagged for
-    deletion; each frame line of a boxed banner draws its own violation.
+    A standalone comment drawn out of rule characters -- a bare `# -----`
+    divider, the frame lines boxing a `# TESTS` title, or a one-line framed
+    title like `# --- main ---` -- decorates a grouping the code should express
+    with structure. A divider is styled differently by every author and every
+    file, so the set is banned outright rather than held to one canonical
+    shape; each frame line of a boxed banner draws its own violation.
 
-    A run shorter than four characters is left alone, sparing YAML's
-    commented-out `# ---` document separator, as are the `+----+` ASCII-table
-    border RS009 already treats as verbatim content, a trailing comment, and a
-    one-line decorated title (`# === TESTS ===`), whose text is not wholly a
-    divider. The check runs over Python, TOML, YAML, and shell comments alike.
+    A comment is a banner when its text is wholly rule characters, or when a
+    run of three or more opens or closes it against whitespace. Bounding the
+    run on the title side spares an ASCII scissors (`---8<---`) and an arrow
+    (`----->`), whose runs abut their content. A run shorter than four
+    characters standing alone is left alone too, sparing YAML's commented-out
+    `# ---` document separator, as are the `+----+` ASCII-table border RS009
+    already treats as verbatim content, PEP 263's `-*- coding: utf-8 -*-`
+    declaration, and a trailing comment. The check runs over Python, TOML,
+    YAML, and shell comments alike.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -577,17 +595,30 @@ def check_banner_comment(path: Path, source: str) -> Iterator[Violation]:
         if comment.is_trailing:
             continue
         text = comment.string[1:].strip()
-        if len(text) < 4 or set(text) - _BANNER_CHARACTERS:
-            continue
-        if _TABLE_BORDER_PATTERN.fullmatch(text):
+        if not _is_banner_text(text):
             continue
         yield Violation(
             comment.lineno,
             comment.column + 1,
             RS_BANNER_COMMENT,
-            "banner comment; delete the divider and express the grouping "
-            "with structure (a class, a module split, or a section docstring)",
+            "banner comment; delete the divider and express the grouping with "
+            "structure -- split the file, gather the section into a class "
+            "(test functions into a test class), or open the run with a "
+            "sentence comment",
         )
+
+
+def _is_banner_text(text: str) -> bool:
+    """Reports whether a comment's text is a divider or a framed title.
+
+    `text` is the comment with its leading hash stripped and stripped of
+    surrounding whitespace.
+    """
+    if _CODING_DECLARATION_PATTERN.match(text):
+        return False
+    if not set(text) - _BANNER_CHARACTERS:
+        return len(text) >= 4 and not _TABLE_BORDER_PATTERN.fullmatch(text)
+    return bool(_FRAMED_TITLE_PATTERN.search(text))
 
 
 def _is_correctable_comment(comment_string: str) -> bool:

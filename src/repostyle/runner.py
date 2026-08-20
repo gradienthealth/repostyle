@@ -91,9 +91,9 @@ LINTABLE_SUFFIXES = COMMENT_SUFFIXES | {".md"}
 class _ResolvedRules(NamedTuple):
     """The rules to run and the subset promoted to error severity.
 
-    `enabled` is `select` minus `ignore`; `promoted` holds the `error`-list ids
-    that print as errors and fail the run even where their default severity is
-    warning.
+    `enabled` is `select` minus `ignore`; `promoted` holds the ids that print
+    as errors and fail the run even where their default severity is warning --
+    the `error` list, or every id when `warnings-as-errors` is set.
     """
 
     enabled: set[str]
@@ -164,6 +164,10 @@ def resolve_promoted_rules(config: dict | None) -> set[str]:
     still be promoted (the promotion is inert until the rule fires) but an
     unknown id is rejected rather than silently dropped.
 
+    `warnings-as-errors = true` promotes every id, subsuming `error`. A repo
+    setting it narrows the gate back with `ignore` rather than by shortening a
+    promotion list.
+
     Raises:
         ValueError: When `error` names an unknown id, matching how
             `resolve_enabled_rules` validates `select` and `ignore`.
@@ -178,7 +182,7 @@ def resolve_promoted_rules(config: dict | None) -> set[str]:
             "unknown repostyle rule id(s): "
             f"{', '.join(sorted(unknown))}. Known ids: {', '.join(sorted(known))}."
         )
-    return promoted
+    return known if config.get("warnings-as-errors") else promoted
 
 
 def expand_paths(paths: Iterable[Path]) -> list[Path]:

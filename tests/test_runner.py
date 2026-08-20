@@ -98,6 +98,17 @@ class TestResolvePromotedRules:
         config = {"select": [RS_DISCOURAGED_CLASS_SUFFIX], "error": [RS_ACRONYM_CASING]}
         assert resolve_promoted_rules(config) == {RS_ACRONYM_CASING}
 
+    def test_WarningsAsErrors_PromotesEveryId(self) -> None:
+        assert resolve_promoted_rules({"warnings-as-errors": True}) == set(ALL_RULE_IDS)
+
+    def test_WarningsAsErrorsFalse_PromotesOnlyTheErrorList(self) -> None:
+        config = {"warnings-as-errors": False, "error": [RS_ACRONYM_CASING]}
+        assert resolve_promoted_rules(config) == {RS_ACRONYM_CASING}
+
+    def test_UnknownIdBesideWarningsAsErrors_StillRaises(self) -> None:
+        with pytest.raises(ValueError, match="RS999"):
+            resolve_promoted_rules({"warnings-as-errors": True, "error": ["RS999"]})
+
 
 class TestResolveRulesForPaths:
     def test_OnePyproject_ResolvesEnabledAndPromoted(self, tmp_path: Path) -> None:

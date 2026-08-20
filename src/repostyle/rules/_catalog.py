@@ -1272,23 +1272,30 @@ RULE_DOCS: dict[str, RuleDoc] = {
     RS_BANNER_COMMENT: RuleDoc(
         name="banner-comment",
         summary=(
-            "No banner or section-divider comments: a line of rule characters "
-            "is deleted and the grouping expressed with structure."
+            "No banner, section-divider, or framed-title comments: the rule "
+            "characters go and the grouping is expressed with structure."
         ),
         rationale=(
-            "A banner -- `# -----` frame lines boxing a `# TESTS` title, or a "
-            "lone divider -- decorates a grouping instead of expressing it. "
-            "Divider styling is rarely applied consistently, adds no "
-            "information a reader can act on, and a file that needs visual "
-            "section markers is usually asking for real structure: group the "
-            "section into a class, split the module, or give the section a "
-            "docstring. The check flags each standalone comment that is "
-            "nothing but a run of four or more rule characters, so YAML's "
-            "commented-out `# ---` document separator and the `+----+` "
-            "ASCII-table border stay exempt, and a decorated one-line title "
-            "(`# === TESTS ===`) is left to review. Not auto-fixable: "
-            "deleting the divider is trivial, but the restructuring it points "
-            "at is not."
+            "A banner -- a lone `# -----` divider, the frame lines boxing a "
+            "`# TESTS` title, or a one-line `# --- main ---` -- decorates a "
+            "grouping instead of expressing it, and a file reaching for "
+            "visual section markers is reporting that it wants higher-level "
+            "modularization. Take the alternative that fits: split the module "
+            "so each section is its own file, gather the section into a class "
+            "(test functions under one section into a test class), or, where "
+            "the file must stay whole, open the run with a sentence comment "
+            "saying what it holds. Only the typography is banned -- `# "
+            "Handlers for the BigQuery MCP tool.` is an ordinary comment and "
+            "passes. The set is banned outright rather than held to one "
+            "canonical shape because every author picks a different width, "
+            "character, casing, and closing run, so the convention never "
+            "converges. The check flags a comment whose text is wholly rule "
+            "characters, or that a run of three or more opens or closes "
+            "against whitespace; YAML's commented-out `# ---` document "
+            "separator, the `+----+` ASCII-table border, PEP 263's `-*- "
+            "coding: utf-8 -*-` line, an ASCII scissors (`---8<---`), and an "
+            "arrow (`----->`) stay exempt. Not auto-fixable: deleting the "
+            "divider is trivial, but the restructuring it points at is not."
         ),
         examples=(
             Example(
@@ -1297,6 +1304,34 @@ RULE_DOCS: dict[str, RuleDoc] = {
                 note=(
                     "Delete the divider; a file that genuinely has sections "
                     "wants a class or a module split, not typography."
+                ),
+            ),
+            Example(
+                bad=(
+                    "# --- baseline ---\n"
+                    "def test_baseline_returns_every_cohort(): ...\n\n"
+                    "# --- offset ---\n"
+                    "def test_offset_skips_the_leading_cohorts(): ..."
+                ),
+                good=(
+                    "class TestBaseline:\n"
+                    "    def test_returns_every_cohort(self): ...\n\n\n"
+                    "class TestOffset:\n"
+                    "    def test_skips_the_leading_cohorts(self): ..."
+                ),
+                note=(
+                    "A framed title is flagged whatever its width or casing. "
+                    "A test file dividing itself into sections is the "
+                    "commonest case, and a test class per section names the "
+                    "grouping in code."
+                ),
+            ),
+            Example(
+                bad="# ========== BigQuery MCP ==========",
+                good="# Handlers for the BigQuery MCP tool.",
+                note=(
+                    "Where the module must stay whole, a sentence comment "
+                    "carries the same grouping without the typography."
                 ),
             ),
         ),
