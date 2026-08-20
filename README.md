@@ -254,9 +254,26 @@ To waive a single finding without disabling the rule repo-wide, add an inline di
 
 - `# style: ignore[RS010]` — drop the named rule on that line (comma-separate to list several: `# style: ignore[RS001, RS011]`).
 - `# style: ignore` — drop every rule's findings on that line.
-- `# style: ignore-file` — drop every finding in the file; place it anywhere in the file.
+- `# style: ignore-block[RS010]` — drop the named rule across a whole statement: a class, a function, or any multi-line statement.
+- `# style: ignore-file[RS010]` — drop the named rule everywhere in the file; place it anywhere in the file. Without a bracket, each of the three drops every rule's findings in its scope.
 
 The `style` token, rather than ruff's `noqa`, keeps these from colliding with ruff's own suppression handling.
+
+A block directive attaches to the first statement that starts on or after its own line, so write it either above the statement or trailing the statement's opening line. The span it covers runs from the statement's first decorator to its last body line, which is how one directive silences a class along with its methods:
+
+```python
+# style: ignore-block[RS011]
+@dataclass
+class ImportManager:      # the class and every method below are covered
+    def load(self) -> None: ...
+
+
+class Other:
+    def parse(self) -> None:  # style: ignore-block[RS012]
+        ...                   # only this method is covered
+```
+
+Where nothing follows a block directive, and in a file with no Python tree to attach to — a TOML, YAML, or shell file, or a Python file that does not parse — it covers its own line alone.
 
 ## Scope findings to changed lines
 
