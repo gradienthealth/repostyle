@@ -76,10 +76,41 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
 
 # Directories never holding first-party source, pruned during traversal when
 # building the whole-package index a package rule scans and when expanding a
-# directory argument into its lintable files. `venv` is included so a
-# working-tree virtualenv with no configured `exclude` glob is still pruned; a
-# dot-prefixed `.venv` is already pruned by the dot-directory rule.
-_SKIPPED_DIRS = frozenset({"build", "dist", "__pycache__", "node_modules", "venv"})
+# directory argument into its lintable files. The dot-prefixed names are
+# version-control metadata and the caches and virtualenvs a working tree
+# accumulates. Every other dot-directory is walked, because a repo keeps linted
+# files in one: pre-commit hands this linter the workflow YAML under `.github`
+# and the markdown under `.claude`, and a walk that skipped them would put a
+# finding the gate reports beyond the reach of `--update-baseline`, which can
+# only grandfather what it walks.
+_SKIPPED_DIRS = frozenset(
+    {
+        "build",
+        "dist",
+        "__pycache__",
+        "node_modules",
+        "venv",
+        ".git",
+        ".hg",
+        ".svn",
+        ".venv",
+        ".tox",
+        ".nox",
+        ".eggs",
+        ".cache",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".pytype",
+        ".hypothesis",
+        ".direnv",
+        ".terraform",
+        ".gradle",
+        ".next",
+        ".idea",
+        ".vscode",
+    }
+)
 
 # The suffixes a rule ever inspects: every `COMMENT_SUFFIXES` language plus
 # markdown, which RS005 covers but the comment rules do not. A directory
@@ -228,11 +259,10 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
     """Replaces each directory argument with the lintable files beneath it.
 
     Recurses each directory for files matching `LINTABLE_SUFFIXES`, skipping
-    dot-directories and `_SKIPPED_DIRS`, and drops a duplicate resolved path
-    reachable from more than one argument. A file argument passes through
-    unchanged regardless of suffix. A file matching a
-    `[tool.repostyle] exclude` glob is dropped whether it was walked from a
-    directory or passed explicitly.
+    the `_SKIPPED_DIRS` names, and drops a duplicate resolved path reachable
+    from more than one argument. A file argument passes through unchanged
+    regardless of suffix. A file matching a `[tool.repostyle] exclude` glob is
+    dropped whether it was walked from a directory or passed explicitly.
     """
     expanded: list[Path] = []
     seen: set[Path] = set()
@@ -354,11 +384,12 @@ def _walk_matching(
     """Yields the files under `root` matching `suffixes`, pruning as it walks.
 
     Descends with `os.walk`, dropping a pruned directory subtree before its
-    files are enumerated: a dot-directory or a `_SKIPPED_DIRS` name (a `venv`,
-    `node_modules`, or build output) is never entered, so its files are never
-    stat-ed or read. A dot-prefixed file is skipped the same way. Pruning
-    during the walk keeps a run over a venv-heavy working tree from going
-    CPU-bound (DEV-1522).
+    files are enumerated: a `_SKIPPED_DIRS` name (a `venv`, `node_modules`, a
+    build output, or a dot-prefixed cache) is never entered, so its files are
+    never stat-ed or read. Pruning during the walk keeps a run over a
+    venv-heavy working tree from going CPU-bound (DEV-1522). A dot-prefixed
+    file matching `suffixes` is walked like any other, so a repo's
+    `.pre-commit-config.yaml` is linted where it sits.
 
     When the config sets `respect-gitignore`, a directory the repo's root
     `.gitignore` names is pruned too, on both walks -- a gitignored tree is
@@ -374,7 +405,7 @@ def _walk_matching(
     count it.
 
     Only children below `root` are pruned, never the ancestors above it, so a
-    repo checked out under a dot-directory (`.claude/worktrees/...`) is still
+    repo checked out under a pruned name (`~/.cache/worktrees/...`) is still
     walked rather than skipped whole.
     """
     pyproject = find_pyproject(root)
@@ -393,8 +424,6 @@ def _walk_matching(
             if not _is_pruned_dir(parent / name, pyproject, exclude_table, gitignore)
         ]
         for name in filenames:
-            if name.startswith("."):
-                continue
             path = parent / name
             if path.suffix in suffixes and path.is_file():
                 yield path
@@ -408,16 +437,16 @@ def _is_pruned_dir(
 ) -> bool:
     """Reports whether a directory's subtree is pruned from a walk.
 
-    A dot-directory or a `_SKIPPED_DIRS` name is always pruned. Otherwise the
-    directory is pruned when the config's `exclude` globs match its whole
-    subtree, or when the repo's `.gitignore` names it and `respect-gitignore`
-    is set. An empty `table` (the whole-package walk, which does not apply
-    excludes) matches no `exclude` glob, but the `.gitignore` prune still
-    applies there -- a gitignored tree is not part of the repo for any rule,
-    including the cross-module index.
+    A `_SKIPPED_DIRS` name is always pruned. Otherwise the directory is pruned
+    when the config's `exclude` globs match its whole subtree, or when the
+    repo's `.gitignore` names it and `respect-gitignore` is set. An empty
+    `table` (the whole-package walk, which does not apply excludes) matches no
+    `exclude` glob, but the `.gitignore` prune still applies there -- a
+    gitignored tree is not part of the repo for any rule, including the
+    cross-module index.
     """
     name = directory.name
-    if name.startswith(".") or name in _SKIPPED_DIRS:
+    if name in _SKIPPED_DIRS:
         return True
     if _dir_matches_config_glob(directory, pyproject, table, "exclude"):
         return True
@@ -428,11 +457,11 @@ def fix_path(path: Path, enabled: set[str]) -> bool:
     """Applies each enabled fixable rule to `path` in place, reporting change.
 
     A no-op unless a fixable rule is enabled and `path` is a Python, markdown,
-    TOML, or YAML file. The fixers run in `_FIXERS` order, each handed the
-    output of the last; on a TOML or YAML file only the RS009 comment reflow
-    acts, the others being Python/markdown-only. A whole-file ignore directive
-    leaves the file untouched for that rule, and a per-line suppression leaves
-    its line untouched.
+    TOML, YAML, or shell file. The fixers run in `_FIXERS` order, each handed
+    the output of the last; a comment fixer reaches every language the matching
+    check reads, while a docstring fixer acts on Python alone. A whole-file
+    ignore directive leaves the file untouched for that rule, and a per-line
+    suppression leaves its line untouched.
     """
     if not enabled & FIXABLE_RULES or path.suffix not in LINTABLE_SUFFIXES:
         return False

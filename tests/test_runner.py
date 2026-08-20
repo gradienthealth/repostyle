@@ -240,18 +240,31 @@ class TestExpandPaths:
         target.write_text("x = 1\n", encoding="utf-8")
         assert expand_paths([tmp_path]) == [target]
 
-    def test_Directory_SkipsDotAndBuildDirectories(self, tmp_path: Path) -> None:
-        for skipped in (".git", "build", "__pycache__"):
+    def test_Directory_SkipsCacheAndBuildDirectories(self, tmp_path: Path) -> None:
+        for skipped in (".git", ".venv", ".mypy_cache", "build", "__pycache__"):
             hidden = tmp_path / skipped
             hidden.mkdir()
             (hidden / "x.py").write_text("x = 1\n", encoding="utf-8")
         assert expand_paths([tmp_path]) == []
 
-    def test_Directory_SkipsDotPrefixedFiles(self, tmp_path: Path) -> None:
-        (tmp_path / ".pre-commit-config.yaml").write_text("k: v\n", encoding="utf-8")
-        (tmp_path / ".hidden.py").write_text("x = 1\n", encoding="utf-8")
-        (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
-        assert expand_paths([tmp_path]) == [tmp_path / "app.py"]
+    @pytest.mark.parametrize(
+        "directory", [".github/workflows", ".claude"], ids=["github", "claude"]
+    )
+    def test_UnprunedDotDirectory_IsWalked(
+        self, tmp_path: Path, directory: str
+    ) -> None:
+        nested = tmp_path / directory
+        nested.mkdir(parents=True)
+        target = nested / "x.yaml"
+        target.write_text("k: v\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [target]
+
+    def test_DotPrefixedFile_IsWalked(self, tmp_path: Path) -> None:
+        config = tmp_path / ".pre-commit-config.yaml"
+        config.write_text("k: v\n", encoding="utf-8")
+        app = tmp_path / "app.py"
+        app.write_text("x = 1\n", encoding="utf-8")
+        assert expand_paths([tmp_path]) == [config, app]
 
     def test_File_PassesThroughRegardlessOfSuffix(self, tmp_path: Path) -> None:
         target = tmp_path / "notes.txt"
