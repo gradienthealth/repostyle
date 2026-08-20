@@ -242,6 +242,8 @@ class TestCheckAcronymCasingInDocstrings:
             "See http://host/api/json now.",
             "A smart approach to the problem.",
             "Imported from fhir-parser upstream.",
+            "Reads the backlog from .repostyle-baseline.json first.",
+            "Parses it with json.loads before writing.",
         ],
         ids=[
             "correctly-cased-no-op",
@@ -250,11 +252,18 @@ class TestCheckAcronymCasingInDocstrings:
             "acronym-in-url-skipped",
             "ambiguous-smart-left-alone",
             "hyphenated-compound-left-alone",
+            "file-extension-left-alone",
+            "dotted-attribute-left-alone",
         ],
     )
     def test_ConformingProse_NoViolation(self, prose: str) -> None:
         source = f'def f():\n    """{prose}"""\n'
         assert list(check_acronym_casing_in_docstrings(Path("src/x.py"), source)) == []
+
+    def test_SentenceFinalAcronym_StillFlags(self) -> None:
+        source = 'def f():\n    """Returns the payload as json."""\n'
+        violations = list(check_acronym_casing_in_docstrings(Path("src/x.py"), source))
+        assert violations[0].rule == RS_ACRONYM_CASING_IN_PROSE
 
     def test_ArgsEntryCaption_LeavesParameterName(self) -> None:
         source = (
@@ -360,6 +369,8 @@ class TestCheckGCPProductNameInDocstrings:
             "Reads `gcp.storage` and a bare `GCS` in code font.",
             "See gs://bucket/obj for the layout.",
             "Adds a gce-node label to the pool.",
+            "Calls gcs.upload once the object is staged.",
+            "Reads the bucket name from config.gcs at startup.",
         ],
         ids=[
             "already-preferred",
@@ -368,6 +379,8 @@ class TestCheckGCPProductNameInDocstrings:
             "backtick-span-skipped",
             "uri-skipped",
             "hyphenated-compound-left-alone",
+            "dotted-attribute-left-alone",
+            "dotted-suffix-left-alone",
         ],
     )
     def test_ConformingProse_NoViolation(self, prose: str) -> None:

@@ -85,9 +85,14 @@ _PROSE_TERM_OWNED_ACRONYMS: frozenset[str] = frozenset({"GCP"})
 # hyphenated compound such as `fhir-ingestor` (a proper name whose lowercase is
 # correct) is one token that never matches, while a standalone `ipv6` or `Nat`
 # still does. A digit is allowed after the leading letter so `ipv6` reads as
-# one token rather than `ipv` plus a stray `6`.
+# one token rather than `ipv` plus a stray `6`. A dot binding the token to a
+# word character is rejected the same way, so the extension in `baseline.json`
+# and the module in `json.loads` stay as written -- both name a file or an
+# attribute rather than using the acronym in prose. A dot that ends a sentence
+# is followed by a space or the end of the text, so a trailing `json.` still
+# matches.
 _PROSE_ACRONYM_TOKEN = re.compile(
-    r"(?<![A-Za-z0-9_-])[A-Za-z][A-Za-z0-9]*(?![A-Za-z0-9_-])"
+    r"(?<![A-Za-z0-9_.-])[A-Za-z][A-Za-z0-9]*(?![A-Za-z0-9_-])(?!\.[A-Za-z0-9])"
 )
 # RS050's curated map of a disfavored Google Cloud product or brand name in
 # prose to its preferred current form. Only unambiguous substitutions live
@@ -121,15 +126,18 @@ _GCP_TERM_REPLACEMENT: dict[str, str] = {
 # (`Google Cloud Platform`) wins over a shorter key at the same position. Each
 # term's internal spaces match one or more whitespace characters; the
 # lookarounds reject a letter, digit, or hyphen glued on either end, so a
-# substring (`GCS` in `GCSError`, `gce` in `gce-node`) never matches. The scan
-# is case-insensitive, since a lowercased `gcp` is the same disfavored word.
+# substring (`GCS` in `GCSError`, `gce` in `gce-node`) never matches. A dot
+# binding the term to a word character is rejected the same way, so a dotted
+# name (`gcs.upload`, `config.gcs`) reads as code rather than as the brand in
+# prose. The scan is case-insensitive, since a lowercased `gcp` is the same
+# disfavored word.
 _GCP_TERM_PATTERN = re.compile(
-    r"(?<![A-Za-z0-9_-])(?:"
+    r"(?<![A-Za-z0-9_.-])(?:"
     + "|".join(
         r"\s+".join(re.escape(word) for word in term.split())
         for term in sorted(DISFAVORED_GCP_TERMS, key=len, reverse=True)
     )
-    + r")(?![A-Za-z0-9_-])",
+    + r")(?![A-Za-z0-9_-])(?!\.[A-Za-z0-9])",
     re.IGNORECASE,
 )
 
