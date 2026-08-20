@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.2](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.31.1...repostyle-v0.31.2) (2026-08-20)
+
+
+### Documentation
+
+* **NO-ISSUE:** rewrite the README and docs in plain prose ([#157](https://github.com/gradienthealth/repostyle/issues/157)) ([27b6feb](https://github.com/gradienthealth/repostyle/commit/27b6febf1d1cf7b4a1f12524de254a611ef1f2aa))
+
 ## [0.31.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.31.0...repostyle-v0.31.1) (2026-08-20)
 
 
