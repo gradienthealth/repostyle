@@ -38,7 +38,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
 
 - `src/repostyle/runner.py` — config resolution (`select` minus `ignore`, and the promotion set: every id, or the `error` list alone under `warnings-as-errors = false`), pyproject and baseline-path discovery, and linting a path with the enabled rule set.
 
-- `src/repostyle/suppressions.py` — the `# style: ignore[RSnnn]` line and `# style: ignore-file` whole-file directives the runner applies to drop findings.
+- `src/repostyle/suppressions.py` — the `# style: ignore[RSnnn]` line, `# style: ignore-block[RSnnn]` statement-span, and `# style: ignore-file[RSnnn]` whole-file directives the runner applies to drop findings. A block directive resolves against the AST: it attaches to the first statement starting on or after its own line, covering that statement from its first decorator through its last body line, and falls back to its own line where no statement follows or the file has no Python tree.
 
 - `src/repostyle/changed_lines.py` — the git-diff line set the CLI's `--diff` mode intersects findings against, so a finding is reported only on lines the change touched, plus `resolve_diff_base`, which defaults the comparison to the merge-base of `HEAD` and the repo's default branch and returns `None` when none resolves so the CLI can refuse the run.
 
