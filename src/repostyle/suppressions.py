@@ -1,20 +1,18 @@
 """Inline, block, and whole-file suppression directives.
 
 A `# style: ignore[RS010]` trailing comment drops that one rule's findings on
-its line, and `# style: ignore` with no bracket drops every rule's findings
-there. A `# style: ignore-block[RS010]` comment drops the rule across the whole
-statement it attaches to -- a class, a function, or any multi-line statement,
-decorators included -- so one line silences a whole definition. A
-`# style: ignore-file` anywhere drops the file, its bracket scoping it to a
-rule list the way the other two forms scope. The token `style` rather than
-`noqa` keeps these from colliding with ruff's own suppression handling.
+its line. A `# style: ignore-block[RS010]` comment drops the rule across a
+whole statement, from its first decorator through its last body line. A
+`# style: ignore-file[RS010]` comment drops it everywhere in the file, wherever
+in the file it sits. Each form drops every rule's findings in its scope when
+written without a bracket. The token `style` rather than `noqa` keeps these
+from colliding with ruff's own suppression handling.
 
 A block directive attaches to the first statement starting on or after its own
-line, so it reads either as a comment above a definition or as a trailing
-comment on the definition's opening line. Where no statement follows it, and in
-a file with no Python tree to attach to -- a TOML, YAML, or shell file, or a
-Python file that does not parse -- it falls back to its own line, the narrowest
-reading rather than silent inaction.
+line, so it reads either above a definition or trailing the definition's
+opening line. It covers its own line alone where no statement follows it, and
+in a file with no Python tree to attach to: a TOML, YAML, or shell file, or a
+Python file that does not parse.
 """
 
 from __future__ import annotations
