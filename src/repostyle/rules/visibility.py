@@ -47,14 +47,15 @@ def check_should_be_private(
         return
     public = _public_surface(modules, files[0][0])
     decorators = _public_decorators(files[0][0])
+    referencing = _referencing_paths(modules)
     for module in modules:
-        others = [other for other in modules if other.path != module.path]
+        own = {module.path}
         for name, line, col, used_decorators in module.public_defs:
             if name in public or used_decorators & decorators:
                 continue
             if name not in module.name_loads:
                 continue
-            if any(name in other.broad_refs for other in others):
+            if (paths := referencing.get(name)) is not None and paths != own:
                 continue
             yield (
                 module.path,
@@ -79,6 +80,20 @@ def _module_facts(path: Path, source: str) -> _ModuleFacts | None:
     _collect_references(tree, facts)
     facts.broad_refs |= facts.imported
     return facts
+
+
+# Built once so the cross-module check is a lookup rather than a scan of every
+# other module per name, which made the pass quadratic in the file count. The
+# key is the path rather than the module, keeping the exclusion the check wants
+# -- "referenced somewhere other than here" -- so two entries carrying one path
+# still count as that single path.
+def _referencing_paths(modules: Sequence[_ModuleFacts]) -> dict[str, set[Path]]:
+    """Maps each referenced identifier to the paths of the modules using it."""
+    referencing: dict[str, set[Path]] = {}
+    for module in modules:
+        for name in module.broad_refs:
+            referencing.setdefault(name, set()).add(module.path)
+    return referencing
 
 
 # A top-level public `def`/`class` as `(name, line, col, decorators)`
