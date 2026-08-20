@@ -1,10 +1,9 @@
 """Maps a file to the new-file line numbers a git diff added or modified.
 
-This backs the CLI's `--diff` mode: a finding is reported only when its own
-line is one the change touched, so adopting a rule does not block a pull
-request on its pre-existing backlog. The intersection is on the finding's own
-line -- a whole-unit finding reported at a `def` re-arms only when that line
-changes, not on an edit elsewhere in its body.
+This backs the CLI's deprecated `--diff` mode: a finding is reported only when
+its own line is one the change touched. The intersection is on the finding's
+own line -- a whole-unit finding reported at a `def` re-arms only when that
+line changes, not on an edit elsewhere in its body.
 """
 
 from __future__ import annotations
@@ -36,7 +35,8 @@ def resolve_diff_base(start: Path, requested: str | None) -> str | None:
             one refuses the run instead of silently widening its scope.
 
     Returns:
-        The resolved commit, or `None` when the ref is unknown, no default
+        `requested` unchanged when it names a commit, the resolved merge-base
+        commit when it does not, or `None` when the ref is unknown, no default
         branch is reachable (a shallow clone that never fetched one), or the
         path is not in a git work tree.
     """

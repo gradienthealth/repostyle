@@ -123,7 +123,9 @@ Enabled rules are `select` minus `ignore`. If the table is missing or empty, all
 
 Every selected rule fails the run. A repo gates on the rule set it selects, not on a severity split it did not choose, so adding a rule to `select` is the whole decision. The pre-existing findings that would otherwise fail on are held by the [baseline](#grandfather-the-existing-backlog) instead.
 
-`warnings-as-errors = false` opts out, restoring the per-rule default severities (`_registry.RULE_SEVERITY`), under which 42 of the 61 rules are advisory: they print as a `warning` and do not fail the run. `error` then names the advisory rules to promote anyway, which is the surgical option — a repo gates on a trusted subset while leaving the false-positive-prone heuristic rules advisory. A promoted rule that is disabled never fires, so its promotion is inert; promoting a rule that is already error by default is a harmless no-op. An unknown id in `error` is rejected the same way `select`/`ignore` validate their ids.
+`warnings-as-errors = false` opts out, restoring the per-rule default severities (`_registry.RULE_SEVERITY`). Under those, 42 of the 61 rules are advisory: they print as a `warning` and do not fail the run.
+
+`error` then names the advisory rules to promote anyway. It is the surgical option: a repo gates on a trusted subset while leaving the false-positive-prone heuristic rules advisory. A promoted rule that is disabled never fires, so its promotion is inert. Promoting a rule that is already error by default is a harmless no-op. An unknown id in `error` is rejected the same way `select`/`ignore` validate their ids.
 
 The `--warnings-as-errors` and `--no-warnings-as-errors` flags override the config for one run without touching it.
 
@@ -147,7 +149,11 @@ Refresh it with:
 repostyle --update-baseline .
 ```
 
-A refresh lowers a count to what the tree now holds, so clearing debt is permanent, and admits the backlog of rules the baseline predates, so a repostyle release that adds rules does not redden the build. It never raises a count for a rule the baseline already knew: new code cannot grandfather itself by refreshing. The `sync repostyle baselines` workflow runs this across the consuming repos after each release and opens the pull request.
+A refresh lowers a count to what the tree now holds, so clearing debt is permanent. It admits the backlog of rules the baseline predates, so a release that adds rules does not redden the build.
+
+It never raises a count for a rule the baseline already knew, so new code cannot grandfather itself by refreshing. A file the run did not scan keeps its counts, so refreshing part of a tree does not strip the rest.
+
+The `sync repostyle baselines` workflow runs a refresh across the consuming repos after each release and opens the pull request.
 
 `--no-baseline` reports every finding, ignoring the record. That is how a repo measures the debt it still carries.
 
@@ -254,7 +260,9 @@ The `style` token, rather than ruff's `noqa`, keeps these from colliding with ru
 
 ## Scope findings to changed lines
 
-`--diff` is deprecated and will be removed in a later release. The [baseline](#grandfather-the-existing-backlog) grandfathers an existing tree by record, which is what line scoping was standing in for, and without hiding a finding on a line the change did not touch. A run that passes `--diff` says so on stderr. It still works meanwhile, reporting only findings on lines the change touched:
+`--diff` is deprecated and will be removed in a later release. Line scoping was standing in for grandfathering, which the [baseline](#grandfather-the-existing-backlog) now does by record. The baseline also does it without hiding a finding on a line the change did not touch. A run that passes `--diff` says so on stderr.
+
+It still works meanwhile, reporting only findings on lines the change touched:
 
 ```bash
 repostyle --diff $(git diff --name-only origin/main)

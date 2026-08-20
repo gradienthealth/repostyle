@@ -378,7 +378,7 @@ def _write_baseline(
     current = baseline_file.build(findings, root, frozenset(scope.enabled))
     existing = baseline_file.load(path) if path.is_file() else None
     written = (
-        baseline_file.refresh(existing, current)
+        baseline_file.refresh(existing, current, baseline_file.keys(findings, root))
         if options.update_baseline and existing is not None
         else current
     )

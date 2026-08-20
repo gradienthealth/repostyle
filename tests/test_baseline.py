@@ -109,7 +109,7 @@ class TestRefresh:
             rules=frozenset({RS_ACRONYM_CASING}),
             counts={"x.py": {RS_ACRONYM_CASING: 1}},
         )
-        assert baseline.refresh(existing, current).counts == {
+        assert baseline.refresh(existing, current, {"x.py"}).counts == {
             "x.py": {RS_ACRONYM_CASING: 1}
         }
 
@@ -122,7 +122,7 @@ class TestRefresh:
             rules=frozenset({RS_ACRONYM_CASING}),
             counts={"x.py": {RS_ACRONYM_CASING: 6}},
         )
-        assert baseline.refresh(existing, current).counts == {
+        assert baseline.refresh(existing, current, {"x.py"}).counts == {
             "x.py": {RS_ACRONYM_CASING: 1}
         }
 
@@ -135,7 +135,7 @@ class TestRefresh:
             rules=frozenset({RS_ACRONYM_CASING, RS_DISCOURAGED_CLASS_SUFFIX}),
             counts={"x.py": {RS_ACRONYM_CASING: 1, RS_DISCOURAGED_CLASS_SUFFIX: 9}},
         )
-        refreshed = baseline.refresh(existing, current)
+        refreshed = baseline.refresh(existing, current, {"x.py"})
         assert refreshed.counts == {
             "x.py": {RS_ACRONYM_CASING: 1, RS_DISCOURAGED_CLASS_SUFFIX: 9}
         }
@@ -147,7 +147,35 @@ class TestRefresh:
             counts={"x.py": {RS_ACRONYM_CASING: 2}},
         )
         current = Baseline(rules=frozenset({RS_ACRONYM_CASING}), counts={})
-        assert baseline.refresh(existing, current).counts == {}
+        assert baseline.refresh(existing, current, {"x.py"}).counts == {}
+
+
+class TestRefreshScope:
+    def test_UnscannedFile_KeepsItsCounts(self) -> None:
+        existing = Baseline(
+            rules=frozenset({RS_ACRONYM_CASING}),
+            counts={
+                "a/x.py": {RS_ACRONYM_CASING: 1},
+                "b/y.py": {RS_ACRONYM_CASING: 1},
+            },
+        )
+        current = Baseline(
+            rules=frozenset({RS_ACRONYM_CASING}),
+            counts={"a/x.py": {RS_ACRONYM_CASING: 1}},
+        )
+        refreshed = baseline.refresh(existing, current, {"a/x.py"})
+        assert refreshed.counts == {
+            "a/x.py": {RS_ACRONYM_CASING: 1},
+            "b/y.py": {RS_ACRONYM_CASING: 1},
+        }
+
+    def test_ScannedFileNowClean_LosesItsCounts(self) -> None:
+        existing = Baseline(
+            rules=frozenset({RS_ACRONYM_CASING}),
+            counts={"a/x.py": {RS_ACRONYM_CASING: 1}},
+        )
+        current = Baseline(rules=frozenset({RS_ACRONYM_CASING}), counts={})
+        assert baseline.refresh(existing, current, {"a/x.py"}).counts == {}
 
 
 def _violation(line: int, rule: str) -> Violation:

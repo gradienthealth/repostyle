@@ -100,7 +100,12 @@ def build(
     return Baseline(rules=frozenset(rules), counts=counts)
 
 
-def refresh(existing: Baseline, current: Baseline) -> Baseline:
+def keys(findings: dict[Path, list[Violation]], root: Path) -> set[str]:
+    """Returns the baseline keys for the files a scan covered."""
+    return {_key(path, root) for path in findings}
+
+
+def refresh(existing: Baseline, current: Baseline, scanned: set[str]) -> Baseline:
     """Merges a fresh scan into an existing baseline, admitting only new rules.
 
     A count drops to whatever the tree now holds, so fixing a finding retires
@@ -109,9 +114,20 @@ def refresh(existing: Baseline, current: Baseline) -> Baseline:
     written, whose backlog was never anyone's regression. A rule the baseline
     already knew keeps its old ceiling, so new code cannot grandfather itself
     by refreshing.
+
+    Args:
+        existing: The baseline on disk.
+        current: A fresh count of the files the run scanned.
+        scanned: The keys the run covered. A file the run did not reach keeps
+            its recorded counts, so refreshing part of a tree does not strip
+            the rest of its grandfathering and redden the next whole-tree run.
     """
-    merged: dict[str, dict[str, int]] = {}
-    for file in set(existing.counts) | set(current.counts):
+    merged = {
+        file: dict(counts)
+        for file, counts in existing.counts.items()
+        if file not in scanned
+    }
+    for file in scanned:
         was = existing.counts.get(file, {})
         now = current.counts.get(file, {})
         per_rule = {}
@@ -150,8 +166,8 @@ def _key(path: Path, root: Path) -> str:
     """Returns `path` as a POSIX path relative to `root`, or its resolved name.
 
     A path outside `root` keeps its absolute form, which no relative key can
-    collide with, so a file linted from outside the repo is simply never
-    grandfathered.
+    collide with. Recording and matching agree on that form, so such a file is
+    grandfathered like any other, but its key does not survive moving the repo.
     """
     resolved = path.resolve()
     try:
