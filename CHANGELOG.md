@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.29.0...repostyle-v0.30.0) (2026-08-20)
+
+
+### Features
+
+* **NO-ISSUE:** walk the dot-directories the gate lints and fix their comments ([#148](https://github.com/gradienthealth/repostyle/issues/148)) ([106f9d7](https://github.com/gradienthealth/repostyle/commit/106f9d73ad5a12a305475913973253be2994d359))
+
 ## [0.29.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.28.0...repostyle-v0.29.0) (2026-08-20)
 
 
