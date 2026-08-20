@@ -11,7 +11,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.11"
 # Managed by release-please from Conventional-Commit PR titles; do not edit by
 # hand.
-version = "0.29.0"
+version = "0.30.0"
 dependencies = []
 
 [project.urls]
