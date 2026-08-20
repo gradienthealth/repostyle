@@ -82,9 +82,9 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
 # files in one: pre-commit hands this linter the workflow YAML under `.github`
 # and the markdown under `.claude`, and a walk that skipped them would put a
 # finding the gate reports beyond the reach of `--update-baseline`, which can
-# only grandfather what it walks. A worktree nested under one of those is
-# pruned by `_is_nested_checkout` instead, on the structure rather than on the
-# name of the directory holding it.
+# only grandfather what it walks. A checkout nested under one of those -- an
+# agent worktree under `.claude/` -- is pruned by `_is_nested_checkout`, which
+# tests for a `.git` entry rather than matching a name.
 _SKIPPED_DIRS = frozenset(
     {
         "build",
@@ -463,10 +463,9 @@ def _is_nested_checkout(directory: Path) -> bool:
 
     A `.git` entry marks the root of a checkout -- a directory in a clone, a
     file in a linked worktree. That tree is another project rather than part of
-    this one, so the walk stops at its root. A `git worktree` under `.claude/`
-    is a whole second copy of the repo, and reading one both dominates the
-    package scan and silences RS029: the copy of a module counts as a second
-    module referencing every name the original defines.
+    this one, so the walk stops at its root. Indexing a second copy of this
+    repo would also silence RS029, since the copy of a module counts as a
+    second module referencing every name the original defines.
     """
     return (directory / ".git").exists()
 
