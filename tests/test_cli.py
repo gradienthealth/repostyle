@@ -435,6 +435,31 @@ class TestWarningsAsErrorsDefault:
         assert f"{target}:1:1: warning: RS034" in out
 
 
+class TestDiffDeprecation:
+    def test_DiffFlag_SaysItIsDeprecated(
+        self,
+        git_repo: Path,
+        git: Callable[..., None],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        (git_repo / "pyproject.toml").write_text(
+            '[tool.repostyle]\nselect = ["RS001"]\n', encoding="utf-8"
+        )
+        target = git_repo / "x.py"
+        target.write_text("class FhirClient: ...\n", encoding="utf-8")
+        git("add", "x.py", "pyproject.toml")
+        git("commit", "-m", "base")
+        main(["--diff", "--diff-base", "HEAD", str(target)])
+        assert "--diff is deprecated" in capsys.readouterr().err
+
+    def test_WithoutDiffFlag_SaysNothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
+        main([str(target)])
+        assert "deprecated" not in capsys.readouterr().err
+
+
 def _write_project(tmp_path: Path, source: str, select: str) -> Path:
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\nselect = {select}\n", encoding="utf-8"

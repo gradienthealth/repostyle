@@ -79,7 +79,15 @@ def _run_explain(argv: list[str]) -> int:
 # Printed when `--diff` cannot resolve the commit to compare against. The run
 # refuses rather than reporting every line: under the error-by-default severity
 # that would fail the build on the whole grandfathered tree, which reads as a
-# linter outage rather than as the misconfiguration it is.
+# linter outage rather than as the misconfiguration it is. Printed once per run
+# that passes `--diff`. The baseline grandfathers a backlog by record, which is
+# what line scoping was standing in for, and it does so without hiding a
+# finding on a line the change did not touch.
+_DIFF_DEPRECATED = (
+    "repostyle: --diff is deprecated and will be removed in a later release; "
+    "record the backlog with --write-baseline instead"
+)
+
 _UNRESOLVED_BASE = (
     "repostyle: --diff cannot resolve {ref}; fetch the default branch "
     "(actions/checkout with fetch-depth: 0), name a ref with --diff-base, or "
@@ -171,7 +179,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--diff",
         action="store_true",
-        help="report only findings on lines changed versus --diff-base",
+        help="deprecated: report only findings on lines changed versus "
+        "--diff-base; use --write-baseline instead",
     )
     parser.add_argument(
         "--diff-base",
@@ -279,6 +288,7 @@ def _resolve_reporting(options: argparse.Namespace, scope: _Scope) -> _Reporting
     """
     diff_base = None
     if options.diff:
+        print(_DIFF_DEPRECATED, file=sys.stderr)
         start = scope.roots[0] if scope.roots else Path.cwd()
         diff_base = resolve_diff_base(start, options.diff_base)
         if diff_base is None:

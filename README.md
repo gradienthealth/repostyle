@@ -254,7 +254,7 @@ The `style` token, rather than ruff's `noqa`, keeps these from colliding with ru
 
 ## Scope findings to changed lines
 
-The [baseline](#grandfather-the-existing-backlog) is the way to grandfather an existing tree. `--diff` is the narrower tool: it reports only findings on lines the change touched, whether or not they are in the baseline.
+`--diff` is deprecated and will be removed in a later release. The [baseline](#grandfather-the-existing-backlog) grandfathers an existing tree by record, which is what line scoping was standing in for, and without hiding a finding on a line the change did not touch. A run that passes `--diff` says so on stderr. It still works meanwhile, reporting only findings on lines the change touched:
 
 ```bash
 repostyle --diff $(git diff --name-only origin/main)
