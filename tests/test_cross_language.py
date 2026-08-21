@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from repostyle._comments import extract_comments
+from repostyle._comments import (
+    extract_comments,
+    extract_folded_runs,
+    extract_folded_spans,
+)
 from repostyle.rules import (
     RS_BANNER_COMMENT,
     RS_BULLET_ITEM_CASING,
@@ -339,6 +343,9 @@ def _comments(path: Path, source: str) -> list[tuple[int, int, bool, str]]:
     ]
 
 
+TQ = '"' * 3
+
+
 class TestFoldedScalarDocFill:
     def test_UnderWrappedFoldedProse_FlagsDocFill(self) -> None:
         source = (
@@ -391,9 +398,18 @@ class TestFoldedScalarDocFill:
         )
         assert list(check_doc_fill(Path("c.yaml"), source)) == []
 
-    def test_TrailingWhitespaceLine_BreaksTheFoldedRun(self) -> None:
-        source = "description: >-\n  A first line with a trailing space \n  and more.\n"
+    def test_TrailingWhitespaceLines_BreakTheFoldedRun(self) -> None:
+        # Both lines carry one trailing space, so their measured indents agree
+        # and they would otherwise join. A rewrap would strip the spaces, which
+        # a folded scalar keeps as content.
+        source = (
+            "description: >-\n"
+            "  A first line ending in a space \n"
+            "  and a second ending in one too. \n"
+        )
+        assert extract_folded_runs(Path("c.yaml"), source) == ()
         assert list(check_doc_fill(Path("c.yaml"), source)) == []
+        assert fix_doc_fill(Path("c.yaml"), source) == source
 
     def test_BlankLine_SeparatesFoldedParagraphs(self) -> None:
         source = (
@@ -410,10 +426,28 @@ class TestFoldedScalarDocFill:
             (RS_DOC_FILL, 5),
         ]
 
-    def test_FoldedScalarInPythonFile_IsNotScanned(self) -> None:
-        assert (
-            list(check_doc_fill(Path("m.py"), "x: >-\n  much too\n  narrow.\n")) == []
-        )
+    def test_TripleQuoteInFoldedProse_IsNeitherFlaggedNorRewrapped(self) -> None:
+        source = f"a: >-\n  He said {TQ}hi{TQ} and this is much too\n  narrow.\n"
+        assert list(check_doc_fill(Path("c.yaml"), source)) == []
+        assert fix_doc_fill(Path("c.yaml"), source) == source
+
+    @pytest.mark.parametrize(
+        ("path", "runs", "spans"),
+        [
+            (Path("c.yaml"), ((2, 3),), ((1, 3),)),
+            (Path("c.yml"), ((2, 3),), ((1, 3),)),
+            (Path("m.py"), (), ()),
+            (Path("c.toml"), (), ()),
+            (Path("s.sh"), (), ()),
+        ],
+        ids=["yaml", "yml", "python", "toml", "shell"],
+    )
+    def test_FoldedScalarSource_IsReadFromYamlAlone(
+        self, path: Path, runs: tuple[object, ...], spans: tuple[object, ...]
+    ) -> None:
+        source = "description: >-\n  much too\n  narrow.\n"
+        assert extract_folded_runs(path, source) == runs
+        assert extract_folded_spans(path, source) == spans
 
     def test_UnderWrappedFoldedProse_ReflowsToTheScalarIndent(self) -> None:
         source = (
@@ -430,8 +464,8 @@ class TestFoldedScalarDocFill:
 
     def test_OverLongFoldedBullet_ReflowsWithoutAHangingIndent(self) -> None:
         source = "description: >-\n  - " + "word " * 20 + "end.\n"
-        rewrapped = fix_doc_fill(Path("c.yaml"), source).splitlines()
-        assert [line[: len(line) - len(line.lstrip())] for line in rewrapped[1:]] == [
-            "  ",
-            "  ",
-        ]
+        rewrapped = fix_doc_fill(Path("c.yaml"), source).splitlines()[1:]
+        assert len(rewrapped) > 1
+        assert all(
+            line.startswith("  ") and not line.startswith("   ") for line in rewrapped
+        )

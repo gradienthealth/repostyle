@@ -381,12 +381,12 @@ public-decorators = ["fixture"]   # a decorator that publishes what it wraps
 To waive a single finding without disabling the rule repo-wide, add an inline directive:
 
 - `# style: ignore[RS010]` drops the named rule on that line. Comma-separate to list several: `# style: ignore[RS001, RS011]`.
-- `# style: ignore-block[RS010]` drops the named rule across a whole block: a class, a function, or any multi-line statement in Python, and a folded (`>`) scalar in YAML.
+- `# style: ignore-block[RS010]` drops the named rule across a whole block: a Python class, function, or multi-line statement, or a YAML folded (`>`) scalar.
 - `# style: ignore-file[RS010]` drops the named rule everywhere in the file, and can sit anywhere in it.
 
 Each of the three drops every rule's findings in its scope when written without the bracket. The `style` token, rather than ruff's `noqa`, keeps these from colliding with ruff's own suppression handling.
 
-A block directive attaches to the first block starting on or after its own line, so write it either above the block or trailing the block's opening line. The span it covers runs from the statement's first decorator to its last body line, which is how one directive silences a class along with its methods:
+A block directive attaches to the first block starting on or after its own line. Write it either above the block or trailing the block's opening line. In Python the span runs from the statement's first decorator to its last body line, so one directive silences a class along with its methods:
 
 ```python
 # style: ignore-block[RS011]
@@ -407,7 +407,11 @@ description: >-  # style: ignore-block[RS009]
   Every line of this scalar is covered, and only this scalar.
 ```
 
-Where nothing follows a block directive, it covers its own line alone. So does one in a file with no Python tree to attach to: a TOML, YAML, or shell file, or a Python file that does not parse.
+Where nothing follows a block directive, it covers its own line alone. So does one in a file with no block to attach to:
+
+- a TOML or shell file,
+- a Python file that does not parse,
+- a YAML file holding no folded scalar.
 
 ## Fix findings in place
 
@@ -432,7 +436,11 @@ Eight rules are fixable:
 
 The RS009 fixer refills only paragraphs the check flagged, and leaves prose the rule accepts alone. It never touches a verbatim structure such as a code fence, doctest, table, rule, or section header. It never touches a preformatted line either, meaning one ending in a `\` continuation or holding an interior run of spaces that aligns a column. It respects `# style: ignore` directives.
 
-In YAML, RS009 also reads the prose inside a folded (`>`) block scalar. A folded scalar's single line breaks fold to spaces, so rewrapping its lines leaves the value it holds unchanged. A literal (`|`) scalar is never touched, since its breaks are content. A folded scalar counts as prose only when it closes on a `.`, `!`, or `?`, which keeps the rule off the `>` blocks that merely wrap a long expression such as a Cloud Workflows interpolation or an IAM condition. A folded scalar that closes on anything else goes unchecked, and no other rule covers it either -- RS030 reads `#` comments alone, and it cannot be extended here, because the punctuation it looks for is the same signal that tells prose from an expression. End the prose with a period and both rules apply. A line indented past the scalar's own indent ends the paragraph rather than joining it, since folding keeps the break before such a line.
+In YAML, RS009 also reads a folded block scalar's prose -- a value introduced by `>`, written as the indented lines beneath it. YAML turns a single line break there into a space, so a rewrap leaves the value unchanged. Three limits scope it:
+
+- A literal block scalar, introduced by `|` instead, is never touched. YAML keeps its line breaks as part of the value, so a rewrap would change it.
+- A folded scalar counts as prose only when it closes on a `.`, `!`, or `?`. That keeps the rule off the `>` blocks that wrap a long expression, such as a Cloud Workflows interpolation or an IAM condition. One closing on anything else goes unchecked, and no other rule covers it: RS030 reads `#` comments alone. Close the prose with a period and RS009 applies.
+- A line indented past the scalar's own indent ends the paragraph. Folding keeps the break before such a line, so joining across it would change the value.
 
 A comment fixer reaches every language its check reads, so a `#` comment is repaired in TOML, YAML, and shell as well as Python. A docstring fixer acts on Python alone.
 

@@ -154,12 +154,14 @@ class TestFilterSuppressed:
         [
             (_PATH, "class FhirManager: ...\n# style: ignore-block[RS001]\n", 2),
             (_PATH, '# style: ignore-block[RS001]\nx = "unterminated\n', 1),
+            (_PATH, '# style: ignore-block[RS001]\nx = "a\ndescription: >-\n', 1),
             (Path("c.toml"), "key = 1  # style: ignore-block[RS001]\n", 1),
             (Path("c.yaml"), "key: 1  # style: ignore-block[RS001]\n", 1),
         ],
         ids=[
             "no_statement_follows",
             "unparsable_python",
+            "unparsable_python_shaped_like_yaml",
             "no_block_language",
             "yaml_without_a_folded_scalar",
         ],

@@ -225,7 +225,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "expression. A literal (`|`) scalar keeps its breaks as content and "
             "is never touched. A folded scalar that closes on anything else "
             "goes unchecked, and no rule covers it: RS030 reads `#` comments "
-            "alone. End the prose with a period and both rules apply. `--fix` "
+            "alone. Close the prose with a period and RS009 applies. `--fix` "
             "rewrites every language it reads."
         ),
     ),
