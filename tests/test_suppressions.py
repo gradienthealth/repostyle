@@ -154,9 +154,17 @@ class TestFilterSuppressed:
         [
             (_PATH, "class FhirManager: ...\n# style: ignore-block[RS001]\n", 2),
             (_PATH, '# style: ignore-block[RS001]\nx = "unterminated\n', 1),
+            (_PATH, '# style: ignore-block[RS001]\nx = "a\ndescription: >-\n', 1),
+            (Path("c.toml"), "key = 1  # style: ignore-block[RS001]\n", 1),
             (Path("c.yaml"), "key: 1  # style: ignore-block[RS001]\n", 1),
         ],
-        ids=["no_statement_follows", "unparsable_python", "no_ast_language"],
+        ids=[
+            "no_statement_follows",
+            "unparsable_python",
+            "unparsable_python_shaped_like_yaml",
+            "no_block_language",
+            "yaml_without_a_folded_scalar",
+        ],
     )
     def test_UnattachableBlockDirective_FallsBackToItsOwnLine(
         self, path: Path, source: str, directive_line: int
@@ -166,6 +174,28 @@ class TestFilterSuppressed:
         assert [v.line for v in result] == [
             line for line in (1, 2) if line != directive_line
         ]
+
+    @pytest.mark.parametrize(
+        ("source", "covered"),
+        [
+            ("description: >-  # style: ignore-block[RS001]\n  prose\n", (1, 2)),
+            ("# style: ignore-block[RS001]\ndescription: >-\n  prose\n", (2, 3)),
+        ],
+        ids=["trailing_the_introducer", "above_the_key"],
+    )
+    def test_BlockDirectiveOnAFoldedScalar_CoversItsProse(
+        self, source: str, covered: tuple[int, ...]
+    ) -> None:
+        lines = range(1, len(source.splitlines()) + 1)
+        findings = [Violation(line, 1, RS_ACRONYM_CASING, "acronym") for line in lines]
+        result = filter_suppressed(Path("c.yaml"), findings, source)
+        assert [v.line for v in result] == [n for n in lines if n not in covered]
+
+    def test_BlockDirectiveOnALiteralScalar_CoversItsOwnLineOnly(self) -> None:
+        source = "# style: ignore-block[RS001]\nscript: |\n  line\n"
+        findings = [Violation(line, 1, RS_ACRONYM_CASING, "acronym") for line in (1, 3)]
+        result = filter_suppressed(Path("c.yaml"), findings, source)
+        assert [v.line for v in result] == [3]
 
 
 class TestSuppressedLines:

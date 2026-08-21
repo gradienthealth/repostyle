@@ -9,7 +9,11 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
 
-from repostyle._comments import COMMENT_SUFFIXES, extract_comments
+from repostyle._comments import (
+    COMMENT_SUFFIXES,
+    extract_comments,
+    extract_folded_runs,
+)
 from repostyle._shared import (
     _BULLET_PATTERN,
     _VERBATIM_LINE_PATTERN,
@@ -64,6 +68,14 @@ _COMMENT_DIRECTIVE_PATTERN = re.compile(
 # loss of enforcement in any consumer following it. A column gap is wider: the
 # shell headers this pattern was written for align at three and four.
 _PREFORMATTED_LINE_PATTERN = re.compile(r"\\$|\S {3,}\S")
+
+# The punctuation a folded YAML scalar has to close on to count as prose. A `>`
+# introducer is at least as often a way to wrap a long expression -- a Cloud
+# Workflows `${...}` interpolation, an IAM condition -- whose breaks the author
+# put at operator boundaries and whose refilling would be churn, not style. A
+# finished sentence is the signal that separates the two, and it is the
+# terminal punctuation RS030 already holds prose to.
+_FOLDED_PROSE_TERMINATORS = (".", "!", "?")
 _DOUBLE_SPACE_RE = re.compile(r"([.!?]) {2,}")
 
 
@@ -79,7 +91,14 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     exempt, as is a unit with a backtick span hard-wrapped across lines;
     bullets and section entries wrap as hanging paragraphs. Docstrings are read
     from Python only; comments are read from Python, TOML, YAML, and shell
-    alike.
+    alike. YAML prose is read too, from folded (`>`) block scalars, whose line
+    breaks fold to spaces so that a rewrap leaves the value unchanged; a
+    literal (`|`) scalar keeps its breaks as content and is left alone. A
+    folded scalar counts as prose only where it closes on terminal punctuation,
+    which leaves ragged prose that omits its closing period unenforced: RS030
+    does not reach a scalar either, reading `#` comments alone, and it cannot,
+    since the punctuation it looks for is the very signal that separates prose
+    from the `>` blocks holding an expression.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -88,10 +107,11 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     if path.suffix == ".py" and _parse_python(path, source) is None:
         return
     for unit in _fillable_units(path, source):
-        # A span broken across source lines lost the whitespace at the break,
-        # so `_reflow_unit` cannot rejoin it and skips it. The check must
-        # exempt the same units, or it would flag what `--fix` will not repair.
-        if _span_crosses_line(unit):
+        # `_reflow_unit` skips a unit holding a triple quote, which a rewrap
+        # would move, and one whose backtick span broke across source lines,
+        # which it cannot rejoin. The check must exempt the same units, or it
+        # would flag what `--fix` will not repair.
+        if _holds_triple_quote(unit) or _span_crosses_line(unit):
             continue
         yield from _unit_violations(unit)
 
@@ -145,7 +165,8 @@ def fix_doc_fill(
     headers) are left untouched, as are units on a line in `skip_lines` and
     units with a backtick span hard-wrapped across source lines. The source's
     line ending is preserved. Docstrings reflow in Python; comments reflow in
-    Python, TOML, YAML, and shell alike.
+    Python, TOML, YAML, and shell alike; YAML folded-scalar prose reflows
+    within the scalar's own indent.
 
     Returns:
         The source with fillable paragraphs rewrapped, unchanged when nothing
@@ -260,11 +281,12 @@ def fix_double_space_in_comments(
 
 
 def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
-    """Yields every fillable docstring and comment unit in `source`.
+    """Yields every fillable docstring, comment, and YAML prose unit.
 
-    Both the check and the reflow consume this, so they agree on which
-    docstrings and comments are in scope. A Python file contributes docstrings
-    and comments; a TOML or YAML file contributes comments alone.
+    Both the check and the reflow consume this, so they agree on what is in
+    scope. A Python file contributes docstrings and comments; a TOML or shell
+    file comments alone; a YAML file its comments and the prose inside its
+    folded block scalars.
     """
     source_lines = source.splitlines()
     tree = _parse_python(path, source)
@@ -279,6 +301,10 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
                 )
     for block in _comment_blocks(path, source, source_lines):
         yield from _group_paragraphs(block)
+    for run in extract_folded_runs(path, source):
+        lines = _folded_fill_lines(source_lines, run)
+        if _is_folded_prose(lines):
+            yield from _group_paragraphs(lines)
 
 
 def _comment_blocks(
@@ -359,6 +385,20 @@ def _docstring_fill_lines(
     return lines
 
 
+def _folded_fill_lines(
+    source_lines: list[str], run: tuple[int, ...]
+) -> list[_FillLine]:
+    """Builds the fill lines of one YAML folded-scalar run."""
+    lines: list[_FillLine] = []
+    for lineno in run:
+        rendered = source_lines[lineno - 1]
+        text = rendered.strip()
+        lines.append(
+            _FillLine(lineno, rendered, len(rendered) - len(text), text, is_folded=True)
+        )
+    return lines
+
+
 def _is_bare_string_literal_statement(node: ast.AST) -> bool:
     """Reports whether `node` is a bare string-literal expression statement."""
     return (
@@ -368,11 +408,17 @@ def _is_bare_string_literal_statement(node: ast.AST) -> bool:
     )
 
 
+def _is_folded_prose(lines: list[_FillLine]) -> bool:
+    """Reports whether a YAML folded-scalar run reads as prose."""
+    return lines[-1].text.endswith(_FOLDED_PROSE_TERMINATORS)
+
+
 class _FillLine(NamedTuple):
     lineno: int
     rendered: str
     indent: int
     text: str
+    is_folded: bool = False
 
 
 def _group_paragraphs(lines: list[_FillLine]) -> Iterator[list[_FillLine]]:
@@ -566,17 +612,16 @@ def _reflow_unit(unit: list[_FillLine]) -> list[str] | None:
     """Returns `unit` rewrapped to the column limit, or `None` to skip it.
 
     A unit whose text contains a triple quote is skipped, since rewrapping
-    would move the quote. A unit with a backtick span hard-wrapped across
+    would move the quote, and one with a backtick span hard-wrapped across
     source lines is skipped too, since rejoining it would have to invent the
-    whitespace the break elided. The first line keeps the unit's leading
-    whitespace and any marker; continuation lines wrap to the hanging indent.
-    Both are emitted with the unit's own indent characters, tabs included, but
-    measured at their expanded width, so no returned line runs past the limit
-    as a reader sees it.
+    whitespace the break elided. `check_doc_fill` exempts both, so this returns
+    `None` only for a unit it raised nothing about. The first line keeps the
+    unit's leading whitespace and any marker; continuation lines wrap to the
+    hanging indent. Both are emitted with the unit's own indent characters,
+    tabs included, but measured at their expanded width, so no returned line
+    runs past the limit as a reader sees it.
     """
-    if any('"""' in line.text or "'''" in line.text for line in unit):
-        return None
-    if _span_crosses_line(unit):
+    if _holds_triple_quote(unit) or _span_crosses_line(unit):
         return None
     first_indent = unit[0].indent
     lead = unit[0].rendered[:first_indent]
@@ -647,17 +692,27 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
     An established continuation indent (a unit already spanning lines) is
     reused. A single over-long line wraps under its own marker: two columns for
     a bullet, four for a section entry or label, and back to the same indent
-    for a plain paragraph.
+    for a plain paragraph or any line of a YAML folded scalar.
     """
     first_indent = unit[0].indent
     if len(unit) > 1:
         return unit[1].indent
+    # A continuation indented past a YAML folded scalar's own indent is a
+    # more-indented line, and YAML's folding rules keep the break before such a
+    # line as a newline, so a hanging indent would change the scalar's value.
+    if unit[0].is_folded:
+        return first_indent
     text = unit[0].text
     if _BULLET_PATTERN.match(text):
         return first_indent + 2
     if _SECTION_ENTRY_PATTERN.match(text) or _LABEL_LINE_PATTERN.match(text):
         return first_indent + 4
     return first_indent
+
+
+def _holds_triple_quote(unit: list[_FillLine]) -> bool:
+    """Reports whether any line of `unit` carries a triple quote."""
+    return any('"""' in line.text or "'''" in line.text for line in unit)
 
 
 def _span_crosses_line(unit: list[_FillLine]) -> bool:
