@@ -9,7 +9,11 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
 
-from repostyle._comments import COMMENT_SUFFIXES, extract_comments
+from repostyle._comments import (
+    COMMENT_SUFFIXES,
+    extract_comments,
+    extract_folded_runs,
+)
 from repostyle._shared import (
     _BULLET_PATTERN,
     _VERBATIM_LINE_PATTERN,
@@ -64,6 +68,14 @@ _COMMENT_DIRECTIVE_PATTERN = re.compile(
 # loss of enforcement in any consumer following it. A column gap is wider: the
 # shell headers this pattern was written for align at three and four.
 _PREFORMATTED_LINE_PATTERN = re.compile(r"\\$|\S {3,}\S")
+
+# The punctuation a folded YAML scalar has to close on to count as prose. A `>`
+# introducer is at least as often a way to wrap a long expression -- a Cloud
+# Workflows `${...}` interpolation, an IAM condition -- whose breaks the author
+# put at operator boundaries and whose refilling would be churn, not style. A
+# finished sentence is the signal that separates the two, and it is the
+# terminal punctuation RS030 already holds prose to.
+_FOLDED_PROSE_TERMINATORS = (".", "!", "?")
 _DOUBLE_SPACE_RE = re.compile(r"([.!?]) {2,}")
 
 
@@ -79,7 +91,9 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     exempt, as is a unit with a backtick span hard-wrapped across lines;
     bullets and section entries wrap as hanging paragraphs. Docstrings are read
     from Python only; comments are read from Python, TOML, YAML, and shell
-    alike.
+    alike. YAML prose is read too, from folded (`>`) block scalars, whose line
+    breaks fold to spaces so that a rewrap leaves the value unchanged; a
+    literal (`|`) scalar keeps its breaks as content and is left alone.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
@@ -145,7 +159,8 @@ def fix_doc_fill(
     headers) are left untouched, as are units on a line in `skip_lines` and
     units with a backtick span hard-wrapped across source lines. The source's
     line ending is preserved. Docstrings reflow in Python; comments reflow in
-    Python, TOML, YAML, and shell alike.
+    Python, TOML, YAML, and shell alike; YAML folded-scalar prose reflows
+    within the scalar's own indent.
 
     Returns:
         The source with fillable paragraphs rewrapped, unchanged when nothing
@@ -260,11 +275,12 @@ def fix_double_space_in_comments(
 
 
 def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
-    """Yields every fillable docstring and comment unit in `source`.
+    """Yields every fillable docstring, comment, and YAML prose unit.
 
-    Both the check and the reflow consume this, so they agree on which
-    docstrings and comments are in scope. A Python file contributes docstrings
-    and comments; a TOML or YAML file contributes comments alone.
+    Both the check and the reflow consume this, so they agree on what is in
+    scope. A Python file contributes docstrings and comments; a TOML or shell
+    file comments alone; a YAML file its comments and the prose inside its
+    folded block scalars.
     """
     source_lines = source.splitlines()
     tree = _parse_python(path, source)
@@ -279,6 +295,10 @@ def _fillable_units(path: Path, source: str) -> Iterator[list[_FillLine]]:
                 )
     for block in _comment_blocks(path, source, source_lines):
         yield from _group_paragraphs(block)
+    for run in extract_folded_runs(path, source):
+        lines = _folded_fill_lines(source_lines, run)
+        if _is_folded_prose(lines):
+            yield from _group_paragraphs(lines)
 
 
 def _comment_blocks(
@@ -359,6 +379,20 @@ def _docstring_fill_lines(
     return lines
 
 
+def _folded_fill_lines(
+    source_lines: list[str], run: tuple[int, ...]
+) -> list[_FillLine]:
+    """Builds the fill lines of one YAML folded-scalar run."""
+    lines: list[_FillLine] = []
+    for lineno in run:
+        rendered = source_lines[lineno - 1]
+        text = rendered.strip()
+        lines.append(
+            _FillLine(lineno, rendered, len(rendered) - len(text), text, is_folded=True)
+        )
+    return lines
+
+
 def _is_bare_string_literal_statement(node: ast.AST) -> bool:
     """Reports whether `node` is a bare string-literal expression statement."""
     return (
@@ -368,11 +402,17 @@ def _is_bare_string_literal_statement(node: ast.AST) -> bool:
     )
 
 
+def _is_folded_prose(lines: list[_FillLine]) -> bool:
+    """Reports whether a YAML folded-scalar run reads as prose."""
+    return lines[-1].text.endswith(_FOLDED_PROSE_TERMINATORS)
+
+
 class _FillLine(NamedTuple):
     lineno: int
     rendered: str
     indent: int
     text: str
+    is_folded: bool = False
 
 
 def _group_paragraphs(lines: list[_FillLine]) -> Iterator[list[_FillLine]]:
@@ -647,11 +687,16 @@ def _hanging_indent(unit: list[_FillLine]) -> int:
     An established continuation indent (a unit already spanning lines) is
     reused. A single over-long line wraps under its own marker: two columns for
     a bullet, four for a section entry or label, and back to the same indent
-    for a plain paragraph.
+    for a plain paragraph or any line of a YAML folded scalar.
     """
     first_indent = unit[0].indent
     if len(unit) > 1:
         return unit[1].indent
+    # A continuation indented past a YAML folded scalar's own indent is a
+    # more-indented line, and YAML's folding rules keep the break before such a
+    # line as a newline, so a hanging indent would change the scalar's value.
+    if unit[0].is_folded:
+        return first_indent
     text = unit[0].text
     if _BULLET_PATTERN.match(text):
         return first_indent + 2

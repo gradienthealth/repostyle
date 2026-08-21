@@ -206,7 +206,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
     ),
     RS_DOC_FILL: RuleDoc(
         name="doc-fill",
-        summary="A docstring or comment paragraph fills to 79 columns.",
+        summary=(
+            "A docstring, comment, or YAML folded-scalar paragraph fills to 79 columns."
+        ),
         rationale=(
             "A paragraph wrapped well short of the limit, or running past it, "
             "reads as ragged and churns diffs when reflowed by hand. Fill each "
@@ -215,8 +217,13 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "run of spaces that aligns a column -- is verbatim, since a reflow "
             "emits "
             "single-spaced text and would corrupt it. Docstrings are checked in "
-            "Python; comments in Python, TOML, YAML, and shell alike. `--fix` "
-            "rewrites Python in place."
+            "Python; comments in Python, TOML, YAML, and shell alike. YAML "
+            "prose is checked too, inside a folded (`>`) block scalar that "
+            "closes on a `.`, `!`, or `?`: its line breaks fold to spaces, so a "
+            "rewrap leaves the value alone, and the closing punctuation "
+            "separates prose from the `>` blocks that merely wrap a long "
+            "expression. A literal (`|`) scalar keeps its breaks as content and "
+            "is never touched. `--fix` rewrites every language it reads."
         ),
     ),
     RS_BANNED_ABBREVIATION: RuleDoc(

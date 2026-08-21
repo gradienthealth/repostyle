@@ -19,6 +19,7 @@ from repostyle.rules import (
     check_doc_fill,
     check_nonstandard_dash_in_comments,
 )
+from repostyle.rules.doc_fill import fix_doc_fill
 
 
 class TestExtractComments:
@@ -336,3 +337,101 @@ def _comments(path: Path, source: str) -> list[tuple[int, int, bool, str]]:
         (c.lineno, c.column, c.is_trailing, c.string.lstrip("#").strip())
         for c in extract_comments(path, source)
     ]
+
+
+class TestFoldedScalarDocFill:
+    def test_UnderWrappedFoldedProse_FlagsDocFill(self) -> None:
+        source = (
+            "description: >-\n"
+            "  A folded scalar wrapped much too\n"
+            "  narrowly for the column limit.\n"
+        )
+        violations = list(check_doc_fill(Path("c.yaml"), source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_DOC_FILL, 2)]
+        assert "narrowly" in violations[0].message
+
+    def test_OverLongFoldedProse_FlagsDocFill(self) -> None:
+        source = "description: >-\n  " + "word " * 20 + "end.\n"
+        violations = list(check_doc_fill(Path("c.yaml"), source))
+        assert [(v.rule, v.line) for v in violations] == [(RS_DOC_FILL, 2)]
+        assert "exceeds" in violations[0].message
+
+    def test_FilledFoldedProse_SkipsDocFill(self) -> None:
+        source = (
+            "description: >-\n"
+            "  Cloud Scheduler OAuth identity and Cloud Workflows runtime"
+            " identity for the\n"
+            "  Gradient ingestion pipeline. Control plane only, so it starts"
+            " jobs but never\n"
+            "  reaches object data.\n"
+        )
+        assert list(check_doc_fill(Path("c.yaml"), source)) == []
+
+    def test_LiteralScalar_SkipsDocFill(self) -> None:
+        source = "script: |\n  A literal scalar wrapped much too\n  narrowly.\n"
+        assert list(check_doc_fill(Path("c.yaml"), source)) == []
+
+    def test_ExplicitIndentIndicator_SkipsDocFill(self) -> None:
+        source = "description: >2\n   Wrapped much too\n   narrowly.\n"
+        assert list(check_doc_fill(Path("c.yaml"), source)) == []
+
+    def test_FoldedExpression_SkipsDocFill(self) -> None:
+        source = (
+            "path: >-\n"
+            '  ${"bigquery://" + project_id +\n'
+            '  ".cod_auto_ingestion.received_files"}\n'
+        )
+        assert list(check_doc_fill(Path("c.yaml"), source)) == []
+
+    def test_MoreIndentedLine_BreaksTheFoldedRun(self) -> None:
+        source = (
+            "description: >-\n"
+            "  A first line that could have pulled up the\n"
+            "    more-indented line below it.\n"
+        )
+        assert list(check_doc_fill(Path("c.yaml"), source)) == []
+
+    def test_TrailingWhitespaceLine_BreaksTheFoldedRun(self) -> None:
+        source = "description: >-\n  A first line with a trailing space \n  and more.\n"
+        assert list(check_doc_fill(Path("c.yaml"), source)) == []
+
+    def test_BlankLine_SeparatesFoldedParagraphs(self) -> None:
+        source = (
+            "description: >-\n"
+            "  A first paragraph that is\n"
+            "  short.\n"
+            "\n"
+            "  A second paragraph that is\n"
+            "  short too.\n"
+        )
+        violations = list(check_doc_fill(Path("c.yaml"), source))
+        assert [(v.rule, v.line) for v in violations] == [
+            (RS_DOC_FILL, 2),
+            (RS_DOC_FILL, 5),
+        ]
+
+    def test_FoldedScalarInPythonFile_IsNotScanned(self) -> None:
+        assert (
+            list(check_doc_fill(Path("m.py"), "x: >-\n  much too\n  narrow.\n")) == []
+        )
+
+    def test_UnderWrappedFoldedProse_ReflowsToTheScalarIndent(self) -> None:
+        source = (
+            "steps:\n"
+            "  - description: >-\n"
+            "      A folded scalar wrapped much too\n"
+            "      narrowly for the column limit.\n"
+        )
+        assert fix_doc_fill(Path("c.yaml"), source) == (
+            "steps:\n"
+            "  - description: >-\n"
+            "      A folded scalar wrapped much too narrowly for the column limit.\n"
+        )
+
+    def test_OverLongFoldedBullet_ReflowsWithoutAHangingIndent(self) -> None:
+        source = "description: >-\n  - " + "word " * 20 + "end.\n"
+        rewrapped = fix_doc_fill(Path("c.yaml"), source).splitlines()
+        assert [line[: len(line) - len(line.lstrip())] for line in rewrapped[1:]] == [
+            "  ",
+            "  ",
+        ]

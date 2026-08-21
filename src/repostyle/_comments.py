@@ -1,9 +1,11 @@
-"""The cross-language `#`-comment extractor shared by the comment rules.
+"""The cross-language comment and YAML prose extractors the rules share.
 
 RS009 (paragraph wrapping), RS022 (tag format), RS030 (terminal punctuation),
 and the suppression parser each read `#` comments from Python, TOML, YAML, and
 shell. This module holds the one extractor they share: Python through the
 tokenizer; TOML, YAML, and shell through a string- and block-aware line scan.
+The same YAML scan also yields the content lines of a folded block scalar,
+which RS009 fills the way it fills a comment.
 """
 
 from __future__ import annotations
@@ -20,6 +22,14 @@ from typing import NamedTuple
 # standing at the line start, is a `|` or `>` carrying only chomping and indent
 # indicators, so the indented lines that follow are literal.
 _BLOCK_SCALAR_PATTERN = re.compile(r"(?:[:-]\s+|^\s*)[|>][0-9+-]*\s*$")
+
+# The folded subset of that introducer: a `>` carrying at most a chomping
+# indicator. A folded scalar's single line breaks fold to spaces, so rewrapping
+# its lines leaves the value unchanged, which a literal `|` scalar -- whose
+# breaks are content -- would not survive. An explicit indentation indicator
+# (`>2`) is excluded rather than honoured, since it puts the content indent
+# somewhere other than where this scan infers it.
+_FOLDED_SCALAR_PATTERN = re.compile(r"(?:[:-]\s+|^\s*)>[+-]?\s*$")
 
 # The file types whose `#` comments the comment rules read. Python is
 # tokenized; TOML, YAML, and shell are scanned line by line. A type absent here
@@ -63,6 +73,95 @@ def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
     if suffix == ".sh":
         return tuple(_shell_comments(source))
     return ()
+
+
+@lru_cache(maxsize=128)
+def extract_folded_runs(path: Path, source: str) -> tuple[tuple[int, ...], ...]:
+    """Returns the rewrappable runs of the YAML folded scalars in `source`.
+
+    Each run is the 1-based line numbers of adjacent scalar lines that rewrap
+    as one paragraph. A `>` block scalar folds each single line break in its
+    content to a space, so rewrapping those lines leaves the scalar's value
+    unchanged. Whether a run holds prose worth filling is the caller's
+    judgment, not this scan's. Only the lines that fold are returned: a blank
+    line, a line indented past the scalar's own indent, and a line ending in
+    whitespace each keep a break or a space a rewrap would drop, so each closes
+    the open run rather than joining it. A literal `|` scalar yields nothing,
+    its breaks being content, and so does a file that is not YAML.
+    """
+    if path.suffix not in {".yaml", ".yml"}:
+        return ()
+    return tuple(_folded_runs(source))
+
+
+@lru_cache(maxsize=128)
+def extract_folded_spans(path: Path, source: str) -> tuple[tuple[int, int], ...]:
+    """Returns each YAML folded scalar's inclusive line span in `source`.
+
+    A span runs from the `>` introducer line through the scalar's last content
+    line, so a suppression directive written above or trailing the introducer
+    reaches the prose inside. A file that is not YAML yields nothing.
+    """
+    if path.suffix not in {".yaml", ".yml"}:
+        return ()
+    return tuple((introducer + 1, stop) for introducer, stop in _folded_scalars(source))
+
+
+def _folded_runs(source: str) -> Iterator[tuple[int, ...]]:
+    """Yields the fillable runs inside each folded block scalar in `source`."""
+    lines = source.splitlines()
+    for introducer, stop in _folded_scalars(source):
+        yield from _body_runs(lines, introducer + 1, stop)
+
+
+def _body_runs(lines: list[str], start: int, stop: int) -> Iterator[tuple[int, ...]]:
+    """Yields the runs of foldable lines in one scalar body.
+
+    The body's indent is the first non-blank line's, as YAML reads it. A line
+    at that indent and free of trailing whitespace folds to a space and joins
+    the open run; any other line closes it.
+    """
+    body = [index for index in range(start, stop) if lines[index].strip()]
+    if not body:
+        return
+    indent = _indent_of(lines[body[0]])
+    run: list[int] = []
+    for index in range(start, stop):
+        line = lines[index]
+        if line.strip() and _indent_of(line) == indent and line == line.rstrip():
+            run.append(index + 1)
+            continue
+        if run:
+            yield tuple(run)
+        run = []
+    if run:
+        yield tuple(run)
+
+
+def _folded_scalars(source: str) -> Iterator[tuple[int, int]]:
+    """Yields each folded block scalar as `(introducer index, stop index)`.
+
+    Both are 0-based indexes into the lines of `source`, and `stop` is
+    exclusive, so the scalar's content is the lines between them. Every block
+    scalar is stepped over as a unit, so a `#` or a nested-looking introducer
+    among the literal lines of a `|` scalar opens nothing.
+    """
+    lines = source.splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        column = _yaml_comment_column(line)
+        content = line if column is None else line[:column]
+        if not _opens_block_scalar(content):
+            index += 1
+            continue
+        stop = index + 1
+        introducer_indent = _indent_of(line)
+        while stop < len(lines) and _inside_block(lines[stop], introducer_indent):
+            stop += 1
+        if _FOLDED_SCALAR_PATTERN.search(content):
+            yield index, stop
+        index = stop
 
 
 def _python_comments(source: str) -> Iterator[_CommentToken]:
