@@ -93,7 +93,12 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
     from Python only; comments are read from Python, TOML, YAML, and shell
     alike. YAML prose is read too, from folded (`>`) block scalars, whose line
     breaks fold to spaces so that a rewrap leaves the value unchanged; a
-    literal (`|`) scalar keeps its breaks as content and is left alone.
+    literal (`|`) scalar keeps its breaks as content and is left alone. A
+    folded scalar counts as prose only where it closes on terminal punctuation,
+    which leaves ragged prose that omits its closing period unenforced: RS030
+    does not reach a scalar either, reading `#` comments alone, and it cannot,
+    since the punctuation it looks for is the very signal that separates prose
+    from the `>` blocks holding an expression.
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return

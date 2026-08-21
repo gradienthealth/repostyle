@@ -223,7 +223,10 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "rewrap leaves the value alone, and the closing punctuation "
             "separates prose from the `>` blocks that merely wrap a long "
             "expression. A literal (`|`) scalar keeps its breaks as content and "
-            "is never touched. `--fix` rewrites every language it reads."
+            "is never touched. A folded scalar that closes on anything else "
+            "goes unchecked, and no rule covers it: RS030 reads `#` comments "
+            "alone. End the prose with a period and both rules apply. `--fix` "
+            "rewrites every language it reads."
         ),
     ),
     RS_BANNED_ABBREVIATION: RuleDoc(
