@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.32.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.31.1...repostyle-v0.32.0) (2026-08-28)
+
+
+### Features
+
+* **NO-ISSUE:** fill YAML folded-scalar prose under RS009 ([#159](https://github.com/gradienthealth/repostyle/issues/159)) ([912b7e1](https://github.com/gradienthealth/repostyle/commit/912b7e14442ef82209a13da736083c67aefe2aa0))
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** move the folded-scalar return narration into Returns: sections ([#161](https://github.com/gradienthealth/repostyle/issues/161)) ([71732dc](https://github.com/gradienthealth/repostyle/commit/71732dc051718c8d8430a2130fb793acfad8680b))
+* **NO-ISSUE:** widen RS032 past the leading "Returns" word ([#160](https://github.com/gradienthealth/repostyle/issues/160)) ([6addad2](https://github.com/gradienthealth/repostyle/commit/6addad23d5d094bfc27e9a3547bdd5d1fcdd1650))
+
+
+### Documentation
+
+* **NO-ISSUE:** rewrite the README and docs in plain prose ([#157](https://github.com/gradienthealth/repostyle/issues/157)) ([27b6feb](https://github.com/gradienthealth/repostyle/commit/27b6febf1d1cf7b4a1f12524de254a611ef1f2aa))
+
 ## [0.31.1](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.31.0...repostyle-v0.31.1) (2026-08-20)
 
 
