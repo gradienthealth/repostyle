@@ -83,18 +83,22 @@ def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
 def extract_folded_runs(path: Path, source: str) -> tuple[tuple[int, ...], ...]:
     """Returns the rewrappable runs of the YAML folded scalars in `source`.
 
-    Each run is the 1-based line numbers of adjacent scalar lines that rewrap
-    as one paragraph. A `>` block scalar folds each single line break in its
-    content to a space, so rewrapping those lines leaves the scalar's value
-    unchanged. Whether a run holds prose worth filling is the caller's
-    judgment, not this scan's.
+    A `>` block scalar folds each single line break in its content to a space,
+    so refilling a run of its lines leaves the value the scalar parses to
+    untouched. A line that does not fold that way ends the open run instead of
+    joining it, each such line keeping a break or a space a refill would drop:
+
+    - a blank line
+    - a line indented past the scalar's own indent
+    - a line ending in whitespace
+
+    Whether a run holds prose worth filling is the caller's judgment, not this
+    scan's.
 
     Returns:
-        Each run of folding lines in source order, and nothing at all for a
-        literal `|` scalar, whose breaks are content, or for a file that is not
-        YAML. A blank line, a line indented past the scalar's own indent, and a
-        line ending in whitespace each keep a break or a space a rewrap would
-        drop, so each closes the open run rather than joining it.
+        The 1-based line numbers of each run, in source order. A literal `|`
+        scalar, whose breaks are content, and a file that is not YAML both
+        yield an empty result.
     """
     if path.suffix not in {".yaml", ".yml"}:
         return ()
