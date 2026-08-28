@@ -8,11 +8,12 @@ in the file it sits. Each form drops every rule's findings in its scope when
 written without a bracket. The token `style` rather than `noqa` keeps these
 from colliding with ruff's own suppression handling.
 
-A block directive attaches to the first statement starting on or after its own
+A block directive attaches to the first block starting on or after its own
 line, so it reads either above a definition or trailing the definition's
-opening line. It covers its own line alone where no statement follows it, and
-in a file with no Python tree to attach to: a TOML, YAML, or shell file, or a
-Python file that does not parse.
+opening line. A block is a statement in Python and a folded (`>`) scalar in
+YAML, the span RS009 reads prose from. The directive covers its own line alone
+where no block follows it, and in a file that has neither: a TOML or shell
+file, or a Python file that does not parse.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
 
-from repostyle._comments import extract_comments
+from repostyle._comments import extract_comments, extract_folded_spans
 from repostyle._shared import _parse_python, _walk_tree
 from repostyle.rules import Violation
 
@@ -64,7 +65,7 @@ def suppressed_lines(path: Path, source: str, rule: str) -> tuple[bool, frozense
 
 def _parse(path: Path, source: str) -> _Suppressions:
     suppressions = _Suppressions()
-    spans = _statement_spans(path, source)
+    spans = _block_spans(path, source)
     for comment in extract_comments(path, source):
         file_match = _FILE_DIRECTIVE.search(comment.string)
         if file_match is not None:
@@ -86,7 +87,7 @@ def _parse(path: Path, source: str) -> _Suppressions:
 def _attached_span(spans: tuple[tuple[int, int], ...], lineno: int) -> tuple[int, int]:
     """Returns the line span a block directive on `lineno` covers.
 
-    Attaches to the first statement starting on or after `lineno`, taking the
+    Attaches to the first block starting on or after `lineno`, taking the
     outermost where several start together, so a directive above a decorated
     class covers the class and its methods and one trailing a `def` line covers
     that function. Falls back to `lineno` alone where nothing follows.
@@ -96,6 +97,29 @@ def _attached_span(spans: tuple[tuple[int, int], ...], lineno: int) -> tuple[int
         return lineno, lineno
     start = min(span[0] for span in following)
     return start, max(span[1] for span in following if span[0] == start)
+
+
+@lru_cache(maxsize=128)
+def _block_spans(path: Path, source: str) -> tuple[tuple[int, int], ...]:
+    """Returns the inclusive line span of every block in `source`.
+
+    A Python file contributes its statements, a decorated one opening at its
+    first decorator so a directive written above the decorators still covers
+    the definition they wrap. A YAML file contributes its folded scalars
+    instead, the spans RS009 reads prose from. A file with neither -- a TOML or
+    shell file, or a Python file that does not parse -- has no spans.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return extract_folded_spans(path, source)
+    spans: list[tuple[int, int]] = []
+    for node in _walk_tree(tree):
+        if not isinstance(node, ast.stmt):
+            continue
+        decorators = getattr(node, "decorator_list", [])
+        start = min([node.lineno, *(d.lineno for d in decorators)])
+        spans.append((start, node.end_lineno or node.lineno))
+    return tuple(sorted(spans))
 
 
 def _listed_rules(listed: str | None) -> frozenset[str] | None:
@@ -108,28 +132,6 @@ def _listed_rules(listed: str | None) -> frozenset[str] | None:
 # Cache on (path, source) alongside the tree and comment scans, so a file's
 # spans are walked once and shared across the suppression parses the linter and
 # each fixer trigger.
-@lru_cache(maxsize=128)
-def _statement_spans(path: Path, source: str) -> tuple[tuple[int, int], ...]:
-    """Returns the inclusive line span of every statement in `source`.
-
-    A decorated statement's span opens at its first decorator, so a directive
-    written above the decorators still covers the definition they wrap. A file
-    with no Python tree -- another language, or a Python file that does not
-    parse -- has no spans.
-    """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return ()
-    spans: list[tuple[int, int]] = []
-    for node in _walk_tree(tree):
-        if not isinstance(node, ast.stmt):
-            continue
-        decorators = getattr(node, "decorator_list", [])
-        start = min([node.lineno, *(d.lineno for d in decorators)])
-        spans.append((start, node.end_lineno or node.lineno))
-    return tuple(sorted(spans))
-
-
 class _Suppressions:
     """The file, block, and line suppressions parsed from one source."""
 
