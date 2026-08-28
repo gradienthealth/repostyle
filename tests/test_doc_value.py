@@ -297,6 +297,49 @@ class TestCheckReturnDescribedInProse:
             "    Return self so calls can chain.\n"
             '    """\n'
             "    return self\n",
+            "def stream_rows(raw: bytes) -> Iterator[dict]:\n"
+            '    """Stream parsed rows lazily.\n'
+            "\n"
+            "    Yields each row as soon as it is parsed.\n"
+            '    """\n'
+            "    yield {}\n",
+            "def stream_rows(raw: bytes) -> Iterator[dict]:\n"
+            '    """Stream parsed rows lazily.\n'
+            "\n"
+            "    Yield the row as soon as it is parsed.\n"
+            '    """\n'
+            "    yield {}\n",
+            "def read_value(value: str) -> str | None:\n"
+            '    """Read the tagged value.\n'
+            "\n"
+            "    Every other shape yields None.\n"
+            '    """\n'
+            "    return value\n",
+            "def load(path: Path) -> Config | None:\n"
+            '    """Load the recorded config.\n'
+            "\n"
+            "    A missing or malformed file returns None rather than "
+            "raising.\n"
+            '    """\n'
+            "    return None\n",
+            "def read_value(value: str) -> str | None:\n"
+            '    """Read the tagged value.\n'
+            "\n"
+            "    The result is the body, else None.\n"
+            '    """\n'
+            "    return value\n",
+            "def read_value(value: str) -> str | None:\n"
+            '    """Read the tagged value.\n'
+            "\n"
+            "    The value returned is the parsed body.\n"
+            '    """\n'
+            "    return value\n",
+            "def extract(raw: bytes) -> dict[int, bytes]:\n"
+            '    """Extract fields by scanning bytes for pipe delimiters.\n'
+            "\n"
+            "    The return value is a map of field index to field value.\n"
+            '    """\n'
+            "    return {}\n",
         ],
         ids=[
             "returns-plural",
@@ -304,6 +347,13 @@ class TestCheckReturnDescribedInProse:
             "returns-true-if",
             "returns-none",
             "return-self",
+            "yields-plural",
+            "yield-singular",
+            "yields-mid-clause",
+            "returns-mid-clause",
+            "result-as-subject",
+            "value-returned-as-subject",
+            "return-value-as-subject",
         ],
     )
     def test_ReturnDescribedInBodyProse_FlagsViolation(self, source: str) -> None:
@@ -357,6 +407,45 @@ class TestCheckReturnDescribedInProse:
             "policy.\n"
             '    """\n'
             "    return Appointment()\n",
+            "def read_value(value: str) -> str | None:\n"
+            '    """Read the tagged value.\n'
+            "\n"
+            "    Anything else gives back None.\n"
+            '    """\n'
+            "    return value\n",
+            "def check_tuple_return(node: ast.AST) -> Iterator[str]:\n"
+            '    """Flag a function whose return is an anonymous composite.\n'
+            "\n"
+            "    A documented function is flagged when it returns a bare "
+            "tuple.\n"
+            '    """\n'
+            '    yield ""\n',
+            "def normalize_opening(text: str) -> str:\n"
+            '    """Normalize a docstring opening to the house mood.\n'
+            "\n"
+            "    The house convention is descriptive (`Returns the lease.`), "
+            "not\n"
+            "    imperative (`Return the lease.`).\n"
+            '    """\n'
+            "    return text\n",
+            "def acquire(pool: Pool) -> Lease:\n"
+            '    """Acquire a lease from the pool.\n'
+            "\n"
+            "    The caller must return the borrowed lease to the pool.\n"
+            '    """\n'
+            "    return Lease()\n",
+            "def acquire(pool: Pool) -> Lease:\n"
+            '    """Acquire a lease from the pool.\n'
+            "\n"
+            "    The result is that the pool loses one free slot.\n"
+            '    """\n'
+            "    return Lease()\n",
+            "def acquire(pool: Pool) -> Lease:\n"
+            '    """Acquire a lease from the pool.\n'
+            "\n"
+            "    The result is cached for the lifetime of the process.\n"
+            '    """\n'
+            "    return Lease()\n",
         ],
         ids=[
             "has-returns-section",
@@ -366,6 +455,12 @@ class TestCheckReturnDescribedInProse:
             "mid-sentence-mention",
             "only-in-summary",
             "return-as-domain-noun",
+            "give-back-synonym",
+            "pronoun-subject-mid-clause",
+            "quoted-example-in-code-span",
+            "modal-infinitive-domain-return",
+            "result-is-consequence-clause",
+            "result-is-participle",
         ],
     )
     def test_ReturnNotDescribedInBodyProse_NoViolation(self, source: str) -> None:

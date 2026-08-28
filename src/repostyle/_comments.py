@@ -49,9 +49,13 @@ def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
     A Python file is tokenized. A TOML, YAML, or shell file is scanned line by
     line under that language's string and block rules, so a `#` inside a
     string, a TOML multi-line string, a YAML block scalar, or a shell heredoc
-    is not mistaken for a comment. A file of any other type yields nothing. The
-    scan is conservative: an unrecognised construct keeps its `#` out of the
-    results rather than risk flagging string content.
+    is not mistaken for a comment. The scan is conservative: an unrecognised
+    construct keeps its `#` out of the results rather than risk flagging string
+    content.
+
+    Returns:
+        Each comment in source order, and nothing at all for a file of any
+        other type.
     """
     suffix = path.suffix
     if suffix == ".py":

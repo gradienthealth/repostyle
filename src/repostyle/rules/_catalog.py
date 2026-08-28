@@ -563,6 +563,32 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "The return value goes in a `Returns:` section, not narrated in the "
             "docstring body."
         ),
+        rationale=(
+            "A reader and a documentation tool both look for the return "
+            "contract under a `Returns:` or `Yields:` caption, so a body "
+            "paragraph that carries it instead hides it. The rule reads the "
+            "phrasing, not the verb, so recasting the sentence does not "
+            "satisfy it -- move the description into a section. The summary "
+            "line is exempt: it states the contract rather than narrating it, "
+            "and a one-line summary is often all a scalar return needs."
+        ),
+        signals=(
+            "A body sentence led by a return verb (`Returns the lease.`, "
+            "`Yields each row.`): move it under `Returns:` or `Yields:`.",
+            "A body sentence whose subject is the returned thing (`The result "
+            "is ...`, `The return value is ...`): same move.",
+            "A return verb mid-sentence under an input or condition subject "
+            "(`A malformed file returns None.`): same move.",
+        ),
+        examples=(
+            Example(
+                bad="A file of any other type yields nothing.",
+                good="Returns:\n    Each comment, and nothing for another type.",
+                note=(
+                    "The phrasing does not matter; the section it belongs under does."
+                ),
+            ),
+        ),
     ),
     RS_FILENAME_CONVENTION: RuleDoc(
         name="filename-convention",

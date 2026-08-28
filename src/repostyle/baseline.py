@@ -43,10 +43,13 @@ class Baseline(NamedTuple):
 def load(path: Path) -> Baseline | None:
     """Reads a baseline file, returning `None` when it cannot be used.
 
-    A missing, unreadable, or malformed file returns `None` rather than
-    raising, so a run with no baseline behaves as if nothing were
-    grandfathered. The caller distinguishes the two by checking whether the
-    path exists.
+    A missing, unreadable, or malformed file is tolerated rather than raising,
+    so a run with no baseline behaves as if nothing were grandfathered.
+
+    Returns:
+        The recorded baseline, or `None` when the file is missing, unreadable,
+        or malformed. The caller separates the two cases by checking whether
+        the path exists.
     """
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
