@@ -83,15 +83,22 @@ def extract_comments(path: Path, source: str) -> tuple[_CommentToken, ...]:
 def extract_folded_runs(path: Path, source: str) -> tuple[tuple[int, ...], ...]:
     """Returns the rewrappable runs of the YAML folded scalars in `source`.
 
-    Each run is the 1-based line numbers of adjacent scalar lines that rewrap
-    as one paragraph. A `>` block scalar folds each single line break in its
-    content to a space, so rewrapping those lines leaves the scalar's value
-    unchanged. Whether a run holds prose worth filling is the caller's
-    judgment, not this scan's. Only the lines that fold are returned: a blank
-    line, a line indented past the scalar's own indent, and a line ending in
-    whitespace each keep a break or a space a rewrap would drop, so each closes
-    the open run rather than joining it. A literal `|` scalar yields nothing,
-    its breaks being content, and so does a file that is not YAML.
+    A `>` block scalar folds each single line break in its content to a space,
+    so refilling a run of its lines leaves the value the scalar parses to
+    untouched. A line that does not fold that way ends the open run instead of
+    joining it, each such line keeping a break or a space a refill would drop:
+
+    - a blank line
+    - a line indented past the scalar's own indent
+    - a line ending in whitespace
+
+    Whether a run holds prose worth filling is the caller's judgment, not this
+    scan's.
+
+    Returns:
+        The 1-based line numbers of each run, in source order. A literal `|`
+        scalar, whose breaks are content, and a file that is not YAML both
+        yield an empty result.
     """
     if path.suffix not in {".yaml", ".yml"}:
         return ()
@@ -104,7 +111,11 @@ def extract_folded_spans(path: Path, source: str) -> tuple[tuple[int, int], ...]
 
     A span runs from the `>` introducer line through the scalar's last content
     line, so a suppression directive written above or trailing the introducer
-    reaches the prose inside. A file that is not YAML yields nothing.
+    reaches the prose inside.
+
+    Returns:
+        Each scalar's span in source order, and nothing at all for a file that
+        is not YAML.
     """
     if path.suffix not in {".yaml", ".yml"}:
         return ()
