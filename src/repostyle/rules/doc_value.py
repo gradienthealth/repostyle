@@ -81,16 +81,62 @@ _SENTENCE_PUNCTUATION = re.compile(r"[.;]")
 _SUBJECT_LEAD_PATTERN = re.compile(
     r"^(?:the|an?|each|takes(?:\s+an?)?)\s+", re.IGNORECASE
 )
-# A clause opening with `Return`/`Returns` restates the verb a `Returns:`
-# section already implies, so the same clause-lead test RS031 uses for a
-# parameter's backtick-wrapped name applies here to the bare verb instead. The
-# verb must be followed by one of a closed set of common openers for an actual
-# return description (an article, a literal, a pronoun, or a backtick), not
-# just any word -- otherwise "Return visits are limited to ..." (a domain noun
-# phrase, not the verb) would false-positive on a bare `^returns?\b` match.
+# A backticked span is quoted code or quoted prose, not the docstring's own
+# narration, so the return scan replaces each span with one placeholder before
+# matching: a rule docstring quoting "Returns the lease." as an example of a
+# phrasing is discussing that phrasing, not using it. The placeholder is itself
+# a return object, so a narration whose object is a backticked literal still
+# fires.
+_CODE_SPAN_MASK = "\x00"
+_CODE_SPAN_PATTERN = re.compile(r"`[^`]*`")
+
+# The openers a real return description takes after its verb: an article, a
+# quantifier, a bare literal, a pronoun, or a code span. Requiring one of a
+# closed set rather than any word keeps a domain noun phrase off the rule --
+# "Return visits are limited to ..." is not a return description. An unmasked
+# backtick is admitted too, for the body whose unbalanced backticks left the
+# clause splitter no well-formed spans to mask.
+_AFTER_RETURN_VERB = (
+    r"(?:(?:an?|the|each|none|nothing|self|it|this|that|true|false)\b"
+    rf"|[`{_CODE_SPAN_MASK}])"
+)
+# The same set after a copula, minus the pronouns: "The result is that ..."
+# introduces a consequence clause, not the returned thing.
+_AFTER_RETURN_COPULA = (
+    r"(?:(?:an?|the|each|none|nothing|true|false)\b" rf"|[`{_CODE_SPAN_MASK}])"
+)
+
+# A clause opening with a return verb restates what a `Returns:`/`Yields:`
+# caption already says, so the same clause-lead test RS031 uses for a
+# parameter's backtick-wrapped name applies here to the bare verb instead.
 _RETURN_LEAD_PATTERN = re.compile(
-    r"^returns?\s+"
-    r"(?:(?:a|an|the|each|none|nothing|self|it|this|that|true|false)\b|`)",
+    rf"^(?:returns?|yields?)\s+{_AFTER_RETURN_VERB}", re.IGNORECASE
+)
+# A clause naming the returned thing as its subject -- "The result is the
+# parsed body.", "The value returned is `None` on a miss." -- describes the
+# return without ever using the verb. The subject nouns are a closed set of
+# words that can only mean this function's own output.
+_RETURN_SUBJECT_PATTERN = re.compile(
+    r"^(?:the\s+)?"
+    r"(?:returned\s+value|return\s+value|value\s+returned|result|output)"
+    rf"\s+(?:is|are)\s+{_AFTER_RETURN_COPULA}",
+    re.IGNORECASE,
+)
+# A return verb mid-clause, where the function's input or a condition is the
+# subject: "A file of any other type yields nothing." Only the third-person
+# form counts, so an infinitive after a modal ("must return the borrowed
+# buffer") stays off the rule.
+_RETURN_MID_PATTERN = re.compile(
+    rf"\b(?:returns|yields)\s+{_AFTER_RETURN_VERB}", re.IGNORECASE
+)
+# A pronoun directly before a mid-clause return verb refers back to something
+# the prose already named -- "... when it returns a multi-element `tuple`"
+# describes the callable under discussion, not the documented one. A subject
+# naming an input or a condition, by contrast, is how a docstring narrates its
+# own return. Adverbs between the pronoun and the verb are stepped over.
+_RETURN_PRONOUN_SUBJECT_PATTERN = re.compile(
+    r"\b(?:it|they|this|that|these|those|which|who|we|you|one)\s+"
+    r"(?:(?:still|also|then|only|always|never|instead|already|simply)\s+)*$",
     re.IGNORECASE,
 )
 
@@ -148,17 +194,29 @@ def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violati
     """Flags a return value described in the docstring body, not in `Returns:`.
 
     A public function with a non-`None` return annotation and no `Returns:` or
-    `Yields:` section fires once when a sentence in the docstring's prose body
-    opens with `Return` or `Returns` as its leading clause. That verb is what a
-    `Returns:` section caption already states, so the description belongs in a
-    structured `Returns:`/`Yields:` entry, where readers and tools look for it,
-    not narrated in the body prose meant to state the unit's own contract.
-    Unlike RS031, which anchors on the exact parameter name, this has no
-    function-specific anchor to check the clause against, so a docstring
-    genuinely narrating a `return`-the-item domain action (returning a physical
-    or borrowed thing, not this function's return value) can rarely trigger a
-    false positive; the closed opener set narrows but does not eliminate that
-    risk.
+    `Yields:` section fires once when a clause of its docstring's prose body
+    states what the call gives back. That description belongs in a structured
+    `Returns:`/`Yields:` entry, where readers and tools look for it, not in the
+    body prose meant to state the unit's own contract. Three phrasings count,
+    each read after the clause's backtick spans are masked, so a quoted example
+    is never mistaken for narration:
+
+    1. A return verb -- `Return`, `Returns`, `Yield`, `Yields` -- opens the
+       clause, followed by an article, quantifier, literal, or code span.
+    2. The returned thing is the clause's subject: `The result is ...`, `The
+       value returned is ...`.
+    3. A return verb in its third-person form sits mid-clause, under a subject
+       naming an input or a condition rather than an actor.
+
+    Two phrasings stay exempt because prose alone cannot separate them from
+    honest writing. A pronoun subject before a mid-clause verb refers to a
+    callable the prose already named, so it describes that one's return rather
+    than this function's. An infinitive after a modal is left alone too, since
+    it carries the give-a-borrowed-thing-back sense as readily as the return
+    sense. Unlike RS031, which anchors on the exact parameter name, this rule
+    has no function-specific anchor, so a docstring narrating a domain action
+    of returning a physical or borrowed thing can still trigger a rare false
+    positive.
     """
     for node in _public_functions(path, source):
         if not _has_return_annotation(node):
@@ -167,7 +225,7 @@ def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violati
         if docstring is None or _RETURNS_SECTION_PATTERN.search(docstring):
             continue
         body, _, _ = _split_docstring(docstring)
-        if not _describes_return_up_front(body):
+        if not _describes_return(body):
             continue
         yield _violation(
             node,
@@ -290,30 +348,39 @@ def _describes_param_as_subject(body: str, name: str) -> bool:
     `each`, or `Takes`, the clause opens with the backtick-wrapped name.
     """
     token = f"`{name}`"
-    return _any_clause_leads_with(
+    return _any_clause_satisfies(
         body, lambda clause: _SUBJECT_LEAD_PATTERN.sub("", clause).startswith(token)
     )
 
 
-def _describes_return_up_front(body: str) -> bool:
-    """Reports whether a body sentence narrates the return value up front.
-
-    A sentence narrates the return value when its clause opens with `Return` or
-    `Returns` followed by a description, rather than the word appearing as an
-    unrelated domain noun (`Return visits are limited to ...`).
-    """
-    return _any_clause_leads_with(
-        body, lambda clause: _RETURN_LEAD_PATTERN.match(clause) is not None
-    )
+def _describes_return(body: str) -> bool:
+    """Reports whether a body clause narrates the function's return value."""
+    return _any_clause_satisfies(body, _clause_narrates_return)
 
 
-def _any_clause_leads_with(body: str, leads_with: Callable[[str], bool]) -> bool:
-    """Reports whether any clause of the body prose satisfies `leads_with`.
+def _any_clause_satisfies(body: str, holds: Callable[[str], bool]) -> bool:
+    """Reports whether any clause of the body prose satisfies `holds`.
 
     The clause is stripped of surrounding whitespace first, so a name or verb
     is tested as a clause's leading token regardless of the prose's wrapping.
     """
-    return any(leads_with(clause.strip()) for clause in _split_into_clauses(body))
+    return any(holds(clause.strip()) for clause in _split_into_clauses(body))
+
+
+def _clause_narrates_return(clause: str) -> bool:
+    """Reports whether one body clause states what the function gives back.
+
+    Tests the three phrasings RS032 recognizes against the clause once its
+    backtick spans are masked. A mid-clause verb under a pronoun subject does
+    not count, since the pronoun names a callable the prose already introduced.
+    """
+    masked = _mask_code_spans(clause)
+    if _RETURN_LEAD_PATTERN.match(masked) or _RETURN_SUBJECT_PATTERN.match(masked):
+        return True
+    return any(
+        not _RETURN_PRONOUN_SUBJECT_PATTERN.search(masked[: match.start()])
+        for match in _RETURN_MID_PATTERN.finditer(masked)
+    )
 
 
 def _exceptions_raised_in_prose(body: str) -> list[str]:
@@ -335,6 +402,11 @@ def _exceptions_raised_in_prose(body: str) -> list[str]:
             if name not in names:
                 names.append(name)
     return names
+
+
+def _mask_code_spans(clause: str) -> str:
+    """Replaces each backticked span in the clause with one placeholder."""
+    return _CODE_SPAN_PATTERN.sub(_CODE_SPAN_MASK, clause)
 
 
 def _raised_exception_types(
