@@ -87,11 +87,14 @@ def extract_folded_runs(path: Path, source: str) -> tuple[tuple[int, ...], ...]:
     as one paragraph. A `>` block scalar folds each single line break in its
     content to a space, so rewrapping those lines leaves the scalar's value
     unchanged. Whether a run holds prose worth filling is the caller's
-    judgment, not this scan's. Only the lines that fold are returned: a blank
-    line, a line indented past the scalar's own indent, and a line ending in
-    whitespace each keep a break or a space a rewrap would drop, so each closes
-    the open run rather than joining it. A literal `|` scalar yields nothing,
-    its breaks being content, and so does a file that is not YAML.
+    judgment, not this scan's.
+
+    Returns:
+        Each run of folding lines in source order, and nothing at all for a
+        literal `|` scalar, whose breaks are content, or for a file that is not
+        YAML. A blank line, a line indented past the scalar's own indent, and a
+        line ending in whitespace each keep a break or a space a rewrap would
+        drop, so each closes the open run rather than joining it.
     """
     if path.suffix not in {".yaml", ".yml"}:
         return ()
@@ -104,7 +107,11 @@ def extract_folded_spans(path: Path, source: str) -> tuple[tuple[int, int], ...]
 
     A span runs from the `>` introducer line through the scalar's last content
     line, so a suppression directive written above or trailing the introducer
-    reaches the prose inside. A file that is not YAML yields nothing.
+    reaches the prose inside.
+
+    Returns:
+        Each scalar's span in source order, and nothing at all for a file that
+        is not YAML.
     """
     if path.suffix not in {".yaml", ".yml"}:
         return ()
