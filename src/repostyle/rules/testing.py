@@ -219,9 +219,10 @@ def check_sleepy_test(path: Path, source: str) -> Iterator[Violation]:
 def check_excessive_mocking(path: Path, source: str) -> Iterator[Violation]:
     """Warns when a test builds many mock objects.
 
-    A high mock count points at brittle coupling worth review. The count does
-    not prescribe a code change. The rule counts `Mock`, `MagicMock`, `patch`,
-    related constructors, and `@patch` decorators.
+    The rule marks tests that may bind a unit to too many collaborators. The
+    count prompts review but does not prescribe a change. The rule counts
+    `Mock`, `MagicMock`, `patch`, related constructors, and `@patch`
+    decorators.
     """
     if not _is_test_file(path):
         return
