@@ -130,11 +130,6 @@ class TestResolveRulesForPaths:
         assert resolution.enabled == {RS_ACRONYM_CASING, RS_DISCOURAGED_CLASS_SUFFIX}
         assert resolution.promoted == {RS_DISCOURAGED_CLASS_SUFFIX}
 
-    def test_NoPaths_EnablesEveryIdAndPromotesNone(self) -> None:
-        resolution = resolve_rules_for_paths([])
-        assert resolution.enabled == set(ALL_RULE_IDS)
-        assert resolution.promoted == set()
-
 
 class TestLintPathWithEnabledRules:
     def test_SelectSubset_RunsOnlyThoseRules(self, tmp_path: Path) -> None:

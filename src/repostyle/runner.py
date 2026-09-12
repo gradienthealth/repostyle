@@ -123,12 +123,7 @@ LINTABLE_SUFFIXES = COMMENT_SUFFIXES | {".md"}
 
 
 class _ResolvedRules(NamedTuple):
-    """The rules to run and the subset promoted to error severity.
-
-    `enabled` is `select` minus `ignore`; `promoted` holds the ids that print
-    as errors even when their default severity is warning. The `error` list
-    promotes individual rules. `warnings-as-errors = true` promotes them all.
-    """
+    """Pairs the runnable rule ids with advisory ids elevated to errors."""
 
     enabled: set[str]
     promoted: set[str]
