@@ -219,10 +219,10 @@ def check_sleepy_test(path: Path, source: str) -> Iterator[Violation]:
 def check_excessive_mocking(path: Path, source: str) -> Iterator[Violation]:
     """Warns when a test builds many mock objects.
 
-    A high mock count per test points at over-mocked, brittle coupling worth a
-    look; it is a density signal of where to look, not a verdict that any
-    single mock is wrong. Counts `Mock`/`MagicMock`/`patch` and their kin,
-    including `@patch` decorators.
+    The rule marks tests that may bind a unit to too many collaborators. The
+    count prompts review but does not prescribe a change. The rule counts
+    `Mock`, `MagicMock`, `patch`, related constructors, and `@patch`
+    decorators.
     """
     if not _is_test_file(path):
         return
@@ -251,10 +251,9 @@ def check_excessive_mocking(path: Path, source: str) -> Iterator[Violation]:
 def check_behavior_verification_only(path: Path, source: str) -> Iterator[Violation]:
     """Warns when a test asserts only call choreography, never state.
 
-    A test whose only checks are `mock.assert_called*` pins how the unit calls
-    its collaborators rather than the outcome a caller relies on, so it
-    survives a correct refactor and breaks on a harmless one. A test with at
-    least one plain `assert` is left alone.
+    A test whose only checks are `mock.assert_called*` pins collaborator calls
+    instead of a caller-visible outcome. A test with at least one plain
+    `assert` is left alone, but that exemption does not make the test useful.
     """
     if not _is_test_file(path):
         return

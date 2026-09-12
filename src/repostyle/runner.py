@@ -123,12 +123,7 @@ LINTABLE_SUFFIXES = COMMENT_SUFFIXES | {".md"}
 
 
 class _ResolvedRules(NamedTuple):
-    """The rules to run and the subset promoted to error severity.
-
-    `enabled` is `select` minus `ignore`; `promoted` holds the ids that print
-    as errors and fail the run even where their default severity is warning --
-    every id, or the `error` list alone under `warnings-as-errors = false`.
-    """
+    """Pairs the runnable rule ids with advisory ids elevated to errors."""
 
     enabled: set[str]
     promoted: set[str]
@@ -147,7 +142,7 @@ def resolve_rules_for_paths(paths: Iterable[Path]) -> _ResolvedRules:
     """
     paths = list(paths)
     if not paths:
-        return _ResolvedRules(set(ALL_RULE_IDS), set(ALL_RULE_IDS))
+        return _ResolvedRules(set(ALL_RULE_IDS), set())
     pyproject = find_pyproject(paths[0])
     config = load_config(pyproject) if pyproject is not None else None
     return _ResolvedRules(resolve_enabled_rules(config), resolve_promoted_rules(config))
@@ -230,31 +225,23 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
 def resolve_promoted_rules(config: dict | None) -> set[str]:
     """Resolves the ids promoted to error from a `[tool.repostyle]` table.
 
-    Every selected rule is an error by default, so a repo gates on the rule set
-    it selects rather than on a severity split it did not choose. The backlog
-    that default would otherwise fail on is held by the baseline instead, which
-    separates old findings from new ones by record rather than by severity.
-
-    `warnings-as-errors = false` restores the per-rule default severities, and
-    `error` then lists the advisory rules to promote anyway. Promoting a
-    natively-error rule is a harmless no-op, and a disabled rule may be
-    promoted (the promotion is inert until the rule fires).
+    Rules keep their catalog severity by default. The `error` list promotes
+    individual advisory rules. `warnings-as-errors = true` promotes every rule.
+    A disabled rule may be promoted, but that promotion remains inert.
 
     Raises:
         ValueError: When `error` names an unknown id, matching how
             `resolve_enabled_rules` validates `select` and `ignore`.
     """
     known = set(ALL_RULE_IDS)
-    if not config:
-        return known
-    promoted = set(config.get("error", []))
+    promoted = set(config.get("error", [])) if config else set()
     unknown = promoted - known
     if unknown:
         raise ValueError(
             "unknown repostyle rule id(s): "
             f"{', '.join(sorted(unknown))}. Known ids: {', '.join(sorted(known))}."
         )
-    return promoted if config.get("warnings-as-errors") is False else known
+    return known if config and config.get("warnings-as-errors") is True else promoted
 
 
 def expand_paths(paths: Iterable[Path]) -> list[Path]:

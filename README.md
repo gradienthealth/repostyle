@@ -33,7 +33,7 @@ The hook runs the `repostyle` console script over the staged Python, markdown, T
 
 Each rule has an `RSnnn` id, and a repo selects or ignores rules by id. The tables below give a one-line summary of each. For the full contract, the rationale, and before-and-after examples, run `repostyle explain RSnnn`.
 
-The **Default** column is the severity that applies when a repo sets `warnings-as-errors = false`. Without that opt-out, every selected rule fails the run. See [Severity](#severity) below.
+The **Default** column shows whether a finding fails the run or prompts review. See [Severity](#severity) below.
 
 ### Naming
 
@@ -161,9 +161,7 @@ The test rules (RS002, RS003, RS013 through RS016, and RS060) only examine test 
 
 ### Severity
 
-Every selected rule fails the run. A repo gates on the rule set it chose, not on a severity split it did not, so adding an id to `select` is the whole decision. Pre-existing findings are held by the [baseline](#grandfather-the-existing-backlog) rather than by a softer severity.
-
-A repo can opt out with `warnings-as-errors = false`, which restores the per-rule default severities shown in the tables above. Under those defaults 19 rules hard-fail and the other 42 print as warnings:
+Each selected rule keeps the default severity shown above. Under those defaults 19 rules hard-fail and the other 42 print warnings:
 
 ```
 RS001  RS002  RS003  RS004  RS005  RS006  RS007  RS008  RS009  RS010
@@ -172,7 +170,7 @@ RS011  RS013  RS014  RS017  RS022  RS023  RS025  RS028  RS042
 
 Those 19 are the mechanical rules whose findings are objective. The rest warn for one of two reasons.
 
-Some are heuristics that mark where to look rather than assert a defect, so a human decides. Those are the complexity and threshold rules (RS012, RS027, RS040), the test-quality signals (RS015, RS016, RS060), the documentation-value signals (RS018, RS020, RS021), and the layout and encapsulation smells (RS019, RS029, RS048, RS052).
+Some rules are heuristics that mark where to look rather than assert a defect. A reviewer decides whether the code should change. These rules include the complexity thresholds, test-quality signals, documentation-value signals, and layout or encapsulation smells.
 
 The others are simply new. They warn until their false-positive rate on the existing repos has been measured.
 
@@ -182,7 +180,7 @@ A run that tolerated warnings closes with a count on stderr, so an advisory back
 repostyle: 12 warning(s) reported without failing the run
 ```
 
-The `--warnings-as-errors` and `--no-warnings-as-errors` flags override the config for a single run without touching it.
+Set `warnings-as-errors = true` only when a repository intends to gate on every advisory rule. The `error` list promotes trusted rules individually. The command-line flags override that config for one run.
 
 ### Rules standing in for preview-gated ruff rules
 
@@ -200,13 +198,13 @@ The runner reads the consuming repo's `pyproject.toml`. It finds the nearest one
 [tool.repostyle]
 select = ["RS001", "RS004", "RS005", "RS007", "RS008", "RS009", "RS010", "RS011"]
 ignore = []
-warnings-as-errors = false # opt out: restore the per-rule severities
-error = ["RS034", "RS035"] # then promote these advisory rules to hard-fail
+warnings-as-errors = false # optional; this is the default
+error = ["RS034", "RS035"] # promote these advisory rules to hard-fail
 ```
 
 Enabled rules are `select` minus `ignore`. If the table is missing or empty, every rule is enabled.
 
-`error` names the advisory rules to promote once the repo has opted out of the error-by-default mode. It is the surgical option: a repo gates on a trusted subset while leaving the heuristic rules advisory. Promoting a disabled rule is inert, and promoting a rule that already fails by default is a harmless no-op. An unknown id is rejected the same way `select` and `ignore` validate theirs.
+`error` names the advisory rules that the repository trusts as gates. Promoting a disabled rule is inert. Promoting a rule that already fails by default is a harmless no-op. An unknown id is rejected the same way `select` and `ignore` validate theirs.
 
 ## Grandfather the existing backlog
 
@@ -486,7 +484,7 @@ steps:
       fetch-depth: 0 # --diff needs the base commit
 ```
 
-Without it no base resolves and the run exits 2 saying so, rather than reporting the whole tree. Under the error-by-default severity that would fail the build on the entire grandfathered backlog, which reads as a linter outage rather than the misconfiguration it is.
+Without it no base resolves. The run exits 2 instead of reporting the whole tree, because a whole-tree result would hide the missing base behind unrelated findings.
 
 This scopes repostyle's own rules only. Ruff has no diff mode, so to scope the ruff rules to a pull request's lines, filter ruff's output in CI with [reviewdog](https://github.com/reviewdog/reviewdog) (`-filter-mode=added`), or use graylint locally.
 

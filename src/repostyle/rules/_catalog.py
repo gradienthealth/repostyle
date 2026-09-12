@@ -303,10 +303,12 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "A test builds more than three mocks, a density signal of brittle coupling."
         ),
         rationale=(
-            "A high mock count is a signal of where to look, not a verdict that "
-            "any single mock is wrong. Many mocks usually means the unit reaches "
-            "across too many collaborators, or that a mock stands in where a fake "
-            "would assert real behavior."
+            "A test can require many mocks for legitimate reasons, so this rule "
+            "marks a review site instead of a defect. Check whether the unit "
+            "crosses unnecessary collaborators or whether a fake could expose "
+            "caller-visible behavior. Keep the test when each collaborator is "
+            "essential. Do not redistribute mock construction merely to cross "
+            "the threshold."
         ),
         signals=(
             "Replace a mock of your own collaborator with a port fake under "
@@ -323,11 +325,11 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "A test asserts only call choreography (`assert_called*`), never state."
         ),
         rationale=(
-            "A test whose only checks are `assert_called*` pins how the unit "
-            "calls its collaborators rather than the outcome a caller relies on, "
-            "so it passes a buggy refactor that preserves the calls and fails a "
-            "correct one that changes them. Assert the observable result and let "
-            "the calls be an implementation detail."
+            "Call-only assertions bind a test to collaborator choreography. They "
+            "can pass when a defect preserves the calls and fail when a correct "
+            "rewrite changes them. Prefer an observable result or a fake. Delete "
+            "the test when no stable behavior is available. Do not add an unrelated "
+            "assertion merely to clear the warning."
         ),
         examples=(
             Example(

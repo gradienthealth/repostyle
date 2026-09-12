@@ -76,13 +76,9 @@ def _run_explain(argv: list[str]) -> int:
     return 2 if unknown else 0
 
 
-# Printed when `--diff` cannot resolve the commit to compare against. The run
-# refuses rather than reporting every line: under the error-by-default severity
-# that would fail the build on the whole grandfathered tree, which reads as a
-# linter outage rather than as the misconfiguration it is. Printed once per run
-# that passes `--diff`. The baseline grandfathers a backlog by record, which is
-# what line scoping was standing in for, and it does so without hiding a
-# finding on a line the change did not touch.
+# Printed when `--diff` cannot resolve the comparison commit. The run refuses
+# instead of hiding the missing base behind unrelated whole-tree findings. The
+# baseline replaces line scoping without hiding a finding on an untouched line.
 _DIFF_DEPRECATED = (
     "repostyle: --diff is deprecated and will be removed in a later release; "
     "record the backlog with --write-baseline instead"
@@ -199,7 +195,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=None,
         help="fail on every finding, whatever its default severity (default: "
-        "on; --no-warnings-as-errors restores the per-rule severities)",
+        "off; config may promote individual rules)",
     )
     parser.add_argument(
         "--write-baseline",
@@ -238,8 +234,8 @@ def _print_run_summary(
     if tolerated:
         print(
             f"repostyle: {tolerated} warning(s) reported without failing the "
-            "run; drop `[tool.repostyle] warnings-as-errors = false` to gate "
-            "on them",
+            "run; set `[tool.repostyle] warnings-as-errors = true` to gate on "
+            "all warnings, or add trusted rules to `error`",
             file=sys.stderr,
         )
     if options.no_explain_hint:
