@@ -27,7 +27,7 @@ class TestMain:
     ) -> None:
         monkeypatch.setitem(RULE_SEVERITY, RS_ACRONYM_CASING, Severity.WARNING)
         target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
-        exit_code = main(["--no-warnings-as-errors", str(target)])
+        exit_code = main([str(target)])
         out = capsys.readouterr().out
         assert exit_code == 0
         assert f"{target}:2:5: warning: RS001" in out
@@ -412,17 +412,17 @@ class TestBaseline:
         assert captured.out.count("RS001") == 2
 
 
-class TestWarningsAsErrorsDefault:
-    def test_AdvisoryRuleWithNoConfig_FailsTheRun(
+class TestDefaultSeverity:
+    def test_AdvisoryRuleWithNoConfig_PassesTheRun(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         target = _write_project(tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]')
         exit_code = main([str(target)])
         out = capsys.readouterr().out
-        assert exit_code == 1
-        assert f"{target}:1:1: error: RS034" in out
+        assert exit_code == 0
+        assert f"{target}:1:1: warning: RS034" in out
 
-    def test_OptOutInConfig_RestoresTheDefaultSeverity(
+    def test_ExplicitFalse_KeepsTheDefaultSeverity(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         target = _write_promotion_project(
@@ -433,7 +433,7 @@ class TestWarningsAsErrorsDefault:
         assert exit_code == 0
         assert f"{target}:1:1: warning: RS034" in out
 
-    def test_OptOutFlag_RestoresTheDefaultSeverity(
+    def test_NoWarningsAsErrorsFlag_KeepsTheDefaultSeverity(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         target = _write_project(tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]')

@@ -306,7 +306,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "A high mock count is a signal of where to look, not a verdict that "
             "any single mock is wrong. Many mocks usually means the unit reaches "
             "across too many collaborators, or that a mock stands in where a fake "
-            "would assert real behavior."
+            "would assert real behavior. The reviewer may keep the test when each "
+            "collaborator is essential. The reviewer should never redistribute "
+            "mock construction merely to cross the threshold."
         ),
         signals=(
             "Replace a mock of your own collaborator with a port fake under "
@@ -326,8 +328,9 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "A test whose only checks are `assert_called*` pins how the unit "
             "calls its collaborators rather than the outcome a caller relies on, "
             "so it passes a buggy refactor that preserves the calls and fails a "
-            "correct one that changes them. Assert the observable result and let "
-            "the calls be an implementation detail."
+            "correct one that changes them. Prefer an observable result or a fake. "
+            "Delete the test when no stable behavior is available. Do not add an "
+            "unrelated assertion merely to clear the warning."
         ),
         examples=(
             Example(
