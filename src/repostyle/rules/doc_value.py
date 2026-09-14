@@ -47,8 +47,8 @@ DOC_VALUE_PARAM_FLOOR = 4
 _RETURNS_SECTION_PATTERN = re.compile(r"^[ \t]*(Returns|Yields):\s*$", re.MULTILINE)
 _RAISES_SECTION_PATTERN = re.compile(r"^[ \t]*Raises:\s*$", re.MULTILINE)
 
-# A Google-style section header is a known caption alone on its line. The
-# `Args:` and `Raises:` blocks' entries are the names already documented there.
+# These captions separate free prose from the structured entries that document
+# parameters, returns, and exceptions.
 _SECTION_HEADER_PATTERN = re.compile(
     r"^[ \t]*(Args|Arguments|Keyword Args|Keyword Arguments|Returns|Yields|"
     r"Raises|Attributes|Note|Notes|Example|Examples|Warning|Warnings|Todo|"
@@ -273,17 +273,16 @@ def check_raise_described_in_prose(path: Path, source: str) -> Iterator[Violatio
 def check_raises_section_incomplete(path: Path, source: str) -> Iterator[Violation]:
     """Flags a `Raises:` section missing an exception the body raises outright.
 
-    A public function that already carries a `Raises:` section fires once per
-    specific exception type its own body raises with an explicit `raise
-    SomeError(...)` statement while no `Raises:` entry names it. Once a
-    function documents its exceptions at all, the section should be complete,
-    so a reader trusts it; a raise the section omits silently understates the
-    contract. A function with no `Raises:` section does not fire -- whether to
-    document exceptions at all is a presence choice RS041 governs from the
-    prose side. A bare `raise` re-raising the caught exception and a `raise` of
-    a non-class expression are ignored, since neither names a specific type,
-    and an exception RS041 already narrates in unstructured docstring prose is
-    left to RS041 so the two rules never flag one exception twice.
+    A public function with a `Raises:` section fires once for each specific
+    exception type that an explicit `raise SomeError(...)` statement names but
+    the section omits. A complete section lets a reader trust the stated error
+    contract.
+
+    A function without a `Raises:` section does not fire. RS041 governs that
+    presence choice from the prose side. A bare `raise` and a `raise` of a
+    non-class expression are ignored because neither names a specific type.
+    RS043 also skips an exception that RS041 already narrates in unstructured
+    docstring prose, so the rules never report the same omission twice.
     """
     for node in _public_functions(path, source):
         docstring = ast.get_docstring(node, clean=True)
