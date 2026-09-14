@@ -553,6 +553,55 @@ class TestCheckRaiseDescribedInProse:
         assert "`Raises:`" in violations[0].message
 
     @pytest.mark.parametrize(
+        "docstring",
+        [
+            '"""Raises when source evidence changed after review."""',
+            (
+                '"""Verifies the captured evidence.\n'
+                "\n"
+                "    Raises if a source changed after capture.\n"
+                '    """'
+            ),
+        ],
+        ids=["summary", "body"],
+    )
+    def test_UnnamedRaiseConditionWithOneExplicitType_FlagsException(
+        self, docstring: str
+    ) -> None:
+        source = (
+            "def verify() -> None:\n"
+            f"    {docstring}\n"
+            "    if changed():\n"
+            '        raise ValueError("changed")\n'
+        )
+
+        violations = _check_raise(source)
+
+        assert len(violations) == 1
+        assert violations[0].rule == RS_RAISE_DESCRIBED_IN_PROSE
+        assert "exception 'ValueError'" in violations[0].message
+
+    def test_UnnamedRaiseCondition_LeavesMissingTypeToRS041(self) -> None:
+        source = (
+            "def verify() -> None:\n"
+            '    """Raises when source evidence changes.\n'
+            "\n"
+            "    Raises:\n"
+            "        KeyError: If required evidence is missing.\n"
+            '    """\n'
+            "    if changed():\n"
+            '        raise ValueError("changed")\n'
+        )
+
+        prose_violations = _check_raise(source)
+        section_violations = _check_raises_incomplete(source)
+
+        assert len(prose_violations) == 1
+        assert prose_violations[0].rule == RS_RAISE_DESCRIBED_IN_PROSE
+        assert "exception 'ValueError'" in prose_violations[0].message
+        assert section_violations == []
+
+    @pytest.mark.parametrize(
         "source",
         [
             "def parse(raw: bytes) -> int:\n"
@@ -628,6 +677,22 @@ class TestCheckRaiseDescribedInProse:
             "is logged, not propagated.\n"
             '    """\n'
             "    return 0\n",
+            "def adjust(value: int) -> None:\n"
+            '    """Raises the threshold when the input is positive."""\n'
+            "    if value > 0:\n"
+            '        raise ValueError("unsupported")\n',
+            "def monitor(alarm) -> None:\n"
+            '    """The alarm raises when the sensor disconnects."""\n'
+            "    if alarm.disconnected:\n"
+            '        raise ValueError("disconnected")\n',
+            "def verify(exc) -> None:\n"
+            '    """Raises when source evidence changes."""\n'
+            "    raise exc\n",
+            "def verify() -> None:\n"
+            '    """Raises when source evidence changes."""\n'
+            "    if missing():\n"
+            '        raise ValueError("missing")\n'
+            '    raise TypeError("invalid")\n',
         ],
         ids=[
             "documented-in-raises",
@@ -640,9 +705,13 @@ class TestCheckRaiseDescribedInProse:
             "verb-and-name-in-separate-sentences",
             "only-in-summary",
             "unbalanced-backtick-falls-back",
+            "domain-object",
+            "domain-subject",
+            "no-static-type",
+            "multiple-static-types",
         ],
     )
-    def test_RaiseNotDescribedInBodyProse_NoViolation(self, source: str) -> None:
+    def test_RaiseNotDescribedInProse_NoViolation(self, source: str) -> None:
         assert _check_raise(source) == []
 
     def test_PrivateDefinition_NoViolation(self) -> None:

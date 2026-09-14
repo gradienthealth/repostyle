@@ -853,7 +853,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         name="raise-described-in-prose",
         summary=(
             "A raised exception goes in a `Raises:` section, not narrated in "
-            "the docstring body."
+            "unstructured docstring prose."
         ),
     ),
     RS_EQ_HASH_PAIRING: RuleDoc(
@@ -896,8 +896,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "omits silently understates the contract. A function with no "
             "`Raises:` section does not fire -- whether to document exceptions at "
             "all is the prose-side choice RS041 governs. Where an exception is "
-            "both raised in code and narrated in the body, RS041 owns it and "
-            "this rule stays silent."
+            "both raised in code and narrated in unstructured docstring prose, "
+            "RS041 owns it and this rule stays silent."
         ),
     ),
     RS_PREDICATE_FUNCTION_NAMING: RuleDoc(
