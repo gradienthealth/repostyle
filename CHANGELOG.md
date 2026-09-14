@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.33.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.32.0...repostyle-v0.33.0) (2026-09-14)
+
+
+### Features
+
+* keep advisory lint rules non-blocking ([#162](https://github.com/gradienthealth/repostyle/issues/162)) ([5797678](https://github.com/gradienthealth/repostyle/commit/579767829febabcd1344739a99e7edb7fec06bb2))
+
+
+### Bug Fixes
+
+* **NO-ISSUE:** detect unnamed exception prose ([#164](https://github.com/gradienthealth/repostyle/issues/164)) ([155c22a](https://github.com/gradienthealth/repostyle/commit/155c22a94ab4367b5559969f879b17d93d2bd837))
+
 ## [0.32.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.31.1...repostyle-v0.32.0) (2026-08-28)
 
 
