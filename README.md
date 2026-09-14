@@ -61,7 +61,7 @@ The **Default** column shows whether a finding fails the run or prompts review. 
 | RS031 | warning | Per-argument detail goes in an `Args:` section, not narrated in the body. |
 | RS032 | warning | The return value goes in a `Returns:` section, not narrated in the body. |
 | RS034 | warning | A docstring summary opens descriptively (`Returns the lease.`), not imperatively (`Return the lease.`). |
-| RS041 | warning | A raised exception goes in a `Raises:` section, not narrated in the body. |
+| RS041 | warning | A raised exception goes in a `Raises:` section, not narrated in unstructured docstring prose. |
 | RS043 | warning | A `Raises:` section lists every exception the body raises outright. |
 
 ### Docstring sections

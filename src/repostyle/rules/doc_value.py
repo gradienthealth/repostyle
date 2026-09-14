@@ -11,10 +11,10 @@ warns when a function has a `Raises:` section but an exception its body raises
 outright is missing from it.
 
 RS041 and RS043 are complementary halves of the same concern, split by their
-signal. RS041 is prose-driven -- it fires on an exception narrated in the body
-with a raise verb, the only signal available when the exception propagates from
-a callee. RS043 is AST-driven -- it fires on an explicit `raise SomeError(...)`
-statement absent from an existing `Raises:` section. Where both could reach one
+signal. RS041 fires when prose identifies an exception by name or pairs a
+clause-leading `Raises if/when ...` condition with the function's sole explicit
+exception type. RS043 fires on an explicit `raise SomeError(...)` statement
+absent from an existing `Raises:` section. Where both could reach one
 exception, RS043 yields, skipping any exception RS041 already narrates.
 
 RS018 has two triggers. The presence trigger fires when a complex or
@@ -157,6 +157,10 @@ _RAISE_NEGATION_PATTERN = re.compile(
     r"(?:be(?:ing)?\s+)?$",
     re.IGNORECASE,
 )
+# A clause-leading `Raises if/when ...` states exception behavior without
+# naming its type. The narrow conditional shape avoids domain uses such as
+# "raises the threshold" and gains its exception name only from the AST.
+_UNNAMED_RAISE_CONDITION_PATTERN = re.compile(r"^raises\s+(?:if|when)\b", re.IGNORECASE)
 # An exception reference is a whole backtick span holding one possibly-dotted
 # name with the conventional `Error`/`Exception` suffix; a non-conforming
 # exception name is left to review rather than guessed at.
@@ -236,33 +240,37 @@ def check_return_described_in_prose(path: Path, source: str) -> Iterator[Violati
 
 
 def check_raise_described_in_prose(path: Path, source: str) -> Iterator[Violation]:
-    """Flags an exception narrated in the docstring body, not in `Raises:`.
+    """Flags an exception narrated in docstring prose, not in `Raises:`.
 
-    A public function fires once per backticked `*Error`/`*Exception` name
-    sharing a body-prose sentence with a raise verb (`raises`, `re-raises`,
-    `propagates`, and their tenses) while no `Raises:` entry documents that
-    exception. Prose narrating a raise is a self-admission that the exception
-    is contract-worthy, and raise detail belongs in a structured `Raises:`
-    section, where readers and tools look for it, not in the body prose meant
-    to state the unit's own contract. The prose is also the one mechanical
-    signal available when the exception propagates from a callee with no
-    `raise` statement in the function itself, the case an AST-based checker
-    cannot see. A sentence whose raise verb is negated (`never raises ...`)
-    does not fire, and neither does an exception the docstring leaves
-    unmentioned.
+    A public function fires once per exception described through either of two
+    mechanical signals:
+
+    1. A body-prose sentence pairs a backticked `*Error`/`*Exception` name with
+       `raises`, `re-raises`, `propagates`, or another tense of those verbs.
+    2. Unstructured prose opens a clause with `Raises if ...` or `Raises when
+       ...`, and the function body names exactly one explicit exception type.
+
+    No finding fires when a `Raises:` entry already documents the exception.
+    Prose narrating a raise is a self-admission that the exception is
+    contract-worthy, and raise detail belongs in the structured section where
+    readers and tools look for it. The named form also reaches exceptions that
+    propagate from a callee with no `raise` statement in this function. The
+    unnamed form requires exactly one statically identifiable type so the rule
+    never guesses which exception the prose describes. Negated raise prose and
+    domain uses such as `raises the threshold` do not fire.
     """
     for node in _public_functions(path, source):
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None:
             continue
-        body, _, documented = _split_docstring(docstring)
-        for name in _exceptions_raised_in_prose(body):
+        _, _, documented = _split_docstring(docstring)
+        for name in _exceptions_described_in_prose(docstring, node):
             if name.rpartition(".")[2] in documented:
                 continue
             yield _violation(
                 node,
                 RS_RAISE_DESCRIBED_IN_PROSE,
-                f"exception '{name}' is described in the docstring body of "
+                f"exception '{name}' is described in the docstring prose of "
                 f"'{node.name}'; move the description into a `Raises:` entry",
             )
 
@@ -286,9 +294,10 @@ def check_raises_section_incomplete(path: Path, source: str) -> Iterator[Violati
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None or not _RAISES_SECTION_PATTERN.search(docstring):
             continue
-        body, _, documented = _split_docstring(docstring)
+        _, _, documented = _split_docstring(docstring)
         narrated = {
-            name.rpartition(".")[2] for name in _exceptions_raised_in_prose(body)
+            name.rpartition(".")[2]
+            for name in _exceptions_described_in_prose(docstring, node)
         }
         for raised in _raised_exception_types(node):
             if raised in documented or raised in narrated:
@@ -356,6 +365,30 @@ def _describes_param_as_subject(body: str, name: str) -> bool:
 def _describes_return(body: str) -> bool:
     """Reports whether a body clause narrates the function's return value."""
     return _any_clause_satisfies(body, _clause_narrates_return)
+
+
+def _exceptions_described_in_prose(
+    docstring: str, node: ast.FunctionDef | ast.AsyncFunctionDef
+) -> list[str]:
+    """Lists exception types that unstructured docstring prose describes.
+
+    Named references come from the body prose. An unnamed `Raises if/when ...`
+    condition gains a name only when this function explicitly raises one
+    distinct, statically identifiable exception type.
+    """
+    body, _, _ = _split_docstring(docstring)
+    names = _exceptions_raised_in_prose(body)
+    raised = _raised_exception_types(node)
+    if (
+        len(raised) == 1
+        and raised[0] not in names
+        and _any_clause_satisfies(
+            _unstructured_prose(docstring),
+            lambda clause: _UNNAMED_RAISE_CONDITION_PATTERN.match(clause) is not None,
+        )
+    ):
+        names.append(raised[0])
+    return names
 
 
 def _any_clause_satisfies(body: str, holds: Callable[[str], bool]) -> bool:
@@ -629,6 +662,16 @@ def _split_into_clauses(body: str) -> list[str]:
             current.append(char)
     clauses.append("".join(current))
     return clauses
+
+
+def _unstructured_prose(docstring: str) -> str:
+    """Returns the summary and body prose before the first section header."""
+    lines: list[str] = []
+    for line in docstring.splitlines():
+        if _SECTION_HEADER_PATTERN.match(line):
+            break
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _violation(

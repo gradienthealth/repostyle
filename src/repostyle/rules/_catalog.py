@@ -853,7 +853,7 @@ RULE_DOCS: dict[str, RuleDoc] = {
         name="raise-described-in-prose",
         summary=(
             "A raised exception goes in a `Raises:` section, not narrated in "
-            "the docstring body."
+            "unstructured docstring prose."
         ),
     ),
     RS_EQ_HASH_PAIRING: RuleDoc(
