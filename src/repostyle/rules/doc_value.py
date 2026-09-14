@@ -1,27 +1,23 @@
-"""Documentation-value signals: warn where a docstring earns its keep.
+"""Documentation-value signals warn where a docstring earns its keep.
 
-Five rules live here, all advising that documentation land where it is most
-useful rather than demanding it everywhere. RS018 scores a function's
-documentation value and warns when a non-trivial public function is
-under-documented; RS031 warns when per-argument detail is narrated in the
-docstring body instead of a structured `Args:` section; RS032 warns when the
-return value is narrated there instead of a `Returns:` section; RS041 warns
-when a raised exception is narrated there instead of a `Raises:` section; RS043
-warns when a function has a `Raises:` section but an exception its body raises
-outright is missing from it.
+The rules report these signals:
 
-RS041 and RS043 are complementary halves of the same concern, split by their
-signal. RS041 fires when prose identifies an exception by name or pairs a
-clause-leading `Raises if/when ...` condition with the function's sole explicit
-exception type. RS043 fires on an explicit `raise SomeError(...)` statement
-absent from an existing `Raises:` section. Where both could reach one
-exception, RS043 yields, skipping any exception RS041 already narrates.
+- RS018 warns when a non-trivial public function is under-documented.
+- RS031 moves per-argument detail from body prose into an `Args:` section.
+- RS032 moves return detail from body prose into a `Returns:` section.
+- RS041 moves narrated exception behavior into a `Raises:` section.
+- RS043 completes a present `Raises:` section from explicit raise statements.
 
-RS018 has two triggers. The presence trigger fires when a complex or
-many-argumented public function carries no docstring. The `Returns:` trigger
-fires when a documented function returns a multi-element `tuple` -- an
-anonymous composite whose parts a single summary line cannot name; a scalar, a
-named type, or a homogeneous collection is left to the summary line.
+RS041 identifies an exception through either a named body-prose reference or a
+clause-leading `Raises if/when ...` condition paired with the function's sole
+explicit exception type. RS043 checks explicit `raise SomeError(...)`
+statements only when the function already has a `Raises:` section. RS043 skips
+an exception that RS041 owns.
+
+RS018 uses a complexity or parameter floor when a public function has no
+docstring. It also flags a documented function that returns a multi-element
+`tuple` without a `Returns:` section. A scalar, named type, or homogeneous
+collection can stay in the summary line.
 """
 
 from __future__ import annotations
@@ -51,9 +47,8 @@ DOC_VALUE_PARAM_FLOOR = 4
 _RETURNS_SECTION_PATTERN = re.compile(r"^[ \t]*(Returns|Yields):\s*$", re.MULTILINE)
 _RAISES_SECTION_PATTERN = re.compile(r"^[ \t]*Raises:\s*$", re.MULTILINE)
 
-# A Google-style section header is a known caption alone on its line. Anything
-# before the first header is the body prose RS031 and RS041 scan; the `Args:`
-# and `Raises:` blocks' entries are the names already documented there.
+# A Google-style section header is a known caption alone on its line. The
+# `Args:` and `Raises:` blocks' entries are the names already documented there.
 _SECTION_HEADER_PATTERN = re.compile(
     r"^[ \t]*(Args|Arguments|Keyword Args|Keyword Arguments|Returns|Yields|"
     r"Raises|Attributes|Note|Notes|Example|Examples|Warning|Warnings|Todo|"
@@ -287,8 +282,8 @@ def check_raises_section_incomplete(path: Path, source: str) -> Iterator[Violati
     document exceptions at all is a presence choice RS041 governs from the
     prose side. A bare `raise` re-raising the caught exception and a `raise` of
     a non-class expression are ignored, since neither names a specific type,
-    and an exception RS041 already narrates in the body prose is left to RS041
-    so the two rules never flag one exception twice.
+    and an exception RS041 already narrates in unstructured docstring prose is
+    left to RS041 so the two rules never flag one exception twice.
     """
     for node in _public_functions(path, source):
         docstring = ast.get_docstring(node, clean=True)

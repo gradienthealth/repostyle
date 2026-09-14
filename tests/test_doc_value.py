@@ -581,6 +581,26 @@ class TestCheckRaiseDescribedInProse:
         assert violations[0].rule == RS_RAISE_DESCRIBED_IN_PROSE
         assert "exception 'ValueError'" in violations[0].message
 
+    def test_UnnamedRaiseCondition_LeavesMissingTypeToRS041(self) -> None:
+        source = (
+            "def verify() -> None:\n"
+            '    """Raises when source evidence changes.\n'
+            "\n"
+            "    Raises:\n"
+            "        KeyError: If required evidence is missing.\n"
+            '    """\n'
+            "    if changed():\n"
+            '        raise ValueError("changed")\n'
+        )
+
+        prose_violations = _check_raise(source)
+        section_violations = _check_raises_incomplete(source)
+
+        assert len(prose_violations) == 1
+        assert prose_violations[0].rule == RS_RAISE_DESCRIBED_IN_PROSE
+        assert "exception 'ValueError'" in prose_violations[0].message
+        assert section_violations == []
+
     @pytest.mark.parametrize(
         "source",
         [

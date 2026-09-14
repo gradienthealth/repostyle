@@ -896,8 +896,8 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "omits silently understates the contract. A function with no "
             "`Raises:` section does not fire -- whether to document exceptions at "
             "all is the prose-side choice RS041 governs. Where an exception is "
-            "both raised in code and narrated in the body, RS041 owns it and "
-            "this rule stays silent."
+            "both raised in code and narrated in unstructured docstring prose, "
+            "RS041 owns it and this rule stays silent."
         ),
     ),
     RS_PREDICATE_FUNCTION_NAMING: RuleDoc(
