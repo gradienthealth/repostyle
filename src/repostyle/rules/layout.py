@@ -24,10 +24,12 @@ import symtable
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._shared import TEST_CLASS_PATTERN, _parse_python, _walk_tree
+from repostyle._shared import _parse_python, _walk_tree
+from repostyle.rules._layout_names import is_dunder, is_test_class
 from repostyle.rules._violation import RS_ELEMENT_ORDER, Violation
 
 _ENUM_BASES = frozenset({"Enum", "IntEnum", "StrEnum", "Flag", "IntFlag", "ReprEnum"})
+
 _DefNode = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 
 
@@ -81,7 +83,7 @@ def _enum_member_names(node: ast.ClassDef) -> list[str] | None:
             target, value = stmt.targets[0].id, stmt.value
         else:
             continue
-        if _is_dunder(target):
+        if is_dunder(target):
             continue
         if not isinstance(value, ast.Constant):
             return None
@@ -95,7 +97,7 @@ def _method_member_order(node: ast.ClassDef) -> Iterator[Violation]:
     A pytest test class is left alone: its methods follow the happy-path, edge,
     error scenario order, not an alphabetical one.
     """
-    if _is_test_class(node):
+    if is_test_class(node):
         return
     methods = [
         stmt
@@ -138,7 +140,7 @@ def _first_descending(names: list[str]) -> int | None:
 
 def _method_band(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
     """Ranks a method: dunders first, then public, then private."""
-    if _is_dunder(node.name):
+    if is_dunder(node.name):
         return 0
     return 2 if node.name.startswith("_") else 1
 
@@ -328,23 +330,14 @@ def _alpha_kind(stmt: ast.stmt) -> str | None:
     to mirror their subjects, not by name) are not.
     """
     if isinstance(stmt, ast.ClassDef):
-        return None if _is_test_class(stmt) else "class"
+        return None if is_test_class(stmt) else "class"
     if (
         isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef)
         and stmt.name.startswith("_")
-        and not _is_dunder(stmt.name)
+        and not is_dunder(stmt.name)
     ):
         return "private helper"
     return None
-
-
-def _is_dunder(name: str) -> bool:
-    return name.startswith("__") and name.endswith("__")
-
-
-def _is_test_class(node: ast.ClassDef) -> bool:
-    """Reports whether a class is a pytest test class, collected by name."""
-    return TEST_CLASS_PATTERN.match(node.name) is not None
 
 
 def _reachability(deps: dict[str, frozenset[str]]) -> dict[str, set[str]]:
