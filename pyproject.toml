@@ -46,6 +46,9 @@ repostyle = "repostyle.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+repostyle = ["rules/catalog.toml", "rules/imperative-verbs.toml"]
+
 [tool.ruff]
 # Dogfood the shared base this package ships to consuming repos, so the family
 # set every consumer inherits also runs on repostyle's own code.
