@@ -65,6 +65,7 @@ from repostyle.rules._violation import (
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
+    RS_TEST_MODULE_SIZE,
     RS_TEST_NAMING,
     RS_TEST_PARAMETRIZATION_CANDIDATE,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -156,6 +157,7 @@ from repostyle.rules.testing import (
     check_file_literal_restatement,
     check_no_mock_patch,
     check_sleepy_test,
+    check_test_module_size,
     check_test_naming,
 )
 from repostyle.rules.testing_reuse import (
@@ -198,6 +200,7 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
     RS_EXCESSIVE_MOCKING: (check_excessive_mocking,),
     RS_BEHAVIOR_VERIFICATION_ONLY: (check_behavior_verification_only,),
     RS_FILE_LITERAL_RESTATEMENT: (check_file_literal_restatement,),
+    RS_TEST_MODULE_SIZE: (check_test_module_size,),
     RS_TEST_PARAMETRIZATION_CANDIDATE: (check_test_parametrization_candidate,),
     RS_REPEATED_TEST_SETUP: (check_repeated_test_setup,),
     RS_BANNED_IMPORT_BY_PATH: (check_banned_import_by_path,),
@@ -285,6 +288,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_EXCESSIVE_MOCKING: Severity.WARNING,
     RS_BEHAVIOR_VERIFICATION_ONLY: Severity.WARNING,
     RS_FILE_LITERAL_RESTATEMENT: Severity.WARNING,
+    RS_TEST_MODULE_SIZE: Severity.WARNING,
     RS_SHARED_TEST_HELPER: Severity.WARNING,
     RS_TEST_PARAMETRIZATION_CANDIDATE: Severity.WARNING,
     RS_REPEATED_TEST_SETUP: Severity.WARNING,

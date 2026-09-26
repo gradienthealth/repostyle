@@ -1,6 +1,6 @@
 # repostyle
 
-repostyle is a linter for the house style conventions that ruff does not cover. It ships 64 rules, each with an `RSnnn` id, and a shared ruff base config. Every consuming repo picks the subset it wants and runs it as a pre-commit hook.
+repostyle is a linter for the house style conventions that ruff does not cover. It ships 65 rules, each with an `RSnnn` id, and a shared ruff base config. Every consuming repo picks the subset it wants and runs it as a pre-commit hook.
 
 The linter is stdlib-only, so installing it pulls in nothing. It reads Python through the `ast` module and the tokenizer. Most rules are Python-specific, but the comment rules also read `#` comments in TOML, YAML, and shell files, so a comment is held to the same conventions whatever the language.
 
@@ -113,6 +113,7 @@ These rules read docstrings and comments alike. The comment half of each runs ov
 | RS015 | warning | A test builds more than three mocks, a density signal of brittle coupling. |
 | RS016 | warning | A test asserts only call choreography (`assert_called*`) and never state. |
 | RS060 | warning | A test asserts only literals it read from a single repo file, exercising nothing beyond the parser. |
+| RS062 | warning | A test module exceeds its configured physical code-line limit. |
 | RS063 | warning | Matching substantial helpers or compatible fixtures across test files are candidates for one shared definition. |
 | RS064 | warning | Three tests with the same supported structure and differing scalar body literals are candidates for parametrization. |
 | RS065 | warning | Three tests sharing a leading assignment sequence that includes a call are candidates for a builder or fixture. |
@@ -160,11 +161,11 @@ A repo that keeps the same convention in another place re-scopes the rule with t
 
 RS017 reports nothing until a `banned-imports` table names its bans, so selecting it early is harmless.
 
-RS002, RS013 through RS016, RS060, and RS063 through RS065 only examine test functions and support code in test files, so they are inert elsewhere. RS003 instead rejects mock imports in every file outside `tests/fakes/`.
+RS002, RS013 through RS016, and RS060 through RS065 examine Python test files or their support code, so they are inert elsewhere. RS003 instead rejects mock imports in every file outside `tests/fakes/`.
 
 ### Severity
 
-Each selected rule keeps the default severity shown above. Under those defaults 19 rules hard-fail and the other 45 print warnings:
+Each selected rule keeps the default severity shown above. Under those defaults 19 rules hard-fail and the other 46 print warnings:
 
 ```
 RS001  RS002  RS003  RS004  RS005  RS006  RS007  RS008  RS009  RS010
@@ -376,6 +377,28 @@ public-decorators = ["fixture"]   # a decorator that publishes what it wraps
 ```
 
 `public-modules` globs are repo-relative and use `fnmatch` semantics, matching the way the `exclude` globs do. `public-decorators` matches a decorator's final attribute name, so the entry `fixture` covers both `@fixture` and `@pytest.fixture`.
+
+### Test module size (RS062)
+
+RS062 warns when a Python test module exceeds 500 physical code lines. It uses the same test-file scope as the other test rules, including helpers and `conftest.py` under `tests/`. Blank lines, comment-only lines, and module, class, and function docstrings do not count. Imports, decorators, fixtures, helpers, parameter tables, non-docstring strings, and bracket-only lines do count.
+
+Set a different positive integer when a repository needs another review point:
+
+```toml
+[tool.repostyle]
+max-test-file-lines = 500
+```
+
+The warning asks for review rather than prescribing a split. First check whether the tests expose coupled or unrelated production responsibilities. Split those production boundaries when they do. Otherwise, organize the tests into cohesive modules named for the behavior they cover. Do not create arbitrary numbered fragments or remove coverage to cross the threshold.
+
+The finding points to the first code line because it describes the whole file. The deprecated `--diff` mode therefore reports it only when that first code line is changed. Use a baseline for existing large modules instead. A baseline records one RS062 finding per file, so it suppresses later growth in that file until the finding is retired; it does not ratchet the recorded line count.
+
+Where one module must remain intact, place its rule-specific waiver near the top and add a short rationale for the next reader:
+
+```python
+# style: ignore-file[RS062]
+# The protocol matrix must stay together to verify every version pair.
+```
 
 ## Suppress a finding
 

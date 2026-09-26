@@ -78,6 +78,7 @@ from repostyle.rules._violation import (
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
+    RS_TEST_MODULE_SIZE,
     RS_TEST_NAMING,
     RS_TEST_PARAMETRIZATION_CANDIDATE,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -476,6 +477,29 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "This rule is independent of the parametrization rule. Both may report "
             "the same tests because consolidating setup and tabulating cases are "
             "separate review choices.",
+        ),
+    ),
+    RS_TEST_MODULE_SIZE: RuleDoc(
+        name="test-module-size",
+        summary=("A test module stays within its configured physical code-line limit."),
+        rationale=(
+            "A large test module can expose a production unit with too many "
+            "responsibilities, or it can collect unrelated behavior in one "
+            "place. Review the production boundary first. When that boundary "
+            "is cohesive, split the tests by behavior into modules with names "
+            "that state what each covers. Do not create numbered fragments or "
+            "remove coverage merely to cross the threshold. The default limit "
+            "is 500, configured with `max-test-file-lines` in "
+            "`[tool.repostyle]`."
+        ),
+        signals=(
+            "Tests span unrelated production responsibilities: split or "
+            "simplify the production unit, then align test modules to those "
+            "boundaries.",
+            "The production boundary is cohesive but its behavior has distinct "
+            "areas: organize tests into named modules around those areas.",
+            "The module must stay intact for a documented reason: place "
+            "`# style: ignore-file[RS062]` near the top with a short rationale.",
         ),
     ),
     RS_BANNED_IMPORT_BY_PATH: RuleDoc(

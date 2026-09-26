@@ -86,6 +86,7 @@ from repostyle.rules._violation import (
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
+    RS_TEST_MODULE_SIZE,
     RS_TEST_NAMING,
     RS_TEST_PARAMETRIZATION_CANDIDATE,
     RS_TOO_MANY_POSITIONAL_ARGS,
@@ -191,6 +192,7 @@ from repostyle.rules.testing import (
     check_file_literal_restatement,
     check_no_mock_patch,
     check_sleepy_test,
+    check_test_module_size,
     check_test_naming,
 )
 from repostyle.rules.testing_reuse import (
@@ -265,6 +267,7 @@ __all__ = [
     "RS_TAG_COMMENT_CONTINUATION_INDENT",
     "RS_TEMPORAL_MARKER",
     "RS_TERMINAL_PUNCTUATION",
+    "RS_TEST_MODULE_SIZE",
     "RS_TEST_NAMING",
     "RS_TEST_PARAMETRIZATION_CANDIDATE",
     "RS_TOO_MANY_POSITIONAL_ARGS",
@@ -347,6 +350,7 @@ __all__ = [
     "check_sleepy_test",
     "check_summary_comment_as_docstring",
     "check_tag_comment_continuation_indent",
+    "check_test_module_size",
     "check_test_naming",
     "check_test_parametrization_candidate",
     "check_too_many_positional_args",
