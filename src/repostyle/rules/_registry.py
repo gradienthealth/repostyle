@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
-from repostyle.rules._registry_part_1 import RULES_PART as _RULES_PART_1
-from repostyle.rules._registry_part_2 import RULES_PART as _RULES_PART_2
+from repostyle.rules._documentation_rules import RULES as DOCUMENTATION_RULES
+from repostyle.rules._python_rules import RULES as PYTHON_RULES
+from repostyle.rules._testing_rules import RULES as TESTING_RULES
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING_IN_PROSE,
     RS_ARG_DESCRIBED_IN_PROSE,
@@ -73,7 +74,11 @@ RuleCheck = Callable[[Path, str], Iterator[Violation]]
 # keyed by path, rather than the single-file `RuleCheck` contract above.
 PackageCheck = Callable[[Sequence[tuple[Path, str]]], Iterator[tuple[Path, Violation]]]
 
-RULES: dict[str, tuple[RuleCheck, ...]] = {**_RULES_PART_1, **_RULES_PART_2}
+RULES: dict[str, tuple[RuleCheck, ...]] = {
+    **PYTHON_RULES,
+    **DOCUMENTATION_RULES,
+    **TESTING_RULES,
+}
 
 
 # Whole-package rules, run once over every first-party file rather than per

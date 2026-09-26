@@ -1,8 +1,21 @@
 """Imperative verb data used by the docstring summary rule."""
 
-from repostyle.rules._imperative_verbs_a_m import VERBS as _VERBS_A_M
-from repostyle.rules._imperative_verbs_n_z import VERBS as _VERBS_N_Z
+import tomllib
+from importlib.resources import files
 
-IMPERATIVE_VERBS: tuple[str, ...] = _VERBS_A_M + _VERBS_N_Z
+
+def _load_verbs() -> tuple[str, ...]:
+    """Loads the bundled imperative-verb vocabulary."""
+    resource = files("repostyle.rules").joinpath("imperative-verbs.toml")
+    with resource.open("rb") as vocabulary_file:
+        value = tomllib.load(vocabulary_file).get("verbs")
+    if not isinstance(value, list) or not all(isinstance(verb, str) for verb in value):
+        raise TypeError("imperative verb vocabulary must contain a string array")
+    if len(value) != len(set(value)):
+        raise ValueError("imperative verb vocabulary contains duplicates")
+    return tuple(value)
+
+
+IMPERATIVE_VERBS = _load_verbs()
 _IRREGULAR_CONJUGATIONS: dict[str, str] = {"Have": "Has"}
 _ES_CONJUGATION_SUFFIXES = ("s", "x", "z", "ch", "sh", "o")

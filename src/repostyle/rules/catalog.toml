@@ -1,0 +1,529 @@
+# Bundled rule explanation metadata. Executable registration stays in Python.
+
+[RS001]
+name = "acronym-casing"
+summary = "A known acronym stays all-uppercase in a CapWords name (`FHIRClient`, not `FhirClient`)."
+rationale = "The check holds a fixed set of known acronyms (`API`, `FHIR`, `HTTP`, `ID`, `JWT`, `URL`, ...) to all-uppercase in a CapWords name, since a mixed-case acronym reads as an ordinary word. The set is general, so a domain repo extends it via `acronyms-extra` and drops a member via `acronyms-exclude` in `[tool.repostyle]`, rather than editing the shared list every repo inherits."
+examples = [{ bad = "class UidValidator: ...", good = "class UIDValidator: ...", note = "`UID` is not a built-in acronym; a DICOM repo teaches the rule with `acronyms-extra = [\"UID\"]`." }]
+signals = []
+reference = []
+
+[RS002]
+name = "test-naming"
+summary = "A test under `tests/unit/` (or the configured `test-naming-globs`) matches `test_StateUnderTest_ExpectedBehavior`."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS003]
+name = "no-mock-patch"
+summary = "`unittest.mock` and `mock` are rejected outside `tests/fakes/`; use a port fake."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS004]
+name = "no-attributes-block"
+summary = "A dataclass documents fields with per-field docstrings, not a Google `Attributes:` block."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS005]
+name = "no-double-backticks"
+summary = "Prose uses single backticks for a code span, never double."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS006]
+name = "port-no-implementation"
+summary = "A port module declares contracts only; it holds no implementation."
+rationale = "Scoped to files whose path holds the `application/ports/` fragment of a hexagonal layout, or to the files matching `port-path-globs` in `[tool.repostyle]` when a repo sets that key, which replaces the default fragment rather than extending it. A repo whose ports sit elsewhere states its own layout there."
+examples = []
+signals = []
+reference = []
+
+[RS007]
+name = "duration-as-timedelta"
+summary = "A module-level duration is a `timedelta`, not a raw `*_SECONDS` number."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS008]
+name = "no-phi-safe-exc-info"
+summary = "A PHI-safe logger call passes no `exc_info`; a traceback can carry PHI past the redaction."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS009]
+name = "doc-fill"
+summary = "A docstring, comment, or YAML folded-scalar paragraph fills to 79 columns."
+rationale = "A paragraph wrapped well short of the limit, or running past it, reads as ragged and churns diffs when reflowed by hand. Fill each prose paragraph to 79 columns. Only prose is filled: a preformatted line -- one ending in a `\\` continuation, or holding an interior run of spaces that aligns a column -- is verbatim, since a reflow emits single-spaced text and would corrupt it. Docstrings are checked in Python; comments in Python, TOML, YAML, and shell alike. YAML prose is checked too, inside a folded (`>`) block scalar that closes on a `.`, `!`, or `?`: its line breaks fold to spaces, so a rewrap leaves the value alone, and the closing punctuation separates prose from the `>` blocks that merely wrap a long expression. A literal (`|`) scalar keeps its breaks as content and is never touched. A folded scalar that closes on anything else goes unchecked, and no rule covers it: RS030 reads `#` comments alone. Close the prose with a period and RS009 applies. `--fix` rewrites every language it reads."
+examples = []
+signals = []
+reference = []
+
+[RS010]
+name = "banned-abbreviation"
+summary = "Spell names out; a known abbreviation in an introduced name is rejected."
+rationale = "An abbreviation saves a few characters at the cost of a reader expanding it, and the expansions disagree across a codebase (`req` for request, requirement, or required). Spelling the word out keeps names searchable and unambiguous. The abbreviation is matched as a whole word in a snake_case or CapWords name, so an attribute access or a string literal is left alone."
+examples = [{ bad = "def handle(req, resp): ...", good = "def handle(request, response): ...", note = "Fix every abbreviation in the file, not just the flagged one -- the reference below is the full banned set." }]
+signals = []
+reference = ["btn -> button", "cfg -> configuration", "conn -> connection", "ctx -> context", "idx -> index", "mgr -> manager", "mngr -> manager", "req -> request", "res -> result", "resp -> response", "usr -> user"]
+
+[RS011]
+name = "discouraged-class-suffix"
+summary = "A class is named for its responsibility, not a vague `Manager`/`Helper`/`Util` role."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS012]
+name = "cognitive-complexity"
+summary = "A function's cognitive complexity is over the limit of 15."
+rationale = "Cognitive complexity weights control flow by nesting depth, so the remedy is rarely to shorten the function -- it is to flatten or factor the structure driving the score. Reach for the remedy that matches the cause, not a blanket extraction."
+examples = []
+signals = ["Deep nesting (an `if` inside a `for` inside an `if`): invert the condition and `return` or `continue` early to peel off a level, or extract the inner block into its own function.", "Many sibling branches (a long `if`/`elif` chain): replace it with a dispatch table or a mapping keyed by the discriminant.", "Long boolean chains (`a and b or c and d`): extract the condition into a named predicate whose name states what it tests."]
+reference = []
+
+[RS013]
+name = "conditional-test-logic"
+summary = "A test keeps its asserted path straight-line, not wrapped in an `if`/`for`/`while`/`try`."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS014]
+name = "sleepy-test"
+summary = "A test does not call `time.sleep`/`asyncio.sleep`; wait on a condition or fake the clock."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS015]
+name = "excessive-mocking"
+summary = "A test builds more than three mocks, a density signal of brittle coupling."
+rationale = "A test can require many mocks for legitimate reasons, so this rule marks a review site instead of a defect. Check whether the unit crosses unnecessary collaborators or whether a fake could expose caller-visible behavior. Keep the test when each collaborator is essential. Do not redistribute mock construction merely to cross the threshold."
+examples = []
+signals = ["Replace a mock of your own collaborator with a port fake under `tests/fakes/` that records and replays observable interactions.", "If the unit needs many mocks to stand up, it may have too many dependencies -- consider whether it is doing too much.", "A mock that only satisfies a constructor argument can often be a real lightweight value or a shared fixture."]
+reference = []
+
+[RS016]
+name = "behavior-verification-only"
+summary = "A test asserts only call choreography (`assert_called*`), never state."
+rationale = "Call-only assertions bind a test to collaborator choreography. They can pass when a defect preserves the calls and fail when a correct rewrite changes them. Prefer an observable result or a fake. Delete the test when no stable behavior is available. Do not add an unrelated assertion merely to clear the warning."
+examples = [{ bad = "repository.save(patient)\nrepository.save.assert_called_once_with(patient)", good = "repository.save(patient)\nassert repository.stored == [patient]", note = "Assert the fake's recorded state, not that a method was called." }]
+signals = []
+reference = []
+
+[RS017]
+name = "banned-import-by-path"
+summary = "A file imports a module its layer's `banned-imports` config forbids."
+rationale = "The bans express the repo's layering boundaries -- an inner domain or port module must not import an outer adapter or the CLI, so the dependency arrow points inward. The fix is not to delete the import but to move the code that needs it to the layer that may hold it, or to invert the dependency behind a port the inner layer owns. The banned sources are configured per glob in `[tool.repostyle.banned-imports]`; read that table for which layer owns what."
+examples = [{ bad = "# in src/domain/ports/clock.py\nfrom myrepo.adapters.system_clock import now", good = "# the port declares the contract; an adapter implements it\nclass Clock(Protocol):\n    def now(self) -> datetime: ...", note = "Depend on an abstraction the inner layer owns; let the outer layer provide the concrete import." }]
+signals = []
+reference = []
+
+[RS018]
+name = "doc-value-signal"
+summary = "A non-trivial public function is under-documented (no docstring, or a tuple return with no `Returns:`)."
+rationale = "The rule fires only where a docstring earns its keep, so the fix is a real docstring, not boilerplate. State the function's own contract descriptively, in the third person; do not narrate its mechanics."
+examples = []
+signals = ["No docstring on a complex or many-argumented function: add a descriptive summary of its contract.", "A multi-element tuple return: add a `Returns:` section naming each element in order, which one summary line cannot."]
+reference = []
+
+[RS019]
+name = "element-order"
+summary = "Module and class members run top-down by dependency, then alphabetical for free choices."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS020]
+name = "summary-comment-as-docstring"
+summary = "A leading summary comment on a definition should be its docstring."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS021]
+name = "field-comment-as-docstring"
+summary = "A dataclass field's explanatory comment should be a field docstring."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS022]
+name = "comment-tag-format"
+summary = "A special comment reads `TAG(TICKET): message` with an allowed tag and a tracking ticket."
+rationale = "A `TODO`/`FIXME`/`NOTE`/`HACK` comment that points at a ticket stays traceable to the work that resolves it, mirroring the ticket scope a PR title carries. The form is an allowed tag, the ticket in parentheses (a Linear id like `PROC-1234`, or the literal `NO-ISSUE`), then `: ` and the message. The allowed tags and ticket pattern are configured in `[tool.repostyle]`."
+examples = [{ bad = "# TODO: handle the empty case", good = "# TODO(PROC-1234): handle the empty case", note = "With no ticket, use `# TODO(NO-ISSUE): ...`." }]
+signals = []
+reference = []
+
+[RS023]
+name = "filler-docstring-opening"
+summary = "A docstring opens with the unit's contract, not a filler phrase (`This function ...`)."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS024]
+name = "no-negated-boolean"
+summary = "A boolean name does not embed `not`/`no`; name the positive and negate at the call site."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS025]
+name = "no-make-in-production"
+summary = "`make_` is for test fixtures; production uses `build_` (in-memory) or `create_` (side effect)."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS026]
+name = "boolean-prefix-required"
+summary = "A `bool`-annotated name reads as a yes/no question (`is_`/`has_`/`can_`/`should_`)."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS027]
+name = "too-many-positional-args"
+summary = "A function takes few positional parameters; pass the rest as keywords."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS028]
+name = "exception-alias"
+summary = "An `except ... as` alias is `exc` (`exc2` when nested) or a descriptive name, never `e`/`ex`/`err`."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS029]
+name = "should-be-private"
+summary = "A symbol used only inside its own package carries a leading underscore."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS030]
+name = "terminal-punctuation"
+summary = "A docstring or comment prose unit ends with terminal punctuation (`.`, `!`, or `?`); comments are checked in Python, TOML, YAML, and shell."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS031]
+name = "arg-described-in-prose"
+summary = "Per-argument detail goes in an `Args:` section, not narrated in the docstring body."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS032]
+name = "return-described-in-prose"
+summary = "The return value goes in a `Returns:` section, not narrated in the docstring body."
+rationale = "A reader and a documentation tool both look for the return contract under a `Returns:` or `Yields:` caption, so a body paragraph that carries it instead hides it. The rule reads the phrasing, not the verb, so recasting the sentence does not satisfy it -- move the description into a section. The summary line is exempt: it states the contract rather than narrating it, and a one-line summary is often all a scalar return needs."
+examples = [{ bad = "A file of any other type yields nothing.", good = "Returns:\n    Each comment, and nothing for another type.", note = "The phrasing does not matter; the section it belongs under does." }]
+signals = ["A body sentence led by a return verb (`Returns the lease.`, `Yields each row.`): move it under `Returns:` or `Yields:`.", "A body sentence whose subject is the returned thing (`The result is ...`, `The return value is ...`): same move.", "A return verb mid-sentence under an input or condition subject (`A malformed file returns None.`): same move."]
+reference = []
+
+[RS033]
+name = "filename-convention"
+summary = "A non-Python file uses the configured preferred extension and casing (default: `.yaml` over `.yml`, kebab-case)."
+rationale = "yaml.org has recommended `.yaml` since 2006; `.yml` only persists from the old DOS/Windows 8.3 filename-length limit. Google's developer documentation style guide prefers hyphens over underscores in filenames, since a search engine reads a hyphen as a word break but not an underscore. Both defaults are configurable -- `[tool.repostyle.filename-extensions]` replaces the extension map wholesale, `filename-case` takes `snake` or `none`. A curated set of tool- or ecosystem-mandated fixed names (`README.md`, `CHANGELOG.md`, `LICENSE`, `CODEOWNERS`, `CLAUDE.md`, ...) is exempt from both checks by default, so a repo never re-lists them; `filename-ignore` extends that set with any further fixed-name file a tool mandates rather than renaming it. An extensionless name like `Dockerfile` or `LICENSE` only reaches this rule if the consuming repo's own pre-commit hook is configured to pass it -- the shipped hook and a bare directory argument both discover only `.py`/`.toml`/`.yaml`/`.yml`/`.md`."
+examples = [{ bad = "config.yml", good = "config.yaml", note = "The default `filename-extensions` mapping." }, { bad = "my_config.yaml", good = "my-config.yaml", note = "The default `filename-case` of kebab." }]
+signals = []
+reference = []
+
+[RS034]
+name = "imperative-docstring-opening"
+summary = "A docstring summary opens descriptively (`Returns the lease.`), not imperatively (`Return the lease.`)."
+rationale = "The house convention states a unit's contract in descriptive third person, matching Google's own style guide rather than PEP 257's imperative recommendation. The check matches a fixed set of common bare-infinitive openings adapted from pydocstyle's own word list (the data behind ruff's D401, which enforces the opposite convention), so it is advisory in both directions: an opening verb outside that set is not flagged, and a verb that commonly doubles as a noun (`Check`, `Report`, `Format`, `Handle`, `Set`, ...) still stays in the set because pydocstyle's own data accepts that risk wholesale, reinforced for several of these by a survey of real gradienthealth repos that found a genuine imperative opening for each and no noun-phrase false positive; the occasional false positive (`Check constraint enforced on the age column.`) is an accepted cost. `Route` carries the same risk on that survey's evidence alone, since it is not itself a pydocstyle entry. A handful of pydocstyle's own entries (`List`, `Query`, `Test`, ...) are left out anyway because the noun reading dominates in this codebase's own domain. A consuming repo tunes the set for its own domain via `imperative-verbs-extra`/`imperative-verbs-exclude` in `[tool.repostyle]`, rather than editing the shared verb list every repo inherits."
+examples = [{ bad = "\"\"\"Return the lease held by `client_id`.\"\"\"", good = "\"\"\"Returns the lease held by `client_id`.\"\"\"", note = "Conjugate the opening verb to third-person singular." }]
+signals = []
+reference = ["Access -> Accesses", "Apply -> Applies", "Copy -> Copies", "Dispatch -> Dispatches", "Do -> Does", "Empty -> Empties", "Establish -> Establishes", "Fetch -> Fetches", "Finish -> Finishes", "Fix -> Fixes", "Go -> Goes", "Hash -> Hashes", "Have -> Has", "Identify -> Identifies", "Launch -> Launches", "Modify -> Modifies", "Pass -> Passes", "Publish -> Publishes", "Refresh -> Refreshes", "Reply -> Replies", "Search -> Searches", "Specify -> Specifies", "Try -> Tries", "Verify -> Verifies"]
+
+[RS035]
+name = "doc-summary-overflow"
+summary = "A docstring summary line fills within 79 columns."
+rationale = "PEP 257 and Google style require a docstring summary to be exactly one physical line, so unlike a body paragraph it has no second line to spread overflow onto -- `doc-fill`'s `--fix` cannot rewrap it, only shrink or relocate the words by hand. Move a detail that does not fit into the body or an `Args:`/`Returns:` section instead of letting the summary run long."
+examples = [{ bad = "\"\"\"Builds the outbound claim payload from the encounter, the coverage, and the billing provider.\"\"\"", good = "\"\"\"Builds the outbound claim payload.\n\n    Builds the payload from the encounter, the coverage, and\n    the billing provider.\n    \"\"\"", note = "Keep the summary to one short line and move the rest into a body paragraph, which `doc-fill` can wrap." }]
+signals = []
+reference = []
+
+[RS036]
+name = "unbackticked-code-reference"
+summary = "A docstring wraps a code name it references -- a parameter, an import, a class, `None`/`True`/`False` -- in single backticks."
+rationale = "The house style sets a code token in single backticks so prose reads apart from the identifiers it names. A linter cannot decide this for an arbitrary word, so the check stays mechanical by firing only where two signals agree: the word matches a name the module itself binds (a parameter, import, function, class, or accessed attribute) or a literal constant, and its shape rules out plain English -- an underscore, a digit, or an interior capital beside a lowercase letter (`skip_lines`, `HttpClient`). A literal (`None`/`True`/`False`) fires mid-sentence but not at a sentence start, where its capital could open an English clause. A plain-lowercase name (a `path` parameter) and a Titlecase or all-caps word that also reads as English (`Path`, `WARNING`) are left to review, since no rule can tell the reference from the word. Grounding the match in the module's own names is what lets a code-shaped word the module never binds -- a proper noun, or a name shown only in an example -- pass untouched: the shape marks a candidate, but only a name the code defines fires."
+examples = [{ bad = "\"\"\"Returns None when skip_lines is empty.\"\"\"", good = "\"\"\"Returns `None` when `skip_lines` is empty.\"\"\"", note = "Backtick a literal and a code-shaped parameter; a plain word like `path` stays for review to judge." }]
+signals = []
+reference = []
+
+[RS037]
+name = "glued-code-span"
+summary = "Prose ends a code span on a word boundary; no suffix is glued to the closing backtick."
+rationale = "A code span sets a name in code font, so a suffix run straight onto its closing backtick -- a possessive, a plural, or a verb ending -- reads as part of the identifier and breaks the span in rendered Markdown. Moving the suffix outside the span keeps the prose readable and the identifier exact. The check stays mechanical: it fires on a closing backtick followed by a letter or an apostrophe, and leaves a hyphenated compound (`-typed`, `-safe`) alone, since that still ends the span on a word boundary."
+examples = [{ bad = "\"\"\"Returns the `Observation`s in the bundle.\"\"\"", good = "\"\"\"Returns the `Observation` resources in the bundle.\"\"\"", note = "A possessive glues the same way: write the value of `patient.identifier`, not `patient.identifier`'s value." }]
+signals = []
+reference = []
+
+[RS038]
+name = "tag-comment-continuation-indent"
+summary = "A wrapped tag comment indents its continuation past the tag; a separate note is set off by a blank line."
+rationale = "A `TODO(TICKET): ...` comment that wraps onto a further line reads as one unit only when the wrapped text is indented past the tag. A flush follow-on line is ambiguous: it could be the wrap or an unrelated comment. The convention resolves it by column -- a continuation is indented, an independent comment is set off by a blank line. A follow-on line that is itself a tag comment is a new tag, not a wrap, and is left alone. The check spans Python, TOML, YAML, and shell comments."
+examples = [{ bad = "# TODO(PROC-1234): rework the retry path\n# once the client exposes a deadline", good = "# TODO(PROC-1234): rework the retry path\n#     once the client exposes a deadline", note = "A blank line instead makes the second line its own comment." }]
+signals = []
+reference = []
+
+[RS039]
+name = "unbackticked-sibling-symbol"
+summary = "When a docstring or comment block backticks one code symbol, its sibling code tokens in the same block are backticked too."
+rationale = "Once a docstring or comment block sets one code symbol in single backticks, leaving a sibling token bare reads as an oversight, not a choice, so the house style asks for the whole block to be consistent. This check fires only on that inconsistency, which keeps it mechanical: a block must already backtick at least one code-shaped token before a bare token in it is weighed. A bare token qualifies only when its shape rules out plain English -- an underscore, a digit, or an interior capital beside a lowercase letter -- and when the same file carries it verbatim inside a string literal, such as a table or column name in an embedded SQL statement, which is self-contained proof it names a real identifier. A name the module binds is left to RS036, which fires on it whether or not a sibling is backticked, so the two rules never flag one token. Only Python is scanned, since the string-literal proof is read from the file's own AST."
+examples = [{ bad = "\"\"\"`ContinuousDiscoverySettings` rejects a value, so a remote_aes row fails to load.\"\"\"", good = "\"\"\"`ContinuousDiscoverySettings` rejects a value, so a `remote_aes` row fails to load.\"\"\"", note = "`remote_aes` also appears in a SQL string elsewhere in the file, so its bare mention beside the backticked `ContinuousDiscoverySettings` is flagged." }]
+signals = []
+reference = []
+
+[RS040]
+name = "deeply-nested-type"
+summary = "A type annotation nests subscripted generics past two levels; name the buried type."
+rationale = "A generic nested two deep inside others packs a data structure into a signature the reader re-parses at every use, and the deeper it goes the more it hides what the value actually models. Past two levels the annotation is usually standing in for a type that wants a name. A two-level `Iterator[tuple[...]]` or `dict[str, list[...]]` is idiomatic and left alone; every subscript layer beyond that counts the same -- a `tuple` or a `Callable` is no easier to read nested -- so the remedy is to give the inner shape a name, not to reformat the annotation. Reach for the construct that fits what the shape is: a `TypeAlias` when it is genuinely just an alias, a `NamedTuple` or dataclass when the fields deserve names."
+examples = [{ bad = "def group(rows: list[tuple[str, list[Record]]]) -> None: ...", good = "KeyedRecords: TypeAlias = tuple[str, list[Record]]\ndef group(rows: list[KeyedRecords]) -> None: ...", note = "Naming the inner `tuple[str, list[Record]]` drops the annotation to one level and states what it holds." }]
+signals = []
+reference = []
+
+[RS041]
+name = "raise-described-in-prose"
+summary = "A raised exception goes in a `Raises:` section, not narrated in unstructured docstring prose."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS042]
+name = "eq-hash-pairing"
+summary = "A class defines `__eq__` and `__hash__` as a pair, or neither."
+rationale = "Overriding `__eq__` without `__hash__` makes instances silently unhashable, since Python sets the class's `__hash__` to `None`; defining `__hash__` without `__eq__` keeps a value hash beside identity equality. Define both so equality and hashing agree, or set `__hash__ = None` to opt out of hashing on purpose. A `@dataclass` or `attrs` class synthesizes both and is exempt, as is a class inheriting the other half from a non-`object` base. The eq-without-hash half stands in for ruff's `PLW1641`, which is preview-gated in the pinned ruff version; when it graduates to stable, select it in `ruff-base.toml` and drop that half here."
+examples = [{ bad = "class Money:\n    def __eq__(self, other): ...", good = "class Money:\n    def __eq__(self, other): ...\n    def __hash__(self): ...", note = "Or make it a `@dataclass`, which synthesizes both from its `eq=`/`frozen=` flags." }]
+signals = []
+reference = []
+
+[RS043]
+name = "raises-section-incomplete"
+summary = "A `Raises:` section lists every exception the body raises outright."
+rationale = "Once a function documents its exceptions in a `Raises:` section, a reader trusts the section to be complete, so an exception the body raises with an explicit `raise SomeError(...)` but the section omits silently understates the contract. A function with no `Raises:` section does not fire -- whether to document exceptions at all is the prose-side choice RS041 governs. Where an exception is both raised in code and narrated in unstructured docstring prose, RS041 owns it and this rule stays silent."
+examples = []
+signals = []
+reference = []
+
+[RS044]
+name = "predicate-function-naming"
+summary = "A `-> bool` function named as a bare state word reads as a yes/no question (`is_valid`, not `valid`)."
+rationale = "A boolean function should read as the question its call site asks, so a single bare adjective or state noun (`valid`, `ready`, `enabled`) takes a predicate prefix (`is_`/`has_`/`can_`/`should_`). The check is deliberately narrow to stay near zero-false-positive: it fires only on a single-word name, since a multi-word name already carries a predicate somewhere (`field_has_docstring`), and it accepts a third-person verb (`matches`, `suppresses`), the idiomatic predicate-verb name a `-> bool` function may take. A dunder, a property setter, and an `@override`/`@overload` are exempt."
+examples = [{ bad = "def valid(self) -> bool: ...", good = "def is_valid(self) -> bool: ...", note = "A predicate verb (`matches`, `exists`) needs no prefix." }]
+signals = []
+reference = []
+
+[RS045]
+name = "temporal-marker"
+summary = "A docstring or comment states the code's present contract, not a temporal or edit-narrative marker of how it changed."
+rationale = "A durable docstring or comment describes what the code does now. A marker like `previously`, `used to`, `formerly`, `originally`, `as discussed`, `we decided`, `for now`, `changed to`, or `switched to` narrates the edit or the design discussion instead -- the story belongs in the commit message, where it stays attached to the diff, not in prose a later reader mistakes for the current contract. This is the common shape of an agent leaking the session's design chat into the code. The set is held deliberately tight (ambiguous words like `currently`, `instead of`, or `note that` are left out) and a marker quoted in a backtick span is read as data, not narration, so the rule stays a mechanical floor. The judgment ceiling -- prose that narrates the edit without one of these exact markers -- is left to review. Not auto-fixable: cutting the narration cleanly needs judgment, so no `--fix`."
+examples = [{ bad = "\"\"\"Returns the lease. Previously returned a raw dict.\"\"\"", good = "\"\"\"Returns the lease.\"\"\"", note = "Drop the note on the old shape; the diff already records it." }, { bad = "# we decided to cache this for now", good = "# cached because the upstream call dominates the request time", note = "Replace the decision narration with the durable reason the code is the way it is, or delete the comment." }]
+signals = []
+reference = []
+
+[RS046]
+name = "range-len-reindex"
+summary = "A `for i in range(len(seq))` that only indexes `seq[i]` should iterate `seq` directly."
+rationale = "Looping over `range(len(seq))` to read `seq[i]` at each step spends an index variable on what `for item in seq:` says directly, and the indirection hides that the loop is a plain traversal. The check fires only when the index is used for nothing but subscripting that same sequence, so a loop that also needs the index -- for arithmetic, a second sequence, or a call -- is left alone rather than steered toward `enumerate`, the weaker suggestion this rule deliberately does not make. No stable ruff rule expresses this: pylint's `C0200` (`consider-using-enumerate`) covers the shape but is not ported to ruff's rule set, so it stays a genuine gap this rule fills."
+examples = [{ bad = "for i in range(len(rows)):\n    process(rows[i])", good = "for row in rows:\n    process(row)", note = "When the index is needed too -- `rows[i]` beside `i + 1` or a bare `i` -- the loop is left alone." }]
+signals = []
+reference = []
+
+[RS047]
+name = "lowercase-entry-description"
+summary = "An `Args:`/`Returns:`/`Raises:`/`Yields:` entry description opens with a capital letter (`bar: A bar.`, not `bar: a bar.`)."
+rationale = "The house treats each Google-section entry description as a full sentence, so it opens with a capital just as RS030 requires it to close with a period -- the two rules are the opening-capital and closing-period halves of one convention. ChromiumOS's Python style guide requires docstring content, including argument descriptions, to be full sentences with proper capitalization and punctuation, and Google's own `Args:` examples are capitalized. No ruff or pydocstyle rule enforces entry-description capitalization, so it is a genuine gap. The check stays near zero-false-positive: only a lowercase ASCII prose letter fires, and a description opening with a backtick code span, an inherently-lowercase code token (a parameter name or a dotted path like `json.dumps`), a digit, or any other non-letter is left alone."
+examples = [{ bad = "Args:\n    bar: a bar.", good = "Args:\n    bar: A bar.", note = "" }, { bad = "Raises:\n    NotFoundError: if a foo is not found.", good = "Raises:\n    NotFoundError: If a foo is not found.", note = "" }]
+signals = []
+reference = []
+
+[RS048]
+name = "private-import"
+summary = "A first-party import consumes another package's public surface, not its `_`-private internals."
+rationale = "A single leading underscore marks a module or name internal to the package that holds it, so reaching it from outside that package relies on an implementation detail the author did not publish. The supported way to use another package is the surface it re-exports from its `__init__`; if a member is needed there, it should be lifted onto that surface, not reached past. This is the dual of RS029: RS029 asks a package to hide what only it uses, this asks other code not to reach into what was hidden. The check scopes to imports that share the importer's top-level package, so it governs a repo's own layering and leaves a reach into a third-party distribution -- whose internals a repo cannot restructure -- alone. It follows PEP 8's `Public and internal interfaces`: an interface is internal if any containing namespace is, and other modules must not rely on indirect access to it except through a package's documented `__init__`. A test module is exempt, since exercising a unit under test's internals is expected."
+examples = [{ bad = "# in myapp/api/views.py\nfrom myapp.core._engine import run", good = "# in myapp/api/views.py\nfrom myapp.core import run", note = "`_engine` is internal to `myapp.core`, and `views` lives outside `core`, so it must go through `core`'s public surface. Re-export `run` from `core/__init__.py` rather than reaching past it. An import from within `myapp.core` itself is fine." }]
+signals = []
+reference = []
+
+[RS049]
+name = "acronym-casing-in-prose"
+summary = "A known acronym in docstring or comment prose is written in its canonical casing (`IPv6`, not `ipv6`; `NAT`, not `Nat`)."
+rationale = "RS001 holds an acronym to its canonical casing in a CapWords identifier; this holds the same acronym to the same casing in the prose beside it, where a miscased `ipv6` or `Nat` reads as an ordinary word. The canonical casing is not always uppercase -- `IPv6` is mixed-case -- so each acronym carries its own target casing, and `--fix` recases an occurrence in place. The resolved set shares RS001's `acronyms-extra`/`acronyms-exclude` config keys. The check stays mechanical by firing only on a whole-word token, so a substring (`ID` in `identify`, `NAT` in `nation`), a hyphenated compound (`fhir-ingestor`, a proper name whose lowercase is correct), and a dotted name (`baseline.json`, `json.loads`) are left alone, as is a token inside a backtick span or a URL, a commented-out statement, and an `Args:` entry's parameter caption. An acronym whose lowercased form is a common English word (`SMART` to `smart`) is dropped from prose to avoid rewriting the word, though a repo can reintroduce it through `acronyms-extra`. Ruff has no acronym-casing-in-prose check, so this is a genuine gap."
+examples = [{ bad = "\"\"\"Parses the ipv6 address the Nat gateway advertises.\"\"\"", good = "\"\"\"Parses the IPv6 address the NAT gateway advertises.\"\"\"", note = "The canonical casing is per-acronym: `IPv6` mixed, `NAT` upper." }]
+signals = []
+reference = []
+
+[RS050]
+name = "disfavored-gcp-term"
+summary = "A disfavored Google Cloud product or brand name in docstring or comment prose is written in its current form (`Cloud Storage`, not `GCS`; `Google Cloud`, not `GCP`)."
+rationale = "Google retired `GCP` and `Google Cloud Platform` as the umbrella brand (circa 2022) in favor of `Google Cloud`, and each product has one canonical name (`Cloud Storage`, `Compute Engine`, `Pub/Sub`), so prose that mixes the old shorthand with the current name reads as two systems. The map is curated and matched only as a whole word, so a substring (`GCS` in `GCSError`), a term glued to a hyphen, and a dotted name (`gcs.upload`) are left alone; a term in code font (the identifier `gcp.storage`), inside a URL, or in an `Args:` parameter caption is blanked before the scan and likewise skipped, and `--fix` rewrites the rest in place. Only unambiguous substitutions are mapped; a bare `Storage` or `Monitoring` is too often an ordinary English word to rewrite mechanically, so it is left to review. Ruff has no equivalent, and codespell catches misspellings, not brand-name substitutions."
+examples = [{ bad = "\"\"\"Uploads the study to a GCS bucket in GCP.\"\"\"", good = "\"\"\"Uploads the study to a Cloud Storage bucket in Google Cloud.\"\"\"", note = "Fix every disfavored term in the file; the reference is the full map." }]
+signals = []
+reference = ["Big Query -> BigQuery", "Big Table -> Bigtable", "BigTable -> Bigtable", "GCE -> Compute Engine", "GCP -> Google Cloud", "GCS -> Cloud Storage", "Google Cloud Platform -> Google Cloud", "Pub Sub -> Pub/Sub", "PubSub -> Pub/Sub"]
+
+[RS051]
+name = "gcp-bare-identifier"
+summary = "A string-typed parameter named for a Google Cloud resource collection (`project`, `bucket`, ...) carries the `_id` suffix."
+rationale = "Google's resource-oriented design distinguishes a resource's bare id (`my-bucket`) from its qualified `{collection}/{id}` name. A `str` parameter named for the collection alone almost always holds the id, and the `_id` suffix says so, so a caller reads the intent without tracing the value; it also matches the `project_id` the code should pass to a Pulumi `project=` argument, rather than the bare `project` that Pulumi's own signature uses. The check fires only on a string annotation, so a resource object or an `Output` named `project` is left alone, and only on an exact-match name, so `project_id` and `bucket_url` are not touched. It reaches only this unambiguous subset; whether a `*_name` holds a bare id, a path, or a Pulumi logical handle is dataflow-dependent and stays with review (`docs/gcp-naming.md`). A repo with no Google Cloud resources drops the rule via `ignore`."
+examples = [{ bad = "def grant_viewer(project: str, bucket: str) -> None: ...", good = "def grant_viewer(project_id: str, bucket_id: str) -> None: ...", note = "Only a `str`-typed, exact collection-noun parameter is flagged." }]
+signals = []
+reference = ["bucket -> bucket_id", "dataset -> dataset_id", "instance -> instance_id", "project -> project_id", "subscription -> subscription_id", "topic -> topic_id"]
+
+[RS052]
+name = "over-broad-except"
+summary = "An `except` tuple does not reach past the failure it was written for, into the structural builtins."
+rationale = "`AttributeError`, `TypeError`, `KeyError`, `IndexError`, `NameError`, and `UnboundLocalError` each say a value was not the shape the code assumed, which is what a bug looks like from the outside. A handler that takes in two of them at once, or one of them beside a declared exception -- any name the builtins do not define, whether from the stdlib, a third-party package, or this project -- cannot tell the failure it was written for from a typo in the same block, and that declared exception is already the callee's error contract, so the builtins beside it are covering something else. The fix is almost never in the handler: shrink a `try` that covers more statements than the handler was written for, so what raises the builtins sits outside it, or convert the failure where it arises so the callee raises one named error. Left alone are a handler ending in a `raise`, since a boundary converting what it caught into one named failure is the fix rather than the smell; a single structural builtin, which is routinely deliberate; and the value-and-environment errors (`ValueError`, `OSError`, and their kin) that report something the code handled correctly and does not control. ruff's `BLE001` covers only a bare `except Exception`, so a tuple of concrete builtins is a genuine gap."
+examples = [{ bad = "try:\n    return has_uncompressed_length(dataset)\nexcept (PayloadError, AttributeError, TypeError, KeyError):\n    return False", good = "try:\n    return has_uncompressed_length(dataset)\nexcept PayloadError:\n    return False", note = "The builtins came from `int(dataset.Rows)` inside the callee. Reading that attribute through a helper that raises `PayloadError` leaves the handler one type wide." }, { bad = "except (KeyError, TypeError):\n    return None", good = "except (KeyError, TypeError) as exc:\n    raise ParseError('response missing a field') from exc", note = "The second remedy, for where the callee cannot be changed: a handler whose last statement is a `raise` is a boundary converting a wide failure into one named error, so it is exempt and the callers above it catch only `ParseError`. Raising on one branch and falling through on another still swallows, so only the closing statement counts." }]
+signals = []
+reference = ["AttributeError", "IndexError", "KeyError", "NameError", "TypeError", "UnboundLocalError"]
+
+[RS053]
+name = "bullet-item-casing"
+summary = "A bulleted list holding a multi-sentence item opens every item with a capital letter."
+rationale = "A list item running more than one sentence is prose, and prose opens with a capital; once one item in a list is such prose, a lowercase sibling makes the list read in two registers at once. The rule therefore asks for consistency per list: a list with any multi-sentence item is sentence-cased throughout, while a list whose items are all single-sentence fragments may stay lowercase, since a fragment continues the sentence that introduced the list. This is RS047's opening-capital convention carried to bulleted lists, and like RS047 it exempts an item opening with a backtick span, a dotted path, a distinctive-shaped identifier, a digit, or any other non-letter. Not auto-fixable: capitalizing a leading word that is really a lowercase code name would corrupt it, so the opener is left to review."
+examples = [{ bad = "- the thing. Does a foo.\n- the other thing", good = "- The thing. Does a foo.\n- The other thing.", note = "The first item runs two sentences, so the whole list is sentence-cased. A list of one-sentence fragments (`- the thing`) may stay lowercase." }]
+signals = []
+reference = []
+
+[RS054]
+name = "nonstandard-dash"
+summary = "Docstring and comment prose sets a clause off with the house sentence dash, the spaced `--`, not an em dash, en dash, or single hyphen."
+rationale = "Prose reaches for a sentence dash in several shapes -- an em dash, spaced or glued, an en dash, a spaced single hyphen, a glued double hyphen -- and each writer picks one by local precedent, so files drift apart. The house standardizes on the spaced double hyphen: it is unambiguous ASCII (an em dash, an en dash, and a hyphen-minus render nearly alike in many editors, so drift among them is invisible), it cannot be mistaken for a bullet marker or a minus sign, and it greps trivially. The check masks backtick spans and URLs, leaves an unspaced en-dash range (`RS013–RS016`) alone, and requires letters around a hyphen form, so arithmetic, negative numbers, CLI flags, and bullet markers never fire. Auto-fixable: `--fix` rewrites each flagged dash to the spaced `--`."
+examples = [{ bad = "# resolves the config -- falling back to defaults", good = "# resolves the config -- falling back to defaults", note = "" }, { bad = "\"\"\"Returns the lease - or `None` when expired.\"\"\"", good = "\"\"\"Returns the lease -- or `None` when expired.\"\"\"", note = "A spaced single hyphen between letters is doing dash work; `3 - 5` and `n - 1` are left alone." }]
+signals = []
+reference = []
+
+[RS055]
+name = "banner-comment"
+summary = "No banner, section-divider, or framed-title comments: the rule characters go and the grouping is expressed with structure."
+rationale = "A banner -- a lone `# -----` divider, the frame lines boxing a `# TESTS` title, or a one-line `# --- main ---` -- decorates a grouping instead of expressing it, and a file reaching for visual section markers is reporting that it wants higher-level modularization. Take the alternative that fits: split the module so each section is its own file, gather the section into a class (test functions under one section into a test class), or, where the file must stay whole, open the run with a sentence comment saying what it holds. Only the typography is banned -- `# Handlers for the BigQuery MCP tool.` is an ordinary comment and passes. The set is banned outright rather than held to one canonical shape because every author picks a different width, character, casing, and closing run, so the convention never converges. The check flags a comment whose text is wholly rule characters, or that a run of three or more opens or closes against whitespace; YAML's commented-out `# ---` document separator, the `+----+` ASCII-table border, PEP 263's `-*- coding: utf-8 -*-` line, an ASCII scissors (`---8<---`), and an arrow (`----->`) stay exempt. Not auto-fixable: deleting the divider is trivial, but the restructuring it points at is not."
+examples = [{ bad = "# ----------------\n# HELPERS\n# ----------------\ndef _one(): ...", good = "def _one(): ...", note = "Delete the divider; a file that genuinely has sections wants a class or a module split, not typography." }, { bad = "# --- baseline ---\ndef test_baseline_returns_every_cohort(): ...\n\n# --- offset ---\ndef test_offset_skips_the_leading_cohorts(): ...", good = "class TestBaseline:\n    def test_returns_every_cohort(self): ...\n\n\nclass TestOffset:\n    def test_skips_the_leading_cohorts(self): ...", note = "A framed title is flagged whatever its width or casing. A test file dividing itself into sections is the commonest case, and a test class per section names the grouping in code." }, { bad = "# ========== BigQuery MCP ==========", good = "# Handlers for the BigQuery MCP tool.", note = "Where the module must stay whole, a sentence comment carries the same grouping without the typography." }]
+signals = []
+reference = []
+
+[RS056]
+name = "invalid-docstring-section"
+summary = "A docstring section header comes from the recognized Google set -- `Args:`, `Returns:`, `Yields:`, `Raises:`, `Note:`, `Example:` -- not an invented or Sphinx-imported one."
+rationale = "A header outside the recognized set -- `Warns:`, `Todo:`, `Design Notes:` -- hides its body from every rule that grades section content: RS030, RS041, RS043, and RS047 all read it as ordinary prose, and tooling walking the Google sections skips it. The check fires on a margin-level line of up to three capitalized words closing with a colon, with an indented body beneath it; a header-shaped line with no indented body reads as prose and is left alone. Not auto-fixable: where the body belongs -- folded into prose, or recast under `Raises:` or `Note:` -- depends on what it says."
+examples = [{ bad = "\"\"\"Verifies the dataset.\n\n    Warns:\n        RangeWarning: If a decode exceeds the range.\n    \"\"\"", good = "\"\"\"Verifies the dataset.\n\n    Warns `RangeWarning` when a decode exceeds the\n    range.\n    \"\"\"", note = "`Warns:` renders under Sphinx's napoleon preset but is not in Google's own section set; state the warning in body prose (or a `Note:` section) instead." }]
+signals = []
+reference = []
+
+[RS057]
+name = "docstring-section-order"
+summary = "Docstring sections follow the canonical Google order: `Args:`, then `Returns:` or `Yields:`, then `Raises:`, then `Example:`."
+rationale = "The canonical order reads inputs, then outputs, then failures, then the example exercising them, so a reader lands on each section where every other docstring put it. The violation points at the section sitting below one that should follow it; the fix is to move the whole section block, body included. `Note:` and `Attributes:` hold no fixed slot and never fire."
+examples = [{ bad = "Raises:\n    ValueError: If `x` is bad.\n\nReturns:\n    The lease.", good = "Returns:\n    The lease.\n\nRaises:\n    ValueError: If `x` is bad.", note = "" }]
+signals = []
+reference = []
+
+[RS058]
+name = "docstring-section-alias"
+summary = "A section header uses the canonical Google spelling: `Args:`, not `Arguments:`; `Returns:`, not `Return:`; `Yields:`, not `Yield:`."
+rationale = "The alias headers parse, so their bodies are still graded, but one spelling per corpus keeps a section greppable and the docstrings uniform. `Notes:` and `Examples:` are not aliases: singular versus plural there is the author's semantic choice. Auto-fixable: `--fix` rewrites each alias header to its canonical form in place."
+examples = []
+signals = []
+reference = []
+
+[RS059]
+name = "duplicate-docstring-section"
+summary = "A docstring holds at most one section per family; a second `Args:` (or an `Args:` after an `Arguments:`) merges into the first."
+rationale = "A duplicated section splits one kind of content across two places, so a reader stops at the first block and misses the rest. The duplicate is flagged at its own header; move its entries into the first block and delete it. Aliases count as one family, so an `Args:` after an `Arguments:` is a duplicate, as is a `Notes:` after a `Note:`. Not auto-fixable: merging two blocks can collide on an entry documented twice, which needs a human reading."
+examples = []
+signals = []
+reference = []
+
+[RS060]
+name = "file-literal-restatement"
+summary = "A test asserts only literals it read from a single repo file."
+rationale = "A test that parses one file, compares what it finds to literals, and exercises nothing beyond the parser restates that file: the edit that changes the value changes the assertion beside it, and no rewrite preserving the behavior a caller relies on can break it. Such a test costs a second edit site and reads as coverage without supplying any. Two fixes work. Where the property is executable -- a container starts, a script runs, a config loads -- assert it where it executes, since that survives a rewrite of the file. Where the value has to agree with a second file, read both and assert they match, which catches the one-sided edit no single diff shows."
+examples = [{ bad = "compose = yaml.safe_load(_COMPOSE_PATH.read_text())\nassert compose[\"services\"][\"drain\"][\"user\"] == \"1000:1000\"", good = "compose = yaml.safe_load(_COMPOSE_PATH.read_text())\ndeclared = _DOCKERFILE_PATH.read_text()\nassert compose[\"services\"][\"drain\"][\"user\"].split(\":\")[0] in declared", note = "The uid has to match the one the image declares, so read both files rather than quoting the number twice." }]
+signals = ["The rule stays silent on a test that reads two or more files, one comparing a derived value to another derived value, one asserting across every entry it read, and one whose fixture no module in scope defines. Fixtures resolve through the requesting class, the test module, and each `conftest.py` above it; what pytest supplies from outside that chain is unknowable, so the rule declines to guess. A `@pytest.mark.parametrize` argument reads as one of those undefined fixtures, so a parametrized test goes unexamined.", "A deliberate single-file pin -- a value with no second home and no executable surface -- takes `# style: ignore[RS060]` with the reason it cannot be checked anywhere better."]
+reference = []
+
+[RS061]
+name = "double-space-after-period"
+summary = "Prose uses a single space after sentence-ending punctuation (`.`, `!`, `?`), not the old typewriter double space; comments are checked in Python, TOML, YAML, and shell."
+rationale = ""
+examples = []
+signals = []
+reference = []
+
+[RS062]
+name = "test-module-size"
+summary = "A test module stays within its configured physical code-line limit."
+rationale = "A large test module can expose a production unit with too many responsibilities, or it can collect unrelated behavior in one place. Review the production boundary first. When that boundary is cohesive, split the tests by behavior into modules with names that state what each covers. Do not create numbered fragments or remove coverage merely to cross the threshold. The default limit is 500, configured with `max-test-file-lines` in `[tool.repostyle]`."
+examples = []
+signals = ["Tests span unrelated production responsibilities: split or simplify the production unit, then align test modules to those boundaries.", "The production boundary is cohesive but its behavior has distinct areas: organize tests into named modules around those areas.", "The module must stay intact for a documented reason: place `# style: ignore-file[RS062]` near the top with a short rationale."]
+reference = []
+
+[RS063]
+name = "shared-test-helper"
+summary = "Matching substantial helpers or compatible fixtures across test files are candidates for one shared definition."
+rationale = "The rule compares conservative syntax, local binding relationships, and external dependency identities. A match is evidence of repeated test support code, not proof that the definitions share semantics or lifecycle. Place a shared helper in the narrowest support module its callers already own. Use a fixture when pytest should supply a value; use a builder or ordinary helper when each test should choose when and how to construct it."
+examples = []
+signals = ["Check mutable state, cleanup, fixture scope, and isolation before consolidating. Keep separate definitions when their contracts only happen to have the same current syntax.", "A line, block, or file suppression silences that occurrence. It can remain structural evidence for an unsuppressed peer; an `exclude` glob removes the file from both evidence and reporting.", "Dynamic namespace access, comprehensions, nested scopes, and other uncertain bindings are skipped rather than guessed. Unresolved names under wildcard imports stay file-specific and cannot create a cross-file match."]
+reference = []
+
+[RS064]
+name = "test-parametrization-candidate"
+summary = "Three tests with one named contract, the same supported structure, and differing scalar body literals are candidates for parametrization."
+rationale = "Parametrization can state repeated behavior as one contract plus a table of cases. The rule preserves signatures, marks, decorators, call targets, operations, and literal types, requires at least two meaningful test-name words in common, and requires at least one literal position to vary. It keeps multi-line fixture programs distinct. It does not justify adding conditionals or combining cases with different behavior."
+examples = [{ bad = "def test_Parse_AcceptsAlpha():\n    assert parse('a') == 1\n\ndef test_Parse_AcceptsBeta():\n    assert parse('b') == 2\n\ndef test_Parse_AcceptsGamma():\n    assert parse('c') == 3", good = "@pytest.mark.parametrize(\n    ('text', 'expected'), [('a', 1), ('b', 2), ('c', 3)]\n)\ndef test_Parse_AcceptsNamedCase(text, expected):\n    assert parse(text) == expected", note = "Give rows readable ids or names when the original test names carried behavior a failure report should retain." }]
+signals = []
+reference = []
+
+[RS065]
+name = "repeated-test-setup"
+summary = "Three tests sharing a leading assignment sequence that includes a call are candidates for a builder or fixture."
+rationale = "Repeated construction can obscure the behavior each test varies. The rule compares exact leading assignments, including values, call targets, and dependencies, then reports the longest shared prefix for each matching group. The repeated call may still be the action under test, so the warning does not label it setup."
+examples = []
+signals = ["Prefer a builder or ordinary helper when tests need fresh values or different construction timing. Choose a fixture only after checking scope, teardown, mutation, and isolation.", "This rule is independent of the parametrization rule. Both may report the same tests because consolidating setup and tabulating cases are separate review choices."]
+reference = []
+
+[RS066]
+name = "source-module-size"
+summary = "A Python source module stays within its configured physical code-line limit."
+rationale = "A large source module can hide several responsibilities behind one import boundary. Find the distinct concepts or workflows and give each a cohesive module with a name that describes what it owns. Do not move unrelated leftovers into a generic utility module or split one responsibility into numbered fragments merely to cross the threshold. The default limit is 250, configured with `max-source-file-lines` in `[tool.repostyle]`."
+examples = []
+signals = ["The module owns distinct concepts or workflows: split them along those responsibility boundaries.", "The module is one cohesive responsibility with substantial data or declarations: keep the structure readable and use a targeted waiver when a split would obscure ownership.", "The module must stay intact for a documented reason: place `# style: ignore-file[RS066]` near the top with a short rationale."]
+reference = []
