@@ -3,8 +3,7 @@
 The repository distributes two related layers:
 
 - `ruff-base.toml` defines the shared ruff rule and formatter baseline.
-- The `repostyle-*` hooks and `repostyle[gates]` extra pin third-party tools at
-  one version for every consuming repository.
+- The `repostyle-*` hooks and `repostyle[gates]` extra pin third-party tools at one version for every consuming repository.
 
 ## Extend the ruff base
 
@@ -14,8 +13,7 @@ extend = "path/to/ruff-base.toml"
 target-version = "py311"
 ```
 
-Keep only repository-specific settings, such as the Python target and per-file
-ignores, in the consuming repository.
+Keep only repository-specific settings, such as the Python target and per-file ignores, in the consuming repository.
 
 ## Use exported pre-commit hooks
 
@@ -34,8 +32,7 @@ repos:
       - id: repostyle-shfmt
 ```
 
-One `rev` update moves the complete suite. Python tools read their own tables
-from the consuming repository's `pyproject.toml`:
+One `rev` update moves the complete suite. Python tools read their own tables from the consuming repository's `pyproject.toml`:
 
 ```toml
 [tool.bandit]
@@ -65,30 +62,21 @@ skip = "uv.lock,*.svg,.git"
 ignore-words-list = "datas,ehr,fo,hist"
 ```
 
-Shellcheck reads `.shellcheckrc`. The exported shfmt hook runs
-`shfmt -d -i 2 -ci`; a repository can override the indentation with later hook
-arguments.
+Shellcheck reads `.shellcheckrc`. The exported shfmt hook runs `shfmt -d -i 2 -ci`; a repository can override the indentation with later hook arguments.
 
 ## Use the package extra
 
-A repository that already installs its lint environment can use the same pins
-without exported hooks:
+A repository that already installs its lint environment can use the same pins without exported hooks:
 
 ```toml
 [dependency-groups]
 lint = ["repostyle[gates]>=X.Y.Z"]
 ```
 
-Keep local pre-commit hooks that run each tool through that environment. Give
-shfmt the same `-d -i 2 -ci` arguments if the repository wants the house
-default.
+Keep local pre-commit hooks that run each tool through that environment. Give shfmt the same `-d -i 2 -ci` arguments if the repository wants the house default.
 
 ## Keep environment-dependent gates local
 
-The suite does not export mypy, pyright, or pip-audit. Type checkers need the
-consuming project's installed dependencies, and pip-audit needs its resolved
-dependency graph. Run those tools in the consuming repository's environment.
+The suite does not export mypy, pyright, or pip-audit. Type checkers need the consuming project's installed dependencies, and pip-audit needs its resolved dependency graph. Run those tools in the consuming repository's environment.
 
-Pydoclint also stays consumer-side when a project wants signature-to-docstring
-validation; ruff and repostyle enforce the docstring form but do not compare
-every section with a callable's signature.
+Pydoclint also stays consumer-side when a project wants signature-to-docstring validation; ruff and repostyle enforce the docstring form but do not compare every section with a callable's signature.
