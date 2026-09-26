@@ -7,8 +7,10 @@ from repostyle import baseline
 from repostyle.cli import main
 from repostyle.rules import (
     RS_ACRONYM_CASING,
+    RS_SOURCE_MODULE_SIZE,
     RS_TEST_MODULE_SIZE,
     Severity,
+    check_source_module_size,
     check_test_module_size,
     severity_of,
 )
@@ -154,6 +156,95 @@ class TestCheckTestModuleSize:
         assert severity_of(RS_TEST_MODULE_SIZE) is Severity.WARNING
 
 
+class TestCheckSourceModuleSize:
+    @pytest.mark.parametrize(
+        ("line_count", "expected_count"),
+        [(250, 0), (251, 1)],
+        ids=["at-limit", "over-limit"],
+    )
+    def test_DefaultLimit_UsesStrictBoundary(
+        self, line_count: int, expected_count: int
+    ) -> None:
+        source = _assignment_lines(line_count)
+        violations = list(
+            check_source_module_size(Path("src/package/widget.py"), source)
+        )
+        assert len(violations) == expected_count
+        assert [item.rule for item in violations] == [
+            RS_SOURCE_MODULE_SIZE
+        ] * expected_count
+        assert (
+            sum("251 code lines (limit: 250)" in item.message for item in violations)
+            == expected_count
+        )
+
+    @pytest.mark.parametrize(
+        "relative",
+        [
+            "tests/helpers.py",
+            "src/package/test_widget.py",
+            "src/package/widget_test.py",
+        ],
+        ids=["tests-directory", "test-prefix", "test-suffix"],
+    )
+    def test_TestModuleScope_IsExcluded(self, tmp_path: Path, relative: str) -> None:
+        target = _configured_source_target(tmp_path, 1, relative)
+        assert list(check_source_module_size(target, "a = 1\nb = 2\n")) == []
+
+    @pytest.mark.parametrize(
+        "relative",
+        ["src/package/widget.py", "src/package/__init__.py"],
+        ids=["ordinary-module", "package-initializer"],
+    )
+    def test_SourceModuleScope_ChecksPythonModules(
+        self, tmp_path: Path, relative: str
+    ) -> None:
+        target = _configured_source_target(tmp_path, 1, relative)
+        assert len(list(check_source_module_size(target, "a = 1\nb = 2\n"))) == 1
+
+    def test_StubFile_IsOutsideCurrentPythonScope(self, tmp_path: Path) -> None:
+        target = _configured_source_target(tmp_path, 1, "src/package/widget.pyi")
+        assert list(check_source_module_size(target, "a = 1\nb = 2\n")) == []
+
+    def test_CustomLimit_OverridesDefault(self, tmp_path: Path) -> None:
+        target = _configured_source_target(tmp_path, 2, "src/package/widget.py")
+        violations = list(check_source_module_size(target, _assignment_lines(3)))
+        assert "3 code lines (limit: 2)" in violations[0].message
+
+    @pytest.mark.parametrize(
+        "configured",
+        ["0", "-1", "true", '"250"', "250.0"],
+        ids=["zero", "negative", "boolean", "string", "float"],
+    )
+    def test_InvalidLimit_RaisesValueError(
+        self, tmp_path: Path, configured: str
+    ) -> None:
+        target = _configured_source_target(
+            tmp_path, configured, "src/package/widget.py"
+        )
+        with pytest.raises(ValueError, match="must be a positive integer"):
+            list(check_source_module_size(target, "a = 1\nb = 2\n"))
+
+    def test_DocstringsCommentsAndData_UseSharedCount(self, tmp_path: Path) -> None:
+        target = _configured_source_target(tmp_path, 2, "src/package/widget.py")
+        source = (
+            '"""Module\nnotes.\n"""\n'
+            "# comment only\n"
+            'DATA = """first\nsecond\nthird"""\n'
+        )
+        violations = list(check_source_module_size(target, source))
+        assert "3 code lines (limit: 2)" in violations[0].message
+
+    def test_FindingPointsToFirstCodeLine(self, tmp_path: Path) -> None:
+        target = _configured_source_target(tmp_path, 1, "src/package/widget.py")
+        source = '# heading\n"""Module notes."""\n\nimport json\nvalue = 1\n'
+        violations = list(check_source_module_size(target, source))
+        assert [(item.line, item.col) for item in violations] == [(4, 1)]
+
+    def test_ThresholdRule_IsWarning(self) -> None:
+        assert severity_of(RS_SOURCE_MODULE_SIZE) is Severity.WARNING
+
+
 class TestTestModuleSizeIntegration:
     def test_FileSuppression_DropsOnlyModuleSizeFinding(self, tmp_path: Path) -> None:
         target = _configured_target(tmp_path, 1, "tests/test_x.py")
@@ -203,6 +294,39 @@ class TestTestModuleSizeIntegration:
         assert "--diff is deprecated" in captured.err
 
 
+class TestSourceModuleSizeIntegration:
+    @pytest.mark.parametrize(
+        "directive",
+        ["# style: ignore-file[RS066]\n", "a = 1  # style: ignore[RS066]\n"],
+        ids=["file", "finding-line"],
+    )
+    def test_Suppression_DropsOnlySourceModuleSizeFinding(
+        self, tmp_path: Path, directive: str
+    ) -> None:
+        target = _configured_source_target(tmp_path, 1, "src/fhir_client.py")
+        target.parent.mkdir(parents=True)
+        source = (
+            f"{directive}class FhirClient: ...\nvalue = 1\n"
+            if directive.startswith("#")
+            else f"{directive}class FhirClient: ...\n"
+        )
+        target.write_text(source, encoding="utf-8")
+        rules = {
+            finding.rule
+            for finding in lint_path(target, {RS_SOURCE_MODULE_SIZE, RS_ACRONYM_CASING})
+        }
+        assert rules == {RS_ACRONYM_CASING}
+
+    def test_GrowthAfterBaseline_RemainsGrandfathered(self, tmp_path: Path) -> None:
+        target = _configured_source_target(tmp_path, 1, "src/package/widget.py")
+        initial = list(check_source_module_size(target, _assignment_lines(2)))
+        grandfathered = baseline.build(
+            {target: initial}, tmp_path, frozenset({RS_SOURCE_MODULE_SIZE})
+        )
+        grown = list(check_source_module_size(target, _assignment_lines(3)))
+        assert baseline.filter_baselined(target, grown, grandfathered, tmp_path) == []
+
+
 def _assignment_lines(count: int) -> str:
     """Returns `count` distinct assignment lines."""
     return "".join(f"value_{index} = {index}\n" for index in range(count))
@@ -212,5 +336,13 @@ def _configured_target(tmp_path: Path, limit: int | str, relative: str) -> Path:
     """Writes the test-module limit and returns its target path."""
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\nmax-test-file-lines = {limit}\n", encoding="utf-8"
+    )
+    return tmp_path / relative
+
+
+def _configured_source_target(tmp_path: Path, limit: int | str, relative: str) -> Path:
+    """Writes the source-module limit and returns its target path."""
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.repostyle]\nmax-source-file-lines = {limit}\n", encoding="utf-8"
     )
     return tmp_path / relative

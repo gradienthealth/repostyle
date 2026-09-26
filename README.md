@@ -1,6 +1,6 @@
 # repostyle
 
-repostyle is a linter for the house style conventions that ruff does not cover. It ships 62 rules, each with an `RSnnn` id, and a shared ruff base config. Every consuming repo picks the subset it wants and runs it as a pre-commit hook.
+repostyle is a linter for the house style conventions that ruff does not cover. It ships 63 rules, each with an `RSnnn` id, and a shared ruff base config. Every consuming repo picks the subset it wants and runs it as a pre-commit hook.
 
 The linter is stdlib-only, so installing it pulls in nothing. It reads Python through the `ast` module and the tokenizer. Most rules are Python-specific, but the comment rules also read `#` comments in TOML, YAML, and shell files, so a comment is held to the same conventions whatever the language.
 
@@ -126,6 +126,7 @@ These rules read docstrings and comments alike. The comment half of each runs ov
 | RS042 | error | A class defines `__eq__` and `__hash__` as a pair, or neither. |
 | RS046 | warning | A `for i in range(len(seq))` loop that only indexes `seq[i]` should iterate `seq` directly. |
 | RS052 | warning | An `except` tuple does not reach past the failure it was written for, into the structural builtins. |
+| RS066 | warning | A Python source module exceeds its configured physical code-line limit. |
 
 ### Imports and visibility
 
@@ -158,11 +159,11 @@ A repo that keeps the same convention in another place re-scopes the rule with t
 
 RS017 reports nothing until a `banned-imports` table names its bans, so selecting it early is harmless.
 
-RS002, RS013 through RS016, RS060, and RS062 examine Python test files, so they are inert everywhere else. RS003 is broader: it rejects mock imports everywhere except `tests/fakes/`.
+RS002, RS013 through RS016, RS060, and RS062 examine Python test files, so they are inert everywhere else. RS066 examines only production `.py` modules and leaves those test files to RS062. RS003 is broader: it rejects mock imports everywhere except `tests/fakes/`.
 
 ### Severity
 
-Each selected rule keeps the default severity shown above. Under those defaults 19 rules hard-fail and the other 43 print warnings:
+Each selected rule keeps the default severity shown above. Under those defaults 19 rules hard-fail and the other 44 print warnings:
 
 ```
 RS001  RS002  RS003  RS004  RS005  RS006  RS007  RS008  RS009  RS010
@@ -395,6 +396,26 @@ Where one module must remain intact, place its rule-specific waiver near the top
 ```python
 # style: ignore-file[RS062]
 # The protocol matrix must stay together to verify every version pair.
+```
+
+### Source module size (RS066)
+
+RS066 warns when a production Python module exceeds 250 physical code lines. It excludes files in the existing test-file scope, so RS062 and RS066 keep independent thresholds. Package `__init__.py` modules count because a growing public surface still benefits from a clear ownership boundary. Stub files are outside the current `.py` lint scope. Blank lines, comment-only lines, and module, class, and function docstrings do not count. Imports, decorators, non-docstring strings, data tables, and bracket-only lines do count.
+
+Set a different positive integer when a repository needs another review point:
+
+```toml
+[tool.repostyle]
+max-source-file-lines = 250
+```
+
+The warning asks for a responsibility review. Split distinct concepts or workflows into cohesive modules named for what they own. Keep declarative data together when it expresses one responsibility, and use a targeted waiver when splitting would obscure that ownership. Avoid numbered fragments and generic utility modules created only to cross the threshold.
+
+The finding points to the first code line and follows the same suppression, baseline, selection, and warning-promotion behavior as RS062. The deprecated `--diff` mode reports it only when that first code line changes; ordinary pre-commit and whole-file runs report it whenever the file is scanned.
+
+```python
+# style: ignore-file[RS066]
+# The protocol registry stays together so each identifier has one owner.
 ```
 
 ## Suppress a finding

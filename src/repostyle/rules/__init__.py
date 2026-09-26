@@ -80,6 +80,7 @@ from repostyle.rules._violation import (
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
+    RS_SOURCE_MODULE_SIZE,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
@@ -169,6 +170,7 @@ from repostyle.rules.layout import (
     check_module_element_order,
 )
 from repostyle.rules.logging_phi import check_no_phi_safe_with_exc_info
+from repostyle.rules.module_size import check_source_module_size, check_test_module_size
 from repostyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
@@ -189,7 +191,6 @@ from repostyle.rules.testing import (
     check_file_literal_restatement,
     check_no_mock_patch,
     check_sleepy_test,
-    check_test_module_size,
     check_test_naming,
 )
 from repostyle.rules.visibility import check_should_be_private
@@ -253,6 +254,7 @@ __all__ = [
     "RS_RETURN_DESCRIBED_IN_PROSE",
     "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
+    "RS_SOURCE_MODULE_SIZE",
     "RS_SUMMARY_COMMENT_AS_DOCSTRING",
     "RS_TAG_COMMENT_CONTINUATION_INDENT",
     "RS_TEMPORAL_MARKER",
@@ -335,6 +337,7 @@ __all__ = [
     "check_return_described_in_prose",
     "check_should_be_private",
     "check_sleepy_test",
+    "check_source_module_size",
     "check_summary_comment_as_docstring",
     "check_tag_comment_continuation_indent",
     "check_test_module_size",

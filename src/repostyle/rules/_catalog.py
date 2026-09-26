@@ -72,6 +72,7 @@ from repostyle.rules._violation import (
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
+    RS_SOURCE_MODULE_SIZE,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
@@ -413,6 +414,31 @@ RULE_DOCS: dict[str, RuleDoc] = {
             "areas: organize tests into named modules around those areas.",
             "The module must stay intact for a documented reason: place "
             "`# style: ignore-file[RS062]` near the top with a short rationale.",
+        ),
+    ),
+    RS_SOURCE_MODULE_SIZE: RuleDoc(
+        name="source-module-size",
+        summary=(
+            "A Python source module stays within its configured physical "
+            "code-line limit."
+        ),
+        rationale=(
+            "A large source module can hide several responsibilities behind "
+            "one import boundary. Find the distinct concepts or workflows and "
+            "give each a cohesive module with a name that describes what it "
+            "owns. Do not move unrelated leftovers into a generic utility "
+            "module or split one responsibility into numbered fragments merely "
+            "to cross the threshold. The default limit is 250, configured with "
+            "`max-source-file-lines` in `[tool.repostyle]`."
+        ),
+        signals=(
+            "The module owns distinct concepts or workflows: split them along "
+            "those responsibility boundaries.",
+            "The module is one cohesive responsibility with substantial data "
+            "or declarations: keep the structure readable and use a targeted "
+            "waiver when a split would obscure ownership.",
+            "The module must stay intact for a documented reason: place "
+            "`# style: ignore-file[RS066]` near the top with a short rationale.",
         ),
     ),
     RS_BANNED_IMPORT_BY_PATH: RuleDoc(
