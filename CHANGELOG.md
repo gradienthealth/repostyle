@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.34.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.33.0...repostyle-v0.34.0) (2026-09-26)
+
+
+### Features
+
+* **NO-ISSUE:** add configurable test module size warnings ([#165](https://github.com/gradienthealth/repostyle/issues/165)) ([a385abc](https://github.com/gradienthealth/repostyle/commit/a385abcb03511ac8f23395bd1ff92f104db1307a))
+* **NO-ISSUE:** add native test reuse warnings ([#166](https://github.com/gradienthealth/repostyle/issues/166)) ([b5a8b76](https://github.com/gradienthealth/repostyle/commit/b5a8b7686ac0e7f507579fbb7dca810e42ef0000))
+* **NO-ISSUE:** add source module size warnings ([#168](https://github.com/gradienthealth/repostyle/issues/168)) ([8fb0c93](https://github.com/gradienthealth/repostyle/commit/8fb0c935146f16a8e47e25bbccb6c0b5226a4b6e))
+
 ## [0.33.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.32.0...repostyle-v0.33.0) (2026-09-14)
 
 
