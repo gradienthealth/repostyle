@@ -332,17 +332,17 @@ def _assignment_lines(count: int) -> str:
     return "".join(f"value_{index} = {index}\n" for index in range(count))
 
 
-def _configured_target(tmp_path: Path, limit: int | str, relative: str) -> Path:
-    """Writes the test-module limit and returns its target path."""
-    (tmp_path / "pyproject.toml").write_text(
-        f"[tool.repostyle]\nmax-test-file-lines = {limit}\n", encoding="utf-8"
-    )
-    return tmp_path / relative
-
-
 def _configured_source_target(tmp_path: Path, limit: int | str, relative: str) -> Path:
     """Writes the source-module limit and returns its target path."""
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\nmax-source-file-lines = {limit}\n", encoding="utf-8"
+    )
+    return tmp_path / relative
+
+
+def _configured_target(tmp_path: Path, limit: int | str, relative: str) -> Path:
+    """Writes the test-module limit and returns its target path."""
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.repostyle]\nmax-test-file-lines = {limit}\n", encoding="utf-8"
     )
     return tmp_path / relative

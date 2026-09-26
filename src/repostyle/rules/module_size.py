@@ -1,4 +1,4 @@
-"""Source and test module size warnings."""
+"""Module size warnings for source and test code."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import io
 import tokenize
 from collections.abc import Iterator
 from pathlib import Path
+from typing import TypeAlias
 
 from repostyle._shared import (
     _is_test_file,
@@ -24,15 +25,17 @@ MAX_SOURCE_FILE_LINES_KEY = "max-source-file-lines"
 MAX_TEST_FILE_LINES_KEY = "max-test-file-lines"
 DEFAULT_MAX_SOURCE_FILE_LINES = 250
 DEFAULT_MAX_TEST_FILE_LINES = 500
+_SourcePosition: TypeAlias = tuple[int, int]
+_SourceSpan: TypeAlias = tuple[_SourcePosition, _SourcePosition]
 
 
 def check_source_module_size(path: Path, source: str) -> Iterator[Violation]:
     """Warns when a source module exceeds its configured code-line limit.
 
     A large production module can hide distinct responsibilities behind one
-    import boundary. The default limit is 250 physical code lines. Blank
-    lines, comment-only lines, and module, class, and function docstrings do
-    not count. Test modules use their independent RS062 limit instead.
+    import boundary. The default limit is 250 physical code lines. Blank lines,
+    comment-only lines, and module, class, and function docstrings do not
+    count. Test modules use their independent RS062 limit instead.
     """
     if path.suffix != ".py" or _is_test_file(path):
         return
@@ -123,9 +126,7 @@ def _module_code_lines(tree: ast.AST, source: str) -> set[int]:
     return code_lines
 
 
-def _docstring_spans(
-    tree: ast.AST, source_lines: list[str]
-) -> Iterator[tuple[tuple[int, int], tuple[int, int]]]:
+def _docstring_spans(tree: ast.AST, source_lines: list[str]) -> Iterator[_SourceSpan]:
     """Yields the source span of each module, class, or function docstring."""
     owners = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
     for owner in ast.walk(tree):
@@ -160,9 +161,9 @@ def _character_column(line: str, byte_column: int) -> int:
 
 
 def _span_contains(
-    span: tuple[tuple[int, int], tuple[int, int]],
-    start: tuple[int, int],
-    end: tuple[int, int],
+    span: _SourceSpan,
+    start: _SourcePosition,
+    end: _SourcePosition,
 ) -> bool:
     """Reports whether a token falls wholly inside a source span."""
     return span[0] <= start and end <= span[1]
