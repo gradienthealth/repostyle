@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import ast
+import builtins
 import re
-from collections.abc import Iterator
-from dataclasses import dataclass
+from collections import defaultdict
+from collections.abc import Iterator, Sequence
+from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 
@@ -26,8 +28,11 @@ from repostyle.rules._violation import (
     RS_EXCESSIVE_MOCKING,
     RS_FILE_LITERAL_RESTATEMENT,
     RS_NO_MOCK_PATCH,
+    RS_REPEATED_TEST_SETUP,
+    RS_SHARED_TEST_HELPER,
     RS_SLEEPY_TEST,
     RS_TEST_NAMING,
+    RS_TEST_PARAMETRIZATION_CANDIDATE,
     Violation,
 )
 
@@ -94,6 +99,23 @@ _QUANTIFIERS = (
 )
 _SELF_ARGUMENTS = frozenset({"cls", "self"})
 _TestFunction = ast.AsyncFunctionDef | ast.FunctionDef
+_BUILTINS = frozenset(dir(builtins))
+_DYNAMIC_NAMES = frozenset({"eval", "exec", "globals", "locals", "vars"})
+_SCALAR_TYPES = (type(None), bool, int, float, complex, str, bytes)
+_UNSUPPORTED_REUSE_NODES = (
+    ast.DictComp,
+    ast.GeneratorExp,
+    ast.Global,
+    ast.Lambda,
+    ast.ListComp,
+    ast.Match,
+    ast.NamedExpr,
+    ast.Nonlocal,
+    ast.SetComp,
+)
+_TEST_REUSE_MINIMUM = 3
+_HELPER_STATEMENT_MINIMUM = 3
+_TEST_REUSE_PATH_LIMIT = 80
 
 
 @dataclass(frozen=True)
@@ -108,6 +130,91 @@ class _ResolvedScope:
     """The names bound to a repo file."""
     trees: tuple[ast.AST, ...]
     """The test module and each `conftest.py` above it, nearest first."""
+
+
+@dataclass(frozen=True)
+class _ImportContext:
+    """Carries the external identities visible to one module."""
+
+    imports: dict[str, str]
+    module_bindings: frozenset[str]
+    path: Path
+    has_wildcard_import: bool
+
+    def external_name(self, name: str) -> tuple[str, str]:
+        """Returns the conservative identity of a non-local name.
+
+        Returns:
+            The identity category and its qualified or file-specific value.
+        """
+        if name in self.imports:
+            return ("import", self.imports[name])
+        if name in self.module_bindings:
+            return ("module", f"{self.path}:{name}")
+        if self.has_wildcard_import:
+            return ("global", f"{self.path}:{name}")
+        if name in _BUILTINS:
+            return ("builtin", name)
+        return ("global", f"{self.path}:{name}")
+
+
+@dataclass(frozen=True)
+class _ReuseFunction:
+    """Pairs one candidate function with its module identities."""
+
+    node: _TestFunction
+    path: Path
+    scope: str
+    context: _ImportContext
+
+    @property
+    def qualified_name(self) -> str:
+        """Returns the class-qualified function name."""
+        return f"{self.scope}.{self.node.name}" if self.scope else self.node.name
+
+
+@dataclass
+class _NormalizationState:
+    """Carries name bindings and literal collection through one syntax key."""
+
+    context: _ImportContext
+    bindings: dict[str, str]
+    should_abstract_literals: bool = False
+    is_inside_joined_string: bool = False
+    literal_values: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class _ParametrizationCandidate:
+    """Pairs one test with the scalar values its syntax key abstracted."""
+
+    function: _ReuseFunction
+    literal_values: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _SetupCandidate:
+    """Pairs one test with its leading simple-assignment syntax keys."""
+
+    function: _ReuseFunction
+    prefix: tuple[object, ...]
+
+
+@dataclass(frozen=True)
+class _SetupGroup:
+    """Carries one maximal setup prefix and the tests sharing it."""
+
+    assignment_count: int
+    members: tuple[_ReuseFunction, ...]
+
+
+@dataclass(frozen=True)
+class _SharedHelperCandidate:
+    """Carries one helper category, syntax key, and source function."""
+
+    category: str
+    key: object
+    function: _ReuseFunction
 
 
 def check_test_naming(path: Path, source: str) -> Iterator[Violation]:
@@ -306,6 +413,115 @@ def check_file_literal_restatement(path: Path, source: str) -> Iterator[Violatio
             f"`{restated[0]}`; assert the property where it executes, or pin "
             f"it against the second file that has to agree",
         )
+
+
+def check_shared_test_helper(
+    files: Sequence[tuple[Path, str]],
+) -> Iterator[tuple[Path, Violation]]:
+    """Warns about substantial matching helpers across test files.
+
+    Module-level helpers and compatible fixtures qualify after three executable
+    statements when their conservative syntax keys match in at least two files.
+    The finding marks a candidate for one shared helper or fixture; matching
+    syntax does not establish shared lifecycle or semantics.
+    """
+    groups: dict[object, list[_ReuseFunction]] = defaultdict(list)
+    for candidate in _shared_helper_candidates(files):
+        groups[(candidate.category, candidate.key)].append(candidate.function)
+
+    for (kind, _), members in groups.items():
+        ordered = sorted(
+            members, key=lambda item: (item.path.as_posix(), item.node.lineno)
+        )
+        if len({member.path.resolve() for member in ordered}) < 2:
+            continue
+        for member in ordered:
+            peer = next(item for item in ordered if item.path != member.path)
+            message = (
+                f"{kind} candidate matches {len(ordered)} definitions across "
+                f"test files, including {_display_location(peer)}; consider "
+                f"one shared {kind}"
+            )
+            yield (
+                member.path,
+                Violation(
+                    member.node.lineno,
+                    member.node.col_offset + 1,
+                    RS_SHARED_TEST_HELPER,
+                    message,
+                ),
+            )
+
+
+def check_test_parametrization_candidate(
+    path: Path, source: str
+) -> Iterator[Violation]:
+    """Warns when three tests differ only in scalar body literals.
+
+    Candidates stay within one module or class scope and preserve signatures,
+    decorators, call targets, operations, and literal types. Existing
+    parametrization and syntax with uncertain bindings are left alone.
+    """
+    if not _is_reuse_test_file(path):
+        return
+    groups: dict[object, list[_ParametrizationCandidate]] = defaultdict(list)
+    for function in _reuse_functions(path, source):
+        if not function.node.name.startswith("test_"):
+            continue
+        if _unsupported_reuse(function) or _is_parametrized(
+            function.node, function.context
+        ):
+            continue
+        key, values = _parametrization_key(function)
+        groups[key].append(_ParametrizationCandidate(function, values))
+
+    for members in groups.values():
+        if len(members) < _TEST_REUSE_MINIMUM:
+            continue
+        values = [member.literal_values for member in members]
+        if not _has_varying_literals(values):
+            continue
+        for member in members:
+            function = member.function
+            yield Violation(
+                function.node.lineno,
+                function.node.col_offset + 1,
+                RS_TEST_PARAMETRIZATION_CANDIDATE,
+                f"test matches {len(members)} cases that differ only in scalar "
+                "body literals; consider `pytest.mark.parametrize` while "
+                "retaining distinct contracts",
+            )
+
+
+def check_repeated_test_setup(path: Path, source: str) -> Iterator[Violation]:
+    """Warns about repeated leading assignment sequences in tests.
+
+    Three tests in one module or class scope qualify when at least two exact
+    leading simple assignments match and the shared prefix includes a call. The
+    finding prompts review for a builder or fixture without deciding that the
+    call is setup or prescribing fixture lifetime.
+    """
+    if not _is_reuse_test_file(path):
+        return
+    by_scope: dict[str, list[_SetupCandidate]] = defaultdict(list)
+    for function in _reuse_functions(path, source):
+        if not function.node.name.startswith("test_") or _unsupported_reuse(function):
+            continue
+        prefix = _setup_prefix(function)
+        if len(prefix) >= 2:
+            by_scope[function.scope].append(_SetupCandidate(function, prefix))
+
+    for scoped in by_scope.values():
+        for group in _maximal_setup_groups(scoped):
+            for function in group.members:
+                yield Violation(
+                    function.node.lineno,
+                    function.node.col_offset + 1,
+                    RS_REPEATED_TEST_SETUP,
+                    f"test repeats {group.assignment_count} leading assignments "
+                    f"across {len(group.members)} cases; consider a builder or "
+                    "fixture",
+                )
 
 
 def _branch_asserts_directly(node: ast.stmt) -> bool:
@@ -741,3 +957,550 @@ def _test_functions(
             node, ast.FunctionDef | ast.AsyncFunctionDef
         ) and node.name.startswith("test"):
             yield node
+
+
+def _reuse_functions(path: Path, source: str) -> list[_ReuseFunction]:
+    """Returns directly reviewable functions with their module context."""
+    tree = _parse_python(path, source)
+    if not isinstance(tree, ast.Module):
+        return []
+    context = _import_context(tree, path)
+    functions: list[_ReuseFunction] = []
+    for statement in tree.body:
+        if isinstance(statement, ast.FunctionDef | ast.AsyncFunctionDef):
+            functions.append(_ReuseFunction(statement, path, "", context))
+        elif isinstance(statement, ast.ClassDef):
+            functions.extend(
+                _ReuseFunction(member, path, statement.name, context)
+                for member in statement.body
+                if isinstance(member, ast.FunctionDef | ast.AsyncFunctionDef)
+            )
+    return functions
+
+
+def _shared_helper_candidates(
+    files: Sequence[tuple[Path, str]],
+) -> Iterator[_SharedHelperCandidate]:
+    """Yields each eligible helper beside its category and syntax key."""
+    for path, source in files:
+        if not _is_reuse_test_file(path) or _is_excluded_reuse_file(path):
+            continue
+        for function in _reuse_functions(path, source):
+            candidate = _shared_helper_candidate(function)
+            if candidate is not None:
+                yield candidate
+
+
+def _shared_helper_candidate(
+    function: _ReuseFunction,
+) -> _SharedHelperCandidate | None:
+    """Returns an eligible helper candidate, or `None` outside the boundary."""
+    if function.scope or function.node.name.startswith("test_"):
+        return None
+    body = _without_docstring(function.node.body)
+    if _unsupported_reuse(function) or len(body) < _HELPER_STATEMENT_MINIMUM:
+        return None
+    is_fixture = _is_fixture(function.node, function.context)
+    return _SharedHelperCandidate(
+        "fixture" if is_fixture else "helper",
+        _function_key(function, should_preserve_parameter_names=is_fixture),
+        function,
+    )
+
+
+def _import_context(tree: ast.Module, path: Path) -> _ImportContext:
+    """Returns the conservative module identities visible from `path`."""
+    imports = _direct_imports(tree, path)
+    for name in _rebound_module_names(tree):
+        imports.pop(name, None)
+    return _ImportContext(
+        imports,
+        frozenset(_module_bindings(tree)),
+        path,
+        _has_wildcard_import(tree),
+    )
+
+
+def _direct_imports(tree: ast.Module, path: Path) -> dict[str, str]:
+    """Returns direct module imports keyed by their bound names."""
+    return dict(
+        binding
+        for statement in tree.body
+        for binding in _direct_import_bindings(statement, path)
+    )
+
+
+def _direct_import_bindings(
+    statement: ast.stmt, path: Path
+) -> Iterator[tuple[str, str]]:
+    """Yields bound names and identities from one direct import."""
+    if isinstance(statement, ast.Import):
+        for alias in statement.names:
+            bound = alias.asname or alias.name.split(".", 1)[0]
+            yield bound, alias.name if alias.asname else bound
+    elif isinstance(statement, ast.ImportFrom):
+        origin = _import_from_origin(statement, path)
+        for alias in statement.names:
+            if alias.name != "*":
+                yield alias.asname or alias.name, f"{origin}.{alias.name}"
+
+
+def _import_from_origin(statement: ast.ImportFrom, path: Path) -> str:
+    """Returns a path-aware origin for an imported name."""
+    if statement.level == 0:
+        return statement.module or ""
+    package = list(path.with_suffix("").parts[:-1])
+    parents = statement.level - 1
+    if parents > len(package):
+        return f"{path}:relative:{statement.level}:{statement.module or ''}"
+    if parents:
+        package = package[:-parents]
+    if statement.module:
+        package.extend(statement.module.split("."))
+    return ".".join(package)
+
+
+class _ModuleBindingCollector(ast.NodeVisitor):
+    """Collects module bindings without entering nested scopes."""
+
+    def __init__(self) -> None:
+        self.names: set[str] = set()
+        self.has_wildcard_import = False
+
+    def visit_Name(self, node: ast.Name) -> None:
+        """Records assignment targets."""
+        if isinstance(node.ctx, ast.Store | ast.Del):
+            self.names.add(node.id)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """Records the definition name without entering its scope."""
+        self.names.add(node.name)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        """Records the async definition name without entering its scope."""
+        self.names.add(node.name)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        """Records the class name without entering its scope."""
+        self.names.add(node.name)
+
+    def visit_Import(self, node: ast.Import) -> None:
+        """Records imports nested in module control flow."""
+        for alias in node.names:
+            self.names.add(alias.asname or alias.name.split(".", 1)[0])
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        """Records imports nested in module control flow."""
+        for alias in node.names:
+            if alias.name == "*":
+                self.has_wildcard_import = True
+            else:
+                self.names.add(alias.asname or alias.name)
+
+
+def _raw_imports(tree: ast.Module) -> set[str]:
+    """Returns names introduced by direct module imports."""
+    return {
+        alias.asname or alias.name.split(".", 1)[0]
+        for statement in tree.body
+        if isinstance(statement, ast.Import | ast.ImportFrom)
+        for alias in statement.names
+        if alias.name != "*"
+    }
+
+
+def _module_binding_collector(tree: ast.Module) -> _ModuleBindingCollector:
+    """Returns bindings introduced outside direct module imports."""
+    collector = _ModuleBindingCollector()
+    for statement in tree.body:
+        if not isinstance(statement, ast.Import | ast.ImportFrom):
+            collector.visit(statement)
+    return collector
+
+
+def _rebound_module_names(tree: ast.Module) -> set[str]:
+    """Returns imported names shadowed by another module statement."""
+    return _raw_imports(tree) & _module_binding_collector(tree).names
+
+
+def _module_bindings(tree: ast.Module) -> set[str]:
+    """Returns every name bound directly in a module."""
+    return _raw_imports(tree) | _module_binding_collector(tree).names
+
+
+def _has_wildcard_import(tree: ast.Module) -> bool:
+    """Reports whether module execution can bind names through `import *`."""
+    direct = any(
+        isinstance(statement, ast.ImportFrom)
+        and any(alias.name == "*" for alias in statement.names)
+        for statement in tree.body
+    )
+    return direct or _module_binding_collector(tree).has_wildcard_import
+
+
+def _unsupported_reuse(function: _ReuseFunction) -> bool:
+    """Reports whether a function exceeds conservative matching boundaries."""
+    for child in ast.walk(function.node):
+        if child is function.node:
+            continue
+        if isinstance(child, ast.expr) and _dynamic_namespace_reference(
+            child, function.context
+        ):
+            return True
+        if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            return True
+        if isinstance(child, (*_UNSUPPORTED_REUSE_NODES, ast.Import, ast.ImportFrom)):
+            return True
+    return False
+
+
+def _dynamic_namespace_reference(expression: ast.expr, context: _ImportContext) -> bool:
+    """Reports a callable reference that can inspect dynamic namespaces."""
+    if isinstance(expression, ast.Name):
+        if not isinstance(expression.ctx, ast.Load):
+            return False
+        if expression.id in _DYNAMIC_NAMES:
+            return True
+        identity = context.imports.get(expression.id, "")
+    elif isinstance(expression, ast.Attribute):
+        identity = _decorator_name(expression, context)
+    else:
+        return False
+    return any(identity == f"builtins.{name}" for name in _DYNAMIC_NAMES)
+
+
+def _function_key(
+    function: _ReuseFunction, *, should_preserve_parameter_names: bool
+) -> object:
+    """Returns a binding-aware key for a helper or fixture."""
+    bindings = _function_bindings(
+        function.node,
+        should_preserve_parameter_names=should_preserve_parameter_names,
+    )
+    body_state = _NormalizationState(function.context, bindings)
+    definition_state = _NormalizationState(function.context, {})
+    return (
+        isinstance(function.node, ast.AsyncFunctionDef),
+        _arguments_key(
+            function.node.args,
+            body_state,
+            should_preserve_names=should_preserve_parameter_names,
+            expression_state=definition_state,
+        ),
+        tuple(
+            _node_key(decorator, definition_state)
+            for decorator in function.node.decorator_list
+        ),
+        _node_key(function.node.returns, definition_state),
+        tuple(
+            _node_key(statement, body_state)
+            for statement in _without_docstring(function.node.body)
+        ),
+    )
+
+
+def _arguments_key(
+    arguments: ast.arguments,
+    state: _NormalizationState,
+    *,
+    should_preserve_names: bool,
+    expression_state: _NormalizationState,
+) -> object:
+    """Returns a signature shape with exact defaults and annotations."""
+
+    def argument_key(argument: ast.arg) -> object:
+        name = argument.arg if should_preserve_names else state.bindings[argument.arg]
+        return (
+            name,
+            _node_key(argument.annotation, expression_state),
+            argument.type_comment,
+        )
+
+    return (
+        tuple(argument_key(item) for item in arguments.posonlyargs),
+        tuple(argument_key(item) for item in arguments.args),
+        argument_key(arguments.vararg) if arguments.vararg else None,
+        tuple(argument_key(item) for item in arguments.kwonlyargs),
+        tuple(_node_key(item, expression_state) for item in arguments.kw_defaults),
+        argument_key(arguments.kwarg) if arguments.kwarg else None,
+        tuple(_node_key(item, expression_state) for item in arguments.defaults),
+    )
+
+
+def _function_bindings(
+    node: _TestFunction, *, should_preserve_parameter_names: bool
+) -> dict[str, str]:
+    """Assigns stable identities to parameters and local bindings."""
+    bindings: dict[str, str] = {}
+    groups = (
+        ("posonly", node.args.posonlyargs),
+        ("arg", node.args.args),
+        ("kwonly", node.args.kwonlyargs),
+    )
+    for kind, arguments in groups:
+        for index, argument in enumerate(arguments):
+            bindings[argument.arg] = (
+                argument.arg if should_preserve_parameter_names else f"{kind}:{index}"
+            )
+    if node.args.vararg:
+        bindings[node.args.vararg.arg] = (
+            node.args.vararg.arg if should_preserve_parameter_names else "vararg"
+        )
+    if node.args.kwarg:
+        bindings[node.args.kwarg.arg] = (
+            node.args.kwarg.arg if should_preserve_parameter_names else "kwarg"
+        )
+    collector = _BindingCollector(bindings)
+    for statement in node.body:
+        collector.visit(statement)
+    return bindings
+
+
+class _BindingCollector(ast.NodeVisitor):
+    """Collects function-local names in source traversal order."""
+
+    def __init__(self, bindings: dict[str, str]) -> None:
+        self.bindings = bindings
+
+    def visit_Name(self, node: ast.Name) -> None:
+        """Records a stored name once."""
+        if isinstance(node.ctx, ast.Store | ast.Del) and node.id not in self.bindings:
+            self.bindings[node.id] = f"local:{len(self.bindings)}"
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        """Records an exception target before visiting its body."""
+        if node.name and node.name not in self.bindings:
+            self.bindings[node.name] = f"local:{len(self.bindings)}"
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """Stops at a nested scope."""
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        """Stops at a nested async scope."""
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        """Stops at a nested class scope."""
+
+
+def _node_key(node: object, state: _NormalizationState) -> object:
+    """Returns a hashable syntax key without source positions."""
+    if node is None or isinstance(node, str | int | float | complex | bytes | bool):
+        return node
+    if isinstance(node, list):
+        return tuple(_node_key(item, state) for item in node)
+    if isinstance(node, ast.AST):
+        return _ast_node_key(node, state)
+    return repr(node)
+
+
+def _ast_node_key(node: ast.AST, state: _NormalizationState) -> object:
+    """Returns the custom syntax key for one AST node."""
+    if isinstance(node, ast.Name):
+        identity = (
+            ("bound", state.bindings[node.id])
+            if node.id in state.bindings
+            else state.context.external_name(node.id)
+        )
+        return ("Name", identity, type(node.ctx).__name__)
+    if isinstance(node, ast.Constant):
+        if (
+            state.should_abstract_literals
+            and not state.is_inside_joined_string
+            and isinstance(node.value, _SCALAR_TYPES)
+        ):
+            state.literal_values.append(repr(node.value))
+            return ("Constant", type(node.value).__name__, "<value>")
+        return ("Constant", type(node.value).__name__, node.value, node.kind)
+    if isinstance(node, ast.JoinedStr):
+        previous = state.is_inside_joined_string
+        state.is_inside_joined_string = True
+        try:
+            return (
+                "JoinedStr",
+                tuple(_node_key(value, state) for value in node.values),
+            )
+        finally:
+            state.is_inside_joined_string = previous
+    if isinstance(node, ast.ExceptHandler):
+        name = state.bindings.get(node.name, node.name) if node.name else None
+        return (
+            "ExceptHandler",
+            _node_key(node.type, state),
+            name,
+            tuple(_node_key(item, state) for item in node.body),
+        )
+    fields = tuple(
+        (field_name, _node_key(value, state))
+        for field_name, value in ast.iter_fields(node)
+    )
+    return (type(node).__name__, fields)
+
+
+def _without_docstring(statements: list[ast.stmt]) -> list[ast.stmt]:
+    """Returns body statements after an optional leading docstring."""
+    if statements and isinstance(statements[0], ast.Expr):
+        value = statements[0].value
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            return statements[1:]
+    return statements
+
+
+def _is_fixture(node: _TestFunction, context: _ImportContext) -> bool:
+    """Reports whether a function carries a fixture decorator."""
+    return any(
+        _decorator_tail(decorator) == "fixture"
+        or _decorator_name(decorator, context) in {"fixture", "pytest.fixture"}
+        or _decorator_name(decorator, context).endswith(".fixture")
+        for decorator in node.decorator_list
+    )
+
+
+def _is_parametrized(node: _TestFunction, context: _ImportContext) -> bool:
+    """Reports whether a test already carries parametrization."""
+    return any(
+        _decorator_tail(decorator) == "parametrize"
+        or _decorator_name(decorator, context) == "parametrize"
+        or _decorator_name(decorator, context).endswith(".parametrize")
+        for decorator in node.decorator_list
+    )
+
+
+def _decorator_tail(node: ast.expr) -> str:
+    """Returns the final syntactic name of a decorator expression."""
+    expression = node.func if isinstance(node, ast.Call) else node
+    if isinstance(expression, ast.Name):
+        return expression.id
+    if isinstance(expression, ast.Attribute):
+        return expression.attr
+    return ""
+
+
+def _decorator_name(node: ast.expr, context: _ImportContext) -> str:
+    """Returns a straightforward qualified expression identity."""
+    expression = node.func if isinstance(node, ast.Call) else node
+    if isinstance(expression, ast.Name):
+        return context.external_name(expression.id)[1]
+    if isinstance(expression, ast.Attribute):
+        base = _decorator_name(expression.value, context)
+        return f"{base}.{expression.attr}" if base else expression.attr
+    return ""
+
+
+def _parametrization_key(function: _ReuseFunction) -> tuple[object, tuple[str, ...]]:
+    """Returns the literal-abstracted test key and encountered values."""
+    bindings = _function_bindings(function.node, should_preserve_parameter_names=True)
+    signature_state = _NormalizationState(function.context, bindings)
+    definition_state = _NormalizationState(function.context, {})
+    body_state = _NormalizationState(
+        function.context, bindings, should_abstract_literals=True
+    )
+    key = (
+        function.scope,
+        isinstance(function.node, ast.AsyncFunctionDef),
+        _arguments_key(
+            function.node.args,
+            signature_state,
+            should_preserve_names=True,
+            expression_state=definition_state,
+        ),
+        tuple(
+            _node_key(decorator, definition_state)
+            for decorator in function.node.decorator_list
+        ),
+        _node_key(function.node.returns, definition_state),
+        tuple(
+            _node_key(statement, body_state)
+            for statement in _without_docstring(function.node.body)
+        ),
+    )
+    return key, tuple(body_state.literal_values)
+
+
+def _has_varying_literals(values: list[tuple[str, ...]]) -> bool:
+    """Reports an aligned literal position with differing values."""
+    return (
+        bool(values)
+        and len({len(items) for items in values}) == 1
+        and any(
+            len({items[index] for items in values}) > 1
+            for index in range(len(values[0]))
+        )
+    )
+
+
+def _setup_prefix(function: _ReuseFunction) -> tuple[object, ...]:
+    """Returns normalized assignments before the first other statement."""
+    bindings = _function_bindings(function.node, should_preserve_parameter_names=True)
+    state = _NormalizationState(function.context, bindings)
+    prefix: list[object] = []
+    for statement in _without_docstring(function.node.body):
+        if isinstance(statement, ast.Assign):
+            if len(statement.targets) != 1 or not isinstance(
+                statement.targets[0], ast.Name
+            ):
+                break
+        elif isinstance(statement, ast.AnnAssign):
+            if not isinstance(statement.target, ast.Name) or statement.value is None:
+                break
+        else:
+            break
+        prefix.append(_node_key(statement, state))
+    return tuple(prefix)
+
+
+def _maximal_setup_groups(
+    scoped: list[_SetupCandidate],
+) -> list[_SetupGroup]:
+    """Returns the longest qualifying prefix for each matching member group."""
+    prefix_groups: dict[object, list[_ReuseFunction]] = defaultdict(list)
+    for item in scoped:
+        for length in range(2, len(item.prefix) + 1):
+            candidate = item.prefix[:length]
+            if _key_contains_call(candidate):
+                prefix_groups[candidate].append(item.function)
+    best: dict[tuple[str, ...], _SetupGroup] = {}
+    for prefix, members in prefix_groups.items():
+        unique = sorted(
+            {member.qualified_name: member for member in members}.values(),
+            key=lambda item: item.node.lineno,
+        )
+        if len(unique) < _TEST_REUSE_MINIMUM:
+            continue
+        member_key = tuple(member.qualified_name for member in unique)
+        group = _SetupGroup(len(prefix), tuple(unique))
+        if len(prefix) > best.get(member_key, _SetupGroup(0, ())).assignment_count:
+            best[member_key] = group
+    return list(best.values())
+
+
+def _key_contains_call(value: object) -> bool:
+    """Reports whether a normalized key contains a call expression."""
+    return isinstance(value, tuple) and (
+        (bool(value) and value[0] == "Call")
+        or any(_key_contains_call(item) for item in value)
+    )
+
+
+def _is_reuse_test_file(path: Path) -> bool:
+    """Reports whether `path` can define a test or test support code."""
+    return path.suffix == ".py" and _is_test_file(path)
+
+
+def _is_excluded_reuse_file(path: Path) -> bool:
+    """Reports whether config excludes `path` from findings."""
+    pyproject = find_pyproject(path)
+    return _matches_config_glob(path, pyproject, _repostyle_table(pyproject), "exclude")
+
+
+def _display_location(function: _ReuseFunction) -> str:
+    """Returns a repository-relative peer location."""
+    pyproject = find_pyproject(function.path)
+    try:
+        displayed = function.path.relative_to(pyproject.parent) if pyproject else None
+    except ValueError:
+        displayed = None
+    path = (displayed or function.path).as_posix()
+    if len(path) > _TEST_REUSE_PATH_LIMIT:
+        path = f"…{path[-(_TEST_REUSE_PATH_LIMIT - 1) :]}"
+    return f"{path}:{function.node.lineno}"

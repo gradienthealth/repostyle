@@ -17,7 +17,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
   - `imperative_verbs` — RS034's verb list and conjugation, split out of `docstrings` to avoid a same-file definition-order conflict (the check needs its callee below it, the verb table needs its conjugator above it)
   - `doc_fill` — RS009 (fill prose to 79 columns, in docstrings, `#` comments, and YAML folded scalars) and RS035 (summary line over 79 columns; warn, no fix — a summary cannot be reflowed)
   - `doc_value` — RS018 (documentation-value signal; warn), RS031 / RS032 (per-argument or return detail that belongs in an `Args:` / `Returns:` section; warn), RS041 (raise detail that belongs in a `Raises:` section; warn), RS043 (an exception the body raises but a present `Raises:` section omits; warn)
-  - `testing` — RS002 (test naming), RS003 (mock ban), RS013–RS016 (test-quality smells; warn), RS060 (a test restating one repo file's literals; warn)
+  - `testing` — RS002 (test naming), RS003 (mock ban), RS013–RS016 (test-quality smells; warn), RS060 (a test restating one repo file's literals; warn), and RS063–RS065 (shared helpers, parametrization candidates, and repeated setup; warn)
   - `complexity` — RS012 (cognitive complexity; warn)
   - `annotations` — RS040 (a type annotation nesting subscripted generics past two levels; warn)
   - `idioms` — RS046 (a `for i in range(len(seq))` loop that indexes only `seq[i]`, where direct iteration reads better; warn)
@@ -71,6 +71,7 @@ Testing:
 
 - Test functions follow `test_<StateUnderTest>_<ExpectedBehavior>` in PascalCase (RS002), one test class per public callable, ordered happy path then edge then error.
 - Fakes, not mocks; assert observable outcomes, not call choreography; collapse cosmetic input variation into `@pytest.mark.parametrize` with `ids`.
+- Repeated test support is reviewed for one narrow shared helper or fixture, scalar-only case variation for parametrization, and repeated construction for a builder or fixture (RS063–RS065, warnings).
 
 ## Commits and PRs
 
