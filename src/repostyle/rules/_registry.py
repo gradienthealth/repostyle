@@ -56,7 +56,9 @@ from repostyle.rules._violation import (
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RANGE_LEN_REINDEX,
+    RS_REPEATED_TEST_SETUP,
     RS_RETURN_DESCRIBED_IN_PROSE,
+    RS_SHARED_TEST_HELPER,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
@@ -65,6 +67,7 @@ from repostyle.rules._violation import (
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_MODULE_SIZE,
     RS_TEST_NAMING,
+    RS_TEST_PARAMETRIZATION_CANDIDATE,
     RS_TOO_MANY_POSITIONAL_ARGS,
     RS_UNBACKTICKED_CODE_REFERENCE,
     RS_UNBACKTICKED_SIBLING_SYMBOL,
@@ -157,6 +160,11 @@ from repostyle.rules.testing import (
     check_test_module_size,
     check_test_naming,
 )
+from repostyle.rules.testing_reuse import (
+    check_repeated_test_setup,
+    check_shared_test_helper,
+    check_test_parametrization_candidate,
+)
 from repostyle.rules.visibility import check_should_be_private
 
 # The single-file check contract every RULES entry holds: a `(path, source)`
@@ -193,6 +201,8 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
     RS_BEHAVIOR_VERIFICATION_ONLY: (check_behavior_verification_only,),
     RS_FILE_LITERAL_RESTATEMENT: (check_file_literal_restatement,),
     RS_TEST_MODULE_SIZE: (check_test_module_size,),
+    RS_TEST_PARAMETRIZATION_CANDIDATE: (check_test_parametrization_candidate,),
+    RS_REPEATED_TEST_SETUP: (check_repeated_test_setup,),
     RS_BANNED_IMPORT_BY_PATH: (check_banned_import_by_path,),
     RS_DOC_VALUE_SIGNAL: (check_doc_value_signal,),
     RS_ELEMENT_ORDER: (check_module_element_order, check_class_member_order),
@@ -265,6 +275,7 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
 # runner dispatches each through `run_package_rule`.
 PACKAGE_RULES: dict[str, tuple[PackageCheck, ...]] = {
     RS_SHOULD_BE_PRIVATE: (check_should_be_private,),
+    RS_SHARED_TEST_HELPER: (check_shared_test_helper,),
 }
 
 
@@ -278,6 +289,9 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_BEHAVIOR_VERIFICATION_ONLY: Severity.WARNING,
     RS_FILE_LITERAL_RESTATEMENT: Severity.WARNING,
     RS_TEST_MODULE_SIZE: Severity.WARNING,
+    RS_SHARED_TEST_HELPER: Severity.WARNING,
+    RS_TEST_PARAMETRIZATION_CANDIDATE: Severity.WARNING,
+    RS_REPEATED_TEST_SETUP: Severity.WARNING,
     RS_DOC_VALUE_SIGNAL: Severity.WARNING,
     RS_ELEMENT_ORDER: Severity.WARNING,
     RS_SUMMARY_COMMENT_AS_DOCSTRING: Severity.WARNING,
