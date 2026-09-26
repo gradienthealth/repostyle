@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import builtins
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from functools import cache
@@ -138,6 +138,7 @@ class _ImportContext:
 
     imports: dict[str, str]
     module_bindings: frozenset[str]
+    rebound_names: frozenset[str]
     path: Path
     has_wildcard_import: bool
 
@@ -198,6 +199,7 @@ class _SetupCandidate:
 
     function: _ReuseFunction
     prefix: tuple[object, ...]
+    first_call_assignment: int | None
 
 
 @dataclass(frozen=True)
@@ -206,6 +208,7 @@ class _SetupGroup:
 
     assignment_count: int
     members: tuple[_ReuseFunction, ...]
+    reported_members: tuple[_ReuseFunction, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -507,13 +510,15 @@ def check_repeated_test_setup(path: Path, source: str) -> Iterator[Violation]:
     for function in _reuse_functions(path, source):
         if not function.node.name.startswith("test_") or _unsupported_reuse(function):
             continue
-        prefix = _setup_prefix(function)
+        prefix, first_call_assignment = _setup_prefix(function)
         if len(prefix) >= 2:
-            by_scope[function.scope].append(_SetupCandidate(function, prefix))
+            by_scope[function.scope].append(
+                _SetupCandidate(function, prefix, first_call_assignment)
+            )
 
     for scoped in by_scope.values():
         for group in _maximal_setup_groups(scoped):
-            for function in group.members:
+            for function in group.reported_members:
                 yield Violation(
                     function.node.lineno,
                     function.node.col_offset + 1,
@@ -1011,11 +1016,13 @@ def _shared_helper_candidate(
 def _import_context(tree: ast.Module, path: Path) -> _ImportContext:
     """Returns the conservative module identities visible from `path`."""
     imports = _direct_imports(tree, path)
-    for name in _rebound_module_names(tree):
+    rebound_names = _rebound_module_names(tree)
+    for name in rebound_names:
         imports.pop(name, None)
     return _ImportContext(
         imports,
         frozenset(_module_bindings(tree)),
+        frozenset(rebound_names),
         path,
         _has_wildcard_import(tree),
     )
@@ -1065,29 +1072,35 @@ class _ModuleBindingCollector(ast.NodeVisitor):
 
     def __init__(self) -> None:
         self.names: set[str] = set()
+        self.counts: Counter[str] = Counter()
         self.has_wildcard_import = False
+
+    def _record(self, name: str) -> None:
+        """Records one module binding occurrence."""
+        self.names.add(name)
+        self.counts[name] += 1
 
     def visit_Name(self, node: ast.Name) -> None:
         """Records assignment targets."""
         if isinstance(node.ctx, ast.Store | ast.Del):
-            self.names.add(node.id)
+            self._record(node.id)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """Records the definition name without entering its scope."""
-        self.names.add(node.name)
+        self._record(node.name)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """Records the async definition name without entering its scope."""
-        self.names.add(node.name)
+        self._record(node.name)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Records the class name without entering its scope."""
-        self.names.add(node.name)
+        self._record(node.name)
 
     def visit_Import(self, node: ast.Import) -> None:
         """Records imports nested in module control flow."""
         for alias in node.names:
-            self.names.add(alias.asname or alias.name.split(".", 1)[0])
+            self._record(alias.asname or alias.name.split(".", 1)[0])
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         """Records imports nested in module control flow."""
@@ -1095,7 +1108,7 @@ class _ModuleBindingCollector(ast.NodeVisitor):
             if alias.name == "*":
                 self.has_wildcard_import = True
             else:
-                self.names.add(alias.asname or alias.name)
+                self._record(alias.asname or alias.name)
 
 
 def _raw_imports(tree: ast.Module) -> set[str]:
@@ -1119,8 +1132,17 @@ def _module_binding_collector(tree: ast.Module) -> _ModuleBindingCollector:
 
 
 def _rebound_module_names(tree: ast.Module) -> set[str]:
-    """Returns imported names shadowed by another module statement."""
-    return _raw_imports(tree) & _module_binding_collector(tree).names
+    """Returns names whose module identity can change during definition."""
+    direct_imports = Counter(
+        alias.asname or alias.name.split(".", 1)[0]
+        for statement in tree.body
+        if isinstance(statement, ast.Import | ast.ImportFrom)
+        for alias in statement.names
+        if alias.name != "*"
+    )
+    collector = _module_binding_collector(tree)
+    counts = direct_imports + collector.counts
+    return {name for name, count in counts.items() if count > 1}
 
 
 def _module_bindings(tree: ast.Module) -> set[str]:
@@ -1140,6 +1162,14 @@ def _has_wildcard_import(tree: ast.Module) -> bool:
 
 def _unsupported_reuse(function: _ReuseFunction) -> bool:
     """Reports whether a function exceeds conservative matching boundaries."""
+    if any(
+        isinstance(child, ast.Name)
+        and isinstance(child.ctx, ast.Load)
+        and child.id in function.context.rebound_names
+        for expression in _definition_time_expressions(function.node)
+        for child in ast.walk(expression)
+    ):
+        return True
     for child in ast.walk(function.node):
         if child is function.node:
             continue
@@ -1152,6 +1182,27 @@ def _unsupported_reuse(function: _ReuseFunction) -> bool:
         if isinstance(child, (*_UNSUPPORTED_REUSE_NODES, ast.Import, ast.ImportFrom)):
             return True
     return False
+
+
+def _definition_time_expressions(node: _TestFunction) -> Iterator[ast.expr]:
+    """Yields expressions evaluated while a function is defined."""
+    yield from node.decorator_list
+    if node.returns is not None:
+        yield node.returns
+    arguments = node.args
+    for argument in (
+        *arguments.posonlyargs,
+        *arguments.args,
+        *arguments.kwonlyargs,
+    ):
+        if argument.annotation is not None:
+            yield argument.annotation
+    if arguments.vararg and arguments.vararg.annotation is not None:
+        yield arguments.vararg.annotation
+    if arguments.kwarg and arguments.kwarg.annotation is not None:
+        yield arguments.kwarg.annotation
+    yield from arguments.defaults
+    yield from (item for item in arguments.kw_defaults if item is not None)
 
 
 def _dynamic_namespace_reference(expression: ast.expr, context: _ImportContext) -> bool:
@@ -1429,24 +1480,31 @@ def _has_varying_literals(values: list[tuple[str, ...]]) -> bool:
     )
 
 
-def _setup_prefix(function: _ReuseFunction) -> tuple[object, ...]:
-    """Returns normalized assignments before the first other statement."""
+def _setup_prefix(function: _ReuseFunction) -> tuple[tuple[object, ...], int | None]:
+    """Returns leading assignment keys and the first call-bearing value."""
     bindings = _function_bindings(function.node, should_preserve_parameter_names=True)
     state = _NormalizationState(function.context, bindings)
     prefix: list[object] = []
+    first_call_assignment: int | None = None
     for statement in _without_docstring(function.node.body):
         if isinstance(statement, ast.Assign):
             if len(statement.targets) != 1 or not isinstance(
                 statement.targets[0], ast.Name
             ):
                 break
+            value = statement.value
         elif isinstance(statement, ast.AnnAssign):
             if not isinstance(statement.target, ast.Name) or statement.value is None:
                 break
+            value = statement.value
         else:
             break
         prefix.append(_node_key(statement, state))
-    return tuple(prefix)
+        if first_call_assignment is None and any(
+            isinstance(child, ast.Call) for child in ast.walk(value)
+        ):
+            first_call_assignment = len(prefix)
+    return tuple(prefix), first_call_assignment
 
 
 def _maximal_setup_groups(
@@ -1457,7 +1515,10 @@ def _maximal_setup_groups(
     for item in scoped:
         for length in range(2, len(item.prefix) + 1):
             candidate = item.prefix[:length]
-            if _key_contains_call(candidate):
+            if (
+                item.first_call_assignment is not None
+                and item.first_call_assignment <= length
+            ):
                 prefix_groups[candidate].append(item.function)
     best: dict[tuple[str, ...], _SetupGroup] = {}
     for prefix, members in prefix_groups.items():
@@ -1471,15 +1532,24 @@ def _maximal_setup_groups(
         group = _SetupGroup(len(prefix), tuple(unique))
         if len(prefix) > best.get(member_key, _SetupGroup(0, ())).assignment_count:
             best[member_key] = group
-    return list(best.values())
-
-
-def _key_contains_call(value: object) -> bool:
-    """Reports whether a normalized key contains a call expression."""
-    return isinstance(value, tuple) and (
-        (bool(value) and value[0] == "Call")
-        or any(_key_contains_call(item) for item in value)
-    )
+    claimed: set[str] = set()
+    selected: list[_SetupGroup] = []
+    for group in sorted(
+        best.values(),
+        key=lambda item: (
+            -item.assignment_count,
+            -len(item.members),
+            tuple(member.qualified_name for member in item.members),
+        ),
+    ):
+        reported = tuple(
+            member for member in group.members if member.qualified_name not in claimed
+        )
+        if not reported:
+            continue
+        claimed.update(member.qualified_name for member in reported)
+        selected.append(_SetupGroup(group.assignment_count, group.members, reported))
+    return selected
 
 
 def _is_reuse_test_file(path: Path) -> bool:

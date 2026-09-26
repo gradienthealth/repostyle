@@ -303,6 +303,29 @@ def test_Parse_AcceptsGamma(value=third):
 
         assert list(findings) == []
 
+    def test_ReboundDefinitionTimeName_ReportsNothing(self, tmp_path: Path) -> None:
+        source = """\
+from parser import parse
+
+token = first
+def test_Parse_AcceptsAlpha(value=token):
+    assert parse("alpha") == 1
+
+token = second
+def test_Parse_AcceptsBeta(value=token):
+    assert parse("beta") == 2
+
+token = third
+def test_Parse_AcceptsGamma(value=token):
+    assert parse("gamma") == 3
+"""
+
+        findings = check_test_parametrization_candidate(
+            tmp_path / "tests" / "test_parser.py", source
+        )
+
+        assert list(findings) == []
+
 
 class TestCheckRepeatedTestSetup:
     def test_ExactLeadingAssignments_ReportsEveryCase(self, tmp_path: Path) -> None:
@@ -362,6 +385,71 @@ class TestCheckRepeatedTestSetup:
 
         assert len(setup) == 3
         assert len(parametrization) == 3
+
+    def test_CallInAssignmentAnnotation_ReportsNothing(self, tmp_path: Path) -> None:
+        source = """\
+def test_Record_AcceptsAlpha():
+    record: make_record() = 1
+    saved = 2
+    assert record
+
+def test_Record_AcceptsBeta():
+    record: make_record() = 1
+    saved = 2
+    assert saved
+
+def test_Record_AcceptsGamma():
+    record: make_record() = 1
+    saved = 2
+    assert record == saved
+"""
+
+        findings = check_repeated_test_setup(
+            tmp_path / "tests" / "test_records.py", source
+        )
+
+        assert list(findings) == []
+
+    def test_OverlappingPrefixes_ReportStrongestGroupOncePerTest(
+        self, tmp_path: Path
+    ) -> None:
+        source = """\
+def test_Record_AcceptsAlpha():
+    record = make_record()
+    saved = store(record)
+    ready = prepare(saved)
+    assert ready.alpha
+
+def test_Record_AcceptsBeta():
+    record = make_record()
+    saved = store(record)
+    ready = prepare(saved)
+    assert ready.beta
+
+def test_Record_AcceptsGamma():
+    record = make_record()
+    saved = store(record)
+    ready = prepare(saved)
+    assert ready.gamma
+
+def test_Record_AcceptsDelta():
+    record = make_record()
+    saved = store(record)
+    assert saved.delta
+"""
+
+        findings = list(
+            check_repeated_test_setup(tmp_path / "tests" / "test_records.py", source)
+        )
+
+        assert [finding.line for finding in findings] == [1, 7, 13, 19]
+        assert ["3 leading assignments" in finding.message for finding in findings] == [
+            True,
+            True,
+            True,
+            False,
+        ]
+        assert "2 leading assignments" in findings[-1].message
 
 
 class TestTestReuseIntegration:
