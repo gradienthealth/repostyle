@@ -61,6 +61,7 @@ from repostyle.rules._violation import (
     RS_SHARED_TEST_HELPER,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
+    RS_SOURCE_MODULE_SIZE,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
@@ -137,6 +138,7 @@ from repostyle.rules.layout import (
     check_module_element_order,
 )
 from repostyle.rules.logging_phi import check_no_phi_safe_with_exc_info
+from repostyle.rules.module_size import check_source_module_size, check_test_module_size
 from repostyle.rules.naming import (
     check_acronym_casing,
     check_banned_abbreviation,
@@ -157,7 +159,6 @@ from repostyle.rules.testing import (
     check_file_literal_restatement,
     check_no_mock_patch,
     check_sleepy_test,
-    check_test_module_size,
     check_test_naming,
 )
 from repostyle.rules.testing_reuse import (
@@ -203,6 +204,7 @@ RULES: dict[str, tuple[RuleCheck, ...]] = {
     RS_TEST_MODULE_SIZE: (check_test_module_size,),
     RS_TEST_PARAMETRIZATION_CANDIDATE: (check_test_parametrization_candidate,),
     RS_REPEATED_TEST_SETUP: (check_repeated_test_setup,),
+    RS_SOURCE_MODULE_SIZE: (check_source_module_size,),
     RS_BANNED_IMPORT_BY_PATH: (check_banned_import_by_path,),
     RS_DOC_VALUE_SIGNAL: (check_doc_value_signal,),
     RS_ELEMENT_ORDER: (check_module_element_order, check_class_member_order),
@@ -292,6 +294,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_SHARED_TEST_HELPER: Severity.WARNING,
     RS_TEST_PARAMETRIZATION_CANDIDATE: Severity.WARNING,
     RS_REPEATED_TEST_SETUP: Severity.WARNING,
+    RS_SOURCE_MODULE_SIZE: Severity.WARNING,
     RS_DOC_VALUE_SIGNAL: Severity.WARNING,
     RS_ELEMENT_ORDER: Severity.WARNING,
     RS_SUMMARY_COMMENT_AS_DOCSTRING: Severity.WARNING,
