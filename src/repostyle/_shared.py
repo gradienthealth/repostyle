@@ -16,45 +16,35 @@ from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
+from repostyle import _ast_helpers, _punctuation
 from repostyle._comments import extract_comments
+from repostyle._config_values import string_list as _string_list
 
-# A pytest-collected test class: `Test` followed by an uppercase letter or the
-# end of the name, so `Testimony` and `Tester` are not matched.
+_strip_trailing_closers = _punctuation.strip_trailing_closers
+_terminal_punctuation_fault = _punctuation.terminal_punctuation_fault
+_has_decorator = _ast_helpers.has_decorator
+
 TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
+
 TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 
-# A comment whose first token after the hash marks it as machinery, not prose.
-# The shebang `#!` leads a module; the rest are tool directives that a prose
-# check must skip.
 _DIRECTIVE_COMMENT_PATTERN = re.compile(
     r"^[ \t]*(!|type:|style:|noqa|nosec|pragma|pylint:|mypy:|ruff:|isort:|fmt:"
     r"|codespell:)",
 )
-# A PEP 263 encoding declaration, in either the plain `coding:` form or the
-# Emacs `-*- coding: ... -*-` form, anywhere in the comment.
+
 _CODING_DECLARATION_PATTERN = re.compile(r"coding[:=]\s*[-\w.]+")
 
-# Closing characters that may sit after a sentence's terminal mark, so a unit
-# ending `note.)` or `said "go."` still reads as terminated.
-_TRAILING_CLOSERS = ')"'
-# A sentence break: a terminal mark, any closing quotes or brackets,
-# whitespace, then a capital. The token ending in the mark decides whether the
-# break is real; an initialism, a numbered ordinal, or a known abbreviation
-# carries an internal period without ending a sentence.
 _SENTENCE_BOUNDARY_PATTERN = re.compile(r"[.!?][)\"']*\s+[A-Z]")
+
 _INITIALISM_PATTERN = re.compile(r"(?:[A-Za-z]\.)+|\d+\.")
+
 _SENTENCE_ABBREVIATIONS = frozenset(
     {"etc.", "vs.", "cf.", "al.", "Dr.", "Mr.", "Mrs.", "Ms.", "St.", "Inc.", "Ltd."}
 )
 
-# A bulleted list item's marker: a dash, star, or plus then a space, opening a
-# docstring or comment line's stripped text.
 _BULLET_PATTERN = re.compile(r"^[-*+] ")
-# A markdown table row (`|...|`) or a line made only of pipe, dash, plus, and
-# equals characters (`+----+`, `====`, a `---` rule) opens content whose
-# alignment is meaningful, so it is verbatim: never filled, never reflowed, and
-# yielding no prose unit. Requiring the whole line to be those characters keeps
-# flag-like prose (`--fix ...`) and bullets (`- `) from matching.
+
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 
 
@@ -74,7 +64,6 @@ def _bool_config(table: dict[str, object], key: str) -> bool:
     return value if isinstance(value, bool) else False
 
 
-# An own-line comment as a `(lineno, column, string)` triple
 _PositionedComment = tuple[int, int, str]
 
 
@@ -258,24 +247,6 @@ def _find_pyproject_from(directory: Path) -> Path | None:
     return None
 
 
-def _has_decorator(
-    node: ast.FunctionDef | ast.AsyncFunctionDef, names: frozenset[str] | set[str]
-) -> bool:
-    """Reports whether the definition carries a decorator named in `names`.
-
-    Match both the bare (`@override`) and dotted (`@typing.override`) forms,
-    comparing only the final attribute name, and see through a decorator call
-    (`@cache()`) to the name it applies.
-    """
-    for decorator in node.decorator_list:
-        target = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(target, ast.Name) and target.id in names:
-            return True
-        if isinstance(target, ast.Attribute) and target.attr in names:
-            return True
-    return False
-
-
 def _has_sentence_boundary(text: str) -> bool:
     """Reports whether `text` runs more than one sentence.
 
@@ -372,8 +343,6 @@ def _matches_config_glob(
     return any(fnmatch(relative, glob) for glob in globs)
 
 
-# Cache on (path, source) so each file is parsed once and its tree shared
-# across rules.
 @lru_cache(maxsize=128)
 def _parse_python(path: Path, source: str) -> ast.AST | None:
     if path.suffix != ".py":
@@ -414,82 +383,23 @@ def _repostyle_table(pyproject: Path | None) -> dict[str, object]:
     return data.get("tool", {}).get("repostyle", {})
 
 
-def _string_list(table: dict[str, object], key: str) -> tuple[str, ...]:
-    """Reads a list of strings from a repostyle config table under `key`."""
-    configured = table.get(key, ())
-    if isinstance(configured, str):
-        configured = (configured,)
-    if not isinstance(configured, list | tuple):
-        return ()
-    return tuple(str(item) for item in configured if str(item))
-
-
-def _terminal_punctuation_fault(text: str, *, is_prose: bool) -> str | None:
-    """Classifies a prose unit's terminal punctuation against the house rule.
-
-    A prose unit -- one spanning lines, running multiple sentences, or standing
-    as a docstring body paragraph -- must close with `.`, `!`, or `?`; returns
-    `"missing"` when it does not. A single-line single-sentence fragment is a
-    label and must not close with a period; returns `"extra"` when it does. A
-    unit ending with a colon introduces a list, and one ending in a URL cannot
-    take punctuation, so both are exempt. Returns `None` when the unit
-    conforms.
-    """
-    stripped = _strip_trailing_closers(text)
-    if not stripped or stripped.endswith(":"):
-        return None
-    if "://" in stripped.rsplit(maxsplit=1)[-1]:
-        return None
-    if is_prose:
-        return None if stripped[-1] in ".!?" else "missing"
-    return "extra" if stripped[-1] == "." else None
-
-
-def _strip_trailing_closers(text: str) -> str:
-    """Returns `text` without trailing whitespace or sentence-closing marks."""
-    return text.rstrip().rstrip(_TRAILING_CLOSERS)
-
-
-# The RS045 marker set: temporal and edit-narrative phrases that almost always
-# narrate the change rather than the code, kept deliberately tight so the rule
-# stays a floor under review rather than competing with it. The phrases are
-# matched on a word boundary, case-insensitively, so an identifier fragment
-# like `switched_to` (joined by an underscore) never matches.
 _TEMPORAL_MARKER_PATTERN = re.compile(
     r"\b(previously|used to|formerly|originally|as discussed|we decided"
     r"|for now|changed to|switched to)\b",
     re.IGNORECASE,
 )
-# A backtick span quotes a phrase as a referenced token rather than narrating
-# with it, so it is masked out before the marker match: a docstring that
-# documents a marker as data (RS023's own card names `Used to`) is not itself
-# flagged, and only a bare narrative use fires.
+
 _BACKTICK_SPAN_PATTERN = re.compile(r"`[^`]*`")
-# A URI, blanked beside the backtick spans so a token inside a `gs://` or
-# `https://` path is not read as bare prose.
+
 _PROSE_URI = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
 
-# The house sentence dash, the one form prose sets a clause off with; RS054
-# flags the forms below against it and rewrites them to it under `--fix`.
 STANDARD_SENTENCE_DASH = " -- "
 
-# The unambiguous sentence-dash glyphs, matched on masked prose text: an em
-# dash matches spaced, glued, or half-spaced; an en dash matches spaced only,
-# so an unspaced range (an `RSnnn` or numeric span) is left alone. Both are
-# dashes whatever their neighbors, so their line-edge handling lives in the
-# scanner, checked against the original text rather than via lookarounds -- a
-# masked backtick span beside the dash must not hide it.
 _UNAMBIGUOUS_DASH_PATTERNS = (
     re.compile(r" ?— ?"),
     re.compile(r" – "),  # noqa: RUF001
 )
-# The hyphen-built forms, bounded by letter lookarounds: a hyphen is also a
-# minus, a bullet marker, and a flag prefix, so only a letter-flanked match
-# reads as a sentence dash -- arithmetic (`n - 1`), a negative number, and a
-# bullet marker never match. A doubled hyphen glued only on its right
-# (`use --fix`) is exactly a CLI flag's shape, so of the mis-spaced doubled
-# forms only the left-glued ones (`a--b`, `a-- b`), which no flag can be, are
-# matched.
+
 _HYPHEN_DASH_PATTERNS = (
     re.compile(r"(?<=[A-Za-z]) - (?=[A-Za-z])"),
     re.compile(r"(?<=[A-Za-z])(?:--|-- )(?=[A-Za-z])"),
@@ -558,12 +468,6 @@ def _temporal_markers(text: str) -> list[str]:
     return seen
 
 
-# Cached because every rule scanning a file re-walks the same tree, and
-# `ast.walk` costs two Python-level calls per node. The key is the tree itself,
-# an AST node hashing by identity, so an entry belongs to the exact tree
-# `_parse_python` returned; holding that reference also pins it, leaving no way
-# for a later tree to reuse a freed address and collide. Sized to match
-# `_parse_python`, so a tree still held by the parse cache keeps its node list.
 @lru_cache(maxsize=128)
 def _walk_tree(tree: ast.AST) -> tuple[ast.AST, ...]:
     """Returns every node under `tree`, in `ast.walk` order.

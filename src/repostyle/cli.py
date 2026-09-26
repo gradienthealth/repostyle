@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 from repostyle import baseline as baseline_file
+from repostyle._cli_args import (
+    _parse_args,
+)
 from repostyle._shared import find_pyproject
 from repostyle.baseline import DEFAULT_BASELINE_NAME, Baseline
 from repostyle.changed_lines import changed_lines, resolve_diff_base
@@ -76,9 +79,6 @@ def _run_explain(argv: list[str]) -> int:
     return 2 if unknown else 0
 
 
-# Printed when `--diff` cannot resolve the comparison commit. The run refuses
-# instead of hiding the missing base behind unrelated whole-tree findings. The
-# baseline replaces line scoping without hiding a finding on an untouched line.
 _DIFF_DEPRECATED = (
     "repostyle: --diff is deprecated and will be removed in a later release; "
     "record the backlog with --write-baseline instead"
@@ -167,58 +167,6 @@ def _run_lint(argv: list[str]) -> int:
         tolerated += report.tolerated
     _print_run_summary(options, fixed, fired, tolerated)
     return 1 if failed or fixed else 0
-
-
-def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="repostyle")
-    parser.add_argument("paths", nargs="*", type=Path)
-    parser.add_argument(
-        "--diff",
-        action="store_true",
-        help="deprecated: report only findings on lines changed versus "
-        "--diff-base; use --write-baseline instead",
-    )
-    parser.add_argument(
-        "--diff-base",
-        default=None,
-        metavar="REF",
-        help="the ref --diff compares against (default: the merge-base with "
-        "the repo's default branch)",
-    )
-    parser.add_argument(
-        "--fix",
-        action="store_true",
-        help="fix the mechanically-fixable findings in place before reporting",
-    )
-    parser.add_argument(
-        "--warnings-as-errors",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="fail on every finding, whatever its default severity (default: "
-        "off; config may promote individual rules)",
-    )
-    parser.add_argument(
-        "--write-baseline",
-        action="store_true",
-        help="record the tree's current findings as grandfathered and exit",
-    )
-    parser.add_argument(
-        "--update-baseline",
-        action="store_true",
-        help="refresh the baseline: drop findings since fixed, admit only the "
-        "backlog of rules the baseline predates, and exit",
-    )
-    parser.add_argument(
-        "--no-baseline",
-        action="store_true",
-        help="report every finding, ignoring the repo's baseline",
-    )
-    parser.add_argument(
-        "--no-explain-hint",
-        action="store_true",
-        help="suppress the per-rule 'run explain' pointer printed on findings",
-    )
-    return parser.parse_args(argv)
 
 
 def _print_run_summary(
