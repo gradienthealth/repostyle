@@ -427,15 +427,18 @@ RULE_DOCS: dict[str, RuleDoc] = {
     RS_TEST_PARAMETRIZATION_CANDIDATE: RuleDoc(
         name="test-parametrization-candidate",
         summary=(
-            "Three tests with the same supported structure and differing scalar "
-            "body literals are candidates for parametrization."
+            "Three tests with one named contract, the same supported structure, "
+            "and differing scalar body literals are candidates for "
+            "parametrization."
         ),
         rationale=(
             "Parametrization can state repeated behavior as one contract plus a "
             "table of cases. The rule preserves signatures, marks, decorators, "
-            "call targets, operations, and literal types, and requires at least one "
-            "literal position to vary. It does not justify adding conditionals or "
-            "combining cases with different behavior."
+            "call targets, operations, and literal types, requires at least two "
+            "meaningful test-name words in common, and requires at least one "
+            "literal position to vary. It keeps multi-line fixture programs "
+            "distinct. It does not justify adding conditionals or combining cases "
+            "with different behavior."
         ),
         examples=(
             Example(

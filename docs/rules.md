@@ -1,12 +1,8 @@
 # Rule reference
 
-`repostyle` ships 66 rules. Every rule has an `RSnnn` id and a default severity.
-Errors describe mechanical defects; warnings identify review points or newer
-checks whose false-positive rate still needs observation.
+`repostyle` ships 66 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
 
-Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples,
-and references. The check-function docstring under `src/repostyle/rules/` is
-the canonical implementation specification.
+Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, and references. The check-function docstring under `src/repostyle/rules/` is the canonical implementation specification.
 
 ## Naming
 
@@ -44,8 +40,7 @@ the canonical implementation specification.
 
 ## Prose and comments
 
-These rules inspect docstrings and comments. Comment checks also cover TOML,
-YAML, and shell files unless the rule says otherwise.
+These rules inspect docstrings and comments. Comment checks also cover TOML, YAML, and shell files unless the rule says otherwise.
 
 | Rule | Default | Check |
 | -- | -- | -- |
@@ -79,7 +74,7 @@ YAML, and shell files unless the rule says otherwise.
 | RS060 | warning | Do not restate literals read from one repository file. |
 | RS062 | warning | Review test modules over their configured code-line limit. |
 | RS063 | warning | Consolidate matching substantial helpers across test files. |
-| RS064 | warning | Parametrize structurally matching scalar test cases. |
+| RS064 | warning | Parametrize scalar cases that share one named contract and structure. |
 | RS065 | warning | Consolidate repeated call-bearing test setup. |
 
 ## Structure and imports
@@ -121,22 +116,17 @@ RS017 stays inert until `[tool.repostyle.banned-imports]` defines a ban.
 
 ## Severity
 
-Under the defaults, 19 rules hard-fail and the other 47 report warnings. Those
-19 are the mechanical rules:
+Under the defaults, 19 rules hard-fail and the other 47 report warnings. Those 19 are the mechanical rules:
 
 ```text
 RS001 RS002 RS003 RS004 RS005 RS006 RS007 RS008 RS009 RS010
 RS011 RS013 RS014 RS017 RS022 RS023 RS025 RS028 RS042
 ```
 
-A warning does not fail a run unless the repository promotes it with `error`
-or `warnings-as-errors`. A tolerated run prints its warning count to stderr.
+A warning does not fail a run unless the repository promotes it with `error` or `warnings-as-errors`. A tolerated run prints its warning count to stderr.
 
 ## Ruff overlap
 
-RS027 mirrors ruff's preview-gated `PLR0917`. Remove RS027 when that rule becomes
-stable and the shared ruff base can select it without enabling preview globally.
+RS027 mirrors ruff's preview-gated `PLR0917`. Remove RS027 when that rule becomes stable and the shared ruff base can select it without enabling preview globally.
 
-RS042 includes ruff's preview-gated `PLW1641` and also checks the reverse case,
-`__hash__` without `__eq__`. When `PLW1641` becomes stable, ruff can own its
-half while repostyle retains the reverse check.
+RS042 includes ruff's preview-gated `PLW1641` and also checks the reverse case, `__hash__` without `__eq__`. When `PLW1641` becomes stable, ruff can own its half while repostyle retains the reverse check.

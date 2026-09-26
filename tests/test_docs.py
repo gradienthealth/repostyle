@@ -45,5 +45,5 @@ class TestRuleReferenceCounts:
 
 
 def _rule_table() -> dict[str, str]:
-    """Returns id-to-severity pairs from the rule reference tables."""
+    """Reads documented severities into a mapping keyed by rule id."""
     return dict(_TABLE_ROW.findall(_RULE_REFERENCE.read_text(encoding="utf-8")))

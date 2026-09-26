@@ -120,11 +120,13 @@ def check_shared_test_helper(
 def check_test_parametrization_candidate(
     path: Path, source: str
 ) -> Iterator[Violation]:
-    """Warns when three tests differ only in scalar body literals.
+    """Finds scalar test cases that form one named contract.
 
-    Candidates stay within one module or class scope and preserve signatures,
-    decorators, call targets, operations, and literal types. Existing
-    parametrization and syntax with uncertain bindings are left alone.
+    A candidate contains at least three tests in one module or class. Its tests
+    share two meaningful name words and the same supported syntax after scalar
+    values are abstracted. Signatures, decorators, operations, call targets,
+    literal types, and multi-line fixture programs remain distinct. The check
+    skips existing parametrization and bindings it cannot resolve safely.
     """
     if not _is_reuse_test_file(path):
         return
