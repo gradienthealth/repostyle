@@ -69,7 +69,9 @@ from repostyle.rules._violation import (
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RANGE_LEN_REINDEX,
+    RS_REPEATED_TEST_SETUP,
     RS_RETURN_DESCRIBED_IN_PROSE,
+    RS_SHARED_TEST_HELPER,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SOURCE_MODULE_SIZE,
@@ -79,6 +81,7 @@ from repostyle.rules._violation import (
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_MODULE_SIZE,
     RS_TEST_NAMING,
+    RS_TEST_PARAMETRIZATION_CANDIDATE,
     RS_TOO_MANY_POSITIONAL_ARGS,
     RS_UNBACKTICKED_CODE_REFERENCE,
     RS_UNBACKTICKED_SIBLING_SYMBOL,
@@ -391,6 +394,90 @@ RULE_DOCS: dict[str, RuleDoc] = {
                     "both files rather than quoting the number twice."
                 ),
             ),
+        ),
+    ),
+    RS_SHARED_TEST_HELPER: RuleDoc(
+        name="shared-test-helper",
+        summary=(
+            "Matching substantial helpers or compatible fixtures across test "
+            "files are candidates for one shared definition."
+        ),
+        rationale=(
+            "The rule compares conservative syntax, local binding relationships, "
+            "and external dependency identities. A match is evidence of repeated "
+            "test support code, not proof that the definitions share semantics or "
+            "lifecycle. Place a shared helper in the narrowest support module its "
+            "callers already own. Use a fixture when pytest should supply a value; "
+            "use a builder or ordinary helper when each test should choose when and "
+            "how to construct it."
+        ),
+        signals=(
+            "Check mutable state, cleanup, fixture scope, and isolation before "
+            "consolidating. Keep separate definitions when their contracts only "
+            "happen to have the same current syntax.",
+            "A line, block, or file suppression silences that occurrence. It can "
+            "remain structural evidence for an unsuppressed peer; an `exclude` "
+            "glob removes the file from both evidence and reporting.",
+            "Dynamic namespace access, comprehensions, nested scopes, and other "
+            "uncertain bindings are skipped rather than guessed. Unresolved names "
+            "under wildcard imports stay file-specific and cannot create a "
+            "cross-file match.",
+        ),
+    ),
+    RS_TEST_PARAMETRIZATION_CANDIDATE: RuleDoc(
+        name="test-parametrization-candidate",
+        summary=(
+            "Three tests with the same supported structure and differing scalar "
+            "body literals are candidates for parametrization."
+        ),
+        rationale=(
+            "Parametrization can state repeated behavior as one contract plus a "
+            "table of cases. The rule preserves signatures, marks, decorators, "
+            "call targets, operations, and literal types, and requires at least one "
+            "literal position to vary. It does not justify adding conditionals or "
+            "combining cases with different behavior."
+        ),
+        examples=(
+            Example(
+                bad=(
+                    "def test_Parse_AcceptsAlpha():\n    assert parse('a') == 1\n\n"
+                    "def test_Parse_AcceptsBeta():\n    assert parse('b') == 2\n\n"
+                    "def test_Parse_AcceptsGamma():\n    assert parse('c') == 3"
+                ),
+                good=(
+                    "@pytest.mark.parametrize(\n"
+                    "    ('text', 'expected'), [('a', 1), ('b', 2), ('c', 3)]\n"
+                    ")\n"
+                    "def test_Parse_AcceptsNamedCase(text, expected):\n"
+                    "    assert parse(text) == expected"
+                ),
+                note=(
+                    "Give rows readable ids or names when the original test names "
+                    "carried behavior a failure report should retain."
+                ),
+            ),
+        ),
+    ),
+    RS_REPEATED_TEST_SETUP: RuleDoc(
+        name="repeated-test-setup",
+        summary=(
+            "Three tests sharing a leading assignment sequence that includes a "
+            "call are candidates for a builder or fixture."
+        ),
+        rationale=(
+            "Repeated construction can obscure the behavior each test varies. The "
+            "rule compares exact leading assignments, including values, call "
+            "targets, and dependencies, then reports the longest shared prefix for "
+            "each matching group. The repeated call may still be the action under "
+            "test, so the warning does not label it setup."
+        ),
+        signals=(
+            "Prefer a builder or ordinary helper when tests need fresh values or "
+            "different construction timing. Choose a fixture only after checking "
+            "scope, teardown, mutation, and isolation.",
+            "This rule is independent of the parametrization rule. Both may report "
+            "the same tests because consolidating setup and tabulating cases are "
+            "separate review choices.",
         ),
     ),
     RS_TEST_MODULE_SIZE: RuleDoc(

@@ -77,7 +77,9 @@ from repostyle.rules._violation import (
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RANGE_LEN_REINDEX,
+    RS_REPEATED_TEST_SETUP,
     RS_RETURN_DESCRIBED_IN_PROSE,
+    RS_SHARED_TEST_HELPER,
     RS_SHOULD_BE_PRIVATE,
     RS_SLEEPY_TEST,
     RS_SOURCE_MODULE_SIZE,
@@ -87,6 +89,7 @@ from repostyle.rules._violation import (
     RS_TERMINAL_PUNCTUATION,
     RS_TEST_MODULE_SIZE,
     RS_TEST_NAMING,
+    RS_TEST_PARAMETRIZATION_CANDIDATE,
     RS_TOO_MANY_POSITIONAL_ARGS,
     RS_UNBACKTICKED_CODE_REFERENCE,
     RS_UNBACKTICKED_SIBLING_SYMBOL,
@@ -193,6 +196,11 @@ from repostyle.rules.testing import (
     check_sleepy_test,
     check_test_naming,
 )
+from repostyle.rules.testing_reuse import (
+    check_repeated_test_setup,
+    check_shared_test_helper,
+    check_test_parametrization_candidate,
+)
 from repostyle.rules.visibility import check_should_be_private
 
 __all__ = [
@@ -251,7 +259,9 @@ __all__ = [
     "RS_RAISES_SECTION_INCOMPLETE",
     "RS_RAISE_DESCRIBED_IN_PROSE",
     "RS_RANGE_LEN_REINDEX",
+    "RS_REPEATED_TEST_SETUP",
     "RS_RETURN_DESCRIBED_IN_PROSE",
+    "RS_SHARED_TEST_HELPER",
     "RS_SHOULD_BE_PRIVATE",
     "RS_SLEEPY_TEST",
     "RS_SOURCE_MODULE_SIZE",
@@ -261,6 +271,7 @@ __all__ = [
     "RS_TERMINAL_PUNCTUATION",
     "RS_TEST_MODULE_SIZE",
     "RS_TEST_NAMING",
+    "RS_TEST_PARAMETRIZATION_CANDIDATE",
     "RS_TOO_MANY_POSITIONAL_ARGS",
     "RS_UNBACKTICKED_CODE_REFERENCE",
     "RS_UNBACKTICKED_SIBLING_SYMBOL",
@@ -334,7 +345,9 @@ __all__ = [
     "check_raise_described_in_prose",
     "check_raises_section_incomplete",
     "check_range_len_reindex",
+    "check_repeated_test_setup",
     "check_return_described_in_prose",
+    "check_shared_test_helper",
     "check_should_be_private",
     "check_sleepy_test",
     "check_source_module_size",
@@ -342,6 +355,7 @@ __all__ = [
     "check_tag_comment_continuation_indent",
     "check_test_module_size",
     "check_test_naming",
+    "check_test_parametrization_candidate",
     "check_too_many_positional_args",
     "check_unbackticked_code_reference",
     "check_unbackticked_sibling_symbol",

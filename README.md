@@ -1,6 +1,6 @@
 # repostyle
 
-repostyle is a linter for the house style conventions that ruff does not cover. It ships 63 rules, each with an `RSnnn` id, and a shared ruff base config. Every consuming repo picks the subset it wants and runs it as a pre-commit hook.
+repostyle is a linter for the house style conventions that ruff does not cover. It ships 66 rules, each with an `RSnnn` id, and a shared ruff base config. Every consuming repo picks the subset it wants and runs it as a pre-commit hook.
 
 The linter is stdlib-only, so installing it pulls in nothing. It reads Python through the `ast` module and the tokenizer. Most rules are Python-specific, but the comment rules also read `#` comments in TOML, YAML, and shell files, so a comment is held to the same conventions whatever the language.
 
@@ -114,6 +114,9 @@ These rules read docstrings and comments alike. The comment half of each runs ov
 | RS016 | warning | A test asserts only call choreography (`assert_called*`) and never state. |
 | RS060 | warning | A test asserts only literals it read from a single repo file, exercising nothing beyond the parser. |
 | RS062 | warning | A test module exceeds its configured physical code-line limit. |
+| RS063 | warning | Matching substantial helpers or compatible fixtures across test files are candidates for one shared definition. |
+| RS064 | warning | Three tests with the same supported structure and differing scalar body literals are candidates for parametrization. |
+| RS065 | warning | Three tests sharing a leading assignment sequence that includes a call are candidates for a builder or fixture. |
 
 ### Functions and classes
 
@@ -159,11 +162,11 @@ A repo that keeps the same convention in another place re-scopes the rule with t
 
 RS017 reports nothing until a `banned-imports` table names its bans, so selecting it early is harmless.
 
-RS002, RS013 through RS016, RS060, and RS062 examine Python test files, so they are inert everywhere else. RS066 examines only production `.py` modules and leaves those test files to RS062. RS003 is broader: it rejects mock imports everywhere except `tests/fakes/`.
+RS002, RS013 through RS016, and RS060 through RS065 examine Python test files or their support code, so they are inert elsewhere. RS066 examines only production `.py` modules and leaves test modules to RS062. RS003 instead rejects mock imports in every file outside `tests/fakes/`.
 
 ### Severity
 
-Each selected rule keeps the default severity shown above. Under those defaults 19 rules hard-fail and the other 44 print warnings:
+Each selected rule keeps the default severity shown above. Under those defaults 19 rules hard-fail and the other 47 print warnings:
 
 ```
 RS001  RS002  RS003  RS004  RS005  RS006  RS007  RS008  RS009  RS010

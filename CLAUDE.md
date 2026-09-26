@@ -19,6 +19,7 @@ The `RSnnn` rules are the *subject matter* this package enforces on other repos.
   - `doc_value` — RS018 (documentation-value signal; warn), RS031 / RS032 (per-argument or return detail that belongs in an `Args:` / `Returns:` section; warn), RS041 (raise detail that belongs in a `Raises:` section; warn), RS043 (an exception the body raises but a present `Raises:` section omits; warn)
   - `testing` — RS002 (test naming), RS003 (mock ban), RS013–RS016 (test-quality smells; warn), and RS060 (a test restating one repo file's literals; warn)
   - `module_size` — RS062 (a test module over its configured 500-code-line default; warn) and RS066 (a source module over its configured 250-code-line default; warn), sharing the token-based count while keeping test and source scopes independent
+  - `testing_reuse` — RS063–RS065 (shared helpers, parametrization candidates, and repeated setup; warn); `_test_reuse_context` resolves imports and bindings conservatively, while `_test_reuse_keys` builds normalized syntax keys
   - `complexity` — RS012 (cognitive complexity; warn)
   - `annotations` — RS040 (a type annotation nesting subscripted generics past two levels; warn)
   - `idioms` — RS046 (a `for i in range(len(seq))` loop that indexes only `seq[i]`, where direct iteration reads better; warn)
@@ -74,6 +75,7 @@ Testing:
 - Test functions follow `test_<StateUnderTest>_<ExpectedBehavior>` in PascalCase (RS002), one test class per public callable, ordered happy path then edge then error.
 - Fakes, not mocks; assert observable outcomes, not call choreography; collapse cosmetic input variation into `@pytest.mark.parametrize` with `ids`.
 - A Python test module stays within 500 physical code lines by default (RS062, warning). Review production responsibility boundaries before organizing cohesive test areas into separate modules.
+- Repeated test support is reviewed for one narrow shared helper or fixture, scalar-only case variation for parametrization, and repeated construction for a builder or fixture (RS063–RS065, warnings).
 
 ## Commits and PRs
 
