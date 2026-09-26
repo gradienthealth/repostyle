@@ -473,23 +473,14 @@ class TestFixDoubleSpaceInComments:
             'x = "a.  b"  # First. Second.\n'
         )
 
-    def test_YamlComment_CollapsesToOne(self) -> None:
+    @pytest.mark.parametrize(
+        "path",
+        [Path("config.yaml"), Path("config.toml"), Path("script.sh")],
+        ids=["yaml", "toml", "shell"],
+    )
+    def test_ConfigComment_CollapsesToOne(self, path: Path) -> None:
         source = "# First.  Second.\n"
-        assert fix_double_space_in_comments(Path("config.yaml"), source) == (
-            "# First. Second.\n"
-        )
-
-    def test_TomlComment_CollapsesToOne(self) -> None:
-        source = "# First.  Second.\n"
-        assert fix_double_space_in_comments(Path("config.toml"), source) == (
-            "# First. Second.\n"
-        )
-
-    def test_ShellComment_CollapsesToOne(self) -> None:
-        source = "# First.  Second.\n"
-        assert fix_double_space_in_comments(Path("script.sh"), source) == (
-            "# First. Second.\n"
-        )
+        assert fix_double_space_in_comments(path, source) == "# First. Second.\n"
 
     def test_NoDoubleSpace_ReturnsUnchanged(self) -> None:
         source = "# First. Second.\n"

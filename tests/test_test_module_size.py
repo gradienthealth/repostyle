@@ -24,10 +24,11 @@ class TestCheckTestModuleSize:
         ids=["at-limit", "over-limit"],
     )
     def test_DefaultLimit_UsesStrictBoundary(
-        self, line_count: int, expected_count: int
+        self, tmp_path: Path, line_count: int, expected_count: int
     ) -> None:
         source = _assignment_lines(line_count)
-        violations = list(check_test_module_size(Path("tests/test_x.py"), source))
+        target = tmp_path / "tests" / "test_x.py"
+        violations = list(check_test_module_size(target, source))
         assert len(violations) == expected_count
         assert [item.rule for item in violations] == [
             RS_TEST_MODULE_SIZE
@@ -163,12 +164,11 @@ class TestCheckSourceModuleSize:
         ids=["at-limit", "over-limit"],
     )
     def test_DefaultLimit_UsesStrictBoundary(
-        self, line_count: int, expected_count: int
+        self, tmp_path: Path, line_count: int, expected_count: int
     ) -> None:
         source = _assignment_lines(line_count)
-        violations = list(
-            check_source_module_size(Path("src/package/widget.py"), source)
-        )
+        target = tmp_path / "src" / "package" / "widget.py"
+        violations = list(check_source_module_size(target, source))
         assert len(violations) == expected_count
         assert [item.rule for item in violations] == [
             RS_SOURCE_MODULE_SIZE

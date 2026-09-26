@@ -235,6 +235,7 @@ def _ast_node_key(node: ast.AST, state: _NormalizationState) -> object:
             state.should_abstract_literals
             and not state.is_inside_joined_string
             and isinstance(node.value, _SCALAR_TYPES)
+            and not _is_multiline_string(node.value)
         ):
             state.literal_values.append(repr(node.value))
             return ("Constant", type(node.value).__name__, "<value>")
@@ -262,3 +263,9 @@ def _ast_node_key(node: ast.AST, state: _NormalizationState) -> object:
         for field_name, value in ast.iter_fields(node)
     )
     return (type(node).__name__, fields)
+
+
+def _is_multiline_string(value: object) -> bool:
+    """Reports whether a literal carries structured, multi-line test input."""
+    newline = b"\n" if isinstance(value, bytes) else "\n"
+    return isinstance(value, str | bytes) and newline in value

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ast
+import itertools
+import re
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
@@ -38,6 +40,10 @@ from repostyle.rules._violation import (
 _TEST_REUSE_MINIMUM = 3
 _HELPER_STATEMENT_MINIMUM = 3
 _TEST_REUSE_PATH_LIMIT = 80
+_TEST_NAME_TERM = re.compile(r"[A-Z]+(?=[A-Z][a-z]|\b)|[A-Z]?[a-z]+|\d+")
+_GENERIC_TEST_NAME_TERMS = frozenset(
+    {"checked", "flags", "no", "not", "nothing", "reports", "violation"}
+)
 
 
 def check_repeated_test_setup(path: Path, source: str) -> Iterator[Violation]:
@@ -114,11 +120,13 @@ def check_shared_test_helper(
 def check_test_parametrization_candidate(
     path: Path, source: str
 ) -> Iterator[Violation]:
-    """Warns when three tests differ only in scalar body literals.
+    """Finds scalar test cases that form one named contract.
 
-    Candidates stay within one module or class scope and preserve signatures,
-    decorators, call targets, operations, and literal types. Existing
-    parametrization and syntax with uncertain bindings are left alone.
+    A candidate contains at least three tests in one module or class. Its tests
+    share two meaningful name words and the same supported syntax after scalar
+    values are abstracted. Signatures, decorators, operations, call targets,
+    literal types, and multi-line fixture programs remain distinct. The check
+    skips existing parametrization and bindings it cannot resolve safely.
     """
     if not _is_reuse_test_file(path):
         return
@@ -133,22 +141,9 @@ def check_test_parametrization_candidate(
         key, values = _parametrization_key(function)
         groups[key].append(_ParametrizationCandidate(function, values))
 
-    for members in groups.values():
-        if len(members) < _TEST_REUSE_MINIMUM:
-            continue
-        values = [member.literal_values for member in members]
-        if not _has_varying_literals(values):
-            continue
-        for member in members:
-            function = member.function
-            yield Violation(
-                function.node.lineno,
-                function.node.col_offset + 1,
-                RS_TEST_PARAMETRIZATION_CANDIDATE,
-                f"test matches {len(members)} cases that differ only in scalar "
-                "body literals; consider `pytest.mark.parametrize` while "
-                "retaining distinct contracts",
-            )
+    for structurally_matching in groups.values():
+        for members in _contract_groups(structurally_matching):
+            yield from _parametrization_findings(members)
 
 
 @dataclass(frozen=True)
@@ -186,6 +181,43 @@ class _SharedHelperCandidate:
     function: _ReuseFunction
 
 
+def _contract_groups(
+    members: list[_ParametrizationCandidate],
+) -> list[list[_ParametrizationCandidate]]:
+    """Returns maximal groups that share a two-term contract stem."""
+    by_term_pair: dict[tuple[str, str], list[int]] = defaultdict(list)
+    for index, member in enumerate(members):
+        terms = sorted(_test_name_terms(member.function.node.name))
+        for pair in itertools.combinations(terms, 2):
+            by_term_pair[pair].append(index)
+
+    qualifying = {
+        frozenset(group)
+        for group in by_term_pair.values()
+        if len(group) >= _TEST_REUSE_MINIMUM
+    }
+    maximal = [
+        group for group in qualifying if not any(group < other for other in qualifying)
+    ]
+    claimed: set[int] = set()
+    selected: list[list[_ParametrizationCandidate]] = []
+    for group in sorted(
+        maximal,
+        key=lambda candidate: (
+            -len(candidate),
+            min(members[index].function.node.lineno for index in candidate),
+        ),
+    ):
+        unclaimed = sorted(
+            group - claimed, key=lambda index: members[index].function.node.lineno
+        )
+        if len(unclaimed) < _TEST_REUSE_MINIMUM:
+            continue
+        claimed.update(unclaimed)
+        selected.append([members[index] for index in unclaimed])
+    return selected
+
+
 def _display_location(function: _ReuseFunction) -> str:
     """Returns a repository-relative peer location."""
     pyproject = find_pyproject(function.path)
@@ -197,6 +229,25 @@ def _display_location(function: _ReuseFunction) -> str:
     if len(path) > _TEST_REUSE_PATH_LIMIT:
         path = f"…{path[-(_TEST_REUSE_PATH_LIMIT - 1) :]}"
     return f"{path}:{function.node.lineno}"
+
+
+def _parametrization_findings(
+    members: list[_ParametrizationCandidate],
+) -> Iterator[Violation]:
+    """Yields findings for one contract-coherent candidate group."""
+    values = [member.literal_values for member in members]
+    if not _has_varying_literals(values):
+        return
+    for member in members:
+        function = member.function
+        yield Violation(
+            function.node.lineno,
+            function.node.col_offset + 1,
+            RS_TEST_PARAMETRIZATION_CANDIDATE,
+            f"test matches {len(members)} cases that differ only in scalar "
+            "body literals; consider `pytest.mark.parametrize` while retaining "
+            "distinct contracts",
+        )
 
 
 def _has_varying_literals(values: list[tuple[str, ...]]) -> bool:
@@ -314,3 +365,13 @@ def _shared_helper_candidate(
         _function_key(function, should_preserve_parameter_names=is_fixture),
         function,
     )
+
+
+def _test_name_terms(name: str) -> set[str]:
+    """Returns the meaningful lowercase words in a test function name."""
+    return {
+        term.lower()
+        for component in name.removeprefix("test_").split("_")
+        for term in _TEST_NAME_TERM.findall(component)
+        if term.lower() not in _GENERIC_TEST_NAME_TERMS
+    }

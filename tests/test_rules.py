@@ -2108,12 +2108,6 @@ _RESTATEMENT_HEADER = (
 )
 
 
-def _line_of(source: str, prefix: str) -> int:
-    """Returns the 1-based line where `source` first opens with `prefix`."""
-    lines = source.splitlines()
-    return next(index for index, line in enumerate(lines, 1) if line.startswith(prefix))
-
-
 class TestCheckFileLiteralRestatement:
     @pytest.mark.parametrize(
         "body",
@@ -2253,6 +2247,12 @@ class TestCheckFileLiteralRestatement:
             '    assert _compose()["user"] == "1000"\n'
         )
         assert list(check_file_literal_restatement(Path("src/x.py"), source)) == []
+
+
+def _line_of(source: str, prefix: str) -> int:
+    """Returns the 1-based line where `source` first opens with `prefix`."""
+    lines = source.splitlines()
+    return next(index for index, line in enumerate(lines, 1) if line.startswith(prefix))
 
 
 _DOC_PATH = Path("src/x.py")

@@ -61,17 +61,12 @@
     "RS058",
     "RS059",
     "RS060",
-    "RS061"
+    "RS061",
+    "RS062",
+    "RS063",
+    "RS064",
+    "RS065",
+    "RS066"
   ],
-  "counts": {
-    "src/repostyle/rules/docstrings.py": {
-      "RS012": 1
-    },
-    "tests/test_cli.py": {
-      "RS026": 1
-    },
-    "tests/test_rules.py": {
-      "RS019": 1
-    }
-  }
+  "counts": {}
 }

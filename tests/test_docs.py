@@ -5,12 +5,12 @@ from repostyle.rules import ALL_RULE_IDS
 from repostyle.rules._registry import FIXABLE_RULES, RULE_SEVERITY
 from repostyle.rules._violation import Severity
 
-_README = Path(__file__).resolve().parent.parent / "README.md"
+_RULE_REFERENCE = Path(__file__).resolve().parent.parent / "docs" / "rules.md"
 _TABLE_ROW = re.compile(r"^\| (RS\d{3}) \| (error|warning) \|", re.MULTILINE)
 _FIX_ROW = re.compile(r"^\| (RS\d{3}) \| [A-Z]", re.MULTILINE)
 
 
-class TestReadmeRuleTables:
+class TestRuleReferenceTables:
     def test_EveryRule_HasATableRow(self) -> None:
         assert set(_rule_table()) == set(ALL_RULE_IDS)
 
@@ -23,25 +23,27 @@ class TestReadmeRuleTables:
         assert documented == actual
 
     def test_FixableRules_AreListedInTheFixTable(self) -> None:
-        text = _README.read_text(encoding="utf-8")
-        section = text.split("## Fix findings in place", 1)[1].split("\n## ", 1)[0]
+        configuration = (_RULE_REFERENCE.parent / "configuration.md").read_text(
+            encoding="utf-8"
+        )
+        section = configuration.split("## Fix safe findings", 1)[1].split("\n## ", 1)[0]
         assert set(_FIX_ROW.findall(section)) == set(FIXABLE_RULES)
 
 
-class TestReadmeCounts:
+class TestRuleReferenceCounts:
     def test_StatedTotal_MatchesTheRegistry(self) -> None:
-        text = _README.read_text(encoding="utf-8")
-        assert f"It ships {len(ALL_RULE_IDS)} rules" in text
+        text = _RULE_REFERENCE.read_text(encoding="utf-8")
+        assert f"ships {len(ALL_RULE_IDS)} rules" in text
 
     def test_StatedSeveritySplit_MatchesTheRegistry(self) -> None:
         severities = list(_rule_table().values())
         errors = severities.count("error")
         warnings = severities.count("warning")
-        text = _README.read_text(encoding="utf-8")
+        text = " ".join(_RULE_REFERENCE.read_text(encoding="utf-8").split())
         assert f"{errors} rules hard-fail and the other {warnings}" in text
         assert f"Those {errors} are the mechanical rules" in text
 
 
 def _rule_table() -> dict[str, str]:
-    """Returns the id-to-severity pairs the README's rule tables list."""
-    return dict(_TABLE_ROW.findall(_README.read_text(encoding="utf-8")))
+    """Reads documented severities into a mapping keyed by rule id."""
+    return dict(_TABLE_ROW.findall(_RULE_REFERENCE.read_text(encoding="utf-8")))
