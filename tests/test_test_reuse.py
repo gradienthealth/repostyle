@@ -326,6 +326,37 @@ def test_Parse_AcceptsGamma(value=token):
 
         assert list(findings) == []
 
+    def test_PatternCapturedDefinitionTimeName_ReportsNothing(
+        self, tmp_path: Path
+    ) -> None:
+        source = """\
+from parser import parse
+
+match first:
+    case {"token": token}:
+        pass
+def test_Parse_AcceptsAlpha(value=token):
+    assert parse("alpha") == 1
+
+match second:
+    case [*token]:
+        pass
+def test_Parse_AcceptsBeta(value=token):
+    assert parse("beta") == 2
+
+match third:
+    case {"token": _, **token}:
+        pass
+def test_Parse_AcceptsGamma(value=token):
+    assert parse("gamma") == 3
+"""
+
+        findings = check_test_parametrization_candidate(
+            tmp_path / "tests" / "test_parser.py", source
+        )
+
+        assert list(findings) == []
+
 
 class TestCheckRepeatedTestSetup:
     def test_ExactLeadingAssignments_ReportsEveryCase(self, tmp_path: Path) -> None:

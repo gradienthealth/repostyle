@@ -1110,6 +1110,23 @@ class _ModuleBindingCollector(ast.NodeVisitor):
             else:
                 self._record(alias.asname or alias.name)
 
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        """Records a pattern capture and visits its nested pattern."""
+        if node.name:
+            self._record(node.name)
+        self.generic_visit(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        """Records a starred pattern capture."""
+        if node.name:
+            self._record(node.name)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        """Records a mapping rest capture and visits nested patterns."""
+        if node.rest:
+            self._record(node.rest)
+        self.generic_visit(node)
+
 
 def _raw_imports(tree: ast.Module) -> set[str]:
     """Returns names introduced by direct module imports."""
