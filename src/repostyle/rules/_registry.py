@@ -155,10 +155,12 @@ from repostyle.rules.testing import (
     check_excessive_mocking,
     check_file_literal_restatement,
     check_no_mock_patch,
-    check_repeated_test_setup,
-    check_shared_test_helper,
     check_sleepy_test,
     check_test_naming,
+)
+from repostyle.rules.testing_reuse import (
+    check_repeated_test_setup,
+    check_shared_test_helper,
     check_test_parametrization_candidate,
 )
 from repostyle.rules.visibility import check_should_be_private
