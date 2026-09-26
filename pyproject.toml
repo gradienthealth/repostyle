@@ -64,3 +64,11 @@ quote-style = "double"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.repostyle]
+# The package keeps its rule catalog, themed implementations, and rule matrices
+# together so each rule has one discoverable owner. These ceilings fit those
+# cohesive registries; consuming repositories retain the smaller defaults.
+max-source-file-lines = 1700
+max-test-file-lines = 3000
+warnings-as-errors = true

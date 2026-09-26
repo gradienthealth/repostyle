@@ -232,6 +232,44 @@ class TestCheckTestParametrizationCandidate:
         ]
         assert all("matches 3 cases" in finding.message for finding in findings)
 
+    def test_DistinctNamedContractsWithMatchingBodies_ReportNothing(
+        self, tmp_path: Path
+    ) -> None:
+        source = """\
+def test_ConfiguredTicketPattern_AcceptsRepoShape():
+    assert parse("ticket") == 1
+
+def test_ConfiguredAllowedTags_AcceptsExtraTag():
+    assert parse("tag") == 2
+
+def test_EmptyConfiguredTags_NoViolation():
+    assert parse("empty") == 3
+"""
+
+        findings = check_test_parametrization_candidate(
+            tmp_path / "tests" / "test_parser.py", source
+        )
+
+        assert list(findings) == []
+
+    def test_MultilineStringVariation_ReportsNothing(self, tmp_path: Path) -> None:
+        source = """\
+def test_Parse_AcceptsAlpha():
+    assert parse("alpha\\nsource") == 1
+
+def test_Parse_AcceptsBeta():
+    assert parse("beta\\nsource") == 2
+
+def test_Parse_AcceptsGamma():
+    assert parse("gamma\\nsource") == 3
+"""
+
+        findings = check_test_parametrization_candidate(
+            tmp_path / "tests" / "test_parser.py", source
+        )
+
+        assert list(findings) == []
+
     @pytest.mark.parametrize(
         "source",
         [
@@ -526,6 +564,17 @@ class TestTestReuseIntegration:
         assert "error: RS064" in promoted_output.out
 
 
+def _fixture_source(parameter: str) -> str:
+    return (
+        "import pytest\n\n"
+        "@pytest.fixture\n"
+        f"def record({parameter}):\n"
+        f"    value = {parameter}.make()\n"
+        "    value.prepare()\n"
+        "    return value\n"
+    )
+
+
 def _helper_source(
     name: str,
     parameter: str = "value",
@@ -539,17 +588,6 @@ def _helper_source(
         f"    {local} = make({parameter})\n"
         f"    {local}.prepare()\n"
         f"    return {local}\n"
-    )
-
-
-def _fixture_source(parameter: str) -> str:
-    return (
-        "import pytest\n\n"
-        "@pytest.fixture\n"
-        f"def record({parameter}):\n"
-        f"    value = {parameter}.make()\n"
-        "    value.prepare()\n"
-        "    return value\n"
     )
 
 

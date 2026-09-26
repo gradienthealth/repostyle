@@ -1429,14 +1429,23 @@ def _comment_bullet_lists(
     for lineno, column, string in block:
         indent, text = _comment_body(string)
         is_bullet = _BULLET_PATTERN.match(text) is not None
-        if not is_bullet and open_item is not None and indent > list_indent:
+        if _is_bullet_continuation(
+            is_bullet=is_bullet,
+            open_item=open_item,
+            indent=indent,
+            list_indent=list_indent,
+        ):
+            assert open_item is not None
             open_item[2].append(text)
             continue
-        if open_item is not None:
-            marker_line, marker_col, parts = open_item
-            items.append(_BulletItem(marker_line, marker_col, " ".join(parts)))
-            open_item = None
-        if not is_bullet or (items and indent != list_indent):
+        _comment_finish_bullet_item(open_item, items)
+        open_item = None
+        if _comment_ends_bullet_list(
+            is_bullet=is_bullet,
+            items=items,
+            indent=indent,
+            list_indent=list_indent,
+        ):
             if items:
                 lists.append(items)
             items = []
@@ -1444,9 +1453,7 @@ def _comment_bullet_lists(
             if not items:
                 list_indent = indent
             open_item = (lineno, column + 1, [text])
-    if open_item is not None:
-        marker_line, marker_col, parts = open_item
-        items.append(_BulletItem(marker_line, marker_col, " ".join(parts)))
+    _comment_finish_bullet_item(open_item, items)
     if items:
         lists.append(items)
     return lists
@@ -1456,6 +1463,29 @@ def _comment_body(comment: str) -> tuple[int, str]:
     """Splits a comment into its post-hash indent width and stripped text."""
     body = comment.lstrip("#")
     return len(body) - len(body.lstrip()), body.strip()
+
+
+def _comment_ends_bullet_list(
+    *,
+    is_bullet: bool,
+    items: list[_BulletItem],
+    indent: int,
+    list_indent: int,
+) -> bool:
+    """Reports whether a comment line closes the current bullet list."""
+    return not is_bullet or bool(items and indent != list_indent)
+
+
+def _comment_finish_bullet_item(
+    open_item: tuple[int, int, list[str]] | None,
+    items: list[_BulletItem],
+) -> None:
+    """Appends an open comment bullet to its current list."""
+    if open_item is None:
+        return
+    marker_line, marker_col, parts = open_item
+    items.append(_BulletItem(marker_line, marker_col, " ".join(parts)))
+    return
 
 
 def _comment_lines(source: str) -> tuple[dict[int, _StandaloneComment], dict[int, str]]:
@@ -1996,6 +2026,17 @@ def _has_dataclass_decorator(node: ast.ClassDef) -> bool:
         if isinstance(target, ast.Attribute) and target.attr == "dataclass":
             return True
     return False
+
+
+def _is_bullet_continuation(
+    *,
+    is_bullet: bool,
+    open_item: tuple[int, int, list[str]] | None,
+    indent: int,
+    list_indent: int,
+) -> bool:
+    """Reports whether a comment line continues the open bullet item."""
+    return not is_bullet and open_item is not None and indent > list_indent
 
 
 def _leading_comment_line(

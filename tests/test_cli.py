@@ -183,7 +183,11 @@ class TestWarningsAsErrors:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         target = _write_promotion_project(
-            tmp_path, _IMPERATIVE_DOCSTRING, '["RS034"]', "[]", warnings_as_errors=True
+            tmp_path,
+            _IMPERATIVE_DOCSTRING,
+            '["RS034"]',
+            "[]",
+            should_treat_warnings_as_errors=True,
         )
         exit_code = main([str(target)])
         out = capsys.readouterr().out
@@ -427,7 +431,7 @@ class TestDefaultSeverity:
             _IMPERATIVE_DOCSTRING,
             '["RS034"]',
             "[]",
-            warnings_as_errors=True,
+            should_treat_warnings_as_errors=True,
         )
         exit_code = main(["--no-warnings-as-errors", str(target)])
         out = capsys.readouterr().out
@@ -475,9 +479,9 @@ def _write_promotion_project(
     select: str,
     error: str,
     *,
-    warnings_as_errors: bool = False,
+    should_treat_warnings_as_errors: bool = False,
 ) -> Path:
-    switch = f"warnings-as-errors = {str(warnings_as_errors).lower()}\n"
+    switch = f"warnings-as-errors = {str(should_treat_warnings_as_errors).lower()}\n"
     (tmp_path / "pyproject.toml").write_text(
         f"[tool.repostyle]\nselect = {select}\nerror = {error}\n{switch}",
         encoding="utf-8",
