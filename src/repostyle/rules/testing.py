@@ -1487,17 +1487,8 @@ def _setup_prefix(function: _ReuseFunction) -> tuple[tuple[object, ...], int | N
     prefix: list[object] = []
     first_call_assignment: int | None = None
     for statement in _without_docstring(function.node.body):
-        if isinstance(statement, ast.Assign):
-            if len(statement.targets) != 1 or not isinstance(
-                statement.targets[0], ast.Name
-            ):
-                break
-            value = statement.value
-        elif isinstance(statement, ast.AnnAssign):
-            if not isinstance(statement.target, ast.Name) or statement.value is None:
-                break
-            value = statement.value
-        else:
+        value = _simple_assignment_value(statement)
+        if value is None:
             break
         prefix.append(_node_key(statement, state))
         if first_call_assignment is None and any(
@@ -1505,6 +1496,20 @@ def _setup_prefix(function: _ReuseFunction) -> tuple[tuple[object, ...], int | N
         ):
             first_call_assignment = len(prefix)
     return tuple(prefix), first_call_assignment
+
+
+def _simple_assignment_value(statement: ast.stmt) -> ast.expr | None:
+    """Returns the value of a supported simple assignment."""
+    if isinstance(statement, ast.Assign):
+        if len(statement.targets) == 1 and isinstance(statement.targets[0], ast.Name):
+            return statement.value
+    elif (
+        isinstance(statement, ast.AnnAssign)
+        and isinstance(statement.target, ast.Name)
+        and statement.value is not None
+    ):
+        return statement.value
+    return None
 
 
 def _maximal_setup_groups(
