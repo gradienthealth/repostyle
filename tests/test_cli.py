@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+from repostyle import baseline
+from repostyle.baseline import Baseline
 from repostyle.cli import main
 
 _ACRONYM_SOURCE = "if True:\n    class FhirClient: ...\n"
@@ -402,6 +404,47 @@ class TestBaseline:
         assert captured.out.count("RS001") == 2
 
 
+class TestBaselineOptOut:
+    def test_WriteBaseline_RefusesAndWritesNothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _write_opted_out_project(tmp_path, "false")
+        exit_code = main(["--write-baseline", str(tmp_path)])
+        assert exit_code == 2
+        assert "baseline = false" in capsys.readouterr().err
+        assert not (tmp_path / ".repostyle-baseline.json").exists()
+
+    def test_UpdateBaseline_LeavesTheExistingFileUntouched(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _write_opted_out_project(tmp_path, "false")
+        stale = tmp_path / ".repostyle-baseline.json"
+        stale.write_text("{}\n", encoding="utf-8")
+        exit_code = main(["--update-baseline", str(tmp_path)])
+        assert exit_code == 2
+        assert stale.read_text(encoding="utf-8") == "{}\n"
+
+    def test_StaleBaselineFile_GrandfathersNothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_opted_out_project(tmp_path, "false")
+        baseline.save(
+            tmp_path / ".repostyle-baseline.json",
+            Baseline(rules=frozenset({"RS001"}), counts={"x.py": {"RS001": 2}}),
+        )
+        exit_code = main([str(target)])
+        assert exit_code == 1
+        assert capsys.readouterr().out.count("RS001") == 2
+
+    def test_BaselineTrue_IsRejectedAsInvalidConfig(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        target = _write_opted_out_project(tmp_path, "true")
+        exit_code = main([str(target)])
+        assert exit_code == 2
+        assert "invalid `baseline` value True" in capsys.readouterr().err
+
+
 class TestDefaultSeverity:
     def test_AdvisoryRuleWithNoConfig_PassesTheRun(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -462,6 +505,16 @@ class TestDiffDeprecation:
         target = _write_project(tmp_path, _ACRONYM_SOURCE, '["RS001"]')
         main([str(target)])
         assert "deprecated" not in capsys.readouterr().err
+
+
+def _write_opted_out_project(tmp_path: Path, setting: str) -> Path:
+    (tmp_path / "pyproject.toml").write_text(
+        f'[tool.repostyle]\nselect = ["RS001"]\nbaseline = {setting}\n',
+        encoding="utf-8",
+    )
+    target = tmp_path / "x.py"
+    target.write_text(_TWO_ACRONYM_CLASSES, encoding="utf-8")
+    return target
 
 
 def _write_project(tmp_path: Path, source: str, select: str) -> Path:

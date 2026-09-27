@@ -34,6 +34,18 @@ An update never raises the count for a known rule, but it can admit findings fro
 
 Set `baseline = "path/to/file.json"` to use another location.
 
+## Opt out of a baseline
+
+A repository that keeps zero findings can refuse a baseline outright:
+
+```toml
+[tool.repostyle]
+baseline = false
+warnings-as-errors = true
+```
+
+With `baseline = false`, runs ignore any `.repostyle-baseline.json` in the repository, and `--write-baseline` and `--update-baseline` exit with status 2 without writing. The baseline sync workflow skips the repository and closes its open refresh pull request, so findings from rules added in a new release fail the build instead of being grandfathered. Any value other than a nonempty path or `false` is a configuration error.
+
 ## Exclude generated and ignored paths
 
 ```toml

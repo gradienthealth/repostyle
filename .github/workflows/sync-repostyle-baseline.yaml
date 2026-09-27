@@ -10,6 +10,10 @@ name: sync repostyle baselines
 #
 # Runs after a repostyle release, when the rule set is what changed, and weekly
 # to bank the debt cleared in between.
+#
+# A consumer that sets `[tool.repostyle] baseline = false` keeps zero findings
+# and must never be grandfathered, so the sync skips it and closes any refresh
+# pull request still open against it.
 
 on:
   release:
@@ -63,15 +67,45 @@ jobs:
           repository: ${{ github.repository_owner }}/${{ matrix.repo }}
           token: ${{ steps.app-token.outputs.token }}
 
+      - name: Check for a baseline opt-out
+        id: opt-out
+        # The workflow reads the setting itself because the published repostyle
+        # this job runs may predate the CLI's own `baseline = false` refusal.
+        shell: python
+        run: |
+          import os
+          import tomllib
+          from pathlib import Path
+
+          pyproject = Path("pyproject.toml")
+          data = tomllib.loads(pyproject.read_text()) if pyproject.is_file() else {}
+          setting = data.get("tool", {}).get("repostyle", {}).get("baseline")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"skip={str(setting is False).lower()}\n")
+
+      - name: Close the refresh pull request of an opted-out repo
+        if: steps.opt-out.outputs.skip == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository_owner }}/${{ matrix.repo }}
+        run: |
+          for number in $(gh pr list --repo "$REPO" --head sync/repostyle-baseline --state open --json number --jq '.[].number'); do
+            gh pr close "$number" --repo "$REPO" --delete-branch \
+              --comment "Closed: this repo sets \`[tool.repostyle] baseline = false\`, so the baseline sync skips it."
+          done
+
       - uses: astral-sh/setup-uv@v5
+        if: steps.opt-out.outputs.skip != 'true'
 
       - name: Refresh the baseline
+        if: steps.opt-out.outputs.skip != 'true'
         # The latest published repostyle, matching what the consumer's own
         # hooks resolve, so the baseline records the rule set the repo is
         # actually held to.
         run: uvx repostyle --update-baseline --no-explain-hint .
 
       - name: Open a refresh pull request
+        if: steps.opt-out.outputs.skip != 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ steps.app-token.outputs.token }}
