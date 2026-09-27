@@ -80,15 +80,5 @@ jobs:
           commit-message: "chore: refresh the repostyle baseline"
           title: "chore(NO-ISSUE): refresh the repostyle baseline"
           body: |
-            Automated refresh of `.repostyle-baseline.json`, the record of the
-            findings this repo already had when it adopted each repostyle rule.
-
-            A lowered count is debt this repo cleared, banked so the finding
-            cannot come back. A new rule id is a rule repostyle gained since the
-            last refresh, whose existing findings are grandfathered rather than
-            failing your next build. A count is never raised for a rule the
-            baseline already knew, so nothing here grandfathers new code.
-
-            Merging keeps the gate where it is. Not merging leaves the older
-            baseline in force, which is stricter, not looser.
+            Refreshes `.repostyle-baseline.json` so fixed findings stay removed from the inherited backlog and findings from newly added repostyle rules do not fail the next build. The refresh never raises the allowance for a rule already recorded in the baseline, so it cannot grandfather new findings under an existing rule.
           delete-branch: true
