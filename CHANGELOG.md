@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.34.0...repostyle-v0.35.0) (2026-09-27)
+
+
+### Features
+
+* **NO-ISSUE:** skip the baseline sync for repos that opt out ([#173](https://github.com/gradienthealth/repostyle/issues/173)) ([2a1dafb](https://github.com/gradienthealth/repostyle/commit/2a1dafbf4d35542875219b8fa527cda9b116853e))
+
 ## [0.34.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.33.0...repostyle-v0.34.0) (2026-09-26)
 
 
