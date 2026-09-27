@@ -23,6 +23,7 @@ from repostyle.rules import (
     severity_of,
 )
 from repostyle.runner import (
+    baseline_opted_out,
     expand_paths,
     fix_path,
     lint_package,
@@ -37,10 +38,10 @@ def main(argv: list[str] | None = None) -> int:
     """Lints the given paths, or explains a rule, and returns the exit code.
 
     Dispatches to the `explain` subcommand when it leads the arguments;
-    otherwise lints. Linting returns 2 when a path does not exist or the rule
-    set cannot be resolved, 1 when an error-severity finding remains or a file
-    was fixed, and 0 otherwise. `explain` returns 2 for an unknown id and 0
-    otherwise.
+    otherwise lints. Linting returns 2 when a path does not exist, the rule set
+    cannot be resolved, or the repo refuses a baseline write; 1 when an
+    error-severity finding remains or a file was fixed; and 0 otherwise.
+    `explain` returns 2 for an unknown id and 0 otherwise.
     """
     args = sys.argv[1:] if argv is None else argv
     if args and args[0] == "explain":
@@ -88,6 +89,12 @@ _UNRESOLVED_BASE = (
     "repostyle: --diff cannot resolve {ref}; fetch the default branch "
     "(actions/checkout with fetch-depth: 0), name a ref with --diff-base, or "
     "drop --diff to lint whole files"
+)
+
+
+_OPTED_OUT = (
+    "repostyle: `[tool.repostyle] baseline = false` opts this repo out of a "
+    "baseline, so none was written; fix the findings instead"
 )
 
 
@@ -147,8 +154,12 @@ def _run_lint(argv: list[str]) -> int:
     scope = _resolve_scope(options)
     if scope is None:
         return 2
+    writing = options.write_baseline or options.update_baseline
+    if writing and baseline_opted_out(scope.roots):
+        print(_OPTED_OUT, file=sys.stderr)
+        return 2
     package = lint_package(scope.paths, scope.enabled, root_paths=scope.roots)
-    if options.write_baseline or options.update_baseline:
+    if writing:
         return _write_baseline(options, scope, package)
     reporting = _resolve_reporting(options, scope)
     if reporting is None:

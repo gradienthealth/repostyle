@@ -96,13 +96,30 @@ def resolve_rules_for_paths(paths: Iterable[Path]) -> _ResolvedRules:
 
     Loads the `[tool.repostyle]` table once and derives both the enabled set
     and the error-promotion set from it, so the config is read a single time.
+
+    Raises:
+        ValueError: When the table names an unknown rule id or sets `baseline`
+            to anything but a nonempty path string or `false`.
     """
     paths = list(paths)
     if not paths:
         return _ResolvedRules(set(ALL_RULE_IDS), set())
     pyproject = find_pyproject(paths[0])
     config = load_config(pyproject) if pyproject is not None else None
+    _check_baseline_setting(config)
     return _ResolvedRules(resolve_enabled_rules(config), resolve_promoted_rules(config))
+
+
+def baseline_opted_out(paths: Iterable[Path]) -> bool:
+    """Reports whether the repo holding `paths` sets `baseline = false`.
+
+    An opted-out repo keeps no baseline: every finding counts against it, and
+    writing or refreshing a baseline file is refused.
+    """
+    paths = list(paths)
+    if not paths:
+        return False
+    return _repostyle_table(find_pyproject(paths[0])).get("baseline") is False
 
 
 def resolve_baseline_path(paths: Iterable[Path]) -> Path | None:
@@ -113,6 +130,11 @@ def resolve_baseline_path(paths: Iterable[Path]) -> Path | None:
     one file. An unset key falls back to `DEFAULT_BASELINE_NAME` beside the
     `pyproject.toml`, which is only consulted when it exists, so a repo that
     has not adopted a baseline needs no config.
+
+    Returns:
+        The baseline file's path, or `None` when there is no `pyproject.toml`,
+        no configured or default file, or the repo sets `baseline = false`,
+        which opts out even when the default file exists.
     """
     paths = list(paths)
     if not paths:
@@ -121,6 +143,8 @@ def resolve_baseline_path(paths: Iterable[Path]) -> Path | None:
     if pyproject is None:
         return None
     configured = _repostyle_table(pyproject).get("baseline")
+    if configured is False:
+        return None
     if isinstance(configured, str) and configured:
         return pyproject.parent / configured
     default = pyproject.parent / DEFAULT_BASELINE_NAME
@@ -151,6 +175,27 @@ def load_config(pyproject: Path) -> dict | None:
     except (OSError, tomllib.TOMLDecodeError):
         return None
     return data.get("tool", {}).get("repostyle")
+
+
+def _check_baseline_setting(config: dict | None) -> None:
+    """Rejects a `baseline` value that is neither a path nor `false`.
+
+    `baseline = true` reads like an opt-in but names no file, so it is refused
+    rather than treated as unset.
+
+    Raises:
+        ValueError: When `baseline` is set to anything but a nonempty string or
+            `false`.
+    """
+    if not config or "baseline" not in config:
+        return
+    configured = config["baseline"]
+    if configured is False or (isinstance(configured, str) and configured):
+        return
+    raise ValueError(
+        f"invalid `baseline` value {configured!r}: set a path to the baseline "
+        "file, or `false` to opt out of a baseline"
+    )
 
 
 def resolve_enabled_rules(config: dict | None) -> set[str]:
