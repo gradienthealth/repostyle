@@ -6,7 +6,7 @@ import re
 from typing import NamedTuple
 
 from repostyle._shared import (
-    _BULLET_PATTERN,
+    _LIST_ITEM_PATTERN,
 )
 
 
@@ -72,8 +72,8 @@ def internal_hanging_indent(unit: list[InternalFillLine]) -> int:
     if unit[0].is_folded:
         return first_indent
     text = unit[0].text
-    if _BULLET_PATTERN.match(text):
-        return first_indent + 2
+    if match := _LIST_ITEM_PATTERN.match(text):
+        return first_indent + match.end()
     if InternalSECTION_ENTRY_PATTERN.match(text) or InternalLABEL_LINE_PATTERN.match(
         text
     ):

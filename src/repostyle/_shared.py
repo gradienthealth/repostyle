@@ -43,7 +43,7 @@ _SENTENCE_ABBREVIATIONS = frozenset(
     {"etc.", "vs.", "cf.", "al.", "Dr.", "Mr.", "Mrs.", "Ms.", "St.", "Inc.", "Ltd."}
 )
 
-_BULLET_PATTERN = re.compile(r"^[-*+] ")
+_LIST_ITEM_PATTERN = re.compile(r"^(?:[-*+]|\d+[.)]) ")
 
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
 

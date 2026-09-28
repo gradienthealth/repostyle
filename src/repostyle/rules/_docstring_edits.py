@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from repostyle._shared import (
-    _BULLET_PATTERN,
+    _LIST_ITEM_PATTERN,
     _join_source_lines,
     _parse_python,
     _terminal_punctuation_fault,
@@ -170,7 +170,7 @@ def internal_comment_bullet_lists(
     list_indent = -1
     for lineno, column, string in block:
         indent, text = _comment_body(string)
-        is_bullet = _BULLET_PATTERN.match(text) is not None
+        is_bullet = _LIST_ITEM_PATTERN.match(text) is not None
         if internal_is_bullet_continuation(
             is_bullet=is_bullet,
             open_item=open_item,

@@ -5,11 +5,13 @@ import pytest
 
 from repostyle.rules import (
     RS_BULLET_ITEM_CASING,
+    RS_INLINE_NUMBERED_LIST,
     RS_NONSTANDARD_DASH,
     RS_TERMINAL_PUNCTUATION,
     check_bullet_item_casing,
     check_bullet_item_casing_in_comments,
     check_comment_terminal_punctuation,
+    check_inline_numbered_list,
     check_nonstandard_dash_in_comments,
     check_nonstandard_dash_in_docstrings,
 )
@@ -247,6 +249,65 @@ class TestCheckBulletItemCasingInComments:
             "# - the other thing\nx = 1\n"
         )
         assert list(check_bullet_item_casing_in_comments(_DOC_PATH, source)) == []
+
+
+class TestCheckInlineNumberedList:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f():\n    """Runs the workflow: 1. Loads the file. 2. Validates it."""\n',
+            'def f():\n    """Runs the workflow: 1. Loads the file.\n'
+            '    2. Validates it.\n    """\n',
+            'def f():\n    """Runs the workflow: 3) Loads the file. 4) Validates it."""\n',
+        ],
+        ids=["one-line", "wrapped-source", "parenthesized-markers"],
+    )
+    def test_InlineSequence_FlagsViolation(self, source: str) -> None:
+        violations = list(check_inline_numbered_list(_DOC_PATH, source))
+        assert len(violations) == 1
+        assert violations[0].rule == RS_INLINE_NUMBERED_LIST
+        assert "own line" in violations[0].message
+
+    def test_InlineSequence_ReportsFirstMarker(self) -> None:
+        source = 'def f():\n    """Runs: 1. Loads. 2. Validates."""\n'
+        violations = list(check_inline_numbered_list(_DOC_PATH, source))
+        assert (violations[0].line, violations[0].col) == (2, 14)
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'def f():\n    """Runs the workflow.\n\n'
+            "    1. Loads the file and keeps enough text here to establish the\n"
+            "       aligned continuation.\n"
+            '    2. Validates it.\n    """\n',
+            'def f():\n    """Runs the workflow.\n\n'
+            "    1. Loads the file.\n"
+            "    2. Validates it:\n\n"
+            '       ```\n       validate input\n       ```\n    """\n',
+            'def f():\n    """Supports version 1. Version 3. remains readable."""\n',
+            'def f():\n    """Describes version 1. here.\n\n'
+            '    Describes version 2. there.\n    """\n',
+            'def f():\n    """Names `1. inline 2. markers` as sample text."""\n',
+            'def f():\n    """Shows a sample.\n\n'
+            "    Example:\n"
+            "        workflow: 1. load 2. validate\n"
+            '    """\n',
+        ],
+        ids=[
+            "newline-list-with-continuation",
+            "newline-list-with-fence",
+            "nonconsecutive-numbers",
+            "separate-paragraphs",
+            "code-span",
+            "example-section",
+        ],
+    )
+    def test_ConformingOrNonProseSequence_NoViolation(self, source: str) -> None:
+        assert list(check_inline_numbered_list(_DOC_PATH, source)) == []
+
+    def test_UnparseableSource_NoViolation(self) -> None:
+        source = 'def (:\n    """Steps: 1. Load. 2. Validate."""\n'
+        assert list(check_inline_numbered_list(_DOC_PATH, source)) == []
 
 
 class TestCheckNonstandardDashInDocstrings:

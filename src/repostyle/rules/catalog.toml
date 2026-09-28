@@ -527,3 +527,11 @@ rationale = "A large source module can hide several responsibilities behind one 
 examples = []
 signals = ["The module owns distinct concepts or workflows: split them along those responsibility boundaries.", "The module is one cohesive responsibility with substantial data or declarations: keep the structure readable and use a targeted waiver when a split would obscure ownership.", "The module must stay intact for a documented reason: place `# style: ignore-file[RS066]` near the top with a short rationale."]
 reference = []
+
+[RS067]
+name = "inline-numbered-list"
+summary = "A numbered sequence in docstring prose puts each item on its own line."
+rationale = "Inline ordered markers hide list structure from both the reader and Markdown. Put each item on its own line, align wrapped text beneath the item text, and indent nested blocks within the item."
+examples = [{ bad = "Steps: 1. Load the file. 2. Validate it.", good = "Steps:\n\n1. Load the file.\n2. Validate it.", note = "Use bullets instead when order does not matter." }]
+signals = []
+reference = []
