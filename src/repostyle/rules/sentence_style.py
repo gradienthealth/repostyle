@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import ast
+import re
 from collections.abc import Iterator
+from itertools import pairwise
 from pathlib import Path
 
 from repostyle._comments import COMMENT_SUFFIXES
 from repostyle._shared import (
+    _blank_prose_spans,
     _parse_python,
     _standalone_comment_blocks,
     _temporal_markers,
     _terminal_punctuation_fault,
 )
 from repostyle.rules._docstring_edits import (
+    internal_blank_outside_docstring,
     internal_comment_bullet_lists,
 )
 from repostyle.rules._docstring_source import (
@@ -33,13 +38,19 @@ from repostyle.rules._prose_sources import (
     internal_terminal_punctuation_message,
     internal_walk_docstring_owners,
 )
+from repostyle.rules._prose_units import InternalProseUnit
 from repostyle.rules._violation import (
+    RS_INLINE_NUMBERED_LIST,
     RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_TEMPORAL_MARKER,
     RS_TERMINAL_PUNCTUATION,
     RS_UNBACKTICKED_CODE_REFERENCE,
     Violation,
 )
+
+_ORDERED_MARKER_PATTERN = re.compile(r"(?<!\S)(\d+)[.)](?=\s)")
+
+_NumberedMarker = tuple[int, int, int, bool]
 
 
 def check_docstring_terminal_punctuation(
@@ -160,6 +171,86 @@ def check_bullet_item_casing_in_comments(
     for block in _standalone_comment_blocks(path, source):
         for items in internal_comment_bullet_lists(block):
             yield from internal_miscased_bullet_items(items)
+
+
+def check_inline_numbered_list(path: Path, source: str) -> Iterator[Violation]:
+    """A numbered sequence in docstring prose puts each item on its own line.
+
+    Two consecutive ordered markers in one prose unit express list structure,
+    so keeping either marker inline makes the sequence harder to scan and
+    prevents Markdown from rendering it as a list. A marker inside a code span,
+    fenced block, doctest, or `Example:` section is not prose and is ignored.
+    """
+    tree = _parse_python(path, source)
+    if tree is None:
+        return
+    source_lines = source.splitlines()
+    for node in internal_walk_docstring_owners(tree):
+        constant = internal_docstring_constant(node)
+        if constant is None:
+            continue
+        markers = list(_numbered_markers(constant, source_lines))
+        culprit = _first_inline_marker(markers, source_lines)
+        if culprit is not None:
+            yield Violation(
+                culprit[1],
+                culprit[2],
+                RS_INLINE_NUMBERED_LIST,
+                "numbered items run inline; put each item on its own line and align continuations beneath its text",
+            )
+
+
+def _first_inline_marker(
+    markers: list[_NumberedMarker], source_lines: list[str]
+) -> _NumberedMarker | None:
+    """Returns the first inline marker in a consecutive numbered pair."""
+    for first, second in pairwise(markers):
+        if (
+            second[0] == first[0] + 1
+            and (first[3] or second[3])
+            and not _has_blank_between(first, second, source_lines)
+        ):
+            return first if first[3] else second
+    return None
+
+
+def _has_blank_between(
+    first: _NumberedMarker,
+    second: _NumberedMarker,
+    source_lines: list[str],
+) -> bool:
+    """Reports whether a blank source line separates two markers."""
+    between = source_lines[first[1] : second[1] - 1]
+    return any(not line.strip() for line in between)
+
+
+def _numbered_markers(
+    constant: ast.Constant, source_lines: list[str]
+) -> Iterator[_NumberedMarker]:
+    """Yields each ordered marker and whether it sits inline."""
+    for unit in internal_docstring_prose_units(constant):
+        yield from _unit_numbered_markers(unit, constant, source_lines)
+
+
+def _unit_numbered_markers(
+    unit: InternalProseUnit, constant: ast.Constant, source_lines: list[str]
+) -> Iterator[_NumberedMarker]:
+    """Yields the ordered markers in one prose unit."""
+    for lineno in dict.fromkeys(unit.linenos):
+        line = internal_blank_outside_docstring(
+            source_lines[lineno - 1], lineno, constant
+        )
+        matches = _ORDERED_MARKER_PATTERN.finditer(_blank_prose_spans(line))
+        for index, match in enumerate(matches):
+            is_item_marker = (
+                unit.kind == "bullet" and lineno == unit.linenos[0] and index == 0
+            )
+            yield (
+                int(match.group(1)),
+                lineno,
+                match.start() + 1,
+                not is_item_marker,
+            )
 
 
 def check_docstring_temporal_markers(path: Path, source: str) -> Iterator[Violation]:

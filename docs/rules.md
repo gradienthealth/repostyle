@@ -1,6 +1,6 @@
 # Rule reference
 
-`repostyle` ships 66 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
+`repostyle` ships 67 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
 
 Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, and references. The check-function docstring under `src/repostyle/rules/` is the canonical implementation specification.
 
@@ -60,6 +60,7 @@ These rules inspect docstrings and comments. Comment checks also cover TOML, YAM
 | RS054 | warning | Use the spaced `--` sentence dash. |
 | RS055 | warning | Replace banner comments with structure. |
 | RS061 | warning | Use one space after sentence-ending punctuation. |
+| RS067 | error | Put each numbered list item on its own line. |
 
 ## Tests
 
@@ -116,11 +117,12 @@ RS017 stays inert until `[tool.repostyle.banned-imports]` defines a ban.
 
 ## Severity
 
-Under the defaults, 19 rules hard-fail and the other 47 report warnings. Those 19 are the mechanical rules:
+Under the defaults, 20 rules hard-fail and the other 47 report warnings. Those 20 are the mechanical rules:
 
 ```text
 RS001 RS002 RS003 RS004 RS005 RS006 RS007 RS008 RS009 RS010
 RS011 RS013 RS014 RS017 RS022 RS023 RS025 RS028 RS042
+RS067
 ```
 
 A warning does not fail a run unless the repository promotes it with `error` or `warnings-as-errors`. A tolerated run prints its warning count to stderr.

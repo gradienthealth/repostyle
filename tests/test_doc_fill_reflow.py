@@ -69,6 +69,18 @@ class TestReflowDocFill:
         assert body[3].startswith("  ")
         assert not body[3].startswith("   ")
 
+    @pytest.mark.parametrize(
+        ("marker", "continuation"),
+        [("1. ", "   "), ("10. ", "    ")],
+        ids=["single-digit", "double-digit"],
+    )
+    def test_NumberedItem_WrapsUnderText(self, marker: str, continuation: str) -> None:
+        source = f'"""Summary.\n\n{marker}' + "word " * 20 + 'end.\n"""\n'
+        body = fix_doc_fill(_PY, source).splitlines()
+        assert body[2].startswith(marker)
+        assert body[3].startswith(continuation)
+        assert not body[3].startswith(continuation + " ")
+
     def test_Comment_JoinsToLimit(self) -> None:
         source = "# aaa\n# bbb\nx = 1\n"
         assert fix_doc_fill(_PY, source) == "# aaa bbb\nx = 1\n"

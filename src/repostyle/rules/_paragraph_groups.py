@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from repostyle._shared import (
-    _BULLET_PATTERN,
+    _LIST_ITEM_PATTERN,
     _VERBATIM_LINE_PATTERN,
 )
 from repostyle.rules._display_width import (
@@ -66,7 +66,7 @@ class InternalParagraphGrouper:
             return True
         if (
             self._starts_entry(line)
-            or _BULLET_PATTERN.match(line.text)
+            or _LIST_ITEM_PATTERN.match(line.text)
             or InternalLABEL_LINE_PATTERN.match(line.text)
         ):
             self.close()

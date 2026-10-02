@@ -7,7 +7,7 @@ import re
 from typing import NamedTuple
 
 from repostyle._shared import (
-    _BULLET_PATTERN,
+    _LIST_ITEM_PATTERN,
     _VERBATIM_LINE_PATTERN,
 )
 from repostyle.rules._prose_sources import (
@@ -58,7 +58,7 @@ class InternalDocstringSegmenter:
             return
         if self._section == "code":
             return
-        if _BULLET_PATTERN.match(line.text):
+        if _LIST_ITEM_PATTERN.match(line.text):
             self.close()
             self._open = [line]
             self._open_kind = "bullet"

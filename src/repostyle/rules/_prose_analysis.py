@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from functools import lru_cache
 
 from repostyle._shared import (
-    _BULLET_PATTERN,
+    _LIST_ITEM_PATTERN,
     _blank_prose_spans,
     _comment_text,
     _has_sentence_boundary,
@@ -117,7 +117,7 @@ def internal_miscased_bullet_items(
     sentence; each item that then opens with a lowercase prose word draws one
     violation at its marker.
     """
-    texts = [_BULLET_PATTERN.sub("", item.text, count=1) for item in items]
+    texts = [_LIST_ITEM_PATTERN.sub("", item.text, count=1) for item in items]
     if not any(_has_sentence_boundary(_blank_prose_spans(text)) for text in texts):
         return
     for item, text in zip(items, texts, strict=True):

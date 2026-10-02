@@ -82,6 +82,9 @@ from repostyle.rules.sentence_style import (
     check_docstring_terminal_punctuation as check_docstring_terminal_punctuation,
 )
 from repostyle.rules.sentence_style import (
+    check_inline_numbered_list as check_inline_numbered_list,
+)
+from repostyle.rules.sentence_style import (
     check_lowercase_entry_description as check_lowercase_entry_description,
 )
 from repostyle.rules.sentence_style import (
