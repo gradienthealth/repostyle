@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.35.0...repostyle-v0.36.0) (2026-10-02)
+
+
+### Features
+
+* **NO-ISSUE:** reject inline numbered lists ([#175](https://github.com/gradienthealth/repostyle/issues/175)) ([4557bab](https://github.com/gradienthealth/repostyle/commit/4557bab82a9fa30a65a84f370fb73a6ab245fdca))
+
 ## [0.35.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.34.0...repostyle-v0.35.0) (2026-09-27)
 
 
