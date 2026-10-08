@@ -37,7 +37,7 @@ def internal_javadoc_comments(source: str) -> Iterator[InternalJavadoc]:
     source_lines = source.splitlines()
     for token in lex_java(source):
         if token.kind == "doc_comment":
-            yield _javadoc(token, source_lines)
+            yield internal_javadoc(token, source_lines)
 
 
 def internal_tag_caption_end(text: str) -> int:
@@ -53,7 +53,7 @@ def internal_tag_caption_end(text: str) -> int:
 _TAG_CAPTION_PATTERN = re.compile(r"@(?:param|throws|exception)\s+\S+|@\w+")
 
 
-def _javadoc(token: JavaToken, source_lines: list[str]) -> InternalJavadoc:
+def internal_javadoc(token: JavaToken, source_lines: list[str]) -> InternalJavadoc:
     """Builds the segmented record of one Javadoc `token`."""
     lines = _doc_lines(token, source_lines)
     segmenter = _JavadocSegmenter()

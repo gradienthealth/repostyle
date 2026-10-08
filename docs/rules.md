@@ -1,6 +1,6 @@
 # Rule reference
 
-`repostyle` ships 68 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
+`repostyle` ships 69 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
 
 Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, and references. The check-function docstring under `src/repostyle/rules/` is the canonical implementation specification.
 
@@ -38,6 +38,7 @@ Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, a
 | RS058 | warning | Use canonical section names such as `Args:` and `Returns:`. |
 | RS059 | warning | Use at most one section from each section family. |
 | RS068 | warning | Document a record field beside the field, not in the class docstring. |
+| RS069 | warning | Give each Java record component an `@param` tag in the record's Javadoc. |
 
 ## Prose and comments
 
@@ -124,12 +125,14 @@ A repository that lists `java` under `languages` gets these rules on its Java so
 - **RS023, RS030, RS034, RS045, RS049, RS050, and RS061** read Javadoc the way they read a docstring. A `{@code}` or `{@link}` tag counts as a code span, a `<pre>` block holds no prose, and RS030 leaves block tags such as `@param` alone.
 - **RS054** reads `//` comments but not Javadoc, which renders `--` as two literal hyphens.
 - **RS033** exempts a Java file, whose name is its class.
+- **RS001, RS007, RS010, RS011, RS027, and RS031** have Java implementations that follow Java's conventions. RS001 writes an acronym as a word (`DicomScp`, not `DICOMScp`), as Google Java style does, rather than in capitals. RS007 asks for a `java.time.Duration` constant. RS027 counts every parameter, since Java has no keyword parameters. RS031 moves a parameter described in Javadoc prose into its `@param` tag.
+- **RS069** applies to Java alone: a documented record tags each component with `@param`.
 
-Rules that read Python syntax, such as naming, signature, and test rules, do not read Java.
+The other rules read Python syntax and do not read Java.
 
 ## Severity
 
-Under the defaults, 20 rules hard-fail and the other 48 report warnings. Those 20 are the mechanical rules:
+Under the defaults, 20 rules hard-fail and the other 49 report warnings. Those 20 are the mechanical rules:
 
 ```text
 RS001 RS002 RS003 RS004 RS005 RS006 RS007 RS008 RS009 RS010
