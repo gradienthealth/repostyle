@@ -9,8 +9,10 @@ from repostyle.rules import (
     RS_BANNED_ABBREVIATION,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DURATION_AS_TIMEDELTA,
+    RS_EMPTY_CATCH_REASON,
     RS_RECORD_COMPONENT_UNDOCUMENTED,
     RS_TOO_MANY_POSITIONAL_ARGS,
+    check_empty_catch_reason,
     check_java_acronym_as_word,
     check_java_banned_abbreviation,
     check_java_discouraged_class_suffix,
@@ -275,5 +277,40 @@ class TestJavaRuleDispatch:
         assert list(run_rule(RS_ACRONYM_CASING, Path("scp.py"), source)) == []
 
 
+class TestEmptyCatchReason:
+    @pytest.mark.parametrize(
+        "comment",
+        ["", "// See method javadoc.", "// ignored", "/* nothing */"],
+        ids=["no_comment", "pointer", "label", "block_label"],
+    )
+    def test_UnexplainedEmptyCatch_IsFlagged(self, comment: str) -> None:
+        source = _try_catch("Exception ignored", comment)
+        assert _rules(check_empty_catch_reason(_PATH, source)) == [
+            RS_EMPTY_CATCH_REASON
+        ]
+
+    def test_ReasonInTheBlock_IsAccepted(self) -> None:
+        source = _try_catch(
+            "IOException ignored", "// Already closed, so there is nothing to release."
+        )
+        assert list(check_empty_catch_reason(_PATH, source)) == []
+
+    def test_HandledException_IsAccepted(self) -> None:
+        source = "class W { void f() { try { g(); } catch (E e) { log(e); } } }"
+        assert list(check_empty_catch_reason(_PATH, source)) == []
+
+    def test_ExpectedInATest_IsAccepted(self) -> None:
+        source = _try_catch("NoSuchElementException expected", "")
+        test_path = Path("src/test/java/io/example/WidgetTest.java")
+        assert list(check_empty_catch_reason(test_path, source)) == []
+
+
 def _rules(violations: object) -> list[str]:
     return [violation.rule for violation in violations]
+
+
+def _try_catch(parameter: str, comment: str) -> str:
+    return (
+        "class W {\n  void f() {\n    try {\n      g();\n"
+        f"    }} catch ({parameter}) {{\n      {comment}\n    }}\n  }}\n}}\n"
+    )

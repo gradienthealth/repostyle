@@ -551,3 +551,11 @@ rationale = "A record component has no declaration of its own to carry a Javadoc
 examples = [{ bad = "/** Bounds on an association's quiet phases. */\nrecord AssociationTimeouts(int requestMillis, int idleMillis) {}", good = "/**\n * Bounds on an association's quiet phases.\n *\n * @param requestMillis how long an accepted socket has to send its A-ASSOCIATE-RQ\n * @param idleMillis how long a negotiated association may stay quiet\n */\nrecord AssociationTimeouts(int requestMillis, int idleMillis) {}", note = "Only a record that already has Javadoc is checked; whether it needs Javadoc at all is a separate question." }]
 signals = []
 reference = []
+
+[RS070]
+name = "empty-catch-reason"
+summary = "An empty Java `catch` block says in a comment why ignoring the exception is safe."
+rationale = "Google Java style allows a `catch` block to take no action only when a comment explains why that is justified. A block with no comment, or with only a pointer to an explanation elsewhere or a bare label like `// ignored`, leaves each reader to rediscover the reason, and the reason drifts out of date wherever the pointer leads. In a test, an exception variable named `expected` documents itself, as Google Java style allows."
+examples = [{ bad = "} catch (Exception ignored) {\n  // See method javadoc.\n}", good = "} catch (Exception ignored) {\n  // The abort only cleans up after a failure already being reported; a second\n  // failure here would mask the first.\n}", note = "A broad `catch (Exception e)` is a separate question, which Checkstyle's `IllegalCatch` answers." }]
+signals = []
+reference = []
