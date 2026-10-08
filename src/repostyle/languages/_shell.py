@@ -6,7 +6,7 @@ import re
 from collections.abc import Iterator
 from typing import NamedTuple
 
-from repostyle._comment_types import _CommentToken
+from repostyle.languages._model import CommentToken, comment_at
 
 # A bare heredoc delimiter word, optionally backslash-quoted (`<<\EOF`). A
 # leading letter or underscore keeps a `<< 2` arithmetic shift from reading as
@@ -23,7 +23,7 @@ _SUBSTITUTION = "("
 _BACKTICK = "`"
 
 
-def shell_comments(source: str) -> Iterator[_CommentToken]:
+def shell_comments(source: str) -> Iterator[CommentToken]:
     """Yields each `#` comment in shell `source`, line by line.
 
     A `#` opens a comment only at the line start or after whitespace, so a
@@ -37,7 +37,7 @@ def shell_comments(source: str) -> Iterator[_CommentToken]:
     for lineno, line in enumerate(source.splitlines(), start=1):
         column, state = _shell_scan_line(line, state)
         if column is not None:
-            yield _token(lineno, line, column)
+            yield comment_at(lineno, line, column)
 
 
 def _shell_scan_line(line: str, state: _ShellState) -> tuple[int | None, _ShellState]:
@@ -281,11 +281,6 @@ def _shell_arithmetic_end(line: str, index: int) -> int:
                 return index + 1
         index += 1
     return len(line)
-
-
-def _token(lineno: int, line: str, column: int) -> _CommentToken:
-    """Builds a comment token for the `#` at `column` on `line`."""
-    return _CommentToken(lineno, column, line[column:], bool(line[:column].strip()))
 
 
 class _Heredoc(NamedTuple):

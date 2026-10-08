@@ -8,7 +8,6 @@ from collections.abc import Iterator
 from itertools import pairwise
 from pathlib import Path
 
-from repostyle._comments import COMMENT_SUFFIXES
 from repostyle._shared import (
     _blank_prose_spans,
     _parse_python,
@@ -16,6 +15,7 @@ from repostyle._shared import (
     _temporal_markers,
     _terminal_punctuation_fault,
 )
+from repostyle.languages import COMMENT_SUFFIXES
 from repostyle.rules._docstring_edits import (
     internal_blank_outside_docstring,
     internal_comment_bullet_lists,

@@ -6,7 +6,6 @@ import os
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-from repostyle._comments import COMMENT_SUFFIXES
 from repostyle._shared import (
     _bool_config,
     _dir_matches_config_glob,
@@ -17,6 +16,7 @@ from repostyle._shared import (
     _repostyle_table,
     find_pyproject,
 )
+from repostyle.languages import LINTABLE_SUFFIXES
 
 # Directories never holding first-party source, pruned during traversal when
 # building the whole-package index a package rule scans and when expanding a
@@ -57,13 +57,6 @@ _SKIPPED_DIRS = frozenset(
         ".vscode",
     }
 )
-
-# The suffixes a rule ever inspects: every `COMMENT_SUFFIXES` language plus
-# markdown, which RS005 covers but the comment rules do not. A directory
-# argument is expanded to files matching this set; an explicit file argument is
-# linted regardless of suffix, since every rule already no-ops on a suffix it
-# does not claim.
-LINTABLE_SUFFIXES = COMMENT_SUFFIXES | {".md"}
 
 
 def expand_paths(paths: Iterable[Path]) -> list[Path]:

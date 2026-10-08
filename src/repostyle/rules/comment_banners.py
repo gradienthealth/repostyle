@@ -6,7 +6,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._comments import COMMENT_SUFFIXES, extract_comments
+from repostyle.languages import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._violation import (
     RS_BANNER_COMMENT,
     Violation,

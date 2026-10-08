@@ -8,12 +8,12 @@ from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
-from repostyle._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle._shared import (
     _comment_text,
     _standalone_comment_blocks,
     find_pyproject,
 )
+from repostyle.languages import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._violation import (
     RS_COMMENT_TAG_FORMAT,
     RS_TAG_COMMENT_CONTINUATION_INDENT,

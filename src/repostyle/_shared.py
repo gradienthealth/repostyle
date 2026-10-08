@@ -17,16 +17,19 @@ from pathlib import Path
 from typing import NamedTuple
 
 from repostyle import _ast_helpers, _punctuation
-from repostyle._comments import extract_comments
 from repostyle._config_values import string_list as _string_list
+from repostyle.languages import (
+    PYTHON,
+    comment_text,
+    extract_comments,
+    parse_python,
+)
 
 _strip_trailing_closers = _punctuation.strip_trailing_closers
 _terminal_punctuation_fault = _punctuation.terminal_punctuation_fault
 _has_decorator = _ast_helpers.has_decorator
 
 TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
-
-TEST_FILE_PATTERN = re.compile(r"(^|/)(test_[^/]*|[^/]*_test)\.py$")
 
 _DIRECTIVE_COMMENT_PATTERN = re.compile(
     r"^[ \t]*(!|type:|style:|noqa|nosec|pragma|pylint:|mypy:|ruff:|isort:|fmt:"
@@ -95,8 +98,8 @@ def _standalone_comment_blocks(
 
 
 def _comment_text(comment: str) -> str:
-    """Returns a comment's prose, stripped of its leading hashes and space."""
-    return comment.lstrip("#").strip()
+    """Returns a comment's prose, stripped of its leading marker and space."""
+    return comment_text(comment)
 
 
 def _dir_matches_config_glob(
@@ -310,9 +313,8 @@ def _is_directive_comment(text: str) -> bool:
 
 
 def _is_test_file(path: Path) -> bool:
-    """Reports whether a path is a test module by location or filename."""
-    posix = _posix(path)
-    return "tests/" in posix or TEST_FILE_PATTERN.search(posix) is not None
+    """Reports whether a path is a Python test module."""
+    return PYTHON.is_test_file(path)
 
 
 def _join_source_lines(source: str, lines: list[str]) -> str:
@@ -343,14 +345,11 @@ def _matches_config_glob(
     return any(fnmatch(relative, glob) for glob in globs)
 
 
-@lru_cache(maxsize=128)
 def _parse_python(path: Path, source: str) -> ast.AST | None:
+    """Returns the parsed module of a Python `source`, `None` otherwise."""
     if path.suffix != ".py":
         return None
-    try:
-        return ast.parse(source)
-    except SyntaxError:
-        return None
+    return parse_python(source)
 
 
 def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:

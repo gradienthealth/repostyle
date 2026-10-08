@@ -6,12 +6,12 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._comments import COMMENT_SUFFIXES, extract_comments, extract_folded_runs
 from repostyle._shared import (
     _join_source_lines,
     _parse_python,
     _walk_tree,
 )
+from repostyle.languages import COMMENT_SUFFIXES, extract_comments, extract_folded_runs
 from repostyle.rules._display_width import (
     InternalFillLine,
 )

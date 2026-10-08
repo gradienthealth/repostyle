@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._comments import COMMENT_SUFFIXES
 from repostyle._shared import (
     _parse_python,
     _walk_tree,
 )
+from repostyle.languages import COMMENT_SUFFIXES
 from repostyle.rules._comment_paragraphs import (
     internal_fillable_units,
 )

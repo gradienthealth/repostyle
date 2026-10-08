@@ -33,7 +33,7 @@ A rule's check-function docstring under `src/repostyle/rules/` defines its contr
 | Suppressions | `suppressions.py` |
 | Changed-line compatibility | `changed_lines.py` |
 
-Shared comment extraction lives in `_comments.py`; shared configuration, parsing, and path logic lives in `_shared.py`.
+`languages/` owns what repostyle knows about each language's syntax: how its comments are written, which spans a block directive covers, and where its tests live. Shared configuration and path logic lives in `_shared.py`.
 
 ## Add or change a rule
 
