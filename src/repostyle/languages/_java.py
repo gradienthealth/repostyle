@@ -111,6 +111,44 @@ _TEST_NAME_PATTERN = re.compile(r"(Test|Tests|IT)\.java$")
 _PLAIN_COMMENT_KINDS = frozenset({"line_comment", "block_comment"})
 
 
+class JavaImport(NamedTuple):
+    name: str
+    """The imported dotted name, `.*` included for an on-demand import."""
+    line: int
+    """1-based line of the `import` keyword."""
+    column: int
+    """0-based column of the `import` keyword."""
+    is_static: bool
+    """Whether the import is `import static`."""
+
+
+def java_imports(source: str) -> Iterator[JavaImport]:
+    """Yields each `import` declaration in Java `source`, in order.
+
+    An import is recognized only at the top level, where a brace has not yet
+    opened, so an identifier named `import` cannot occur and a type body is
+    never read.
+    """
+    tokens = [t for t in lex_java(source) if t.kind not in _COMMENT_KINDS]
+    index = 0
+    while index < len(tokens) and tokens[index].text != "{":
+        token = tokens[index]
+        if token.text != "import":
+            index += 1
+            continue
+        index += 1
+        is_static = index < len(tokens) and tokens[index].text == "static"
+        index += int(is_static)
+        name = ""
+        while index < len(tokens) and tokens[index].text != ";":
+            name += tokens[index].text
+            index += 1
+        yield JavaImport(name, token.line, token.column, is_static)
+
+
+_COMMENT_KINDS = frozenset({"line_comment", "block_comment", "doc_comment"})
+
+
 @lru_cache(maxsize=128)
 def lex_java(source: str) -> tuple[JavaToken, ...]:
     """Splits Java `source` into comment, literal, and code tokens.
@@ -139,6 +177,8 @@ def lex_java(source: str) -> tuple[JavaToken, ...]:
 
 # Order matters: Javadoc before a block comment, a text block before a string,
 # and every literal before the catch-all `op`.
+
+
 _KINDS = (
     ("space", r"\s+"),
     ("doc_comment", r"/\*\*(?!/)(?:.*?\*/|.*)"),
@@ -151,6 +191,7 @@ _KINDS = (
     ("ident", r"non-sealed\b|[^\W\d]\w*|\$[\w$]*"),
     ("op", r"."),
 )
+
 
 _TOKEN_PATTERN = re.compile(
     "|".join(f"(?P<{name}>{pattern})" for name, pattern in _KINDS), re.DOTALL

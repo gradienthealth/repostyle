@@ -95,7 +95,7 @@ class TestJavaDeclarations:
             ("Class<T>", "type"),
         ]
         assert find.doc is not None
-        assert find.has_body
+        assert find.body is not None
 
     def test_AnnotatedFinalParameter_KeepsTypeAndName(self) -> None:
         constructor = next(
