@@ -16,10 +16,10 @@ from repostyle._shared import (
     _string_list,
     find_pyproject,
 )
+from repostyle.rules._doc_blocks import internal_doc_blocks
 from repostyle.rules._docstring_edits import (
     internal_comment_lines,
 )
-from repostyle.rules._docstring_source import internal_docstring_summary_line
 from repostyle.rules._prose_analysis import (
     internal_dataclass_classes,
 )
@@ -27,7 +27,6 @@ from repostyle.rules._prose_sources import (
     internal_leading_comment_line,
     internal_module_summary_comment,
     internal_summary_comment_owners,
-    internal_walk_docstring_owners,
 )
 from repostyle.rules._prose_units import (
     internal_field_has_docstring,
@@ -106,24 +105,17 @@ def check_field_comment_as_docstring(path: Path, source: str) -> Iterator[Violat
 
 
 def check_filler_docstring_opening(path: Path, source: str) -> Iterator[Violation]:
-    """A docstring may not open with a filler phrase.
+    """A docstring or Javadoc summary may not open with a filler phrase.
 
-    An opening like `This function`, `Helper to`, `Used to`, `Simply`, or
-    `Just` restates the identifier or hedges rather than stating the contract;
-    the summary's first words should name what the unit does.
+    A summary's first words name what the unit does. An opening like `This
+    function`, `Helper to`, `Used to`, `Simply`, or `Just` restates the
+    identifier or hedges instead.
     """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
-    for node in internal_walk_docstring_owners(tree):
-        docstring = ast.get_docstring(node, clean=True)
-        if docstring is None:
-            continue
-        summary = internal_docstring_summary_line(docstring)
-        if _FILLER_OPENING_PATTERN.match(summary):
+    for block in internal_doc_blocks(path, source):
+        if _FILLER_OPENING_PATTERN.match(block.summary):
             yield Violation(
-                getattr(node, "lineno", 1),
-                getattr(node, "col_offset", 0) + 1,
+                block.lineno,
+                block.col,
                 RS_FILLER_DOCSTRING_OPENING,
                 "docstring opening restates the identifier; state the contract instead",
             )
@@ -136,34 +128,27 @@ _FILLER_OPENING_PATTERN = re.compile(
 
 
 def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Violation]:
-    """A docstring summary must open in descriptive, not imperative, mood.
+    """A docstring or Javadoc summary opens descriptively, not imperatively.
 
-    The house convention states a unit's own contract descriptively, in the
-    third person (`Returns the lease.`), not as a command (`Return the
-    lease.`), matching Google's own style guide rather than PEP 257's
+    The house states a unit's own contract in the third person
+    (`Returns the lease.`), not as a command (`Return the lease.`), as Google's
+    Python and Java style guides both write it, rather than following PEP 257's
     imperative recommendation. A summary whose first word is a known
     bare-infinitive verb should conjugate it to third-person singular. A repo
     tunes the verb set for its own domain via `imperative-verbs-extra` and
     `imperative-verbs-exclude` in `[tool.repostyle]`.
     """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
     pyproject = find_pyproject(path)
     conjugations = _effective_conjugations(pyproject)
     pattern = _effective_pattern(pyproject)
-    for node in internal_walk_docstring_owners(tree):
-        docstring = ast.get_docstring(node, clean=True)
-        if docstring is None:
-            continue
-        summary = internal_docstring_summary_line(docstring)
-        match = pattern.match(summary)
+    for block in internal_doc_blocks(path, source):
+        match = pattern.match(block.summary)
         if match is None:
             continue
         verb = match.group(1)
         yield Violation(
-            getattr(node, "lineno", 1),
-            getattr(node, "col_offset", 0) + 1,
+            block.lineno,
+            block.col,
             RS_IMPERATIVE_DOCSTRING_OPENING,
             f"docstring opens in imperative mood; use '{conjugations[verb]}', not '{verb}'",
         )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -12,9 +11,9 @@ from repostyle._shared import (
     _standalone_comment_blocks,
     find_pyproject,
 )
+from repostyle.rules._doc_blocks import internal_doc_blocks
 from repostyle.rules._docstring_edits import (
     internal_backticks_a_code_symbol,
-    internal_blank_outside_docstring,
 )
 from repostyle.rules._docstring_source import (
     internal_docstring_constant,
@@ -38,9 +37,6 @@ from repostyle.rules._violation import (
 from repostyle.rules.naming import (
     effective_prose_acronyms,
     miscased_acronyms_in_prose,
-)
-from repostyle.rules.prose_typography import (
-    internal_blank_entry_caption,
 )
 
 
@@ -126,39 +122,26 @@ def check_unbackticked_sibling_symbol_in_comments(
 
 
 def check_acronym_casing_in_docstrings(path: Path, source: str) -> Iterator[Violation]:
-    """Flags a known acronym miscased in docstring prose.
+    """Flags a known acronym miscased in docstring or Javadoc prose.
 
-    A whole word in docstring prose that case-insensitively matches a known
-    acronym but is not in the acronym's canonical casing is flagged and, under
-    `--fix`, rewritten to it (`ipv6` and `IPV6` to `IPv6`, `Nat` to `NAT`). The
-    resolved set is the shipped acronyms plus `acronyms-extra` minus
-    `acronyms-exclude`, sharing RS001's config keys, less a small set whose
-    lowercased form is a common English word (`SMART`). A match is whole-word
-    only, so a substring (`ID` in `identify`, `NAT` in `nation`) is left alone,
-    as is a hyphenated compound (`fhir-ingestor`), a correctly-cased
-    occurrence, a token inside a backtick span or a URL, and an `Args:` entry's
-    leading parameter caption, whose name is code the author spells.
+    A whole word that case-insensitively matches a known acronym but is not in
+    its canonical casing is flagged and, under `--fix`, rewritten to it (`ipv6`
+    and `IPV6` to `IPv6`, `Nat` to `NAT`). The resolved set is the shipped
+    acronyms plus `acronyms-extra` minus `acronyms-exclude`, sharing RS001's
+    config keys, less a small set whose lowercased form is a common English
+    word (`SMART`). A match is whole-word only, so a substring (`ID` in
+    `identify`, `NAT` in `nation`), a hyphenated compound (`fhir-ingestor`),
+    and a correctly-cased occurrence are left alone. So is code: a backtick
+    span, a Javadoc inline tag, a URL, and the parameter caption leading an
+    `Args:` entry or a block tag, whose name the author spells.
     """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
-    canonical_casing = effective_prose_acronyms(find_pyproject(path))
-    if not canonical_casing:
-        return
-    source_lines = source.splitlines()
-    for node in internal_walk_docstring_owners(tree):
-        constant = internal_docstring_constant(node)
-        if constant is None:
-            continue
-        for lineno, offset, found, canonical in _docstring_acronym_faults(
-            constant, source_lines, canonical_casing
-        ):
-            yield Violation(
-                lineno,
-                offset + 1,
-                RS_ACRONYM_CASING_IN_PROSE,
-                f"docstring miscases the acronym '{canonical}' as '{found}'; write '{canonical}'",
-            )
+    for lineno, offset, found, canonical in _doc_acronym_faults(path, source):
+        yield Violation(
+            lineno,
+            offset + 1,
+            RS_ACRONYM_CASING_IN_PROSE,
+            f"docstring miscases the acronym '{canonical}' as '{found}'; write '{canonical}'",
+        )
 
 
 def fix_acronym_casing_in_docstrings(
@@ -175,55 +158,34 @@ def fix_acronym_casing_in_docstrings(
         The source with each flagged acronym recased, unchanged when nothing
         recases.
     """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return source
-    canonical_casing = effective_prose_acronyms(find_pyproject(path))
-    if not canonical_casing:
-        return source
     source_lines = source.splitlines()
     changed = False
-    for node in internal_walk_docstring_owners(tree):
-        constant = internal_docstring_constant(node)
-        if constant is None:
+    for lineno, offset, found, canonical in _doc_acronym_faults(path, source):
+        if lineno in skip_lines:
             continue
-        for lineno, offset, found, canonical in _docstring_acronym_faults(
-            constant, source_lines, canonical_casing
-        ):
-            if lineno in skip_lines:
-                continue
-            line = source_lines[lineno - 1]
-            if line[offset : offset + len(found)] == found:
-                source_lines[lineno - 1] = (
-                    line[:offset] + canonical + line[offset + len(found) :]
-                )
-                changed = True
+        line = source_lines[lineno - 1]
+        if line[offset : offset + len(found)] == found:
+            source_lines[lineno - 1] = (
+                line[:offset] + canonical + line[offset + len(found) :]
+            )
+            changed = True
     return _join_source_lines(source, source_lines) if changed else source
 
 
-def _docstring_acronym_faults(
-    constant: ast.Constant, source_lines: list[str], canonical_casing: dict[str, str]
-) -> Iterator[tuple[int, int, str, str]]:
+def _doc_acronym_faults(path: Path, source: str) -> Iterator[tuple[int, int, str, str]]:
     """Yields `(lineno, offset, found, canonical)` for each miscased acronym.
 
-    Scans each source line the docstring's prose units occupy -- the segmenter
-    already drops fences, doctests, and `Example:` sections -- confined to the
-    docstring literal's own columns, so a one-line `def`/`class` signature or a
-    trailing comment sharing the line is excluded, and with an entry unit's
-    leading `name:` caption blanked, so a parameter named for a lowercased
-    acronym (`url:`) is not mistaken for prose to correct.
+    Scans each prose line of each doc block, confined to the block's own
+    columns with code spans and captions blanked, so a one-line signature, a
+    trailing comment, and a parameter named for a lowercased acronym (`url:`)
+    are not mistaken for prose to correct.
     """
-    units = internal_docstring_prose_units(constant)
-    prose_lines = frozenset(lineno for unit in units for lineno in unit.linenos)
-    caption_lines = {unit.linenos[0] for unit in units if unit.kind == "entry"}
-    for lineno in sorted(prose_lines):
-        line = internal_blank_outside_docstring(
-            source_lines[lineno - 1], lineno, constant
-        )
-        scanned = (
-            internal_blank_entry_caption(line) if lineno in caption_lines else line
-        )
-        for offset, found, canonical in miscased_acronyms_in_prose(
-            scanned, canonical_casing
-        ):
-            yield (lineno, offset, found, canonical)
+    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    if not canonical_casing:
+        return
+    for block in internal_doc_blocks(path, source):
+        for lineno, line in block.scan_lines:
+            for offset, found, canonical in miscased_acronyms_in_prose(
+                line, canonical_casing
+            ):
+                yield (lineno, offset, found, canonical)

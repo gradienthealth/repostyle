@@ -91,10 +91,10 @@ class TestJavaComments:
 
 
 class TestJavaBlockSpans:
-    def test_Declarations_SpanFromFirstTokenToClosingBrace(self) -> None:
+    def test_Declarations_SpanFromJavadocOrFirstTokenToClosingBrace(self) -> None:
         assert block_spans(_PATH, _CLASS_WITH_METHODS) == (
             (1, 1),
-            (4, 16),
+            (3, 16),
             (5, 5),
             (8, 11),
             (10, 10),

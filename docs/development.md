@@ -35,6 +35,25 @@ A rule's check-function docstring under `src/repostyle/rules/` defines its contr
 
 `languages/` owns what repostyle knows about each language's syntax: how its comments are written, which spans a block directive covers, and where its tests live. Shared configuration and path logic lives in `_shared.py`.
 
+## Support another language
+
+A language reaches the rules through three layers, each owning one question:
+
+| Layer | Owns | Example |
+| -- | -- | -- |
+| `languages/` | What the syntax is: comments, block spans, test layout, fill column | `_java.py` lexes Java and yields `//` comments |
+| `rules/_doc_blocks.py` | How a doc comment divides into prose units | `_javadoc.py` segments Javadoc into summary, body, and tag units |
+| A rule module | Whether the prose or code is good | RS034 grades every block's summary |
+
+To add a language:
+
+1. Register a `Language` record in `languages/_registry.py` with `is_default=False`, so only a repository that lists it under `languages` reads it.
+1. Supply the hooks it has. A `comments` scanner reaches every comment rule at once.
+1. If it has doc comments, segment them into `InternalProseUnit` records and add a branch to `internal_doc_blocks`, which reaches every prose rule that reads doc blocks.
+1. Dogfood it against a real repository, then list the rules it reaches in a coverage section of `docs/rules.md`, as Java's section does.
+
+A rule that inspects code rather than prose reads one language's syntax and states which language in its docstring.
+
 ## Add or change a rule
 
 Read the existing check's docstring before changing behavior. A new rule needs each of these pieces:
