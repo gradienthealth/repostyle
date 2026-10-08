@@ -1,6 +1,6 @@
 # Rule reference
 
-`repostyle` ships 67 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
+`repostyle` ships 68 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
 
 Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, and references. The check-function docstring under `src/repostyle/rules/` is the canonical implementation specification.
 
@@ -37,6 +37,7 @@ Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, a
 | RS057 | warning | Keep docstring sections in canonical order. |
 | RS058 | warning | Use canonical section names such as `Args:` and `Returns:`. |
 | RS059 | warning | Use at most one section from each section family. |
+| RS068 | warning | Document a record field beside the field, not in the class docstring. |
 
 ## Prose and comments
 
@@ -117,7 +118,7 @@ RS017 stays inert until `[tool.repostyle.banned-imports]` defines a ban.
 
 ## Severity
 
-Under the defaults, 20 rules hard-fail and the other 47 report warnings. Those 20 are the mechanical rules:
+Under the defaults, 20 rules hard-fail and the other 48 report warnings. Those 20 are the mechanical rules:
 
 ```text
 RS001 RS002 RS003 RS004 RS005 RS006 RS007 RS008 RS009 RS010

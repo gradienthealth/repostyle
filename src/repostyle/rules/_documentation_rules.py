@@ -15,6 +15,7 @@ from repostyle.rules._violation import (
     RS_DOUBLE_SPACE_AFTER_PERIOD,
     RS_DUPLICATE_DOCSTRING_SECTION,
     RS_FIELD_COMMENT_AS_DOCSTRING,
+    RS_FIELD_DESCRIBED_IN_CLASS_DOCSTRING,
     RS_FILLER_DOCSTRING_OPENING,
     RS_GLUED_CODE_SPAN,
     RS_INLINE_NUMBERED_LIST,
@@ -51,6 +52,7 @@ from repostyle.rules.doc_fill import (
 from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
     check_doc_value_signal,
+    check_field_described_in_class_docstring,
     check_raise_described_in_prose,
     check_raises_section_incomplete,
     check_return_described_in_prose,
@@ -101,6 +103,7 @@ RULES = {
         check_comment_terminal_punctuation,
     ),
     RS_ARG_DESCRIBED_IN_PROSE: (check_arg_described_in_prose,),
+    RS_FIELD_DESCRIBED_IN_CLASS_DOCSTRING: (check_field_described_in_class_docstring,),
     RS_RETURN_DESCRIBED_IN_PROSE: (check_return_described_in_prose,),
     RS_DOC_SUMMARY_OVERFLOW: (check_doc_summary_overflow,),
     RS_UNBACKTICKED_CODE_REFERENCE: (check_unbackticked_code_reference,),

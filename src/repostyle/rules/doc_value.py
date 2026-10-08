@@ -21,3 +21,6 @@ from repostyle.rules._doc_value_checks import (
 from repostyle.rules._doc_value_checks import (
     check_return_described_in_prose as check_return_described_in_prose,
 )
+from repostyle.rules._record_field_checks import (
+    check_field_described_in_class_docstring as check_field_described_in_class_docstring,
+)

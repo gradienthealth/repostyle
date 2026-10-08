@@ -77,6 +77,25 @@ _SUBJECT_LEAD_PATTERN = re.compile(
 )
 
 
+def internal_describes_field_as_subject(body: str, name: str) -> bool:
+    """Reports whether a class docstring clause documents the field as subject.
+
+    A clause describes the field when the backtick-wrapped name, after an
+    optional leading article or `each`, opens the clause. A coordinated clause
+    counts too: the name follows a comma and `and`, `or`, `but`, `while`, or
+    `whereas`, and a word follows the name. That trailing word keeps the last
+    item of a comma-separated list from reading as a clause of its own.
+    """
+    token = f"(?:(?:the|an?|each)\\s+)?`{re.escape(name)}`"
+    pattern = re.compile(
+        f"^{token}|,\\s*(?:and|or|but|while|whereas)\\s+{token}\\s+\\w",
+        re.IGNORECASE,
+    )
+    return _any_clause_satisfies(
+        body, lambda clause: pattern.search(clause) is not None
+    )
+
+
 def internal_describes_return(body: str) -> bool:
     """Reports whether a body clause narrates the function's return value."""
     return _any_clause_satisfies(body, _clause_narrates_return)

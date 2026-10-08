@@ -99,43 +99,34 @@ _OPTED_OUT = (
 
 
 class _PathReport(NamedTuple):
-    """What reporting one path produced.
-
-    `tolerated` counts the findings that printed as warnings, so the caller can
-    say how much the run let through.
-    """
+    """What reporting one path produced."""
 
     has_failure: bool
     fired: set[str]
     tolerated: int
+    """Findings that printed as warnings, which the run summary reports."""
 
 
 class _Reporting(NamedTuple):
-    """Everything reporting a path needs beyond the path and its findings.
-
-    `promoted` holds the ids that print and fail as errors whatever their
-    default severity. `diff_base` is the commit `--diff` compares against, or
-    `None` when the run is not diff-scoped. `grandfathered` is the loaded
-    baseline, or `None` when the repo has none. `root` is the directory the
-    baseline's keys are relative to.
-    """
+    """Everything reporting a path needs beyond the path and its findings."""
 
     promoted: set[str]
+    """Rule ids that print and fail as errors whatever their default."""
     diff_base: str | None
+    """The commit `--diff` compares against, or `None` outside a diff run."""
     grandfathered: Baseline | None
+    """The loaded baseline, or `None` when the repo has none."""
     root: Path
+    """The directory the baseline's keys are relative to."""
 
 
 class _Scope(NamedTuple):
-    """The files a run covers and the rules it runs over them.
-
-    `roots` is the arguments as given, which config discovery and the
-    whole-package scan use; `paths` is those arguments with each directory
-    expanded to the lintable files beneath it.
-    """
+    """The files a run covers and the rules it runs over them."""
 
     roots: list[Path]
+    """The path arguments as given, for config discovery and package scans."""
     paths: list[Path]
+    """The path arguments with each directory expanded to its files."""
     enabled: set[str]
     promoted: set[str]
 
