@@ -13,7 +13,12 @@ from repostyle._shared import (
     _standalone_comment_blocks,
     find_pyproject,
 )
-from repostyle.languages import COMMENT_SUFFIXES, extract_comments
+from repostyle.languages import (
+    COMMENT_SUFFIXES,
+    MARKER_PATTERN,
+    comment_marker,
+    extract_comments,
+)
 from repostyle.rules._violation import (
     RS_COMMENT_TAG_FORMAT,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
@@ -23,7 +28,9 @@ from repostyle.rules._violation import (
 DEFAULT_TAGS = ("TODO", "FIXME", "NOTE", "HACK")
 DEFAULT_TICKET_PATTERN = r"[A-Z]+-\d+|NO-ISSUE"
 _KNOWN_ALIASES = frozenset({"XXX", "BUG", "TBD", "OPTIMIZE", "REVIEW", "WIP"})
-_LEADING_TOKEN_PATTERN = re.compile(r"^#+\s*([A-Za-z]+)([(:]?)")
+_LEADING_TOKEN_PATTERN = re.compile(
+    rf"^(?:{MARKER_PATTERN.pattern})\s*([A-Za-z]+)([(:]?)"
+)
 
 
 def check_comment_tag_format(path: Path, source: str) -> Iterator[Violation]:
@@ -104,19 +111,21 @@ def check_tag_comment_continuation_indent(
 def _canonical_pattern(tags: tuple[str, ...], ticket_pattern: str) -> re.Pattern[str]:
     """Builds the regex a canonical `TAG(TICKET): message` comment matches."""
     tag_group = "|".join(re.escape(tag) for tag in tags)
-    return re.compile(rf"^#+\s*(?:{tag_group})\((?:{ticket_pattern})\): \S")
+    return re.compile(
+        rf"^(?:{MARKER_PATTERN.pattern})\s*(?:{tag_group})\((?:{ticket_pattern})\): \S"
+    )
 
 
 def _comment_text_column(string: str) -> int:
-    """Returns the column of a comment's text past its opening `#`.
+    """Returns the column of a comment's text past its opening marker.
 
-    Counts the hashes and expands tabs, so a deeper hash run or a tab reads as
-    more indent than a single space.
+    Counts the marker and expands tabs, so a deeper marker run or a tab reads
+    as more indent than a single space.
     """
-    body = string.lstrip("#")
-    hashes = len(string) - len(body)
+    marker = comment_marker(string)
+    body = string[len(marker) :]
     indent = body.removesuffix(body.lstrip())
-    return hashes + len(indent.expandtabs())
+    return len(marker) + len(indent.expandtabs())
 
 
 def _leading_tag(string: str, allowed: set[str]) -> str | None:

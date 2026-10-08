@@ -1,10 +1,10 @@
 """Filename-convention rule: preferred extensions and multi-word casing.
 
-Two checks bundled under RS033, both scoped to a file's name on disk rather
-than its content, and both skip `.py` files -- a Python module's name is
-already governed by import-identifier conventions elsewhere. Each check reads
-its own `[tool.repostyle]` config key and falls back to a shipped default when
-the key is absent, rather than reporting nothing: the defaults reflect a
+Two checks share RS033, and both judge a file's name on disk, never its
+content. Neither applies to a Python module or a Java class, whose file name is
+a code identifier that the language's naming conventions govern. Each check
+reads its own `[tool.repostyle]` config key and falls back to a shipped default
+when the key is absent, rather than reporting nothing: the defaults reflect a
 documented, spec- or style-guide-level convention rather than a
 Gradient-specific house preference, so a repo that never configures this rule
 still gets a defensible baseline. A repo that disagrees overrides the relevant
@@ -25,6 +25,7 @@ from repostyle._shared import (
     _repostyle_table,
     find_pyproject,
 )
+from repostyle.languages import language_for
 from repostyle.rules._violation import RS_FILENAME_CONVENTION, Violation
 
 # yaml.org's FAQ has recommended `.yaml` as the extension since 2006; `.yml`
@@ -75,8 +76,9 @@ def check_filename_extension(path: Path, source: str) -> Iterator[Violation]:
 
     The mapping is a disallowed-extension-to-preferred-extension table read
     from `[tool.repostyle.filename-extensions]`, defaulting to `.yml` ->
-    `.yaml`. A `.py` file, a basename in `DEFAULT_EXEMPT_FILENAMES`, and a path
-    matched by `filename-ignore` are exempt.
+    `.yaml`. A Python or Java source file, a basename in
+    `DEFAULT_EXEMPT_FILENAMES`, and a path matched by `filename-ignore` are
+    exempt.
     """
     table = _resolve_table(path)
     if table is None:
@@ -98,7 +100,7 @@ def check_filename_casing(path: Path, source: str) -> Iterator[Violation]:
 
     The casing (`"kebab"` or `"snake"`) is read from `filename-case`,
     defaulting to kebab-case; any other value, including the documented
-    `"none"`, disables the check. A `.py` file, a basename in
+    `"none"`, disables the check. A Python or Java source file, a basename in
     `DEFAULT_EXEMPT_FILENAMES`, and a path matched by `filename-ignore` are
     exempt. A leading dot marking a hidden file (`.pre-commit-config.yaml`) is
     not itself a word boundary.
@@ -134,7 +136,10 @@ def _filename_case(table: dict[str, object]) -> str:
 
 def _resolve_table(path: Path) -> dict[str, object] | None:
     """Returns the `[tool.repostyle]` table for `path`, or `None` if exempt."""
-    if path.suffix == ".py" or path.name in DEFAULT_EXEMPT_FILENAMES:
+    language = language_for(path)
+    if language is not None and language.has_identifier_filenames:
+        return None
+    if path.name in DEFAULT_EXEMPT_FILENAMES:
         return None
     pyproject = find_pyproject(path)
     table = _repostyle_table(pyproject)

@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from repostyle.languages._java import is_java_test_file, java_block_spans, java_comments
 from repostyle.languages._model import CommentToken, Language
 from repostyle.languages._python import (
     is_python_test_file,
@@ -22,6 +23,7 @@ PYTHON = Language(
     comments=python_comments,
     block_spans=python_block_spans,
     is_test_file=is_python_test_file,
+    has_identifier_filenames=True,
 )
 
 MARKDOWN = Language("markdown", frozenset({".md"}), is_default=True)
@@ -49,7 +51,24 @@ YAML = Language(
 
 SHELL = Language("shell", frozenset({".sh"}), is_default=True, comments=shell_comments)
 
-LANGUAGES: tuple[Language, ...] = (PYTHON, MARKDOWN, TOML, YAML, SHELL)
+# Opt-in while its rules settle: a repo lints Java only by listing it under
+# `languages`, so a release adding Java checks reaches no repo unasked.
+JAVA = Language(
+    "java",
+    frozenset({".java"}),
+    is_default=False,
+    comments=java_comments,
+    block_spans=java_block_spans,
+    is_test_file=is_java_test_file,
+    fill_columns=100,
+    has_identifier_filenames=True,
+)
+
+LANGUAGES: tuple[Language, ...] = (PYTHON, MARKDOWN, TOML, YAML, SHELL, JAVA)
+
+DEFAULT_LANGUAGES = frozenset(
+    language.name for language in LANGUAGES if language.is_default
+)
 
 _BY_SUFFIX = {
     suffix: language for language in LANGUAGES for suffix in language.suffixes

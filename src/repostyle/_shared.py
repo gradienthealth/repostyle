@@ -33,7 +33,8 @@ TEST_CLASS_PATTERN = re.compile(r"^Test([A-Z_]|$)")
 
 _DIRECTIVE_COMMENT_PATTERN = re.compile(
     r"^[ \t]*(!|type:|style:|noqa|nosec|pragma|pylint:|mypy:|ruff:|isort:|fmt:"
-    r"|codespell:)",
+    r"|codespell:|noinspection\b|CHECKSTYLE:|@formatter:|spotless:|NOPMD\b"
+    r"|NOSONAR\b)",
 )
 
 _CODING_DECLARATION_PATTERN = re.compile(r"coding[:=]\s*[-\w.]+")

@@ -14,6 +14,17 @@ warnings-as-errors = false
 
 The enabled set is `select` minus `ignore`. `error` promotes selected warnings. `warnings-as-errors` promotes every warning. The command-line `--warnings-as-errors` and `--no-warnings-as-errors` flags override the file.
 
+## Choose languages
+
+```toml
+[tool.repostyle]
+languages = ["python", "markdown", "toml", "yaml", "shell", "java"]
+```
+
+`languages` lists every language `repostyle` reads, replacing the default of `python`, `markdown`, `toml`, `yaml`, and `shell`. Java is opt-in while its rules settle, so a release that adds Java checks reaches only repositories that listed it. A file in an unlisted language is skipped whether it was walked or passed explicitly, and an unknown name is a configuration error.
+
+Java comments fill to google-java-format's 100 columns rather than 79, a `// style: ignore[RSnnn]` comment suppresses a finding as `#` does, and Maven's `target/` output beside a `pom.xml` is pruned with the other build directories.
+
 ## Baseline inherited findings
 
 Create a baseline when a repository adopts rules with existing debt:
@@ -58,7 +69,7 @@ respect-gitignore = true
 
 The gitignore reader supports comments, blank lines, directory names, leading root anchors, and `fnmatch` globs. It does not read nested `.gitignore` files. An unbounded negation disables pruning rather than risking an incorrect scan; use `exclude` when exact behavior matters.
 
-Version-control metadata, caches, virtual environments, `node_modules`, build outputs, and nested Git checkouts are always pruned during directory walks. Explicit file arguments remain lintable.
+Version-control metadata, caches, virtual environments, `node_modules`, build outputs such as `build/` and a Maven `target/` beside its `pom.xml`, and nested Git checkouts are always pruned during directory walks. Explicit file arguments remain lintable.
 
 ## Configure scoped rules
 

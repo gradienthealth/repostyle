@@ -13,6 +13,7 @@ from repostyle._shared import (
 from repostyle.languages import COMMENT_SUFFIXES
 from repostyle.rules._comment_paragraphs import (
     internal_comment_double_space_faults,
+    internal_fill_columns,
     internal_fillable_units,
 )
 from repostyle.rules._fill_units import (
@@ -32,7 +33,7 @@ from repostyle.rules._violation import (
 def fix_doc_fill(
     path: Path, source: str, skip_lines: frozenset[int] = frozenset()
 ) -> str:
-    """Rewraps docstring and comment paragraphs in `source` to 79 columns.
+    """Rewraps docstring and comment paragraphs to their language's column.
 
     Only a unit `check_doc_fill` reports a finding on is rewritten, so the
     rewrite never reaches prose the rule accepts. Such a unit is greedily
@@ -54,12 +55,13 @@ def fix_doc_fill(
         return source
     source_lines = source.splitlines()
     replacements: list[_Replacement] = []
+    columns = internal_fill_columns(path)
     for unit in internal_fillable_units(path, source):
         if any(line.lineno in skip_lines for line in unit):
             continue
-        if not any(internal_unit_violations(unit)):
+        if not any(internal_unit_violations(unit, columns)):
             continue
-        rewrapped = internal_reflow_unit(unit)
+        rewrapped = internal_reflow_unit(unit, columns)
         if rewrapped is None:
             continue
         start, stop = (unit[0].lineno, unit[-1].lineno)
