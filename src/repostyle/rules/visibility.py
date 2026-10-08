@@ -24,7 +24,13 @@ from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path
 
-from repostyle._shared import _parse_python, _posix, _walk_tree, find_pyproject
+from repostyle._shared import (
+    _parse_python,
+    _posix,
+    _repostyle_table,
+    _walk_tree,
+    find_config_file,
+)
 from repostyle.rules._violation import RS_SHOULD_BE_PRIVATE, Violation
 
 
@@ -87,6 +93,8 @@ def _module_facts(path: Path, source: str) -> _ModuleFacts | None:
 # key is the path rather than the module, keeping the exclusion the check wants
 # -- "referenced somewhere other than here" -- so two entries carrying one path
 # still count as that single path.
+
+
 def _referencing_paths(modules: Sequence[_ModuleFacts]) -> dict[str, set[Path]]:
     """Maps each referenced identifier to the paths of the modules using it."""
     referencing: dict[str, set[Path]] = {}
@@ -97,6 +105,8 @@ def _referencing_paths(modules: Sequence[_ModuleFacts]) -> dict[str, set[Path]]:
 
 
 # A top-level public `def`/`class` as `(name, line, col, decorators)`
+
+
 _PublicDef = tuple[str, int, int, frozenset[str]]
 
 
@@ -204,7 +214,7 @@ def _is_public_module(path: Path) -> bool:
     """
     if path.name == "__init__.py":
         return True
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     if pyproject is None:
         return False
     try:
@@ -216,7 +226,7 @@ def _is_public_module(path: Path) -> bool:
 
 def _public_decorators(anchor: Path) -> frozenset[str]:
     """Reads the `public-decorators` allowlist from the file's pyproject."""
-    pyproject = find_pyproject(anchor)
+    pyproject = find_config_file(anchor)
     if pyproject is None:
         return frozenset()
     return frozenset(_string_list(pyproject, "public-decorators"))
@@ -241,10 +251,16 @@ def _public_surface(modules: Sequence[_ModuleFacts], anchor: Path) -> set[str]:
 
 @lru_cache(maxsize=128)
 def _entry_point_names(anchor: Path) -> tuple[str, ...]:
-    """Returns function names declared as `[project.scripts]` entry points."""
-    pyproject = find_pyproject(anchor)
-    if pyproject is None:
+    """Lists the functions `[project.scripts]` names as entry points.
+
+    The table is read from the `pyproject.toml` in the config file's directory,
+    whether repostyle's settings live in that file or in a `repostyle.toml`
+    beside it.
+    """
+    config = find_config_file(anchor)
+    if config is None:
         return ()
+    pyproject = config.parent / "pyproject.toml"
     scripts = _load_pyproject(pyproject).get("project", {}).get("scripts", {})
     return tuple(
         target.rsplit(":", 1)[1].split(".", 1)[0]
@@ -253,23 +269,22 @@ def _entry_point_names(anchor: Path) -> tuple[str, ...]:
     )
 
 
-def _public_names(anchor: Path | None) -> tuple[str, ...]:
-    """Reads the `public-names` allowlist from the anchor's pyproject."""
-    pyproject = find_pyproject(anchor) if anchor is not None else None
-    return _string_list(pyproject, "public-names") if pyproject is not None else ()
-
-
-@lru_cache(maxsize=128)
-def _string_list(pyproject: Path, key: str) -> tuple[str, ...]:
-    """Reads a `[tool.repostyle]` list-of-strings setting from `pyproject`."""
-    data = _load_pyproject(pyproject)
-    value = data.get("tool", {}).get("repostyle", {}).get(key, [])
-    return tuple(str(entry) for entry in value) if isinstance(value, list) else ()
-
-
 @lru_cache(maxsize=128)
 def _load_pyproject(pyproject: Path) -> dict:
     try:
         return tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return {}
+
+
+def _public_names(anchor: Path | None) -> tuple[str, ...]:
+    """Reads the `public-names` allowlist from the anchor's pyproject."""
+    pyproject = find_config_file(anchor) if anchor is not None else None
+    return _string_list(pyproject, "public-names") if pyproject is not None else ()
+
+
+@lru_cache(maxsize=128)
+def _string_list(pyproject: Path, key: str) -> tuple[str, ...]:
+    """Returns a configured list-of-strings setting, empty when it is unset."""
+    value = _repostyle_table(pyproject).get(key, [])
+    return tuple(str(entry) for entry in value) if isinstance(value, list) else ()

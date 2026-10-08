@@ -12,7 +12,7 @@ from repostyle.rules import (
     severity_of,
 )
 from repostyle.runner import (
-    find_pyproject,
+    find_config_file,
     fix_path,
     lint_path,
     lint_paths,
@@ -199,7 +199,7 @@ class TestResolveEnabledRulesForPaths:
     def test_NoPyprojectInTree_DefaultsToAllRules(self, tmp_path: Path) -> None:
         target = tmp_path / "lonely.py"
         target.write_text("x = 1\n", encoding="utf-8")
-        if find_pyproject(target) is not None:
+        if find_config_file(target) is not None:
             pytest.skip("temp tree has an ancestor pyproject.toml")
         assert resolve_enabled_rules_for_paths([target]) == set(ALL_RULE_IDS)
 

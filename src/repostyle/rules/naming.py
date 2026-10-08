@@ -16,7 +16,7 @@ from repostyle._shared import (
     _repostyle_table,
     _string_list,
     _walk_tree,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
@@ -120,7 +120,7 @@ def check_acronym_casing(path: Path, source: str) -> Iterator[Violation]:
     tree = _parse_python(path, source)
     if tree is None:
         return
-    acronyms = _effective_acronyms(find_pyproject(path))
+    acronyms = _effective_acronyms(find_config_file(path))
     for node in _walk_tree(tree):
         for name, lineno, col_offset in _acronym_named_targets(node):
             yield from _acronym_violations(name, lineno, col_offset, acronyms)

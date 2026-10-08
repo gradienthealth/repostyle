@@ -9,7 +9,7 @@ from repostyle._shared import (
     _join_source_lines,
     _parse_python,
     _standalone_comment_blocks,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._doc_blocks import internal_doc_blocks
 from repostyle.rules._docstring_edits import (
@@ -180,7 +180,7 @@ def _doc_acronym_faults(path: Path, source: str) -> Iterator[tuple[int, int, str
     trailing comment, and a parameter named for a lowercased acronym (`url:`)
     are not mistaken for prose to correct.
     """
-    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    canonical_casing = effective_prose_acronyms(find_config_file(path))
     if not canonical_casing:
         return
     for block in internal_doc_blocks(path, source):

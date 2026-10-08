@@ -11,7 +11,7 @@ from repostyle import baseline as baseline_file
 from repostyle._cli_args import (
     _parse_args,
 )
-from repostyle._shared import find_pyproject
+from repostyle._shared import find_config_file
 from repostyle.baseline import DEFAULT_BASELINE_NAME, Baseline
 from repostyle.changed_lines import changed_lines, resolve_diff_base
 from repostyle.explain import discovery_hint, explain_rule
@@ -301,15 +301,15 @@ def _write_baseline(
 ) -> int:
     """Records the scanned tree's findings as grandfathered and reports where.
 
-    Returns 2 when there is no `pyproject.toml` to anchor the file to, since a
-    baseline whose keys are relative to a guessed root would not match the keys
-    a later run computes.
+    Returns 2 when no `repostyle.toml` or `pyproject.toml` marks the repo root,
+    since a baseline whose keys are relative to a guessed root would not match
+    the keys a later run computes.
     """
     path = resolve_baseline_path(scope.roots) or _default_baseline_path(scope.roots)
     if path is None:
         print(
-            "repostyle: no pyproject.toml found, so there is nowhere to anchor "
-            "a baseline; run from inside the repo",
+            "repostyle: no repostyle.toml or pyproject.toml found, so there is "
+            "nowhere to anchor a baseline; run from inside the repo",
             file=sys.stderr,
         )
         return 2
@@ -344,7 +344,7 @@ def _default_baseline_path(roots: list[Path]) -> Path | None:
     """Returns where a first baseline goes: beside the pyproject file."""
     if not roots:
         return None
-    pyproject = find_pyproject(roots[0])
+    pyproject = find_config_file(roots[0])
     return None if pyproject is None else pyproject.parent / DEFAULT_BASELINE_NAME
 
 

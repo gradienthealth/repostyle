@@ -14,7 +14,7 @@ from repostyle._shared import (
     _matches_config_glob,
     _parse_python,
     _repostyle_table,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._test_reuse_context import (
     _import_context,
@@ -109,7 +109,7 @@ def internal_shared_helper_candidates(
 
 def _is_excluded_reuse_file(path: Path) -> bool:
     """Reports whether config excludes `path` from findings."""
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     return _matches_config_glob(path, pyproject, _repostyle_table(pyproject), "exclude")
 
 

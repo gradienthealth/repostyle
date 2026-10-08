@@ -14,7 +14,7 @@ from repostyle._shared import (
     _parse_python,
     _repostyle_table,
     _string_list,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._doc_blocks import internal_doc_blocks
 from repostyle.rules._docstring_edits import (
@@ -138,7 +138,7 @@ def check_imperative_docstring_opening(path: Path, source: str) -> Iterator[Viol
     tunes the verb set for its own domain via `imperative-verbs-extra` and
     `imperative-verbs-exclude` in `[tool.repostyle]`.
     """
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     conjugations = _effective_conjugations(pyproject)
     pattern = _effective_pattern(pyproject)
     for block in internal_doc_blocks(path, source):

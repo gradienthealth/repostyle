@@ -14,7 +14,7 @@ from repostyle._shared import (
     _repostyle_table,
     _string_list,
     _walk_tree,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._violation import RS_PORT_NO_IMPLEMENTATION, Violation
 
@@ -68,7 +68,7 @@ def _is_in_port_scope(path: Path) -> bool:
     `application/ports/` path fragment rather than extending it, so a repo
     states its whole port layout in one place.
     """
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     table = _repostyle_table(pyproject)
     if _string_list(table, PORT_PATH_GLOBS_KEY):
         return _matches_config_glob(path, pyproject, table, PORT_PATH_GLOBS_KEY)

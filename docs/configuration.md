@@ -1,6 +1,6 @@
 # Configuration
 
-`repostyle` reads `[tool.repostyle]` from the nearest `pyproject.toml` above the first target path. An absent or empty table enables every rule.
+`repostyle` reads its settings from the nearest config file above the first target path: a `repostyle.toml`, which holds them at its top level, or a `pyproject.toml`, which holds them under `[tool.repostyle]`. A directory holding both uses `repostyle.toml`, so a repository without Python packaging, such as a Java service, configures the linter without a `pyproject.toml`. The examples below use the `pyproject.toml` form. An absent or empty table enables every rule.
 
 ## Select and promote rules
 

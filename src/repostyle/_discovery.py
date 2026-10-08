@@ -14,7 +14,7 @@ from repostyle._shared import (
     _matches_config_glob,
     _parse_gitignore,
     _repostyle_table,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.languages import DEFAULT_LANGUAGES, LINTABLE_SUFFIXES, language_for
 
@@ -89,7 +89,7 @@ def _is_excluded(path: Path) -> bool:
     `pyproject.toml`. An `exclude` match drops the file from every rule, not
     just the RS033 filename rule that `filename-ignore` governs.
     """
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     return _matches_config_glob(path, pyproject, _repostyle_table(pyproject), "exclude")
 
 
@@ -105,7 +105,7 @@ def _is_unenabled(path: Path) -> bool:
     language = language_for(path)
     if language is None:
         return False
-    table = _repostyle_table(find_pyproject(path))
+    table = _repostyle_table(find_config_file(path))
     configured = table.get("languages")
     if not isinstance(configured, list):
         return language.name not in DEFAULT_LANGUAGES
@@ -173,7 +173,7 @@ def _walk_matching(
     inside a worktree or under a pruned directory walks that tree rather than
     skipping it whole.
     """
-    pyproject = find_pyproject(root)
+    pyproject = find_config_file(root)
     table = _repostyle_table(pyproject)
     gitignore = (
         _parse_gitignore(pyproject.parent / ".gitignore")

@@ -14,7 +14,7 @@ from repostyle._shared import (
     _repostyle_table,
     _string_list,
     _walk_tree,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._violation import RS_TEST_NAMING, Violation
 
@@ -47,7 +47,7 @@ def check_test_naming(path: Path, source: str) -> Iterator[Violation]:
 
 def _is_in_test_naming_scope(path: Path) -> bool:
     """Reports whether `path` falls in the test-naming scope."""
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     table = _repostyle_table(pyproject)
     if _string_list(table, TEST_NAMING_GLOBS_KEY):
         return _matches_config_glob(path, pyproject, table, TEST_NAMING_GLOBS_KEY)

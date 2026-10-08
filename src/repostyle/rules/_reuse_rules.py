@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from repostyle._shared import (
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._reuse_analysis import (
     InternalSetupCandidate,
@@ -166,7 +166,7 @@ def _contract_groups(
 
 def _display_location(function: _ReuseFunction) -> str:
     """Returns a repository-relative peer location."""
-    pyproject = find_pyproject(function.path)
+    pyproject = find_config_file(function.path)
     try:
         displayed = function.path.relative_to(pyproject.parent) if pyproject else None
     except ValueError:

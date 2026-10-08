@@ -12,7 +12,7 @@ from repostyle._shared import (
     _is_test_file,
     _parse_python,
     _walk_tree,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._file_assertion_analysis import (
     internal_module_helpers,
@@ -106,7 +106,7 @@ def _conftest_trees(path: Path) -> list[ast.AST]:
     contributes nothing, which leaves a test whose fixtures live outside the
     project unresolved rather than guessed at.
     """
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     root = pyproject.parent if pyproject is not None else None
     trees: list[ast.AST] = []
     directory = path.parent
