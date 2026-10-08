@@ -6,6 +6,7 @@ import ast
 import io
 import tokenize
 from collections.abc import Iterator
+from itertools import pairwise
 from pathlib import Path
 from typing import TypeAlias
 
@@ -34,8 +35,9 @@ def check_source_module_size(path: Path, source: str) -> Iterator[Violation]:
 
     A large production module can hide distinct responsibilities behind one
     import boundary. The default limit is 250 physical code lines. Blank lines,
-    comment-only lines, and module, class, and function docstrings do not
-    count. Test modules use their independent RS062 limit instead.
+    comment-only lines, module, class, and function docstrings, and field
+    docstrings do not count. Test modules use their independent RS062 limit
+    instead.
     """
     if path.suffix != ".py" or _is_test_file(path):
         return
@@ -62,8 +64,8 @@ def check_test_module_size(path: Path, source: str) -> Iterator[Violation]:
 
     Large test modules can reveal coupled production responsibilities or tests
     that cover unrelated behavior together. The default limit is 500 physical
-    code lines. Blank lines, comment-only lines, and module, class, and
-    function docstrings do not count.
+    code lines. Blank lines, comment-only lines, module, class, and function
+    docstrings, and field docstrings do not count.
     """
     if not _is_test_file(path):
         return
@@ -127,18 +129,13 @@ def _module_code_lines(tree: ast.AST, source: str) -> set[int]:
 
 
 def _docstring_spans(tree: ast.AST, source_lines: list[str]) -> Iterator[_SourceSpan]:
-    """Yields the source span of each module, class, or function docstring."""
-    owners = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
-    for owner in ast.walk(tree):
-        if not isinstance(owner, owners) or not owner.body:
-            continue
-        statement = owner.body[0]
-        if not (
-            isinstance(statement, ast.Expr)
-            and isinstance(statement.value, ast.Constant)
-            and isinstance(statement.value.value, str)
-        ):
-            continue
+    """Yields the source span of each docstring the code-line count skips.
+
+    The skipped docstrings are a module's, a class's, or a function's, and a
+    field docstring: a string statement directly below an assignment in a class
+    body.
+    """
+    for statement in _docstring_statements(tree):
         end_lineno = statement.end_lineno or statement.lineno
         end_col_offset = statement.end_col_offset or statement.col_offset
         yield (
@@ -158,6 +155,32 @@ def _docstring_spans(tree: ast.AST, source_lines: list[str]) -> Iterator[_Source
 def _character_column(line: str, byte_column: int) -> int:
     """Converts an AST UTF-8 byte offset to a tokenizer character offset."""
     return len(line.encode("utf-8")[:byte_column].decode("utf-8"))
+
+
+def _docstring_statements(tree: ast.AST) -> Iterator[ast.stmt]:
+    """Yields each owner docstring and class-body field docstring statement."""
+    owners = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+    for owner in ast.walk(tree):
+        if not isinstance(owner, owners) or not owner.body:
+            continue
+        if _is_string_statement(owner.body[0]):
+            yield owner.body[0]
+        if not isinstance(owner, ast.ClassDef):
+            continue
+        for previous, statement in pairwise(owner.body):
+            if isinstance(previous, ast.Assign | ast.AnnAssign) and (
+                _is_string_statement(statement)
+            ):
+                yield statement
+
+
+def _is_string_statement(statement: ast.stmt) -> bool:
+    """Reports whether a statement is a bare string literal."""
+    return (
+        isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Constant)
+        and isinstance(statement.value.value, str)
+    )
 
 
 def _span_contains(

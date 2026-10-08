@@ -77,6 +77,58 @@ _SUBJECT_LEAD_PATTERN = re.compile(
 )
 
 
+def internal_describes_field_as_subject(body: str, name: str) -> bool:
+    """Reports whether a class docstring clause documents the field as subject.
+
+    The backtick-wrapped name is the subject in either of two positions:
+
+    - The clause opens, after an optional article or `each`, with the name
+      alone or with code spans joined to it by commas, `and`, or `or`.
+    - The name alone opens a coordinated clause after a comma and `and`, `or`,
+      `but`, `while`, or `whereas`, and the text before that comma is not a
+      lone code span, which would make the name the tail of a list.
+
+    Either position needs a verb after the subject: an auxiliary or modal, or
+    another word that is not a preposition or conjunction. That other word must
+    not be followed by an auxiliary, which would make it a noun the code spans
+    modify, as in `the x values are`. The field name matches case-sensitively.
+    """
+    token = f"`{re.escape(name)}`"
+
+    def _holds(clause: str) -> bool:
+        opening = _OPENING_SUBJECT.match(clause)
+        if opening and token in _CODE_SPAN.findall(opening.group("subject")):
+            return True
+        return any(
+            not _LONE_CODE_SPAN.match(clause[: match.start()].rsplit(",", 1)[-1])
+            for match in re.finditer(_COORDINATED_LEAD + token + _VERB, clause)
+        )
+
+    return _any_clause_satisfies(body, _holds)
+
+
+_AUXILIARY = "(?:are|be|can|could|is|may|might|must|should|was|were|will|would)"
+
+_VERB = (
+    f"\\s+(?:{_AUXILIARY}\\b|"
+    "(?!(?:about|after|and|as|at|before|by|for|from|if|in|into|of|on|or"
+    "|since|than|to|unless|until|when|where|whether|while|with)\\b)"
+    f"[a-z]+\\b(?!\\s+{_AUXILIARY}\\b))"
+)
+
+_CODE_SPAN = re.compile("`[^`]+`")
+
+_OPENING_SUBJECT = re.compile(
+    "^(?:(?i:the|an?|each)\\s+)?"
+    "(?P<subject>`[^`]+`(?:(?:\\s*,)?\\s+(?:and|or)\\s+`[^`]+`|\\s*,\\s*`[^`]+`)*)"
+    + _VERB
+)
+
+_COORDINATED_LEAD = ",\\s*(?:and|or|but|while|whereas)\\s+(?:(?i:the|an?|each)\\s+)?"
+
+_LONE_CODE_SPAN = re.compile("^\\s*`[^`]+`\\s*$")
+
+
 def internal_describes_return(body: str) -> bool:
     """Reports whether a body clause narrates the function's return value."""
     return _any_clause_satisfies(body, _clause_narrates_return)

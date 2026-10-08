@@ -235,6 +235,17 @@ class TestCheckSourceModuleSize:
         violations = list(check_source_module_size(target, source))
         assert "3 code lines (limit: 2)" in violations[0].message
 
+    def test_FieldDocstrings_DoNotCount(self, tmp_path: Path) -> None:
+        target = _configured_source_target(tmp_path, 3, "src/package/widget.py")
+        source = (
+            "class Verdict:\n"
+            "    skip_reason: str\n"
+            '    """Why the series\n    was skipped.\n    """\n'
+            "    limit = 3\n"
+            '    """The cap."""\n'
+        )
+        assert list(check_source_module_size(target, source)) == []
+
     def test_FindingPointsToFirstCodeLine(self, tmp_path: Path) -> None:
         target = _configured_source_target(tmp_path, 1, "src/package/widget.py")
         source = '# heading\n"""Module notes."""\n\nimport json\nvalue = 1\n'

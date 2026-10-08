@@ -216,20 +216,20 @@ def _classify_gitignore_line(line: str) -> tuple[str, str] | None:
 
 
 class _GitignoreRules(NamedTuple):
-    """The `.gitignore` directory-pruning patterns repostyle honors.
-
-    `anchored` patterns match a directory's whole repo-relative path; `bare`
-    patterns match a directory's own name at any depth. `negated_prefixes`
-    holds the anchored paths a `!` line re-includes, each guarding its subtree
-    from a prune. `is_disabled` is set when an unanchored `!` line is present,
-    whose any-depth reach cannot be reasoned about cheaply, so directory
-    pruning is switched off for the whole repo rather than risk a mis-prune.
-    """
+    """The `.gitignore` directory-pruning patterns repostyle honors."""
 
     anchored: tuple[str, ...]
+    """Patterns matched against a directory's whole repo-relative path."""
     bare: tuple[str, ...]
+    """Patterns matched against a directory's own name at any depth."""
     negated_prefixes: tuple[str, ...]
+    """Anchored paths a `!` line re-includes, each guarding its subtree."""
     is_disabled: bool
+    """Whether an unanchored `!` line switched off pruning for the whole repo.
+
+    An unanchored negation reaches any depth and cannot be reasoned about
+    cheaply, so pruning stops rather than risk pruning a re-included directory.
+    """
 
 
 @lru_cache(maxsize=128)

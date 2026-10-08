@@ -28,16 +28,16 @@ _SCHEMA = 1
 
 
 class Baseline(NamedTuple):
-    """A tree's grandfathered findings, counted per file per rule.
-
-    `counts` maps a repo-root-relative POSIX path to a rule id to the number of
-    findings that path held when the baseline was written. `rules` is the rule
-    set the baseline was built against, so a later refresh can tell a rule that
-    did not exist then from one whose findings are new.
-    """
+    """A tree's grandfathered findings, counted per file per rule."""
 
     rules: frozenset[str]
+    """The rule set the baseline was built against.
+
+    A later refresh uses it to tell a rule that did not exist then from one
+    whose findings are new.
+    """
     counts: dict[str, dict[str, int]]
+    """Findings per repo-root-relative POSIX path and rule id when written."""
 
 
 def load(path: Path) -> Baseline | None:

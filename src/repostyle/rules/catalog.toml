@@ -535,3 +535,11 @@ rationale = "Inline ordered markers hide list structure from both the reader and
 examples = [{ bad = "Steps: 1. Load the file. 2. Validate it.", good = "Steps:\n\n1. Load the file.\n2. Validate it.", note = "Use bullets instead when order does not matter." }]
 signals = []
 reference = []
+
+[RS068]
+name = "field-described-in-class-docstring"
+summary = "A record class documents each field in a docstring below the field, not in the class docstring."
+rationale = "A field docstring sits beside the declaration, where a reader looks and an editor shows it on hover. Narrating a field in the class docstring separates the description from the field and leaves the field itself undocumented. The rule covers dataclasses, attrs classes, and `NamedTuple`, `TypedDict`, and pydantic `BaseModel` subclasses."
+examples = [{ bad = "@dataclass\nclass Verdict:\n    \"\"\"A stage verdict.\n\n    `skip_reason` says why the series was skipped.\n    \"\"\"\n\n    skip_reason: str | None", good = "@dataclass\nclass Verdict:\n    \"\"\"A stage verdict.\"\"\"\n\n    skip_reason: str | None\n    \"\"\"Why the series was skipped, or `None` when it was not.\"\"\"", note = "The rule anchors on the backtick-wrapped field name, so prose that paraphrases a field without naming it does not fire." }]
+signals = []
+reference = []
