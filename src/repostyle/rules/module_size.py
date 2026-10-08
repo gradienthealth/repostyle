@@ -64,8 +64,8 @@ def check_test_module_size(path: Path, source: str) -> Iterator[Violation]:
 
     Large test modules can reveal coupled production responsibilities or tests
     that cover unrelated behavior together. The default limit is 500 physical
-    code lines. Blank lines, comment-only lines, and module, class, and
-    function docstrings do not count.
+    code lines. Blank lines, comment-only lines, module, class, and function
+    docstrings, and field docstrings do not count.
     """
     if not _is_test_file(path):
         return

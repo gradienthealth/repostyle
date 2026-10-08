@@ -63,6 +63,21 @@ class TestCheckFieldDescribedInClassDocstring:
 
         assert _flagged(source) == ["skip_reason", "instances"]
 
+    def test_FieldsNarratedAsCompoundSubject_FlagsEach(self) -> None:
+        source = (
+            "@dataclass\n"
+            "class Verdict:\n"
+            '    """A stage verdict.\n'
+            "\n"
+            "    `skip_reason` and `instances` come from the stage's last run.\n"
+            '    """\n'
+            "\n"
+            "    skip_reason: str | None\n"
+            "    instances: dict[str, float] | None\n"
+        )
+
+        assert _flagged(source) == ["skip_reason", "instances"]
+
     def test_FieldListedUnderArgs_FlagsField(self) -> None:
         source = (
             "@dataclass\n"
@@ -98,8 +113,19 @@ class TestCheckFieldDescribedInClassDocstring:
         [
             "Publishes the `skip_reason` beside the per-instance scores.",
             "Carries `head_count`, `face_count`, and `skip_reason`.",
+            "Combines `head_count`, `face_count`, and `skip_reason` into a row.",
+            "The `head_count`, `face_count`, and `skip_reason` values are counts.",
+            "Accepts `head_count`, or `skip_reason` when no head is found.",
+            "The `SKIP_REASON` is unrelated.",
         ],
-        ids=["object-reference", "list-tail"],
+        ids=[
+            "object-reference",
+            "list-tail",
+            "list-tail-continues",
+            "list-modifier",
+            "coordinated-object",
+            "different-case",
+        ],
     )
     def test_FieldOnlyReferenced_NoViolation(self, prose: str) -> None:
         source = (
@@ -124,8 +150,18 @@ class TestCheckFieldDescribedInClassDocstring:
             '    """A stage verdict.\n\n    The `limit` caps every series.\n    """\n'
             "\n"
             "    limit: ClassVar[int] = 3\n",
+            "@dataclass\n"
+            "class Verdict:\n"
+            '    """A stage verdict.\n\n    The `limit` caps every series.\n    """\n'
+            "\n"
+            '    limit: "ClassVar[int]" = 3\n',
+            "@dataclass\n"
+            "class Verdict:\n"
+            '    """A stage verdict.\n\n    Args:\n        seed: The random seed.\n    """\n'
+            "\n"
+            "    seed: InitVar[int]\n",
         ],
-        ids=["plain-class", "class-var"],
+        ids=["plain-class", "class-var", "string-class-var", "init-var"],
     )
     def test_NotARecordField_NoViolation(self, source: str) -> None:
         assert _check(source) == []

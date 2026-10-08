@@ -39,7 +39,9 @@ def check_field_described_in_class_docstring(
     detail belongs in the string literal below the field, where a reader finds
     it beside the declaration and an editor shows it on hover. A field the
     class docstring only references, or never mentions, does not fire, and a
-    `ClassVar` annotation is not a field. An `Attributes:` block is left to
+    `ClassVar` or `InitVar` annotation is not a field. A pydantic model counts
+    only when it subclasses `BaseModel` directly, since the rule does not
+    resolve a project's own base classes. An `Attributes:` block is left to
     RS004.
     """
     tree = _parse_python(path, source)
@@ -74,11 +76,18 @@ def _field_name(stmt: ast.stmt) -> str | None:
     if not isinstance(stmt, ast.AnnAssign) or not isinstance(stmt.target, ast.Name):
         return None
     annotation = stmt.annotation
-    if isinstance(annotation, ast.Subscript):
-        annotation = annotation.value
-    if _dotted_name(annotation).rpartition(".")[2] == "ClassVar":
+    if isinstance(annotation, ast.Constant) and isinstance(annotation.value, str):
+        outer = annotation.value.partition("[")[0].strip()
+    else:
+        if isinstance(annotation, ast.Subscript):
+            annotation = annotation.value
+        outer = _dotted_name(annotation)
+    if outer.rpartition(".")[2] in _UNSTORED_ANNOTATIONS:
         return None
     return stmt.target.id
+
+
+_UNSTORED_ANNOTATIONS = frozenset({"ClassVar", "InitVar"})
 
 
 def _is_record_class(node: ast.ClassDef) -> bool:
@@ -105,6 +114,8 @@ _ATTRS_DECORATORS = frozenset(
         "attrs.frozen",
         "attrs.mutable",
         "define",
+        "frozen",
+        "mutable",
     }
 )
 

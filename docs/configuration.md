@@ -119,7 +119,7 @@ max-test-file-lines = 500
 max-source-file-lines = 250
 ```
 
-RS062 and RS066 count physical code lines. Blank lines, comment-only lines, and module, class, and function docstrings do not count. Choose a larger positive limit only when a cohesive registry or matrix would become harder to navigate after a split.
+RS062 and RS066 count physical code lines. Blank lines, comment-only lines, module, class, and function docstrings, and field docstrings do not count. Choose a larger positive limit only when a cohesive registry or matrix would become harder to navigate after a split.
 
 ## Suppress a finding
 
