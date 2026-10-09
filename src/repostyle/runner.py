@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tomllib
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import NamedTuple
@@ -16,7 +15,8 @@ from repostyle._discovery import (
 )
 from repostyle._shared import (
     _repostyle_table,
-    find_pyproject,
+    config_table,
+    find_config_file,
 )
 from repostyle.baseline import DEFAULT_BASELINE_NAME
 from repostyle.languages import LANGUAGES
@@ -105,7 +105,7 @@ def resolve_rules_for_paths(paths: Iterable[Path]) -> _ResolvedRules:
     paths = list(paths)
     if not paths:
         return _ResolvedRules(set(ALL_RULE_IDS), set())
-    pyproject = find_pyproject(paths[0])
+    pyproject = find_config_file(paths[0])
     config = load_config(pyproject) if pyproject is not None else None
     _check_baseline_setting(config)
     _check_languages_setting(config)
@@ -121,7 +121,7 @@ def baseline_opted_out(paths: Iterable[Path]) -> bool:
     paths = list(paths)
     if not paths:
         return False
-    return _repostyle_table(find_pyproject(paths[0])).get("baseline") is False
+    return _repostyle_table(find_config_file(paths[0])).get("baseline") is False
 
 
 def resolve_baseline_path(paths: Iterable[Path]) -> Path | None:
@@ -141,7 +141,7 @@ def resolve_baseline_path(paths: Iterable[Path]) -> Path | None:
     paths = list(paths)
     if not paths:
         return None
-    pyproject = find_pyproject(paths[0])
+    pyproject = find_config_file(paths[0])
     if pyproject is None:
         return None
     configured = _repostyle_table(pyproject).get("baseline")
@@ -163,7 +163,7 @@ def repo_root(paths: Iterable[Path]) -> Path:
     paths = list(paths)
     if not paths:
         return Path.cwd()
-    pyproject = find_pyproject(paths[0])
+    pyproject = find_config_file(paths[0])
     if pyproject is not None:
         return pyproject.parent
     first = paths[0].resolve()
@@ -171,12 +171,8 @@ def repo_root(paths: Iterable[Path]) -> Path:
 
 
 def load_config(pyproject: Path) -> dict | None:
-    """Reads the `[tool.repostyle]` table from a pyproject file."""
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return None
-    return data.get("tool", {}).get("repostyle")
+    """Returns the repostyle settings in a config file, or `None` for none."""
+    return config_table(pyproject)
 
 
 def _check_baseline_setting(config: dict | None) -> None:
@@ -320,7 +316,7 @@ def lint_package(
     if not package_rules or not paths:
         return {}
     root_paths = list(root_paths) if root_paths is not None else paths
-    root = find_pyproject(root_paths[0])
+    root = find_config_file(root_paths[0])
     files = _package_files(root.parent if root is not None else root_paths[0])
     sources = {path.resolve(): source for path, source in files}
     scope = {path.resolve() for path in paths}

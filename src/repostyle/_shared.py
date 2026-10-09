@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import ast
 import re
-import tomllib
 from collections.abc import Iterator
 from fnmatch import fnmatch
 from functools import lru_cache
@@ -17,6 +16,15 @@ from pathlib import Path
 from typing import NamedTuple
 
 from repostyle import _ast_helpers, _punctuation
+from repostyle._config_files import (
+    _repostyle_table as _repostyle_table,
+)
+from repostyle._config_files import (
+    config_table as config_table,
+)
+from repostyle._config_files import (
+    find_config_file as find_config_file,
+)
 from repostyle._config_values import string_list as _string_list
 from repostyle.languages import (
     PYTHON,
@@ -50,12 +58,6 @@ _SENTENCE_ABBREVIATIONS = frozenset(
 _LIST_ITEM_PATTERN = re.compile(r"^(?:[-*+]|\d+[.)]) ")
 
 _VERBATIM_LINE_PATTERN = re.compile(r"^\||^[-+=][-+=|\s]*$")
-
-
-def find_pyproject(start: Path) -> Path | None:
-    """Walks up from `start` to find the nearest `pyproject.toml`."""
-    start = start.resolve()
-    return _find_pyproject_from(start if start.is_dir() else start.parent)
 
 
 def _bool_config(table: dict[str, object], key: str) -> bool:
@@ -236,21 +238,6 @@ class _GitignoreRules(NamedTuple):
     """
 
 
-@lru_cache(maxsize=128)
-def _find_pyproject_from(directory: Path) -> Path | None:
-    """Walks up from `directory` to the nearest `pyproject.toml`.
-
-    Caches on the directory rather than the file so a directory scan walks up
-    once for all its files, not once per file across path expansion and every
-    rule.
-    """
-    for candidate in (directory, *directory.parents):
-        pyproject = candidate / "pyproject.toml"
-        if pyproject.is_file():
-            return pyproject
-    return None
-
-
 def _has_sentence_boundary(text: str) -> bool:
     """Reports whether `text` runs more than one sentence.
 
@@ -369,18 +356,6 @@ def _relative_to_pyproject(path: Path, pyproject: Path | None) -> str:
 
 def _posix(path: Path) -> str:
     return str(path).replace("\\", "/")
-
-
-@lru_cache(maxsize=128)
-def _repostyle_table(pyproject: Path | None) -> dict[str, object]:
-    """Reads the `[tool.repostyle]` table from a pyproject file, if any."""
-    if pyproject is None:
-        return {}
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return {}
-    return data.get("tool", {}).get("repostyle", {})
 
 
 _TEMPORAL_MARKER_PATTERN = re.compile(

@@ -23,7 +23,7 @@ from pathlib import Path
 from repostyle._shared import (
     _matches_config_glob,
     _repostyle_table,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.languages import language_for
 from repostyle.rules._violation import RS_FILENAME_CONVENTION, Violation
@@ -141,7 +141,7 @@ def _resolve_table(path: Path) -> dict[str, object] | None:
         return None
     if path.name in DEFAULT_EXEMPT_FILENAMES:
         return None
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     table = _repostyle_table(pyproject)
     if _is_ignored(path, pyproject, table):
         return None

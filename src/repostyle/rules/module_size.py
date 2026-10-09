@@ -14,7 +14,7 @@ from repostyle._shared import (
     _is_test_file,
     _parse_python,
     _repostyle_table,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._violation import (
     RS_SOURCE_MODULE_SIZE,
@@ -87,7 +87,7 @@ def check_test_module_size(path: Path, source: str) -> Iterator[Violation]:
 
 def _max_file_lines(path: Path, key: str, default: int) -> int:
     """Returns the positive module line limit configured under `key`."""
-    table = _repostyle_table(find_pyproject(path))
+    table = _repostyle_table(find_config_file(path))
     configured = table.get(key, default)
     if (
         not isinstance(configured, int)

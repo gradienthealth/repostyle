@@ -63,7 +63,7 @@ from repostyle._shared import (
     _strip_trailing_closers,
     _temporal_markers,
     _terminal_punctuation_fault,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.languages import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._violation import (
@@ -228,7 +228,7 @@ def check_acronym_casing_in_comments(path: Path, source: str) -> Iterator[Violat
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return
-    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    canonical_casing = effective_prose_acronyms(find_config_file(path))
     if not canonical_casing:
         return
     for comment in extract_comments(path, source):
@@ -261,7 +261,7 @@ def fix_acronym_casing_in_comments(
     """
     if path.suffix not in COMMENT_SUFFIXES:
         return source
-    canonical_casing = effective_prose_acronyms(find_pyproject(path))
+    canonical_casing = effective_prose_acronyms(find_config_file(path))
     if not canonical_casing:
         return source
     source_lines = source.splitlines()

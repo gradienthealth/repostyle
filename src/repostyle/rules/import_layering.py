@@ -18,7 +18,7 @@ from repostyle._shared import (
     _posix,
     _repostyle_table,
     _walk_tree,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.rules._violation import RS_BANNED_IMPORT_BY_PATH, Violation
 
@@ -30,7 +30,7 @@ def check_banned_import_by_path(path: Path, source: str) -> Iterator[Violation]:
     imports are matched against the banned sources configured for a glob the
     file's path falls under.
     """
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     if pyproject is None:
         return
     try:

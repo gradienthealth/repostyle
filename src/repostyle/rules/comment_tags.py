@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import re
-import tomllib
 from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
 from repostyle._shared import (
     _comment_text,
+    _repostyle_table,
     _standalone_comment_blocks,
-    find_pyproject,
+    find_config_file,
 )
 from repostyle.languages import (
     COMMENT_SUFFIXES,
@@ -153,7 +153,7 @@ def _own_line_comments(path: Path, source: str) -> Iterator[tuple[int, int, str]
 
 def _resolve_config(path: Path) -> tuple[tuple[str, ...], str]:
     """Returns the allowed tags and ticket pattern for the repo of `path`."""
-    pyproject = find_pyproject(path)
+    pyproject = find_config_file(path)
     if pyproject is None:
         return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
     return _comment_tag_config(pyproject)
@@ -166,11 +166,7 @@ def _comment_tag_config(pyproject: Path) -> tuple[tuple[str, ...], str]:
     Returns the configured allowed tag tuple and ticket-pattern regex, each
     falling back to its default when the table omits it.
     """
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return DEFAULT_TAGS, DEFAULT_TICKET_PATTERN
-    table = data.get("tool", {}).get("repostyle", {})
+    table = _repostyle_table(pyproject)
     tags = tuple(table.get("comment-tags", DEFAULT_TAGS))
     pattern = table.get("comment-ticket-pattern", DEFAULT_TICKET_PATTERN)
     return tags, pattern
