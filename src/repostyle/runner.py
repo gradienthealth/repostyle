@@ -22,6 +22,7 @@ from repostyle.baseline import DEFAULT_BASELINE_NAME
 from repostyle.languages import LANGUAGES
 from repostyle.rules import (
     ALL_RULE_IDS,
+    ASSERTION_LIBRARIES,
     FIXABLE_RULES,
     PACKAGE_RULES,
     RS_ACRONYM_CASING_IN_PROSE,
@@ -44,6 +45,7 @@ from repostyle.rules import (
     fix_double_backticks,
     fix_double_space_in_comments,
     fix_double_space_in_docstrings,
+    fix_javadoc_tag_punctuation,
     fix_nonstandard_dash_in_comments,
     fix_nonstandard_dash_in_docstrings,
     run_package_rule,
@@ -69,6 +71,7 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_NONSTANDARD_DASH, fix_nonstandard_dash_in_comments),
     (RS_TERMINAL_PUNCTUATION, fix_docstring_terminal_punctuation),
     (RS_TERMINAL_PUNCTUATION, fix_comment_terminal_punctuation),
+    (RS_TERMINAL_PUNCTUATION, fix_javadoc_tag_punctuation),
     (RS_DOUBLE_SPACE_AFTER_PERIOD, fix_double_space_in_docstrings),
     (RS_DOUBLE_SPACE_AFTER_PERIOD, fix_double_space_in_comments),
     (RS_DOC_FILL, fix_doc_fill),
@@ -109,6 +112,7 @@ def resolve_rules_for_paths(paths: Iterable[Path]) -> _ResolvedRules:
     config = load_config(pyproject) if pyproject is not None else None
     _check_baseline_setting(config)
     _check_languages_setting(config)
+    _check_assertion_library_setting(config)
     return _ResolvedRules(resolve_enabled_rules(config), resolve_promoted_rules(config))
 
 
@@ -173,6 +177,25 @@ def repo_root(paths: Iterable[Path]) -> Path:
 def load_config(pyproject: Path) -> dict | None:
     """Returns the repostyle settings in a config file, or `None` for none."""
     return config_table(pyproject)
+
+
+def _check_assertion_library_setting(config: dict | None) -> None:
+    """Rejects an `assertion-library` value RS071 does not recognize.
+
+    A misspelled `"assertJ"` would otherwise fall back to Truth and flag every
+    test in the repo, so it is refused the way an unknown language is.
+
+    Raises:
+        ValueError: When `assertion-library` names no known library.
+    """
+    if not config or "assertion-library" not in config:
+        return
+    configured = config["assertion-library"]
+    if configured not in ASSERTION_LIBRARIES:
+        raise ValueError(
+            f"unknown `assertion-library` value {configured!r}: choose one of "
+            f"{', '.join(sorted(ASSERTION_LIBRARIES))}"
+        )
 
 
 def _check_baseline_setting(config: dict | None) -> None:

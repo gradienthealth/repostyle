@@ -23,6 +23,8 @@ languages = ["python", "markdown", "toml", "yaml", "shell", "java"]
 
 `languages` lists every language `repostyle` reads, replacing the default of `python`, `markdown`, `toml`, `yaml`, and `shell`. Java is opt-in while its rules settle, so a release that adds Java checks reaches only repositories that listed it. A file in an unlisted language is skipped whether it was walked or passed explicitly, and an unknown name is a configuration error.
 
+Set `assertion-library` to `truth` (the default), `assertj`, or `junit` to choose the one library RS071 lets Java tests assert with.
+
 Java comments fill to google-java-format's 100 columns rather than 79, a `// style: ignore[RSnnn]` comment suppresses a finding as `#` does, and Maven's `target/` output beside a `pom.xml` is pruned with the other build directories.
 
 ## Baseline inherited findings

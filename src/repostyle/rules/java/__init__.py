@@ -9,16 +9,25 @@ files and they carry no suffix guard of their own.
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING,
     RS_ARG_DESCRIBED_IN_PROSE,
+    RS_ASSERTION_LIBRARY,
     RS_BANNED_ABBREVIATION,
+    RS_COGNITIVE_COMPLEXITY,
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
+    RS_DOC_VALUE_SIGNAL,
     RS_DURATION_AS_TIMEDELTA,
     RS_EMPTY_CATCH_REASON,
+    RS_LOWERCASE_ENTRY_DESCRIPTION,
     RS_NO_MOCK_PATCH,
     RS_RECORD_COMPONENT_UNDOCUMENTED,
     RS_SLEEPY_TEST,
+    RS_TERMINAL_PUNCTUATION,
     RS_TEST_NAMING,
     RS_TOO_MANY_POSITIONAL_ARGS,
+)
+from repostyle.rules.java._assertions import (
+    ASSERTION_LIBRARIES,
+    check_java_assertion_library,
 )
 from repostyle.rules.java._contracts import (
     check_java_duration_constant,
@@ -27,10 +36,19 @@ from repostyle.rules.java._contracts import (
     check_record_component_tags,
 )
 from repostyle.rules.java._errors import check_empty_catch_reason
+from repostyle.rules.java._javadoc_tags import (
+    check_javadoc_tag_casing,
+    check_javadoc_tag_punctuation,
+    fix_javadoc_tag_punctuation,
+)
 from repostyle.rules.java._naming import (
     check_java_acronym_as_word,
     check_java_banned_abbreviation,
     check_java_discouraged_class_suffix,
+)
+from repostyle.rules.java._signals import (
+    check_java_cognitive_complexity,
+    check_java_doc_value_signal,
 )
 from repostyle.rules.java._testing import (
     check_java_conditional_test_logic,
@@ -52,20 +70,32 @@ RULES = {
     RS_CONDITIONAL_TEST_LOGIC: (check_java_conditional_test_logic,),
     RS_SLEEPY_TEST: (check_java_sleepy_test,),
     RS_EMPTY_CATCH_REASON: (check_empty_catch_reason,),
+    RS_COGNITIVE_COMPLEXITY: (check_java_cognitive_complexity,),
+    RS_DOC_VALUE_SIGNAL: (check_java_doc_value_signal,),
+    RS_TERMINAL_PUNCTUATION: (check_javadoc_tag_punctuation,),
+    RS_LOWERCASE_ENTRY_DESCRIPTION: (check_javadoc_tag_casing,),
+    RS_ASSERTION_LIBRARY: (check_java_assertion_library,),
 }
 
 __all__ = [
+    "ASSERTION_LIBRARIES",
     "RULES",
     "check_empty_catch_reason",
     "check_java_acronym_as_word",
+    "check_java_assertion_library",
     "check_java_banned_abbreviation",
+    "check_java_cognitive_complexity",
     "check_java_conditional_test_logic",
     "check_java_discouraged_class_suffix",
+    "check_java_doc_value_signal",
     "check_java_duration_constant",
     "check_java_no_mock_library",
     "check_java_param_described_in_prose",
     "check_java_sleepy_test",
     "check_java_test_naming",
     "check_java_too_many_parameters",
+    "check_javadoc_tag_casing",
+    "check_javadoc_tag_punctuation",
     "check_record_component_tags",
+    "fix_javadoc_tag_punctuation",
 ]

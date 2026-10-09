@@ -1,6 +1,6 @@
 # Rule reference
 
-`repostyle` ships 70 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
+`repostyle` ships 71 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
 
 Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, and references. The check-function docstring under `src/repostyle/rules/` is the canonical implementation specification.
 
@@ -79,6 +79,7 @@ These rules inspect docstrings and comments. Comment checks also cover TOML, YAM
 | RS063 | warning | Consolidate matching substantial helpers across test files. |
 | RS064 | warning | Parametrize scalar cases that share one named contract and structure. |
 | RS065 | warning | Consolidate repeated call-bearing test setup. |
+| RS071 | warning | Assert with the repository's one Java assertion library. |
 
 ## Structure and imports
 
@@ -123,18 +124,18 @@ RS017 stays inert until `[tool.repostyle.banned-imports]` defines a ban.
 A repository that lists `java` under `languages` gets these rules on its Java sources:
 
 - **Every comment rule** reads `//` comments, filling to google-java-format's 100 columns rather than 79.
-- **RS023, RS030, RS034, RS045, RS049, RS050, and RS061** read Javadoc the way they read a docstring. A `{@code}` or `{@link}` tag counts as a code span, a `<pre>` block holds no prose, and RS030 leaves block tags such as `@param` alone.
-- **RS054** reads `//` comments but not Javadoc, which renders `--` as two literal hyphens.
+- **RS023, RS030, RS034, RS045, RS049, RS050, RS054, and RS061** read Javadoc the way they read a docstring. A `{@code}` or `{@link}` tag counts as a code span, and a `<pre>` block holds no prose. RS054's Javadoc dash is the spaced em dash `—`, since Javadoc renders as HTML and `--` would show as two hyphens; `//` comments keep the house `--`.
+- **RS030 and RS047** hold Javadoc block tags to the JDK convention. An `@param`, `@return`, `@throws`, or `@deprecated` description is a lowercase phrase with no period. Once any tag in a comment runs to more than one sentence, every tag in it ends with a period. RS047 flags a description opening on a capitalized article or similar sentence opener, and `--fix` repunctuates for RS030.
 - **RS033** exempts a Java file, whose name is its class.
-- **RS001, RS007, RS010, RS011, RS027, and RS031** have Java implementations that follow Java's conventions. RS001 writes an acronym as a word (`DicomScp`, not `DICOMScp`), as Google Java style does, rather than in capitals. RS007 asks for a `java.time.Duration` constant. RS027 counts every parameter, since Java has no keyword parameters. RS031 moves a parameter described in Javadoc prose into its `@param` tag.
+- **RS001, RS007, RS010, RS011, RS012, RS018, RS027, and RS031** have Java implementations that follow Java's conventions. RS001 writes an acronym as a word (`DicomScp`, not `DICOMScp`), as Google Java style does, rather than in capitals. RS007 asks for a `java.time.Duration` constant. RS012 and RS018 score a method body's cognitive complexity, and RS018 asks for Javadoc on a non-private method that is complex or takes many parameters. RS027 counts every parameter, since Java has no keyword parameters. RS031 moves a parameter described in Javadoc prose into its `@param` tag.
 - **RS002, RS003, RS013, and RS014** hold a JUnit 5 test to the Python test contracts. A test is named `stateUnderTest_expectedBehavior`, imports no mock library, keeps its assertions out of control flow, and does not sleep. A test is a method a JUnit test annotation marks, in a file under `src/test/` or named for the `Test`, `Tests`, or `IT` suffix. A try-with-resources block, like a Python `with`, is not control flow.
-- **RS069 and RS070** apply to Java alone. A documented record tags each component with `@param`, and an empty `catch` block gives the reason it ignores the exception.
+- **RS069, RS070, and RS071** apply to Java alone. A documented record tags each component with `@param`, an empty `catch` block gives the reason it ignores the exception, and every test asserts with one library, Truth unless `assertion-library` names another.
 
 The other rules read Python syntax and do not read Java.
 
 ## Severity
 
-Under the defaults, 20 rules hard-fail and the other 50 report warnings. Those 20 are the mechanical rules:
+Under the defaults, 20 rules hard-fail and the other 51 report warnings. Those 20 are the mechanical rules:
 
 ```text
 RS001 RS002 RS003 RS004 RS005 RS006 RS007 RS008 RS009 RS010
