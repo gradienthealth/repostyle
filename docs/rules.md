@@ -126,6 +126,7 @@ A repository that lists `java` under `languages` gets these rules on its Java so
 - **RS054** reads `//` comments but not Javadoc, which renders `--` as two literal hyphens.
 - **RS033** exempts a Java file, whose name is its class.
 - **RS001, RS007, RS010, RS011, RS027, and RS031** have Java implementations that follow Java's conventions. RS001 writes an acronym as a word (`DicomScp`, not `DICOMScp`), as Google Java style does, rather than in capitals. RS007 asks for a `java.time.Duration` constant. RS027 counts every parameter, since Java has no keyword parameters. RS031 moves a parameter described in Javadoc prose into its `@param` tag.
+- **RS002, RS003, RS013, and RS014** hold a JUnit 5 test to the Python test contracts. A test is named `stateUnderTest_expectedBehavior`, imports no mock library, keeps its assertions out of control flow, and does not sleep. A test is a method a JUnit test annotation marks, in a file under `src/test/` or named for the `Test`, `Tests`, or `IT` suffix. A try-with-resources block, like a Python `with`, is not control flow.
 - **RS069** applies to Java alone: a documented record tags each component with `@param`.
 
 The other rules read Python syntax and do not read Java.

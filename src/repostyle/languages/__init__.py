@@ -6,10 +6,11 @@ a block directive covers, where its tests live -- sits in this package behind a
 record rather than as edits across the rules.
 """
 
-from repostyle.languages._java import JavaToken, lex_java
+from repostyle.languages._java import JavaImport, JavaToken, java_imports, lex_java
 from repostyle.languages._java_declarations import (
     JavaDeclaration,
     JavaParameter,
+    java_code_tokens,
     java_declarations,
 )
 from repostyle.languages._model import (
@@ -52,6 +53,7 @@ __all__ = [
     "YAML",
     "CommentToken",
     "JavaDeclaration",
+    "JavaImport",
     "JavaParameter",
     "JavaToken",
     "Language",
@@ -61,7 +63,9 @@ __all__ = [
     "comment_text",
     "extract_comments",
     "extract_folded_runs",
+    "java_code_tokens",
     "java_declarations",
+    "java_imports",
     "language_for",
     "lex_java",
     "parse_python",
