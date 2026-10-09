@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 from repostyle._shared import (
     STANDARD_SENTENCE_DASH,
+    _blank_prose_spans,
     _join_source_lines,
     _nonstandard_dashes_in_prose,
 )
@@ -71,29 +73,29 @@ def fix_disfavored_gcp_term_in_docstrings(
 def check_nonstandard_dash_in_docstrings(
     path: Path, source: str
 ) -> Iterator[Violation]:
-    """Flags a nonstandard sentence dash in a docstring.
+    """Flags a nonstandard sentence dash in a docstring or Javadoc.
 
-    Prose sets a clause off with the house sentence dash, the spaced double
-    hyphen ` -- `. An em dash (spaced or glued), a spaced en dash, a
-    letter-flanked spaced hyphen, and a mis-spaced double hyphen are flagged
-    and, under `--fix`, rewritten to the standard form. An occurrence inside a
-    backtick span (`git log -- path`) or a URL is left alone, as are an
-    unspaced en dash (an `RSnnn` or numeric range) and a hyphen not flanked by
-    letters (arithmetic, a negative number, a CLI flag, a bullet marker), so
-    only a dash doing sentence work fires.
-
-    Javadoc is not read. It renders as HTML, where ` -- ` shows as two literal
-    hyphens rather than a dash, so the house form does not carry over to it.
+    Prose sets a clause off with the house sentence dash: the spaced double
+    hyphen ` -- ` in a Python docstring, and the spaced em dash ` — ` in
+    Javadoc, which renders as HTML, where ` -- ` would show as two hyphens. Any
+    other dash doing sentence work is flagged and, under `--fix`, rewritten to
+    the standard form: an em dash glued or half-spaced, a spaced en dash, a
+    letter-flanked spaced hyphen, and a double hyphen where it is not the
+    standard. An occurrence inside a backtick span (`git log -- path`), a
+    Javadoc code tag, or a URL is left alone, as are an unspaced en dash (an
+    `RSnnn` or numeric range) and a hyphen not flanked by letters (arithmetic,
+    a negative number, a CLI flag, a bullet marker), so only a dash doing
+    sentence work fires.
     """
-    for lineno, offset, found, _ in _doc_faults(
-        _docstring_blocks(path, source), _nonstandard_dashes_in_prose
-    ):
-        yield Violation(
-            lineno,
-            offset + 1,
-            RS_NONSTANDARD_DASH,
-            f"docstring uses a nonstandard sentence dash {found!r}; write {STANDARD_SENTENCE_DASH!r}",
-        )
+    for block in internal_doc_blocks(path, source):
+        standard = _JAVADOC_DASH if block.is_javadoc else STANDARD_SENTENCE_DASH
+        for lineno, offset, found, _ in _doc_faults((block,), _dash_scanner(block)):
+            yield Violation(
+                lineno,
+                offset + 1,
+                RS_NONSTANDARD_DASH,
+                f"docstring uses a nonstandard sentence dash {found!r}; write {standard!r}",
+            )
 
 
 def fix_nonstandard_dash_in_docstrings(
@@ -101,8 +103,8 @@ def fix_nonstandard_dash_in_docstrings(
 ) -> str:
     """Rewrites each nonstandard sentence dash in a docstring, RS054's fix.
 
-    Each occurrence the docstring check flags is replaced in place with the
-    house ` -- `. A replacement changes length, so a line's faults are applied
+    Each occurrence the check flags is replaced in place with its block's
+    standard dash. A replacement changes length, so a line's faults are applied
     right to left, keeping each earlier offset valid. A unit whose line is in
     `skip_lines` is left alone.
 
@@ -110,15 +112,54 @@ def fix_nonstandard_dash_in_docstrings(
         The source with each flagged dash rewritten, unchanged when nothing
         rewrites.
     """
-    faults = _doc_faults(_docstring_blocks(path, source), _nonstandard_dashes_in_prose)
+    faults = [
+        fault
+        for block in internal_doc_blocks(path, source)
+        for fault in _doc_faults((block,), _dash_scanner(block))
+    ]
     return _rewrite_faults(source, faults, skip_lines)
 
 
-def _docstring_blocks(path: Path, source: str) -> Iterator[InternalDocBlock]:
-    """Yields the Python docstring blocks of `source`, leaving out Javadoc."""
-    for block in internal_doc_blocks(path, source):
-        if not block.is_javadoc:
-            yield block
+def _dash_scanner(block: InternalDocBlock) -> _LineScanner:
+    """Returns the dash scanner for a block's language."""
+    return _javadoc_dashes if block.is_javadoc else _nonstandard_dashes_in_prose
+
+
+def _javadoc_dashes(line: str) -> Iterator[tuple[int, str, str]]:
+    """Yields `(offset, found, replacement)` per nonstandard Javadoc dash.
+
+    The standard is a spaced em dash. At a wrap point the dash keeps only the
+    space on its prose side, so a dash ending or opening a line is standard as
+    ` —` or `— `, and a rewrite never leaves a space at a line edge.
+    """
+    masked = _blank_prose_spans(line)
+    found: set[tuple[int, str]] = set()
+    for pattern in _JAVADOC_DASH_PATTERNS:
+        for match in pattern.finditer(masked):
+            found.add((match.start(), match.group()))
+    for offset, text in sorted(found):
+        is_line_start = not line[:offset].strip()
+        is_line_end = not line[offset + len(text) :].strip()
+        if is_line_start:
+            offset, text = offset + len(text) - len(text.lstrip()), text.lstrip()
+        if is_line_end:
+            text = text.rstrip()
+        replacement = (
+            ("" if is_line_start else " ") + "—" + ("" if is_line_end else " ")
+        )
+        if text != replacement:
+            yield offset, text, replacement
+
+
+_JAVADOC_DASH = " — "
+
+_JAVADOC_DASH_PATTERNS = (
+    re.compile(r" ?— ?"),
+    re.compile(r" – "),  # noqa: RUF001
+    re.compile(r"(?<=[A-Za-z]) - (?=[A-Za-z])"),
+    re.compile(r" --(?: |$)"),
+    re.compile(r"(?<=[A-Za-z])--(?=[A-Za-z])"),
+)
 
 
 _LineScanner = Callable[[str], Iterable[tuple[int, str, str]]]

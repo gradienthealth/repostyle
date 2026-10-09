@@ -235,7 +235,7 @@ reference = []
 [RS030]
 name = "terminal-punctuation"
 summary = "A docstring or comment prose unit ends with terminal punctuation (`.`, `!`, or `?`); comments are checked in Python, TOML, YAML, and shell."
-rationale = ""
+rationale = "A Javadoc block tag is the exception. An `@param`, `@return`, or `@throws` description is a phrase without a period, as the JDK writes it, and once any tag in a comment runs to more than one sentence, every tag in that comment ends with a period, so the tags read alike."
 examples = []
 signals = []
 reference = []
@@ -371,7 +371,7 @@ reference = []
 [RS047]
 name = "lowercase-entry-description"
 summary = "An `Args:`/`Returns:`/`Raises:`/`Yields:` entry description opens with a capital letter (`bar: A bar.`, not `bar: a bar.`)."
-rationale = "The house treats each Google-section entry description as a full sentence, so it opens with a capital just as RS030 requires it to close with a period -- the two rules are the opening-capital and closing-period halves of one convention. ChromiumOS's Python style guide requires docstring content, including argument descriptions, to be full sentences with proper capitalization and punctuation, and Google's own `Args:` examples are capitalized. No ruff or pydocstyle rule enforces entry-description capitalization, so it is a genuine gap. The check stays near zero-false-positive: only a lowercase ASCII prose letter fires, and a description opening with a backtick code span, an inherently-lowercase code token (a parameter name or a dotted path like `json.dumps`), a digit, or any other non-letter is left alone."
+rationale = "The house treats each Google-section entry description as a full sentence, so it opens with a capital just as RS030 requires it to close with a period -- the two rules are the opening-capital and closing-period halves of one convention. ChromiumOS's Python style guide requires docstring content, including argument descriptions, to be full sentences with proper capitalization and punctuation, and Google's own `Args:` examples are capitalized. No ruff or pydocstyle rule enforces entry-description capitalization, so it is a genuine gap. The check stays near zero-false-positive: only a lowercase ASCII prose letter fires, and a description opening with a backtick code span, an inherently-lowercase code token (a parameter name or a dotted path like `json.dumps`), a digit, or any other non-letter is left alone. Java follows its own convention instead: a Javadoc `@param`, `@return`, or `@throws` description is a lowercase phrase completing its tag, as the JDK and Google's Java code write it, so in Java the check flags a description opening on a capitalized article or similar sentence opener (`The`, `A`, `If`)."
 examples = [{ bad = "Args:\n    bar: a bar.", good = "Args:\n    bar: A bar.", note = "" }, { bad = "Raises:\n    NotFoundError: if a foo is not found.", good = "Raises:\n    NotFoundError: If a foo is not found.", note = "" }]
 signals = []
 reference = []
@@ -427,7 +427,7 @@ reference = []
 [RS054]
 name = "nonstandard-dash"
 summary = "Docstring and comment prose sets a clause off with the house sentence dash, the spaced `--`, not an em dash, en dash, or single hyphen."
-rationale = "Prose reaches for a sentence dash in several shapes -- an em dash, spaced or glued, an en dash, a spaced single hyphen, a glued double hyphen -- and each writer picks one by local precedent, so files drift apart. The house standardizes on the spaced double hyphen: it is unambiguous ASCII (an em dash, an en dash, and a hyphen-minus render nearly alike in many editors, so drift among them is invisible), it cannot be mistaken for a bullet marker or a minus sign, and it greps trivially. The check masks backtick spans and URLs, leaves an unspaced en-dash range (`RS013–RS016`) alone, and requires letters around a hyphen form, so arithmetic, negative numbers, CLI flags, and bullet markers never fire. Auto-fixable: `--fix` rewrites each flagged dash to the spaced `--`."
+rationale = "Prose reaches for a sentence dash in several shapes -- an em dash, spaced or glued, an en dash, a spaced single hyphen, a glued double hyphen -- and each writer picks one by local precedent, so files drift apart. The house standardizes on the spaced double hyphen: it is unambiguous ASCII (an em dash, an en dash, and a hyphen-minus render nearly alike in many editors, so drift among them is invisible), it cannot be mistaken for a bullet marker or a minus sign, and it greps trivially. The check masks backtick spans and URLs, leaves an unspaced en-dash range (`RS013–RS016`) alone, and requires letters around a hyphen form, so arithmetic, negative numbers, CLI flags, and bullet markers never fire. Auto-fixable: `--fix` rewrites each flagged dash to the spaced `--`. Javadoc is the exception: it renders as HTML, where a spaced `--` shows as two hyphens, so a Javadoc comment sets a clause off with the spaced em dash instead, and `--fix` rewrites toward that."
 examples = [{ bad = "# resolves the config -- falling back to defaults", good = "# resolves the config -- falling back to defaults", note = "" }, { bad = "\"\"\"Returns the lease - or `None` when expired.\"\"\"", good = "\"\"\"Returns the lease -- or `None` when expired.\"\"\"", note = "A spaced single hyphen between letters is doing dash work; `3 - 5` and `n - 1` are left alone." }]
 signals = []
 reference = []
@@ -557,5 +557,13 @@ name = "empty-catch-reason"
 summary = "An empty Java `catch` block says in a comment why ignoring the exception is safe."
 rationale = "Google Java style allows a `catch` block to take no action only when a comment explains why that is justified. A block with no comment, or with only a pointer to an explanation elsewhere or a bare label like `// ignored`, leaves each reader to rediscover the reason, and the reason drifts out of date wherever the pointer leads. In a test, an exception variable named `expected` documents itself, as Google Java style allows."
 examples = [{ bad = "} catch (Exception ignored) {\n  // See method javadoc.\n}", good = "} catch (Exception ignored) {\n  // The abort only cleans up after a failure already being reported; a second\n  // failure here would mask the first.\n}", note = "A broad `catch (Exception e)` is a separate question, which Checkstyle's `IllegalCatch` answers." }]
+signals = []
+reference = []
+
+[RS071]
+name = "assertion-library"
+summary = "A Java test asserts with the repository's one assertion library, Truth unless `assertion-library` names another."
+rationale = "Two assertion libraries in one test suite mean two vocabularies for the same check and two styles of failure message. Truth is the default: `assertThat(actual).isEqualTo(expected)` names the value under test first, where JUnit's `assertEquals(expected, actual)` invites swapping the two, and Truth's failure messages describe a collection, string, or optional rather than printing two values. A repository sets `assertion-library` to `assertj` or `junit` to standardize on one of those instead. JUnit's `assertThrows`, `assertDoesNotThrow`, `assertTimeout`, and `fail` stay available under every choice."
+examples = [{ bad = "import static org.junit.jupiter.api.Assertions.assertEquals;\n\nassertEquals(3, widget.count());", good = "import static com.google.common.truth.Truth.assertThat;\n\nassertThat(widget.count()).isEqualTo(3);", note = "With the default `truth` choice." }]
 signals = []
 reference = []
