@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.37.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.36.0...repostyle-v0.37.0) (2026-10-09)
+
+
+### Features
+
+* **NO-ISSUE:** ask an empty Java catch block for its reason ([#184](https://github.com/gradienthealth/repostyle/issues/184)) ([ff26892](https://github.com/gradienthealth/repostyle/commit/ff26892874bbd1d493c55c2ef09df2f9e351c86c))
+* **NO-ISSUE:** flag record fields described in the class docstring ([#177](https://github.com/gradienthealth/repostyle/issues/177)) ([1d8f448](https://github.com/gradienthealth/repostyle/commit/1d8f448647fadce78e9a493046996730efa9fe5b))
+* **NO-ISSUE:** grade Javadoc with the docstring prose rules ([#181](https://github.com/gradienthealth/repostyle/issues/181)) ([9af9a35](https://github.com/gradienthealth/repostyle/commit/9af9a358e5675782ee022bddb775f1d71607c8f8))
+* **NO-ISSUE:** hold JUnit tests to the house test rules ([#186](https://github.com/gradienthealth/repostyle/issues/186)) ([bddb222](https://github.com/gradienthealth/repostyle/commit/bddb222d03b0ae65be282faf806815ddec5a781c))
+* **NO-ISSUE:** read Java comments behind an opt-in languages key ([#180](https://github.com/gradienthealth/repostyle/issues/180)) ([01d76cb](https://github.com/gradienthealth/repostyle/commit/01d76cb9807ef561a777b2638d5527bafcee8648))
+* **NO-ISSUE:** read settings from a repostyle.toml ([#183](https://github.com/gradienthealth/repostyle/issues/183)) ([816c03b](https://github.com/gradienthealth/repostyle/commit/816c03bc6b8b9842b251556d1ff0ed1b1e25bfc6))
+* **NO-ISSUE:** scan Java declarations and give code rules Java checks ([#182](https://github.com/gradienthealth/repostyle/issues/182)) ([caa7b77](https://github.com/gradienthealth/repostyle/commit/caa7b77dc2f893f94547db8bbcfd8039f598170b))
+* **NO-ISSUE:** settle the Java Javadoc, assertion, and documentation conventions ([#185](https://github.com/gradienthealth/repostyle/issues/185)) ([55817c9](https://github.com/gradienthealth/repostyle/commit/55817c913fedb65fd7b13f45367dd3606d647235))
+
 ## [0.36.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.35.0...repostyle-v0.36.0) (2026-10-02)
 
 
