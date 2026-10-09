@@ -35,18 +35,24 @@ class JavaToken(NamedTuple):
 def java_block_spans(source: str) -> Iterator[tuple[int, int]]:
     """Yields the inclusive line span of each statement in Java `source`.
 
-    A statement runs from its first token -- an annotation or modifier, for a
-    declaration -- through the `;` ending it or the `}` closing its body, so a
-    directive above a method or class covers its whole body, and one above a
-    field covers the field. An `if` runs through its `else` branches and a
-    `try` through its `catch` and `finally` blocks. Nested statements yield
-    their own spans. Comments do not open a statement, so a directive written
-    above Javadoc still attaches to the declaration below it.
+    The spans are what a `style: ignore-block` directive can cover, matched to
+    the statements Python's spans are:
+
+    - A declaration runs from its Javadoc or first annotation through the `;`
+      that ends it or the `}` that closes its body.
+    - An `if` runs through its `else` branches, and a `try` through its `catch`
+      and `finally` blocks.
+    - A statement nested in a body yields its own span.
+
+    A line or block comment opens no statement, so a directive written above
+    one attaches to the statement below it.
     """
-    tokens = list(_code_tokens(source))
+    tokens = [t for t in lex_java(source) if t.kind not in _PLAIN_COMMENT_KINDS]
     starts: list[int | None] = [None]
     for index, token in enumerate(tokens):
         starts[-1] = starts[-1] or token.line
+        if token.kind == "doc_comment":
+            continue
         if token.text == "{":
             starts.append(None)
             continue
@@ -102,14 +108,7 @@ def is_java_test_file(path: Path) -> bool:
 _TEST_NAME_PATTERN = re.compile(r"(Test|Tests|IT)\.java$")
 
 
-def _code_tokens(source: str) -> Iterator[JavaToken]:
-    """Yields the tokens of `source` that are code, not comments."""
-    for token in lex_java(source):
-        if token.kind not in _COMMENT_KINDS:
-            yield token
-
-
-_COMMENT_KINDS = frozenset({"line_comment", "block_comment", "doc_comment"})
+_PLAIN_COMMENT_KINDS = frozenset({"line_comment", "block_comment"})
 
 
 @lru_cache(maxsize=128)

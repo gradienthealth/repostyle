@@ -16,6 +16,7 @@ from repostyle._shared import (
     _terminal_punctuation_fault,
 )
 from repostyle.languages import COMMENT_SUFFIXES
+from repostyle.rules._doc_blocks import internal_doc_blocks
 from repostyle.rules._docstring_edits import (
     internal_blank_outside_docstring,
     internal_comment_bullet_lists,
@@ -56,23 +57,19 @@ _NumberedMarker = tuple[int, int, int, bool]
 def check_docstring_terminal_punctuation(
     path: Path, source: str
 ) -> Iterator[Violation]:
-    """Every docstring prose unit must end with terminal punctuation.
+    """Every docstring and Javadoc prose unit ends with terminal punctuation.
 
-    A summary, a body paragraph, and an `Args:`, `Returns:`, `Raises:`, or
-    `Yields:` entry each close with `.`, `!`, or `?`, as PEP 257 prescribes for
-    the summary and the house style extends to the rest. Code (doctests,
-    `Example:` sections, fenced blocks), bullet items, a list-introducing
-    colon, and a unit ending in a URL are exempt.
+    A summary closes with `.`, `!`, or `?`, as PEP 257 prescribes for a
+    docstring and Google Java style for Javadoc, and the house extends the rule
+    to every body paragraph and to a docstring's `Args:`, `Returns:`,
+    `Raises:`, and `Yields:` entries. Code (doctests, `Example:` sections,
+    fenced and `<pre>` blocks), bullet items, a list-introducing colon, a unit
+    ending in a URL, and a Javadoc block tag, which follows its own convention,
+    are exempt.
     """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
-    for node in internal_walk_docstring_owners(tree):
-        constant = internal_docstring_constant(node)
-        if constant is None:
-            continue
-        for unit in internal_docstring_prose_units(constant):
-            if unit.kind == "bullet":
+    for block in internal_doc_blocks(path, source):
+        for unit in block.units:
+            if unit.kind in _UNPUNCTUATED_KINDS:
                 continue
             if _terminal_punctuation_fault(unit.text, is_prose=True) is None:
                 continue
@@ -82,6 +79,9 @@ def check_docstring_terminal_punctuation(
                 RS_TERMINAL_PUNCTUATION,
                 internal_terminal_punctuation_message(unit.kind),
             )
+
+
+_UNPUNCTUATED_KINDS = frozenset({"bullet", "tag"})
 
 
 def check_lowercase_entry_description(path: Path, source: str) -> Iterator[Violation]:
@@ -260,21 +260,15 @@ def check_docstring_temporal_markers(path: Path, source: str) -> Iterator[Violat
     was reached -- narrates the edit rather than the unit's present contract,
     so it belongs in the commit message, not durable docstring prose. This is
     the common source of an agent leaking the session's design discussion and
-    the diff's story into the code. A marker quoted inside a backtick span is a
-    referenced token, not narration, and is left alone. Each prose unit --
-    summary, body paragraph, or section entry -- is scanned; a code span,
-    doctest, or `Example:` block is not. This is the mechanical floor under
-    review, which judges the ambiguous cases this tight set deliberately leaves
-    out.
+    the diff's story into the code. A marker quoted inside a backtick span or a
+    Javadoc code tag is a referenced token, not narration, and is left alone.
+    Each prose unit -- summary, body paragraph, section entry, or Javadoc block
+    tag -- is scanned; a code span, doctest, `Example:` block, or `<pre>` block
+    is not. This is the mechanical floor under review, which judges the
+    ambiguous cases this tight set deliberately leaves out.
     """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return
-    for node in internal_walk_docstring_owners(tree):
-        constant = internal_docstring_constant(node)
-        if constant is None:
-            continue
-        for unit in internal_docstring_prose_units(constant):
+    for block in internal_doc_blocks(path, source):
+        for unit in block.units:
             for marker in _temporal_markers(unit.text):
                 yield Violation(
                     unit.lineno,

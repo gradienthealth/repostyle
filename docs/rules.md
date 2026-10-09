@@ -116,6 +116,17 @@ Most rules are safe in any repository. Three assume a project layout:
 
 RS017 stays inert until `[tool.repostyle.banned-imports]` defines a ban.
 
+## Java coverage
+
+A repository that lists `java` under `languages` gets these rules on its Java sources:
+
+- **Every comment rule** reads `//` comments, filling to google-java-format's 100 columns rather than 79.
+- **RS023, RS030, RS034, RS045, RS049, RS050, and RS061** read Javadoc the way they read a docstring. A `{@code}` or `{@link}` tag counts as a code span, a `<pre>` block holds no prose, and RS030 leaves block tags such as `@param` alone.
+- **RS054** reads `//` comments but not Javadoc, which renders `--` as two literal hyphens.
+- **RS033** exempts a Java file, whose name is its class.
+
+Rules that read Python syntax, such as naming, signature, and test rules, do not read Java.
+
 ## Severity
 
 Under the defaults, 20 rules hard-fail and the other 48 report warnings. Those 20 are the mechanical rules:
