@@ -7,6 +7,11 @@ record rather than as edits across the rules.
 """
 
 from repostyle.languages._java import JavaToken, lex_java
+from repostyle.languages._java_declarations import (
+    JavaDeclaration,
+    JavaParameter,
+    java_declarations,
+)
 from repostyle.languages._model import (
     MARKER_PATTERN,
     CommentToken,
@@ -46,6 +51,8 @@ __all__ = [
     "TOML",
     "YAML",
     "CommentToken",
+    "JavaDeclaration",
+    "JavaParameter",
     "JavaToken",
     "Language",
     "block_spans",
@@ -54,6 +61,7 @@ __all__ = [
     "comment_text",
     "extract_comments",
     "extract_folded_runs",
+    "java_declarations",
     "language_for",
     "lex_java",
     "parse_python",

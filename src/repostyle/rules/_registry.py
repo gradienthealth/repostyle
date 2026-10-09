@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
+from repostyle.languages import language_for
 from repostyle.rules._documentation_rules import RULES as DOCUMENTATION_RULES
 from repostyle.rules._python_rules import RULES as PYTHON_RULES
 from repostyle.rules._testing_rules import RULES as TESTING_RULES
@@ -45,6 +46,7 @@ from repostyle.rules._violation import (
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RANGE_LEN_REINDEX,
+    RS_RECORD_COMPONENT_UNDOCUMENTED,
     RS_REPEATED_TEST_SETUP,
     RS_RETURN_DESCRIBED_IN_PROSE,
     RS_SHARED_TEST_HELPER,
@@ -62,6 +64,7 @@ from repostyle.rules._violation import (
     Severity,
     Violation,
 )
+from repostyle.rules.java import RULES as JAVA_RULES
 from repostyle.rules.testing_reuse import (
     check_shared_test_helper,
 )
@@ -75,10 +78,19 @@ RuleCheck = Callable[[Path, str], Iterator[Violation]]
 # keyed by path, rather than the single-file `RuleCheck` contract above.
 PackageCheck = Callable[[Sequence[tuple[Path, str]]], Iterator[tuple[Path, Violation]]]
 
-RULES: dict[str, tuple[RuleCheck, ...]] = {
+RULES: RuleTable = {
     **PYTHON_RULES,
     **DOCUMENTATION_RULES,
     **TESTING_RULES,
+}
+
+# Checks bound to one language, keyed by its `Language.name`. The runner hands
+# each only that language's files, so a check here reads its syntax without a
+# guard of its own; the checks in RULES see every file and guard themselves.
+RuleTable = dict[str, tuple[RuleCheck, ...]]
+
+LANGUAGE_RULES: dict[str, RuleTable] = {
+    "java": JAVA_RULES,
 }
 
 
@@ -144,6 +156,7 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_DOCSTRING_SECTION_ALIAS: Severity.WARNING,
     RS_DUPLICATE_DOCSTRING_SECTION: Severity.WARNING,
     RS_DOUBLE_SPACE_AFTER_PERIOD: Severity.WARNING,
+    RS_RECORD_COMPONENT_UNDOCUMENTED: Severity.WARNING,
 }
 
 
@@ -172,10 +185,18 @@ def severity_of(rule_id: str) -> Severity:
 def run_rule(rule_id: str, path: Path, source: str) -> Iterator[Violation]:
     """Runs a single rule by id over one source, yielding its violations.
 
-    A rule id maps to one or more check functions; e.g. RS005 runs both the
-    markdown and the Python-docstring backtick checks.
+    A rule id maps to shared checks, which see every file and guard themselves,
+    and to the checks `LANGUAGE_RULES` binds to the file's language, which see
+    only that language's files. RS005, for one, runs both a markdown and a
+    Python-docstring backtick check, and RS001 adds a Java check for a Java
+    file.
     """
     for check in RULES.get(rule_id, ()):
+        yield from check(path, source)
+    language = language_for(path)
+    if language is None:
+        return
+    for check in LANGUAGE_RULES.get(language.name, {}).get(rule_id, ()):
         yield from check(path, source)
 
 
@@ -187,4 +208,8 @@ def run_package_rule(
         yield from check(files)
 
 
-ALL_RULE_IDS: frozenset[str] = frozenset(RULES) | frozenset(PACKAGE_RULES)
+ALL_RULE_IDS: frozenset[str] = (
+    frozenset(RULES)
+    | frozenset(PACKAGE_RULES)
+    | frozenset(rule for table in LANGUAGE_RULES.values() for rule in table)
+)
