@@ -13,6 +13,7 @@ from repostyle.rules._violation import (
     RS_CONDITIONAL_TEST_LOGIC,
     RS_DISCOURAGED_CLASS_SUFFIX,
     RS_DURATION_AS_TIMEDELTA,
+    RS_EMPTY_CATCH_REASON,
     RS_NO_MOCK_PATCH,
     RS_RECORD_COMPONENT_UNDOCUMENTED,
     RS_SLEEPY_TEST,
@@ -25,6 +26,7 @@ from repostyle.rules.java._contracts import (
     check_java_too_many_parameters,
     check_record_component_tags,
 )
+from repostyle.rules.java._errors import check_empty_catch_reason
 from repostyle.rules.java._naming import (
     check_java_acronym_as_word,
     check_java_banned_abbreviation,
@@ -49,10 +51,12 @@ RULES = {
     RS_NO_MOCK_PATCH: (check_java_no_mock_library,),
     RS_CONDITIONAL_TEST_LOGIC: (check_java_conditional_test_logic,),
     RS_SLEEPY_TEST: (check_java_sleepy_test,),
+    RS_EMPTY_CATCH_REASON: (check_empty_catch_reason,),
 }
 
 __all__ = [
     "RULES",
+    "check_empty_catch_reason",
     "check_java_acronym_as_word",
     "check_java_banned_abbreviation",
     "check_java_conditional_test_logic",

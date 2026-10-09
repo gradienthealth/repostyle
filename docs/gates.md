@@ -15,6 +15,18 @@ target-version = "py311"
 
 Keep only repository-specific settings, such as the Python target and per-file ignores, in the consuming repository.
 
+## Pair Java with its build-tool gates
+
+`repostyle` reads Java only for what a compiler plugin cannot judge: prose, naming conventions, durations, test discipline, and the reason behind an empty `catch`. The mechanical layer belongs to the tools that already run in a Maven or Gradle build:
+
+| Tool | Owns |
+| -- | -- |
+| google-java-format, through Spotless | Layout, import order, and Javadoc wrapping to 100 columns |
+| Error Prone | Javadoc tag validity: `MissingSummary`, `InvalidParam`, `InvalidThrows`, `EmptyBlockTag`, `InvalidInlineTag`, `AlmostJavadoc`; and `MissingOverride` and `EqualsHashCode` |
+| Checkstyle | Javadoc layout: `JavadocParagraph`, `AtclauseOrder`, `NonEmptyAtclauseDescription`, `SummaryJavadoc`; and `IllegalCatch` and `OverloadMethodsDeclarationOrder` |
+
+Promote the Error Prone Javadoc checks to errors with `-Xep:MissingSummary:ERROR` and its siblings, so a summary-free comment fails the build rather than warning. Leave Checkstyle's `AbbreviationAsWordInName` off, since RS001 already enforces the same acronym convention.
+
 ## Use exported pre-commit hooks
 
 ```yaml
