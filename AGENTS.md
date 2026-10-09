@@ -24,7 +24,7 @@ The unbaselined repostyle run must report no warnings or errors. The repository 
 - `runner.py` resolves configuration and scans files.
 - `cli.py` owns command parsing and reporting.
 - `baseline.py` and `suppressions.py` filter known findings.
-- `_comments.py` extracts cross-language comments and YAML folded prose.
+- `languages/` owns each language's syntax behind a `Language` record: comment scanning, the spans a block directive covers, test-file layout, and YAML folded prose.
 - `_shared.py` owns shared parsing, configuration, and path behavior.
 - `tests/` mirrors the behavior surfaces.
 - `docs/` holds user reference and contributor guidance.

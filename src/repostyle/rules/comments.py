@@ -50,7 +50,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-from repostyle._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle._shared import (
     STANDARD_SENTENCE_DASH,
     _comment_text,
@@ -66,6 +65,7 @@ from repostyle._shared import (
     _terminal_punctuation_fault,
     find_pyproject,
 )
+from repostyle.languages import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._violation import (
     RS_ACRONYM_CASING_IN_PROSE,
     RS_DISFAVORED_GCP_TERM,

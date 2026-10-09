@@ -6,11 +6,11 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-from repostyle._comments import COMMENT_SUFFIXES, extract_comments
 from repostyle._shared import (
     _join_source_lines,
     _parse_python,
 )
+from repostyle.languages import COMMENT_SUFFIXES, extract_comments
 from repostyle.rules._docstring_edits import (
     DOUBLE_BACKTICK_PATTERN,
     internal_check_double_backticks_in_lines,

@@ -18,20 +18,22 @@ file, or a Python file that does not parse.
 
 from __future__ import annotations
 
-import ast
 import re
 from collections.abc import Iterable
-from functools import lru_cache
 from pathlib import Path
 
-from repostyle._comments import extract_comments, extract_folded_spans
-from repostyle._shared import _parse_python, _walk_tree
+from repostyle.languages import block_spans, extract_comments
 from repostyle.rules import Violation
 
 _RULE_LIST = r"(?:\[([\sA-Z0-9,]*)\])?"
-_FILE_DIRECTIVE = re.compile(rf"#\s*style:\s*ignore-file\b{_RULE_LIST}")
-_BLOCK_DIRECTIVE = re.compile(rf"#\s*style:\s*ignore-block\b{_RULE_LIST}")
-_LINE_DIRECTIVE = re.compile(rf"#\s*style:\s*ignore\b(?!-file|-block){_RULE_LIST}")
+# Either comment marker may introduce a directive, and a directive may follow
+# another tool's directive in the same comment (`# style: ...`).
+_MARKER = r"(?:#|//)"
+_FILE_DIRECTIVE = re.compile(rf"{_MARKER}\s*style:\s*ignore-file\b{_RULE_LIST}")
+_BLOCK_DIRECTIVE = re.compile(rf"{_MARKER}\s*style:\s*ignore-block\b{_RULE_LIST}")
+_LINE_DIRECTIVE = re.compile(
+    rf"{_MARKER}\s*style:\s*ignore\b(?!-file|-block){_RULE_LIST}"
+)
 
 # A span of source lines a directive covers, as `(start, end, rules)` with both
 # bounds inclusive. `rules` of `None` is the unbracketed directive, which
@@ -65,7 +67,7 @@ def suppressed_lines(path: Path, source: str, rule: str) -> tuple[bool, frozense
 
 def _parse(path: Path, source: str) -> _Suppressions:
     suppressions = _Suppressions()
-    spans = _block_spans(path, source)
+    spans = block_spans(path, source)
     for comment in extract_comments(path, source):
         file_match = _FILE_DIRECTIVE.search(comment.string)
         if file_match is not None:
@@ -97,29 +99,6 @@ def _attached_span(spans: tuple[tuple[int, int], ...], lineno: int) -> tuple[int
         return lineno, lineno
     start = min(span[0] for span in following)
     return start, max(span[1] for span in following if span[0] == start)
-
-
-@lru_cache(maxsize=128)
-def _block_spans(path: Path, source: str) -> tuple[tuple[int, int], ...]:
-    """Returns the inclusive line span of every block in `source`.
-
-    A Python file contributes its statements, a decorated one opening at its
-    first decorator so a directive written above the decorators still covers
-    the definition they wrap. A YAML file contributes its folded scalars
-    instead, the spans RS009 reads prose from. A file with neither -- a TOML or
-    shell file, or a Python file that does not parse -- has no spans.
-    """
-    tree = _parse_python(path, source)
-    if tree is None:
-        return extract_folded_spans(path, source)
-    spans: list[tuple[int, int]] = []
-    for node in _walk_tree(tree):
-        if not isinstance(node, ast.stmt):
-            continue
-        decorators = getattr(node, "decorator_list", [])
-        start = min([node.lineno, *(d.lineno for d in decorators)])
-        spans.append((start, node.end_lineno or node.lineno))
-    return tuple(sorted(spans))
 
 
 def _listed_rules(listed: str | None) -> frozenset[str] | None:

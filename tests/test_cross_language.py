@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from repostyle._comments import (
+from repostyle.languages import (
+    block_spans,
     extract_comments,
     extract_folded_runs,
-    extract_folded_spans,
 )
 from repostyle.rules import (
     RS_BANNER_COMMENT,
@@ -447,7 +447,7 @@ class TestFoldedScalarDocFill:
     ) -> None:
         source = "description: >-\n  much too\n  narrow.\n"
         assert extract_folded_runs(path, source) == runs
-        assert extract_folded_spans(path, source) == spans
+        assert block_spans(path, source) == spans
 
     def test_UnderWrappedFoldedProse_ReflowsToTheScalarIndent(self) -> None:
         source = (
