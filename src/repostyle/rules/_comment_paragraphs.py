@@ -11,7 +11,14 @@ from repostyle._shared import (
     _parse_python,
     _walk_tree,
 )
-from repostyle.languages import COMMENT_SUFFIXES, extract_comments, extract_folded_runs
+from repostyle.languages import (
+    COMMENT_SUFFIXES,
+    MARKER_PATTERN,
+    comment_text,
+    extract_comments,
+    extract_folded_runs,
+    language_for,
+)
 from repostyle.rules._display_width import (
     InternalFillLine,
 )
@@ -23,6 +30,7 @@ from repostyle.rules._fill_units import (
     internal_is_bare_string_literal_statement,
     internal_is_folded_prose,
 )
+from repostyle.rules._reflow import DOC_FILL_COLUMNS
 from repostyle.rules._violation import (
     RS_DOUBLE_SPACE_AFTER_PERIOD,
     Violation,
@@ -55,6 +63,12 @@ def fix_double_space_in_comments(
     if not changed:
         return source
     return _join_source_lines(source, source_lines)
+
+
+def internal_fill_columns(path: Path) -> int:
+    """Returns the column prose in `path` fills to, by its language."""
+    language = language_for(path)
+    return DOC_FILL_COLUMNS if language is None else language.fill_columns
 
 
 def internal_fillable_units(
@@ -110,7 +124,7 @@ def _comment_blocks(
             yield block
             block = []
         rendered = source_lines[lineno - 1].rstrip()
-        text = comment.string.lstrip("#").strip()
+        text = comment_text(comment.string)
         block.append(
             InternalFillLine(lineno, rendered, len(rendered) - len(text), text)
         )
@@ -120,7 +134,8 @@ def _comment_blocks(
 
 
 _COMMENT_DIRECTIVE_PATTERN = re.compile(
-    "^#+\\s*(!|noqa\\b|nosec\\b|type:|ruff:|pragma\\b|codespell:)"
+    f"^(?:{MARKER_PATTERN.pattern})\\s*(!|noqa\\b|nosec\\b|type:|ruff:|pragma\\b|codespell:"
+    "|noinspection\\b|CHECKSTYLE:|@formatter:|spotless:|NOPMD\\b|NOSONAR\\b)"
 )
 
 

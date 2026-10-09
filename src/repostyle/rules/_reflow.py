@@ -37,34 +37,33 @@ InternalSECTION_HEADERS = frozenset(
 InternalPREFORMATTED_LINE_PATTERN = re.compile("\\\\$|\\S {3,}\\S")
 
 
-def internal_unit_violations(unit: list[InternalFillLine]) -> Iterator[Violation]:
-    """Yields wrapping faults found in one fillable prose unit."""
+def internal_unit_violations(
+    unit: list[InternalFillLine], columns: int
+) -> Iterator[Violation]:
+    """Yields wrapping faults found in one prose unit filled to `columns`."""
     for line, following in itertools.pairwise(unit):
         first_word = internal_atomic_tokens(following.text)[0]
-        if internal_display_width(f"{line.rendered} {first_word}") <= DOC_FILL_COLUMNS:
+        if internal_display_width(f"{line.rendered} {first_word}") <= columns:
             yield Violation(
                 line.lineno,
                 line.indent + 1,
                 RS_DOC_FILL,
-                f"under-wrapped line: '{first_word}' still fits within {DOC_FILL_COLUMNS} columns",
+                f"under-wrapped line: '{first_word}' still fits within {columns} columns",
             )
     for line in unit:
-        if (
-            internal_display_width(line.rendered) <= DOC_FILL_COLUMNS
-            or "://" in line.rendered
-        ):
+        if internal_display_width(line.rendered) <= columns or "://" in line.rendered:
             continue
-        if not _has_break_before_limit(line):
+        if not _has_break_before_limit(line, columns):
             continue
         yield Violation(
             line.lineno,
             line.indent + 1,
             RS_DOC_FILL,
-            f"line exceeds {DOC_FILL_COLUMNS} columns; rewrap the paragraph",
+            f"line exceeds {columns} columns; rewrap the paragraph",
         )
 
 
-def _has_break_before_limit(line: InternalFillLine) -> bool:
+def _has_break_before_limit(line: InternalFillLine, columns: int) -> bool:
     """Reports whether a legal wrap break falls within the column limit.
 
     A space inside a backtick `...` span is not a legal break, as with a URL,
@@ -79,7 +78,7 @@ def _has_break_before_limit(line: InternalFillLine) -> bool:
     )
     backticks_paired = line.rendered.count("`") % 2 == 0
     in_span = False
-    for index, char in enumerate(expanded[: DOC_FILL_COLUMNS + 1]):
+    for index, char in enumerate(expanded[: columns + 1]):
         if char == "`" and backticks_paired:
             in_span = not in_span
         elif char == " " and (not in_span) and (index > prefix_width):
@@ -87,8 +86,10 @@ def _has_break_before_limit(line: InternalFillLine) -> bool:
     return False
 
 
-def internal_reflow_unit(unit: list[InternalFillLine]) -> list[str] | None:
-    """Returns `unit` rewrapped to the column limit, or `None` to skip it.
+def internal_reflow_unit(
+    unit: list[InternalFillLine], columns: int
+) -> list[str] | None:
+    """Returns `unit` rewrapped to `columns`, or `None` to skip it.
 
     A unit whose text contains a triple quote is skipped, since rewrapping
     would move the quote, and one with a backtick span hard-wrapped across
@@ -110,7 +111,7 @@ def internal_reflow_unit(unit: list[InternalFillLine]) -> list[str] | None:
     current = lead + words[0]
     for word in words[1:]:
         extended = f"{current} {word}"
-        if internal_display_width(extended) <= DOC_FILL_COLUMNS:
+        if internal_display_width(extended) <= columns:
             current = extended
         else:
             lines.append(current)

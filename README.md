@@ -2,7 +2,7 @@
 
 `repostyle` enforces repository conventions that ruff cannot express. It ships 67 `RSnnn` rules, a shared ruff configuration, and optional hooks for the house lint gate suite.
 
-The linter has no runtime dependencies. Most rules inspect Python with the standard-library AST and tokenizer. Comment rules also inspect `#` comments in TOML, YAML, and shell files.
+The linter has no runtime dependencies. Most rules inspect Python with the standard-library AST and tokenizer. Comment rules also inspect `#` comments in TOML, YAML, and shell files, and `//` comments in Java files once a repository opts Java in.
 
 ## Install
 

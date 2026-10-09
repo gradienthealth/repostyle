@@ -15,6 +15,7 @@ from repostyle._shared import (
     _parse_python,
     _terminal_punctuation_fault,
 )
+from repostyle.languages import comment_marker
 from repostyle.rules._docstring_source import (
     InternalBACKTICK_SPAN_PATTERN,
     InternalBulletItem,
@@ -199,8 +200,8 @@ def internal_comment_bullet_lists(
 
 
 def _comment_body(comment: str) -> tuple[int, str]:
-    """Splits a comment into its post-hash indent width and stripped text."""
-    body = comment.lstrip("#")
+    """Splits a comment into its post-marker indent width and stripped text."""
+    body = comment[len(comment_marker(comment)) :]
     return (len(body) - len(body.lstrip()), body.strip())
 
 

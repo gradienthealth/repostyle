@@ -11,6 +11,7 @@ from repostyle._shared import (
 )
 from repostyle.languages import COMMENT_SUFFIXES
 from repostyle.rules._comment_paragraphs import (
+    internal_fill_columns,
     internal_fillable_units,
 )
 from repostyle.rules._display_width import (
@@ -32,7 +33,9 @@ from repostyle.rules._violation import (
 
 
 def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
-    """Docstring and comment paragraphs must fill to 79 columns.
+    """Docstring and comment paragraphs must fill to their language's column.
+
+    The column is 79, except in Java, which fills to google-java-format's 100.
 
     A paragraph line may not end while the next line's first word still fits
     within the limit, and may not run past the limit while a break is
@@ -56,10 +59,11 @@ def check_doc_fill(path: Path, source: str) -> Iterator[Violation]:
         return
     if path.suffix == ".py" and _parse_python(path, source) is None:
         return
+    columns = internal_fill_columns(path)
     for unit in internal_fillable_units(path, source):
         if internal_holds_triple_quote(unit) or internal_span_crosses_line(unit):
             continue
-        yield from internal_unit_violations(unit)
+        yield from internal_unit_violations(unit, columns)
 
 
 def check_doc_summary_overflow(path: Path, source: str) -> Iterator[Violation]:

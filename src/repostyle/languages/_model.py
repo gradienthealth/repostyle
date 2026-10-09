@@ -25,15 +25,23 @@ def comment_at(lineno: int, line: str, column: int) -> CommentToken:
 
 
 def comment_text(comment: str) -> str:
-    """Returns a comment's prose, stripped of its leading marker and space.
+    """Returns a comment's prose, stripped of its leading marker and space."""
+    return comment[len(comment_marker(comment)) :].strip()
 
-    The marker is every leading `#` of a hash comment or every leading `/` of a
-    `//` comment, so the result reads the same whichever language wrote it.
+
+def comment_marker(comment: str) -> str:
+    """Returns the marker opening a comment: its leading `#` or `/` run.
+
+    The run is whole, so `##` and `///` are one marker, and a comment's text
+    starts after it whichever language wrote the comment.
     """
-    return _MARKER_PATTERN.sub("", comment, count=1).strip()
+    match = MARKER_PATTERN.match(comment)
+    return match.group() if match is not None else ""
 
 
-_MARKER_PATTERN = re.compile(r"^(?:#+|//+)")
+# Matches a comment marker at the start of a comment string. A rule's own
+# pattern anchored on a marker embeds it, so `#` and `//` comments match alike.
+MARKER_PATTERN = re.compile(r"#+|//+")
 
 CommentScanner = Callable[[str], Iterator[CommentToken]]
 
@@ -73,3 +81,7 @@ class Language(NamedTuple):
     """Yields the inclusive line span of each block a directive can cover."""
     is_test_file: PathPredicate = _is_unclaimed
     """Reports whether a path holds tests in this language's layout."""
+    fill_columns: int = 79
+    """The column a comment or doc paragraph fills to."""
+    has_identifier_filenames: bool = False
+    """Whether a file's name is a code identifier, as a module or class is."""

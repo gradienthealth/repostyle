@@ -16,7 +16,7 @@ from repostyle._shared import (
     _repostyle_table,
     find_pyproject,
 )
-from repostyle.languages import LINTABLE_SUFFIXES
+from repostyle.languages import DEFAULT_LANGUAGES, LINTABLE_SUFFIXES, language_for
 
 # Directories never holding first-party source, pruned during traversal when
 # building the whole-package index a package rule scans and when expanding a
@@ -62,12 +62,12 @@ _SKIPPED_DIRS = frozenset(
 def expand_paths(paths: Iterable[Path]) -> list[Path]:
     """Replaces each directory argument with the lintable files beneath it.
 
-    Recurses each directory for files matching `LINTABLE_SUFFIXES`, skipping
-    the `_SKIPPED_DIRS` names and any nested checkout, and drops a duplicate
-    resolved path reachable from more than one argument. A file argument passes
-    through unchanged regardless of suffix. A file matching a
-    `[tool.repostyle] exclude` glob is dropped whether it was walked from a
-    directory or passed explicitly.
+    A directory is walked for files matching `LINTABLE_SUFFIXES`, pruning the
+    `_SKIPPED_DIRS` names, Maven build output, and nested checkouts, while a
+    file argument passes through whatever its suffix. Either way, a file is
+    dropped when a `[tool.repostyle] exclude` glob matches it or its language
+    is one the repo has not enabled, and a resolved path reachable from more
+    than one argument appears once.
     """
     expanded: list[Path] = []
     seen: set[Path] = set()
@@ -75,7 +75,7 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
         candidates = sorted(_lintable_files(path)) if path.is_dir() else [path]
         for candidate in candidates:
             resolved = candidate.resolve()
-            if resolved in seen or _is_excluded(candidate):
+            if resolved in seen or _is_excluded(candidate) or _is_unenabled(candidate):
                 continue
             seen.add(resolved)
             expanded.append(candidate)
@@ -91,6 +91,25 @@ def _is_excluded(path: Path) -> bool:
     """
     pyproject = find_pyproject(path)
     return _matches_config_glob(path, pyproject, _repostyle_table(pyproject), "exclude")
+
+
+def _is_unenabled(path: Path) -> bool:
+    """Reports whether `path` is in a language its repo has not enabled.
+
+    A repo enables `DEFAULT_LANGUAGES` unless its `[tool.repostyle]
+    languages` list names the set outright. A value that is not a list leaves
+    the defaults, so a malformed nested config never silently drops Python. A
+    path no language claims is not unenabled, so an explicit file of another
+    type still passes through.
+    """
+    language = language_for(path)
+    if language is None:
+        return False
+    table = _repostyle_table(find_pyproject(path))
+    configured = table.get("languages")
+    if not isinstance(configured, list):
+        return language.name not in DEFAULT_LANGUAGES
+    return language.name not in configured
 
 
 def _lintable_files(root: Path) -> Iterator[Path]:
@@ -183,20 +202,32 @@ def _is_pruned_dir(
 ) -> bool:
     """Reports whether a directory's subtree is pruned from a walk.
 
-    A `_SKIPPED_DIRS` name or a nested repository checkout is always pruned.
-    Otherwise the directory is pruned when the config's `exclude` globs match
-    its whole subtree, or when the repo's `.gitignore` names it and
-    `respect-gitignore` is set. An empty `table` (the whole-package walk, which
-    does not apply excludes) matches no `exclude` glob, but the `.gitignore`
-    prune still applies there -- a gitignored tree is not part of the repo for
-    any rule, including the cross-module index.
+    A `_SKIPPED_DIRS` name, a Maven `target/` output, or a nested repository
+    checkout is always pruned. Otherwise the directory is pruned when the
+    config's `exclude` globs match its whole subtree, or when the repo's
+    `.gitignore` names it and `respect-gitignore` is set. An empty `table` (the
+    whole-package walk, which does not apply excludes) matches no `exclude`
+    glob, but the `.gitignore` prune still applies there -- a gitignored tree
+    is not part of the repo for any rule, including the cross-module index.
     """
     name = directory.name
     if name in _SKIPPED_DIRS or _is_nested_checkout(directory):
         return True
+    if _is_maven_output(directory):
+        return True
     if _dir_matches_config_glob(directory, pyproject, table, "exclude"):
         return True
     return _gitignore_prunes_dir(directory, pyproject, gitignore)
+
+
+def _is_maven_output(directory: Path) -> bool:
+    """Reports whether a directory is Maven's `target/` build output.
+
+    Maven writes generated sources and compiled classes beside the `pom.xml`
+    that builds them. A `target` directory without one is ordinary source, so a
+    Python package that happens to be named `target` is still walked.
+    """
+    return directory.name == "target" and (directory.parent / "pom.xml").is_file()
 
 
 def _is_nested_checkout(directory: Path) -> bool:

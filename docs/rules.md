@@ -41,7 +41,7 @@ Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, a
 
 ## Prose and comments
 
-These rules inspect docstrings and comments. Comment checks also cover TOML, YAML, and shell files unless the rule says otherwise.
+These rules inspect docstrings and comments. Comment checks also cover TOML, YAML, and shell files, and `//` comments in Java files when a repository enables Java, unless the rule says otherwise.
 
 | Rule | Default | Check |
 | -- | -- | -- |

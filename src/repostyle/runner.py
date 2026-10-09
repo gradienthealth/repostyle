@@ -19,6 +19,7 @@ from repostyle._shared import (
     find_pyproject,
 )
 from repostyle.baseline import DEFAULT_BASELINE_NAME
+from repostyle.languages import LANGUAGES
 from repostyle.rules import (
     ALL_RULE_IDS,
     FIXABLE_RULES,
@@ -107,6 +108,7 @@ def resolve_rules_for_paths(paths: Iterable[Path]) -> _ResolvedRules:
     pyproject = find_pyproject(paths[0])
     config = load_config(pyproject) if pyproject is not None else None
     _check_baseline_setting(config)
+    _check_languages_setting(config)
     return _ResolvedRules(resolve_enabled_rules(config), resolve_promoted_rules(config))
 
 
@@ -196,6 +198,35 @@ def _check_baseline_setting(config: dict | None) -> None:
         f"invalid `baseline` value {configured!r}: set a path to the baseline "
         "file, or `false` to opt out of a baseline"
     )
+
+
+def _check_languages_setting(config: dict | None) -> None:
+    """Rejects a `languages` value that is not a list of known language names.
+
+    An unknown name is refused rather than ignored, since a misspelled `"jav"`
+    would otherwise leave Java unlinted without a word.
+
+    Raises:
+        ValueError: When `languages` is not a list of strings or names a
+            language repostyle does not read.
+    """
+    if not config or "languages" not in config:
+        return
+    configured = config["languages"]
+    known = {language.name for language in LANGUAGES}
+    if not isinstance(configured, list) or not all(
+        isinstance(name, str) for name in configured
+    ):
+        raise ValueError(
+            f"invalid `languages` value {configured!r}: list language names "
+            f"from {', '.join(sorted(known))}"
+        )
+    unknown = set(configured) - known
+    if unknown:
+        raise ValueError(
+            f"unknown repostyle language(s): {', '.join(sorted(unknown))}. "
+            f"Known languages: {', '.join(sorted(known))}."
+        )
 
 
 def resolve_enabled_rules(config: dict | None) -> set[str]:
