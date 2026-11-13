@@ -168,6 +168,7 @@ The fixer supports these rules:
 | RS054 | Uses the spaced `--` sentence dash. |
 | RS058 | Uses the canonical docstring section header. |
 | RS061 | Collapses double spaces after sentence-ending punctuation. |
+| RS072 | Refills prose split across adjacent string literals, keeping the string's value. |
 
 RS009 skips code fences, doctests, tables, preformatted lines, YAML literal scalars, expressions, and suppressed prose. It can reflow a YAML folded scalar when that scalar reads as prose and ends in terminal punctuation.
 

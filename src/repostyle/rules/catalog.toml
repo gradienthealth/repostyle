@@ -567,3 +567,11 @@ rationale = "Two assertion libraries in one test suite mean two vocabularies for
 examples = [{ bad = "import static org.junit.jupiter.api.Assertions.assertEquals;\n\nassertEquals(3, widget.count());", good = "import static com.google.common.truth.Truth.assertThat;\n\nassertThat(widget.count()).isEqualTo(3);", note = "With the default `truth` choice." }]
 signals = []
 reference = []
+
+[RS072]
+name = "string-fill"
+summary = "Prose split across adjacent string literals fills to 79 columns."
+rationale = "Python joins adjacent string literals into one value, so a long message is written as a parenthesized run of pieces, one per line. An edit to one piece leaves the run ragged, and neither ruff nor RS009 rewraps it: the formatter treats each piece as code, and RS009 reads only docstrings and comments. The rule fills such a run the way RS009 fills a paragraph. It reads a run as prose only when each break falls after a single space and the value ends on `.`, `!`, or `?`, so a run broken at syntax, such as SQL clauses or HTML, is left alone. `--fix` rewraps the run at the spaces it already holds, so the string's value is unchanged."
+examples = [{ bad = "raise ValueError(\n    \"Every selected project needs a reviewed policy folder before \"\n    \"it can be requested with other projects.\"\n)", good = "raise ValueError(\n    \"Every selected project needs a reviewed policy folder before it can be \"\n    \"requested with other projects.\"\n)", note = "Triple-quoted strings are out of scope, since their line breaks are part of the value." }]
+signals = []
+reference = []

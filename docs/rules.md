@@ -1,6 +1,6 @@
 # Rule reference
 
-`repostyle` ships 71 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
+`repostyle` ships 72 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
 
 Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, and references. The check-function docstring under `src/repostyle/rules/` is the canonical implementation specification.
 
@@ -63,6 +63,7 @@ These rules inspect docstrings and comments. Comment checks also cover TOML, YAM
 | RS055 | warning | Replace banner comments with structure. |
 | RS061 | warning | Use one space after sentence-ending punctuation. |
 | RS067 | error | Put each numbered list item on its own line. |
+| RS072 | warning | Fill prose split across adjacent Python string literals to 79 columns. |
 
 ## Tests
 
@@ -135,7 +136,7 @@ The other rules read Python syntax and do not read Java.
 
 ## Severity
 
-Under the defaults, 20 rules hard-fail and the other 51 report warnings. Those 20 are the mechanical rules:
+Under the defaults, 20 rules hard-fail and the other 52 report warnings. Those 20 are the mechanical rules:
 
 ```text
 RS001 RS002 RS003 RS004 RS005 RS006 RS007 RS008 RS009 RS010
