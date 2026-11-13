@@ -1,4 +1,4 @@
-"""Docstring and comment wrapping rules."""
+"""Docstring, comment, and prose-string wrapping rules."""
 
 from repostyle.rules._comment_paragraphs import (
     fix_double_space_in_comments as fix_double_space_in_comments,
@@ -15,3 +15,5 @@ from repostyle.rules._fill_fixes import (
     fix_double_space_in_docstrings as fix_double_space_in_docstrings,
 )
 from repostyle.rules._reflow import DOC_FILL_COLUMNS as DOC_FILL_COLUMNS
+from repostyle.rules._string_fill import check_string_fill as check_string_fill
+from repostyle.rules._string_fill import fix_string_fill as fix_string_fill

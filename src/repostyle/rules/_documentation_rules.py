@@ -27,6 +27,7 @@ from repostyle.rules._violation import (
     RS_RAISE_DESCRIBED_IN_PROSE,
     RS_RAISES_SECTION_INCOMPLETE,
     RS_RETURN_DESCRIBED_IN_PROSE,
+    RS_STRING_FILL,
     RS_SUMMARY_COMMENT_AS_DOCSTRING,
     RS_TAG_COMMENT_CONTINUATION_INDENT,
     RS_TEMPORAL_MARKER,
@@ -48,6 +49,7 @@ from repostyle.rules.doc_fill import (
     check_doc_fill,
     check_doc_summary_overflow,
     check_double_space_after_period,
+    check_string_fill,
 )
 from repostyle.rules.doc_value import (
     check_arg_described_in_prose,
@@ -92,6 +94,7 @@ RULES = {
         check_no_double_backticks_in_docstrings,
     ),
     RS_DOC_FILL: (check_doc_fill,),
+    RS_STRING_FILL: (check_string_fill,),
     RS_DOC_VALUE_SIGNAL: (check_doc_value_signal,),
     RS_SUMMARY_COMMENT_AS_DOCSTRING: (check_summary_comment_as_docstring,),
     RS_FIELD_COMMENT_AS_DOCSTRING: (check_field_comment_as_docstring,),

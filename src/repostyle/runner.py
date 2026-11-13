@@ -32,6 +32,7 @@ from repostyle.rules import (
     RS_DOUBLE_SPACE_AFTER_PERIOD,
     RS_NO_DOUBLE_BACKTICKS,
     RS_NONSTANDARD_DASH,
+    RS_STRING_FILL,
     RS_TERMINAL_PUNCTUATION,
     Violation,
     fix_acronym_casing_in_comments,
@@ -48,6 +49,7 @@ from repostyle.rules import (
     fix_javadoc_tag_punctuation,
     fix_nonstandard_dash_in_comments,
     fix_nonstandard_dash_in_docstrings,
+    fix_string_fill,
     run_package_rule,
     run_rule,
 )
@@ -75,6 +77,7 @@ _FIXERS: tuple[tuple[str, _Fixer], ...] = (
     (RS_DOUBLE_SPACE_AFTER_PERIOD, fix_double_space_in_docstrings),
     (RS_DOUBLE_SPACE_AFTER_PERIOD, fix_double_space_in_comments),
     (RS_DOC_FILL, fix_doc_fill),
+    (RS_STRING_FILL, fix_string_fill),
 )
 
 
@@ -267,8 +270,8 @@ def resolve_enabled_rules(config: dict | None) -> set[str]:
     unknown = (set(select or ()) | set(ignore)) - known
     if unknown:
         raise ValueError(
-            "unknown repostyle rule id(s): "
-            f"{', '.join(sorted(unknown))}. Known ids: {', '.join(sorted(known))}."
+            f"unknown repostyle rule id(s): {', '.join(sorted(unknown))}. "
+            f"Known ids: {', '.join(sorted(known))}."
         )
     selected = set(select) if select else known
     return selected - set(ignore)
@@ -290,8 +293,8 @@ def resolve_promoted_rules(config: dict | None) -> set[str]:
     unknown = promoted - known
     if unknown:
         raise ValueError(
-            "unknown repostyle rule id(s): "
-            f"{', '.join(sorted(unknown))}. Known ids: {', '.join(sorted(known))}."
+            f"unknown repostyle rule id(s): {', '.join(sorted(unknown))}. "
+            f"Known ids: {', '.join(sorted(known))}."
         )
     return known if config and config.get("warnings-as-errors") is True else promoted
 
