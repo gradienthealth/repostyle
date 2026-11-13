@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.38.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.37.0...repostyle-v0.38.0) (2026-11-13)
+
+
+### Features
+
+* **NO-ISSUE:** fill prose split across adjacent string literals ([#188](https://github.com/gradienthealth/repostyle/issues/188)) ([fe8552c](https://github.com/gradienthealth/repostyle/commit/fe8552c934b40538937c89141ddaa52ee6d16b52))
+
 ## [0.37.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.36.0...repostyle-v0.37.0) (2026-10-09)
 
 
