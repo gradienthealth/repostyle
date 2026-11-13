@@ -89,6 +89,31 @@ class TestFixStringFill:
         assert _value(fixed) == _value(_PLACEHOLDERS)
         assert fixed.splitlines()[3] == '    "narrow this handler to {it}."'
 
+    @pytest.mark.parametrize(
+        "source",
+        [
+            'message = (\n    "Hello there. "\n    "Short and done. "\n) + "x"\n',
+            "message = (\n"
+            '    "aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa x "\n'
+            '    "\\N{EM DASH} is the dash we want here."\n'
+            ")\n",
+            'message = (\n    "Use {braces} in "\n    f"{listed} here."\n)\n',
+            'message = (\n    f"Value {\'}\'} is "\n    f"here."\n)\n',
+            'message = (\n    "Hello world. "\n    ""\n)\n',
+        ],
+        ids=[
+            "trailing-space",
+            "named-escape",
+            "literal-braces",
+            "quoted-brace",
+            "empty-last",
+        ],
+    )
+    def test_EdgeRun_KeepsValueAndPassesRecheck(self, source: str) -> None:
+        fixed = fix_string_fill(_PY, source)
+        assert _value(fixed) == _value(source)
+        assert list(check_string_fill(_PY, fixed)) == []
+
     def test_TrailingCode_StaysOnLastLine(self) -> None:
         source = (
             "call(\n"

@@ -112,7 +112,10 @@ def _read_run(
     """Parses `node` as a run, or returns `None` for any other shape.
 
     A run holds one plain or f-string piece per line, every piece at the indent
-    and in the quote style of the first.
+    and in the quote style of the first. A run holding a named Unicode escape
+    is not read, since the character name inside its braces may hold a space,
+    and neither is one whose placeholders disagree in count with the parsed
+    f-string.
     """
     if isinstance(node, ast.Constant) and not isinstance(node.value, str):
         return None
@@ -127,7 +130,7 @@ def _read_run(
         if lineno == end_lineno:
             line = line[: len(line) - len(trailer)]
         match = _PIECE_PATTERN.fullmatch(line)
-        if match is None or match["indent"] != indent:
+        if match is None or match["indent"] != indent or "\\N{" in match["body"]:
             return None
         words = _split_words(match["body"], is_f=bool(match["prefix"]))
         if words is None:
@@ -136,12 +139,29 @@ def _read_run(
         pieces.append(_Piece(lineno, words, match["body"].endswith(" ")))
     if len(quotes) != 1:
         return None
-    return _Run(indent, quotes.pop(), tuple(pieces), trailer)
+    run = _Run(indent, quotes.pop(), tuple(pieces), trailer)
+    if _placeholder_count(run) != _formatted_value_count(node):
+        return None
+    return run
 
 
 def _byte_prefix(line: str, byte_offset: int) -> str:
     """Returns the text of `line` before the AST's UTF-8 `byte_offset`."""
     return line.encode()[:byte_offset].decode(errors="replace")
+
+
+def _formatted_value_count(node: ast.Constant | ast.JoinedStr) -> int:
+    """Returns how many replacement fields Python parsed in `node`."""
+    if isinstance(node, ast.Constant):
+        return 0
+    return sum(isinstance(value, ast.FormattedValue) for value in node.values)
+
+
+def _placeholder_count(run: _Run) -> int:
+    """Returns how many placeholders the run's words hold."""
+    return sum(
+        is_placeholder for word in run.words for is_placeholder, _ in word.segments
+    )
 
 
 _PIECE_PATTERN = re.compile(
@@ -210,12 +230,22 @@ def _segments(body: str, *, is_f: bool) -> tuple[_Segment, ...] | None:
 
 
 def _placeholder_end(body: str, start: int) -> int | None:
-    """Returns the index just past the placeholder opening at `start`."""
+    """Returns the index just past the placeholder opening at `start`.
+
+    A brace inside a quoted string in the expression does not count toward the
+    nesting. Returns `None` when the placeholder never closes.
+    """
     depth = 0
+    quote = ""
     for index in range(start, len(body)):
-        if body[index] == "{":
+        char = body[index]
+        if quote:
+            quote = "" if char == quote else quote
+        elif char in "'\"":
+            quote = char
+        elif char == "{":
             depth += 1
-        elif body[index] == "}":
+        elif char == "}":
             depth -= 1
             if depth == 0:
                 return index + 1
@@ -224,7 +254,10 @@ def _placeholder_end(body: str, start: int) -> int | None:
 
 def _reads_as_prose(run: _Run) -> bool:
     """Reports whether the run's breaks and value mark it as prose."""
-    if not all(piece.words and piece.has_trailing_space for piece in run.pieces[:-1]):
+    *leading, final = run.pieces
+    if not all(piece.has_trailing_space for piece in leading):
+        return False
+    if final.has_trailing_space or not all(piece.words for piece in run.pieces):
         return False
     words = run.words
     if not words or not all(word.segments for word in words):
