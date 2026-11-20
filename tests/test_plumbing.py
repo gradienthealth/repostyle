@@ -67,8 +67,17 @@ class TestCheckForwardedCollaborator:
             "class Judge:\n"
             "    def __init__(self, workers: int, backoff: float) -> None:\n"
             "        self._questions = Questions(workers, backoff)\n",
+            "from pkg.application import questions\n\n\n"
+            "class Judge:\n"
+            "    def __init__(self, workers: int, backoff: float) -> None:\n"
+            "        self._questions = questions.Questions(workers, backoff)\n",
         ],
-        ids=["through-self-attribute", "keyword-in-init", "positional-in-init"],
+        ids=[
+            "through-self-attribute",
+            "keyword-in-init",
+            "positional-in-init",
+            "first-party-module-attribute",
+        ],
     )
     def test_TwoParametersForwardedToOneClass_FlagsOwner(
         self, tmp_path: Path, judge: str
@@ -116,6 +125,26 @@ class TestCheckForwardedCollaborator:
         )
         messages = {p.name: v.message for p, v in check_forwarded_collaborator(files)}
         assert "forwarding chain depth 2" in messages["runner.py"]
+
+    def test_ForwardingCycle_Terminates(self, tmp_path: Path) -> None:
+        cycle = (
+            "from pkg.application.{other} import {target}\n\n\n"
+            "class {name}:\n"
+            "    def __init__(self, workers: int, backoff: float) -> None:\n"
+            "        self._workers = workers\n"
+            "        self._backoff = backoff\n\n"
+            "    def build(self) -> object:\n"
+            "        return {target}(workers=self._workers, backoff=self._backoff)\n"
+        )
+        files = _pkg(
+            tmp_path,
+            {
+                "first.py": cycle.format(other="second", target="Second", name="First"),
+                "second.py": cycle.format(other="first", target="First", name="Second"),
+            },
+        )
+        findings = sorted(p.name for p, _ in check_forwarded_collaborator(files))
+        assert findings == ["first.py", "second.py"]
 
     @pytest.mark.parametrize(
         ("modules", "pyproject"),
@@ -187,6 +216,58 @@ class TestCheckForwardedCollaborator:
                 {"questions.py": _QUESTIONS, "judge.py": _FORWARDING_JUDGE},
                 '[tool.repostyle]\ncollaborator-layer-globs = ["*/domain/**"]\n',
             ),
+            (
+                {
+                    "questions.py": _QUESTIONS,
+                    "judge.py": _FORWARDING_JUDGE.replace(
+                        "from pkg.application.questions import Questions",
+                        "from vendor import sdk",
+                    ).replace("return Questions(", "return sdk.Questions("),
+                },
+                "",
+            ),
+            (
+                {
+                    "questions.py": _QUESTIONS,
+                    "judge.py": "try:\n    from vendor import Questions\n"
+                    "except ImportError:\n    Questions = None\n\n\n"
+                    + _FORWARDING_JUDGE.split("\n", 3)[3],
+                },
+                "",
+            ),
+            (
+                {
+                    "errors.py": "class TimeoutError(Exception):\n"
+                    "    def __init__(self, operation: str, seconds: float) -> None:\n"
+                    "        super().__init__(operation, seconds)\n",
+                    "judge.py": "class Judge:\n"
+                    "    def __init__(self, operation: str, seconds: float) -> None:\n"
+                    "        self._operation = operation\n"
+                    "        self._seconds = seconds\n\n"
+                    "    def check(self) -> None:\n"
+                    "        raise TimeoutError(self._operation, self._seconds)\n",
+                },
+                "",
+            ),
+            (
+                {
+                    "questions.py": _QUESTIONS,
+                    "judge.py": "from pkg.application.questions import Questions\n\n\n"
+                    "class Judge:\n"
+                    "    def __init__(self, workers: int, backoff: float) -> None:\n"
+                    "        self._make = lambda workers, backoff: Questions(\n"
+                    "            workers=workers, backoff=backoff\n"
+                    "        )\n",
+                },
+                "",
+            ),
+            (
+                {
+                    "questions.py": _QUESTIONS,
+                    "judge.py": _FORWARDING_JUDGE.replace("self._", "self."),
+                },
+                "",
+            ),
         ],
         ids=[
             "single-wrapped-value",
@@ -196,6 +277,11 @@ class TestCheckForwardedCollaborator:
             "dataclass-record-fields",
             "third-party-import-of-same-name",
             "outside-configured-layers",
+            "third-party-module-attribute",
+            "guarded-third-party-import",
+            "builtin-named-exception",
+            "lambda-shadows-parameter",
+            "public-attribute",
         ],
     )
     def test_NotPlumbing_NoViolation(

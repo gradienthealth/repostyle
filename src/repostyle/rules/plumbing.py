@@ -103,12 +103,14 @@ def check_parallel_construction(
         else DEFAULT_PARALLEL_CONSTRUCTION_MIN_PAIRS
     )
     sites = _construction_sites(index, min_pairs)
-    for site, other in itertools.permutations(sites, 2):
-        if site.target != other.target or site.path == other.path:
-            continue
-        shared = len(site.pairs & other.pairs)
-        if shared >= min_pairs:
-            site.record_partner(other, shared)
+    by_target: dict[str, list[_ConstructionSite]] = {}
+    for site in sites:
+        by_target.setdefault(site.target, []).append(site)
+    for group in by_target.values():
+        for site, other in itertools.permutations(group, 2):
+            shared = len(site.pairs & other.pairs)
+            if site.path != other.path and shared >= min_pairs:
+                site.record_partner(other, shared)
     for site in sites:
         if site.best is not None:
             yield site.path, site.violation()

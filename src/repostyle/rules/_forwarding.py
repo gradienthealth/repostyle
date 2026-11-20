@@ -9,6 +9,7 @@ that builds a collaborator from settings it should not hold.
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -22,18 +23,29 @@ class ForwardingAnalysis:
     index: PackageIndex
     """The package's class index, which resolves each constructor call."""
     _forwarded: dict[str, _Forwarded] = field(default_factory=dict)
+    _depths: dict[tuple[str, str], int] = field(default_factory=dict)
 
     def chain_depth(self, name: str, param: str, seen: frozenset[str]) -> int:
-        """Counts the constructors a forwarded parameter passes through."""
+        """Counts the constructors a forwarded parameter passes through.
+
+        A cycle stops at the first class it revisits.
+        """
+        if (name, param) in self._depths:
+            return self._depths[(name, param)]
         forwards = self.forwarded_params(name).get(param)
         if not forwards or name in seen:
             return 0
-        deeper = [
-            self.chain_depth(forward.target, forward.target_param, seen | {name})
+        targets = {
+            (forward.target, forward.target_param)
             for forward in forwards
             if forward.target_param is not None
+        }
+        deeper = [
+            self.chain_depth(target, target_param, seen | {name})
+            for target, target_param in targets
         ]
-        return 1 + max(deeper, default=0)
+        self._depths[(name, param)] = 1 + max(deeper, default=0)
+        return self._depths[(name, param)]
 
     def forwarded_params(self, name: str) -> _Forwarded:
         """Maps each `__init__` parameter of `name` it only forwards.
@@ -65,17 +77,50 @@ def _forwarded_params(
     reads, writes = _self_attribute_uses(facts, parents, index)
     forwarded: _Forwarded = {}
     for param in facts.params:
-        uses = [
-            _classify(node, parents, index, facts.path)
-            for node in ast.walk(init)
-            if isinstance(node, ast.Name)
-            and node.id == param
-            and isinstance(node.ctx, ast.Load)
-        ]
+        names = list(_param_names(init, param))
+        if any(not isinstance(node.ctx, ast.Load) for node in names):
+            continue
+        uses = [_classify(node, parents, index, facts.path) for node in names]
         resolved = _resolve_uses(uses, reads, writes)
         if resolved and len({forward.target for forward in resolved}) == 1:
             forwarded[param] = resolved
     return forwarded
+
+
+def _param_names(init: MethodDef, param: str) -> Iterator[ast.Name]:
+    """Yields each occurrence of `param` in `__init__` that refers to it.
+
+    A nested function, lambda, or comprehension that binds the same name
+    shadows the parameter, so its occurrences are skipped.
+    """
+    pending: list[ast.AST] = list(init.body)
+    while pending:
+        node = pending.pop()
+        if _rebinds(node, param):
+            continue
+        if isinstance(node, ast.Name) and node.id == param:
+            yield node
+        pending.extend(ast.iter_child_nodes(node))
+
+
+def _rebinds(node: ast.AST, name: str) -> bool:
+    """Reports whether a nested scope binds `name` itself."""
+    if isinstance(node, ast.Lambda | ast.FunctionDef | ast.AsyncFunctionDef):
+        arguments = node.args
+        declared = [
+            *arguments.posonlyargs,
+            *arguments.args,
+            *arguments.kwonlyargs,
+            *filter(None, [arguments.vararg, arguments.kwarg]),
+        ]
+        return any(argument.arg == name for argument in declared)
+    if isinstance(node, ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp):
+        return any(
+            isinstance(target, ast.Name) and target.id == name
+            for generator in node.generators
+            for target in ast.walk(generator.target)
+        )
+    return False
 
 
 def _self_attribute_uses(
@@ -126,11 +171,11 @@ def _classify(
 def _positional_param(call: ast.Call, node: ast.expr, facts: ClassFacts) -> str | None:
     """Names the parameter a positional argument binds, when it is known."""
     position = call.args.index(node)
-    if position >= len(facts.params) or any(
+    if position >= len(facts.positional) or any(
         isinstance(argument, ast.Starred) for argument in call.args[:position]
     ):
         return None
-    return facts.params[position]
+    return facts.positional[position]
 
 
 def _resolve_uses(
@@ -138,14 +183,17 @@ def _resolve_uses(
 ) -> list[_Forward]:
     """Returns a parameter's forwards, or nothing when any use consumes it.
 
-    A store on `self` stands for every read of that attribute. An attribute
-    that is never read, or that is written more than once, consumes the value.
+    A store on a private `self` attribute stands for every read of it. A store
+    on a public attribute consumes the value, since code outside the class can
+    read it, and so does an attribute that is never read or is written more
+    than once.
     """
     forwards: list[_Forward] = []
     for use in uses:
         expanded = [use]
         if isinstance(use, str):
-            if not reads.get(use) or writes.get(use, 0) != 1:
+            is_private = use.startswith("_")
+            if not is_private or not reads.get(use) or writes.get(use, 0) != 1:
                 return []
             expanded = reads[use]
         if any(not isinstance(item, _Forward) for item in expanded):
