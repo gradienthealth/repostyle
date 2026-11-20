@@ -93,20 +93,16 @@ class TestCheckForwardedCollaborator:
         assert "forwarding chain depth 1" in message
         assert "repostyle:structural-refactor" in message
 
-    def test_ConstructorTakesPort_FlagsOwner(self, tmp_path: Path) -> None:
-        judge = (
-            "from pkg.application.questions import AnswerCache, CachedQuestions\n\n\n"
-            "class Judge:\n"
-            "    def __init__(self, answers: AnswerCache) -> None:\n"
-            "        self._answers = answers\n\n"
-            "    def check(self) -> None:\n"
-            "        CachedQuestions(self._answers)\n"
+    def test_ClassOutsideApplicationLayout_FlagsOwner(self, tmp_path: Path) -> None:
+        judge = _FORWARDING_JUDGE.replace("pkg.application", "pkg")
+        files = _pkg(
+            tmp_path, {"questions.py": _QUESTIONS, "judge.py": judge}, package="pkg"
         )
-        files = _pkg(tmp_path, {"questions.py": _PORT_QUESTIONS, "judge.py": judge})
         (finding,) = check_forwarded_collaborator(files)
-        assert finding[1].rule == RS_FORWARDED_COLLABORATOR
-        assert "in 'check'" in finding[1].message
-        assert "takes the port 'AnswerCache'" in finding[1].message
+        assert (finding[0].name, finding[1].rule) == (
+            "judge.py",
+            RS_FORWARDED_COLLABORATOR,
+        )
 
     def test_ForwardedThroughTwoClasses_ReportsChainDepth(self, tmp_path: Path) -> None:
         runner = (
@@ -147,127 +143,98 @@ class TestCheckForwardedCollaborator:
         assert findings == ["first.py", "second.py"]
 
     @pytest.mark.parametrize(
-        ("modules", "pyproject"),
+        "modules",
         [
-            (
-                {
-                    "budget.py": "class CostBudget:\n"
-                    "    def __init__(self, ceiling: float) -> None:\n"
-                    "        self.ceiling = ceiling\n",
-                    "judge.py": "from pkg.application.budget import CostBudget\n\n\n"
-                    "class Judge:\n"
-                    "    def __init__(self, ceiling: float) -> None:\n"
-                    "        self._budget = CostBudget(ceiling)\n",
-                },
-                "",
-            ),
-            (
-                {
-                    "questions.py": _QUESTIONS,
-                    "judge.py": _FORWARDING_JUDGE.replace(
-                        "return Questions",
-                        "print(self._workers)\n        return Questions",
-                    ),
-                },
-                "",
-            ),
-            (
-                {
-                    "questions.py": _QUESTIONS,
-                    "judge.py": _FORWARDING_JUDGE,
-                    "other.py": "class Questions:\n    pass\n",
-                },
-                "",
-            ),
-            (
-                {
-                    "judge.py": _QUESTIONS
-                    + "\n\n"
-                    + _FORWARDING_JUDGE.split("\n", 3)[3],
-                },
-                "",
-            ),
-            (
-                {
-                    "questions.py": _QUESTIONS,
-                    "judge.py": "import dataclasses\n\n"
-                    "from pkg.application.questions import Questions\n\n\n"
-                    "@dataclasses.dataclass\n"
-                    "class Judge:\n"
-                    "    workers: int\n"
-                    "    backoff: float\n\n"
-                    "    def check(self) -> int:\n"
-                    "        return Questions(\n"
-                    "            workers=self.workers, backoff=self.backoff\n"
-                    "        ).ask()\n",
-                },
-                "",
-            ),
-            (
-                {
-                    "questions.py": _QUESTIONS,
-                    "judge.py": _FORWARDING_JUDGE.replace(
-                        "from pkg.application.questions", "from vendor.questions"
-                    ),
-                },
-                "",
-            ),
-            (
-                {"questions.py": _QUESTIONS, "judge.py": _FORWARDING_JUDGE},
-                '[tool.repostyle]\ncollaborator-layer-globs = ["*/domain/**"]\n',
-            ),
-            (
-                {
-                    "questions.py": _QUESTIONS,
-                    "judge.py": _FORWARDING_JUDGE.replace(
-                        "from pkg.application.questions import Questions",
-                        "from vendor import sdk",
-                    ).replace("return Questions(", "return sdk.Questions("),
-                },
-                "",
-            ),
-            (
-                {
-                    "questions.py": _QUESTIONS,
-                    "judge.py": "try:\n    from vendor import Questions\n"
-                    "except ImportError:\n    Questions = None\n\n\n"
-                    + _FORWARDING_JUDGE.split("\n", 3)[3],
-                },
-                "",
-            ),
-            (
-                {
-                    "errors.py": "class TimeoutError(Exception):\n"
-                    "    def __init__(self, operation: str, seconds: float) -> None:\n"
-                    "        super().__init__(operation, seconds)\n",
-                    "judge.py": "class Judge:\n"
-                    "    def __init__(self, operation: str, seconds: float) -> None:\n"
-                    "        self._operation = operation\n"
-                    "        self._seconds = seconds\n\n"
-                    "    def check(self) -> None:\n"
-                    "        raise TimeoutError(self._operation, self._seconds)\n",
-                },
-                "",
-            ),
-            (
-                {
-                    "questions.py": _QUESTIONS,
-                    "judge.py": "from pkg.application.questions import Questions\n\n\n"
-                    "class Judge:\n"
-                    "    def __init__(self, workers: int, backoff: float) -> None:\n"
-                    "        self._make = lambda workers, backoff: Questions(\n"
-                    "            workers=workers, backoff=backoff\n"
-                    "        )\n",
-                },
-                "",
-            ),
-            (
-                {
-                    "questions.py": _QUESTIONS,
-                    "judge.py": _FORWARDING_JUDGE.replace("self._", "self."),
-                },
-                "",
-            ),
+            {
+                "budget.py": "class CostBudget:\n"
+                "    def __init__(self, ceiling: float) -> None:\n"
+                "        self.ceiling = ceiling\n",
+                "judge.py": "from pkg.application.budget import CostBudget\n\n\n"
+                "class Judge:\n"
+                "    def __init__(self, ceiling: float) -> None:\n"
+                "        self._budget = CostBudget(ceiling)\n",
+            },
+            {
+                "questions.py": _QUESTIONS,
+                "judge.py": _FORWARDING_JUDGE.replace(
+                    "return Questions",
+                    "print(self._workers)\n        return Questions",
+                ),
+            },
+            {
+                "questions.py": _QUESTIONS,
+                "judge.py": _FORWARDING_JUDGE,
+                "other.py": "class Questions:\n    pass\n",
+            },
+            {
+                "judge.py": _QUESTIONS + "\n\n" + _FORWARDING_JUDGE.split("\n", 3)[3],
+            },
+            {
+                "questions.py": _QUESTIONS,
+                "judge.py": "import dataclasses\n\n"
+                "from pkg.application.questions import Questions\n\n\n"
+                "@dataclasses.dataclass\n"
+                "class Judge:\n"
+                "    workers: int\n"
+                "    backoff: float\n\n"
+                "    def check(self) -> int:\n"
+                "        return Questions(\n"
+                "            workers=self.workers, backoff=self.backoff\n"
+                "        ).ask()\n",
+            },
+            {
+                "questions.py": _QUESTIONS,
+                "judge.py": _FORWARDING_JUDGE.replace(
+                    "from pkg.application.questions", "from vendor.questions"
+                ),
+            },
+            {
+                "questions.py": _PORT_QUESTIONS,
+                "judge.py": "from pkg.application.questions import "
+                "AnswerCache, CachedQuestions\n\n\n"
+                "class Judge:\n"
+                "    def __init__(self, answers: AnswerCache) -> None:\n"
+                "        self._answers = answers\n\n"
+                "    def check(self) -> None:\n"
+                "        CachedQuestions(self._answers)\n",
+            },
+            {
+                "questions.py": _QUESTIONS,
+                "judge.py": _FORWARDING_JUDGE.replace(
+                    "from pkg.application.questions import Questions",
+                    "from vendor import sdk",
+                ).replace("return Questions(", "return sdk.Questions("),
+            },
+            {
+                "questions.py": _QUESTIONS,
+                "judge.py": "try:\n    from vendor import Questions\n"
+                "except ImportError:\n    Questions = None\n\n\n"
+                + _FORWARDING_JUDGE.split("\n", 3)[3],
+            },
+            {
+                "errors.py": "class TimeoutError(Exception):\n"
+                "    def __init__(self, operation: str, seconds: float) -> None:\n"
+                "        super().__init__(operation, seconds)\n",
+                "judge.py": "class Judge:\n"
+                "    def __init__(self, operation: str, seconds: float) -> None:\n"
+                "        self._operation = operation\n"
+                "        self._seconds = seconds\n\n"
+                "    def check(self) -> None:\n"
+                "        raise TimeoutError(self._operation, self._seconds)\n",
+            },
+            {
+                "questions.py": _QUESTIONS,
+                "judge.py": "from pkg.application.questions import Questions\n\n\n"
+                "class Judge:\n"
+                "    def __init__(self, workers: int, backoff: float) -> None:\n"
+                "        self._make = lambda workers, backoff: Questions(\n"
+                "            workers=workers, backoff=backoff\n"
+                "        )\n",
+            },
+            {
+                "questions.py": _QUESTIONS,
+                "judge.py": _FORWARDING_JUDGE.replace("self._", "self."),
+            },
         ],
         ids=[
             "single-wrapped-value",
@@ -276,7 +243,7 @@ class TestCheckForwardedCollaborator:
             "same-module-collaborator",
             "dataclass-record-fields",
             "third-party-import-of-same-name",
-            "outside-configured-layers",
+            "single-forwarded-protocol",
             "third-party-module-attribute",
             "guarded-third-party-import",
             "builtin-named-exception",
@@ -285,17 +252,10 @@ class TestCheckForwardedCollaborator:
         ],
     )
     def test_NotPlumbing_NoViolation(
-        self, tmp_path: Path, modules: dict[str, str], pyproject: str
+        self, tmp_path: Path, modules: dict[str, str]
     ) -> None:
-        files = _pkg(tmp_path, modules, pyproject=pyproject)
+        files = _pkg(tmp_path, modules)
         assert list(check_forwarded_collaborator(files)) == []
-
-    def test_WiringModuleOutsideLayers_NoViolation(self, tmp_path: Path) -> None:
-        files = _pkg(tmp_path, {"questions.py": _QUESTIONS})
-        command = tmp_path / "src" / "pkg" / "ingest_command.py"
-        source = _FORWARDING_JUDGE
-        command.write_text(source, encoding="utf-8")
-        assert list(check_forwarded_collaborator([*files, (command, source)])) == []
 
 
 _SETTINGS = """\

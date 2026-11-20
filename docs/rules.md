@@ -99,7 +99,7 @@ These rules inspect docstrings and comments. Comment checks also cover TOML, YAM
 | RS052 | warning | Keep an exception tuple within one failure family. |
 | RS070 | warning | Explain an empty Java `catch` block in a comment inside it. |
 | RS066 | warning | Review source modules over their configured code-line limit. |
-| RS073 | warning | Accept a layer class's collaborator instead of building it from forwarded parameters. |
+| RS073 | warning | Accept a collaborator instead of building it from forwarded parameters. |
 | RS074 | warning | Build a class once instead of from the same settings in two modules. |
 
 ## Values and files

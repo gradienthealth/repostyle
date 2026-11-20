@@ -1,12 +1,12 @@
 """Plumbing rules: one setting forced through many files.
 
-RS073 flags a layer class that builds a first-party collaborator out of its own
-forwarded constructor parameters, or builds one that takes a port, so every
-setting the collaborator needs is re-declared on each class above it. RS074
-flags one first-party class constructed in two modules from the same long run
-of `keyword=value` pairs, so a new setting has to be threaded through both.
-Both are whole-package rules that resolve a call to the class it constructs
-through the shared index in `_class_index`.
+RS073 flags a class that builds a first-party collaborator out of constructor
+parameters it only forwards, so every setting the collaborator needs is
+re-declared on each class above it. RS074 flags one first-party class
+constructed in two modules from the same long run of `keyword=value` pairs, so
+a new setting has to be threaded through both. Both are whole-package rules
+that resolve a call to the class it constructs through the shared index in
+`_class_index`.
 """
 
 from __future__ import annotations
@@ -15,15 +15,9 @@ import ast
 import itertools
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from fnmatch import fnmatch
 from pathlib import Path
 
-from repostyle._shared import (
-    _relative_to_pyproject,
-    _repostyle_table,
-    _string_list,
-    find_config_file,
-)
+from repostyle._shared import _repostyle_table, find_config_file
 from repostyle.rules._class_index import (
     ClassFacts,
     PackageIndex,
@@ -37,8 +31,6 @@ from repostyle.rules._violation import (
     Violation,
 )
 
-COLLABORATOR_LAYER_GLOBS_KEY = "collaborator-layer-globs"
-DEFAULT_COLLABORATOR_LAYER_GLOBS: tuple[str, ...] = ("*/application/**", "*/domain/**")
 PARALLEL_CONSTRUCTION_MIN_PAIRS_KEY = "parallel-construction-min-pairs"
 DEFAULT_PARALLEL_CONSTRUCTION_MIN_PAIRS = 8
 _MIN_FORWARDED_PARAMS = 2
@@ -48,35 +40,23 @@ _LISTED_NAMES = 6
 def check_forwarded_collaborator(
     files: Sequence[tuple[Path, str]],
 ) -> Iterator[tuple[Path, Violation]]:
-    """Flags a layer class that builds a collaborator it should be handed.
+    """Flags a class that builds a collaborator it should be handed.
 
-    A class under the `collaborator-layer-globs` paths (default
-    `*/application/**` and `*/domain/**`) fires when it constructs a
-    first-party class from another module and either of these holds:
-
-    - Two or more parameters of its own `__init__` are used only to be passed
-      unchanged, directly or through the `self` attribute they are stored on,
-      into that one class's constructor.
-    - That class's constructor takes a port, a first-party `Protocol`.
-
-    Such a class re-declares its collaborator's settings and defaults, so a new
-    setting is threaded through every class above the one that reads it. The
-    collaborator belongs in the constructor, built once by the composition
-    root. A class fires once, naming the collaborator with the most forwarded
-    parameters. Callees resolve by simple name and an ambiguous name is
-    skipped, so the rule under- rather than over-reports.
+    A non-test class fires when it constructs a first-party class from another
+    module, and two or more parameters of its own `__init__` are used only to
+    be passed unchanged into that class's constructor, directly or through the
+    private `self` attribute they are stored on. Such a class re-declares its
+    collaborator's settings and defaults, so a new setting is threaded through
+    every class above the one that reads it. The collaborator belongs in the
+    constructor, built once by the code that constructs this class. A class
+    fires once, naming the collaborator with the most forwarded parameters.
+    Callees resolve by simple name and an ambiguous name is skipped, so the
+    rule under- rather than over-reports.
     """
     if not files:
         return
     analysis = ForwardingAnalysis(build_index(files))
-    table = _repostyle_table(find_config_file(files[0][0]))
-    globs = _string_list(table, COLLABORATOR_LAYER_GLOBS_KEY) or (
-        DEFAULT_COLLABORATOR_LAYER_GLOBS
-    )
     for facts in analysis.index.classes.values():
-        relative = _relative_to_pyproject(facts.path, find_config_file(facts.path))
-        if not any(fnmatch(relative, glob) for glob in globs):
-            continue
         if built := _built_collaborators(facts, analysis):
             yield facts.path, _collaborator_violation(facts, built, analysis)
 
@@ -118,7 +98,7 @@ def check_parallel_construction(
 
 @dataclass
 class _BuiltCollaborator:
-    """One first-party class a layer class constructs, and why it fires."""
+    """One first-party class another class constructs from forwarded values."""
 
     target: ClassFacts
     """The constructed class."""
@@ -126,8 +106,6 @@ class _BuiltCollaborator:
     """The methods holding the constructor calls."""
     params: list[str] = field(default_factory=list)
     """The constructor parameters forwarded only into the call."""
-    ports: list[str] = field(default_factory=list)
-    """The ports the constructed class's constructor takes."""
 
 
 @dataclass
@@ -190,14 +168,8 @@ def _built_collaborators(
     for param, forwards in analysis.forwarded_params(facts.node.name).items():
         if (entry := built.get(forwards[0].target)) is not None:
             entry.params.append(param)
-    for entry in built.values():
-        entry.ports = index.port_names(entry.target)
-    firing = [
-        entry
-        for entry in built.values()
-        if len(entry.params) >= _MIN_FORWARDED_PARAMS or entry.ports
-    ]
-    return sorted(firing, key=lambda entry: (-len(entry.params), -len(entry.ports)))
+    firing = [e for e in built.values() if len(e.params) >= _MIN_FORWARDED_PARAMS]
+    return sorted(firing, key=lambda entry: -len(entry.params))
 
 
 def _collaborator_violation(
@@ -207,16 +179,7 @@ def _collaborator_violation(
     first, name = built[0], owner.node.name
     target = first.target.node.name
     where = ", ".join(f"'{method}'" for method in sorted(first.methods))
-    reasons = []
-    if len(first.params) >= _MIN_FORWARDED_PARAMS:
-        depth = max(analysis.chain_depth(name, p, frozenset()) for p in first.params)
-        reasons.append(
-            f"from the forwarded parameters {_listed(first.params)} "
-            f"(forwarding chain depth {depth})"
-        )
-    if first.ports:
-        noun = "port" if len(first.ports) == 1 else "ports"
-        reasons.append(f"and its constructor takes the {noun} {_listed(first.ports)}")
+    depth = max(analysis.chain_depth(name, p, frozenset()) for p in first.params)
     others = ""
     if len(built) > 1:
         others = f"; it builds {_listed([b.target.node.name for b in built[1:]])} too"
@@ -224,11 +187,12 @@ def _collaborator_violation(
         owner.node.lineno,
         owner.node.col_offset + 1,
         RS_FORWARDED_COLLABORATOR,
-        f"'{name}' builds '{target}' in {where} {' '.join(reasons)}{others}; "
+        f"'{name}' builds '{target}' in {where} from the forwarded parameters "
+        f"{_listed(first.params)} (forwarding chain depth {depth}){others}; "
         f"accept each built collaborator in the constructor (or a factory when "
-        f"it needs per-call state such as a cost budget), let the composition "
-        f"root build it, and delete the forwarded parameters and the defaults "
-        f"they re-declare; see the repostyle:structural-refactor skill and "
+        f"it needs per-call state such as a cost budget), let the code that "
+        f"constructs '{name}' build it, and delete the forwarded parameters and "
+        f"the defaults they re-declare; see the repostyle:structural-refactor skill and "
         f"`repostyle explain {RS_FORWARDED_COLLABORATOR}`",
     )
 

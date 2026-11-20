@@ -39,10 +39,6 @@ class ClassFacts:
     positional: tuple[str, ...]
     """The parameters a positional argument binds, in order; empty when an
     inherited or keyword-only field makes the order unknowable."""
-    annotations: tuple[ast.expr, ...]
-    """The annotations on those parameters, in no particular order."""
-    is_protocol: bool
-    """Whether the class is a `Protocol`, the shape of a port."""
     init: MethodDef | None
     """The class's own `__init__`, absent for a generated constructor."""
 
@@ -53,17 +49,10 @@ class PackageIndex:
 
     classes: dict[str, ClassFacts] = field(default_factory=dict)
     """Each resolvable class, keyed by its simple name."""
-    ports: frozenset[str] = frozenset()
-    """The simple names of the resolvable `Protocol` classes."""
     sources: list[tuple[Path, ast.Module, str]] = field(default_factory=list)
     """Each non-test module with its tree and config-relative path."""
     first_party_names: dict[Path, frozenset[str]] = field(default_factory=dict)
     """Per module, the names it binds to first-party classes or modules."""
-
-    def port_names(self, facts: ClassFacts) -> list[str]:
-        """Lists the ports a class's constructor annotations name, sorted."""
-        named = {name for note in facts.annotations for name in _annotation_names(note)}
-        return sorted(named & self.ports)
 
     def resolve(self, call: ast.Call, path: Path) -> ClassFacts | None:
         """Returns the first-party class `call` constructs, if it resolves."""
@@ -104,14 +93,11 @@ def build_index(files: Sequence[tuple[Path, str]]) -> PackageIndex:
         and name not in function_names
         and not _is_exception(defs[0].node)
     }
-    index.ports = frozenset(
-        name for name, facts in index.classes.items() if facts.is_protocol
-    )
     return index
 
 
 def _class_facts(path: Path, node: ast.ClassDef) -> ClassFacts:
-    """Reads a class's constructor parameters and whether it is a port."""
+    """Reads the parameters a call to a class's constructor binds."""
     init = next((m for m in methods(node) if m.name == "__init__"), None)
     if init is not None:
         arguments = init.args
@@ -119,25 +105,20 @@ def _class_facts(path: Path, node: ast.ClassDef) -> ClassFacts:
         declared = [*positional, *arguments.kwonlyargs]
         params = tuple(argument.arg for argument in declared)
         positional_params = tuple(argument.arg for argument in positional)
-        annotations = tuple(a.annotation for a in declared if a.annotation)
     elif _is_dataclass(node):
-        fields = [
-            (member.target.id, member.annotation)
+        params = tuple(
+            member.target.id
             for member in node.body
             if isinstance(member, ast.AnnAssign)
             and isinstance(member.target, ast.Name)
             and "ClassVar" not in set(_annotation_names(member.annotation))
             and not _is_init_false(member.value)
-        ]
-        params = tuple(name for name, _ in fields)
-        annotations = tuple(note for _, note in fields)
+        )
         is_ordered = not node.bases and not _is_keyword_only(node)
         positional_params = params if is_ordered else ()
     else:
-        params, positional_params, annotations = (), (), ()
-    return ClassFacts(
-        path, node, params, positional_params, annotations, _is_protocol(node), init
-    )
+        params, positional_params = (), ()
+    return ClassFacts(path, node, params, positional_params, init)
 
 
 def methods(node: ast.ClassDef) -> Iterator[MethodDef]:
@@ -243,14 +224,3 @@ def _annotation_names(note: ast.expr) -> Iterator[str]:
             except SyntaxError:
                 continue
             yield from _annotation_names(parsed.body)
-
-
-def _is_protocol(node: ast.ClassDef) -> bool:
-    """Reports whether a class lists `Protocol` among its bases."""
-    for base in node.bases:
-        target = base.value if isinstance(base, ast.Subscript) else base
-        if isinstance(target, ast.Name) and target.id == "Protocol":
-            return True
-        if isinstance(target, ast.Attribute) and target.attr == "Protocol":
-            return True
-    return False

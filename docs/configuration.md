@@ -134,15 +134,14 @@ max-source-file-lines = 250
 
 RS062 and RS066 count physical code lines. Blank lines, comment-only lines, module, class, and function docstrings, and field docstrings do not count. Choose a larger positive limit only when a cohesive registry or matrix would become harder to navigate after a split.
 
-## Configure plumbing review points
+## Configure parallel construction
 
 ```toml
 [tool.repostyle]
-collaborator-layer-globs = ["*/application/**", "*/domain/**"]
 parallel-construction-min-pairs = 8
 ```
 
-`collaborator-layer-globs` lists the paths whose classes RS073 reads, relative to the config file; the value shown is the default. Wiring modules such as commands and infrastructure builders sit outside it, since constructing collaborators is their job. `parallel-construction-min-pairs` sets how many identical `keyword=value` pairs two constructions of one class in different modules must share before RS074 reports them.
+`parallel-construction-min-pairs` sets how many identical `keyword=value` pairs two constructions of one class in different modules must share before RS074 reports them.
 
 ## Suppress a finding
 
