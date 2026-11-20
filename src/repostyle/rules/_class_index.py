@@ -97,7 +97,7 @@ def build_index(files: Sequence[tuple[Path, str]]) -> PackageIndex:
 
 
 def _class_facts(path: Path, node: ast.ClassDef) -> ClassFacts:
-    """Reads the parameters a call to a class's constructor binds."""
+    """Builds `ClassFacts` from an explicit `__init__` or dataclass fields."""
     init = next((m for m in methods(node) if m.name == "__init__"), None)
     if init is not None:
         arguments = init.args

@@ -23,15 +23,12 @@ class ForwardingAnalysis:
     index: PackageIndex
     """The package's class index, which resolves each constructor call."""
     _forwarded: dict[str, _Forwarded] = field(default_factory=dict)
-    _depths: dict[tuple[str, str], int] = field(default_factory=dict)
 
     def chain_depth(self, name: str, param: str, seen: frozenset[str]) -> int:
         """Counts the constructors a forwarded parameter passes through.
 
         A cycle stops at the first class it revisits.
         """
-        if (name, param) in self._depths:
-            return self._depths[(name, param)]
         forwards = self.forwarded_params(name).get(param)
         if not forwards or name in seen:
             return 0
@@ -44,8 +41,7 @@ class ForwardingAnalysis:
             self.chain_depth(target, target_param, seen | {name})
             for target, target_param in targets
         ]
-        self._depths[(name, param)] = 1 + max(deeper, default=0)
-        return self._depths[(name, param)]
+        return 1 + max(deeper, default=0)
 
     def forwarded_params(self, name: str) -> _Forwarded:
         """Maps each `__init__` parameter of `name` it only forwards.

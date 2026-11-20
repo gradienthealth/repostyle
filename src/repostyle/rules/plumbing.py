@@ -1,12 +1,15 @@
-"""Plumbing rules: one setting forced through many files.
+"""Rules for a setting that has to be added in several files at once.
 
-RS073 flags a class that builds a first-party collaborator out of constructor
-parameters it only forwards, so every setting the collaborator needs is
-re-declared on each class above it. RS074 flags one first-party class
-constructed in two modules from the same long run of `keyword=value` pairs, so
-a new setting has to be threaded through both. Both are whole-package rules
-that resolve a call to the class it constructs through the shared index in
-`_class_index`.
+Each shape below makes a new setting land in more than one place, and a place
+that misses it silently falls back to the default:
+
+- RS073: a class takes settings only to forward them into a collaborator it
+  builds.
+- RS074: two modules construct one class from the same long run of
+  `keyword=value` pairs.
+
+Both are whole-package rules that resolve a constructor call through the index
+in `_class_index`.
 """
 
 from __future__ import annotations
@@ -98,7 +101,7 @@ def check_parallel_construction(
 
 @dataclass
 class _BuiltCollaborator:
-    """One first-party class another class constructs from forwarded values."""
+    """A collaborator a class builds, with the parameters it forwards in."""
 
     target: ClassFacts
     """The constructed class."""

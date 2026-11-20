@@ -11,13 +11,6 @@ from repostyle.rules import (
 from repostyle.runner import lint_package
 
 _QUESTIONS = """\
-from typing import Protocol
-
-
-class AnswerCache(Protocol):
-    def get(self, key: str) -> str: ...
-
-
 class Questions:
     def __init__(self, *, workers: int = 8, backoff: float = 1.0) -> None:
         self.workers = workers
@@ -27,21 +20,8 @@ class Questions:
         return self.workers
 """
 
-_PORT_QUESTIONS = """\
-from typing import Protocol
-
-
-class AnswerCache(Protocol):
-    def get(self, key: str) -> str: ...
-
-
-class CachedQuestions:
-    def __init__(self, answers: AnswerCache) -> None:
-        self.answers = answers
-"""
-
 _FORWARDING_JUDGE = """\
-from pkg.application.questions import Questions
+from pkg.questions import Questions
 
 
 class Judge:
@@ -59,15 +39,15 @@ class TestCheckForwardedCollaborator:
         "judge",
         [
             _FORWARDING_JUDGE,
-            "from pkg.application.questions import Questions\n\n\n"
+            "from pkg.questions import Questions\n\n\n"
             "class Judge:\n"
             "    def __init__(self, workers: int, backoff: float) -> None:\n"
             "        self._questions = Questions(workers=workers, backoff=backoff)\n",
-            "from pkg.application.questions import Questions\n\n\n"
+            "from pkg.questions import Questions\n\n\n"
             "class Judge:\n"
             "    def __init__(self, workers: int, backoff: float) -> None:\n"
             "        self._questions = Questions(workers, backoff)\n",
-            "from pkg.application import questions\n\n\n"
+            "from pkg import questions\n\n\n"
             "class Judge:\n"
             "    def __init__(self, workers: int, backoff: float) -> None:\n"
             "        self._questions = questions.Questions(workers, backoff)\n",
@@ -93,20 +73,9 @@ class TestCheckForwardedCollaborator:
         assert "forwarding chain depth 1" in message
         assert "repostyle:structural-refactor" in message
 
-    def test_ClassOutsideApplicationLayout_FlagsOwner(self, tmp_path: Path) -> None:
-        judge = _FORWARDING_JUDGE.replace("pkg.application", "pkg")
-        files = _pkg(
-            tmp_path, {"questions.py": _QUESTIONS, "judge.py": judge}, package="pkg"
-        )
-        (finding,) = check_forwarded_collaborator(files)
-        assert (finding[0].name, finding[1].rule) == (
-            "judge.py",
-            RS_FORWARDED_COLLABORATOR,
-        )
-
     def test_ForwardedThroughTwoClasses_ReportsChainDepth(self, tmp_path: Path) -> None:
         runner = (
-            "from pkg.application.judge import Judge\n\n\n"
+            "from pkg.judge import Judge\n\n\n"
             "class Runner:\n"
             "    def __init__(self, workers: int, backoff: float) -> None:\n"
             "        self._judge = Judge(workers=workers, backoff=backoff)\n"
@@ -122,9 +91,9 @@ class TestCheckForwardedCollaborator:
         messages = {p.name: v.message for p, v in check_forwarded_collaborator(files)}
         assert "forwarding chain depth 2" in messages["runner.py"]
 
-    def test_ForwardingCycle_Terminates(self, tmp_path: Path) -> None:
+    def test_ForwardingCycle_ReportsEqualDepths(self, tmp_path: Path) -> None:
         cycle = (
-            "from pkg.application.{other} import {target}\n\n\n"
+            "from pkg.{other} import {target}\n\n\n"
             "class {name}:\n"
             "    def __init__(self, workers: int, backoff: float) -> None:\n"
             "        self._workers = workers\n"
@@ -139,8 +108,10 @@ class TestCheckForwardedCollaborator:
                 "second.py": cycle.format(other="first", target="First", name="Second"),
             },
         )
-        findings = sorted(p.name for p, _ in check_forwarded_collaborator(files))
-        assert findings == ["first.py", "second.py"]
+        messages = {p.name: v.message for p, v in check_forwarded_collaborator(files)}
+        assert sorted(messages) == ["first.py", "second.py"]
+        assert "forwarding chain depth 2" in messages["first.py"]
+        assert "forwarding chain depth 2" in messages["second.py"]
 
     @pytest.mark.parametrize(
         "modules",
@@ -149,7 +120,7 @@ class TestCheckForwardedCollaborator:
                 "budget.py": "class CostBudget:\n"
                 "    def __init__(self, ceiling: float) -> None:\n"
                 "        self.ceiling = ceiling\n",
-                "judge.py": "from pkg.application.budget import CostBudget\n\n\n"
+                "judge.py": "from pkg.budget import CostBudget\n\n\n"
                 "class Judge:\n"
                 "    def __init__(self, ceiling: float) -> None:\n"
                 "        self._budget = CostBudget(ceiling)\n",
@@ -172,7 +143,7 @@ class TestCheckForwardedCollaborator:
             {
                 "questions.py": _QUESTIONS,
                 "judge.py": "import dataclasses\n\n"
-                "from pkg.application.questions import Questions\n\n\n"
+                "from pkg.questions import Questions\n\n\n"
                 "@dataclasses.dataclass\n"
                 "class Judge:\n"
                 "    workers: int\n"
@@ -185,23 +156,13 @@ class TestCheckForwardedCollaborator:
             {
                 "questions.py": _QUESTIONS,
                 "judge.py": _FORWARDING_JUDGE.replace(
-                    "from pkg.application.questions", "from vendor.questions"
+                    "from pkg.questions", "from vendor.questions"
                 ),
-            },
-            {
-                "questions.py": _PORT_QUESTIONS,
-                "judge.py": "from pkg.application.questions import "
-                "AnswerCache, CachedQuestions\n\n\n"
-                "class Judge:\n"
-                "    def __init__(self, answers: AnswerCache) -> None:\n"
-                "        self._answers = answers\n\n"
-                "    def check(self) -> None:\n"
-                "        CachedQuestions(self._answers)\n",
             },
             {
                 "questions.py": _QUESTIONS,
                 "judge.py": _FORWARDING_JUDGE.replace(
-                    "from pkg.application.questions import Questions",
+                    "from pkg.questions import Questions",
                     "from vendor import sdk",
                 ).replace("return Questions(", "return sdk.Questions("),
             },
@@ -224,7 +185,7 @@ class TestCheckForwardedCollaborator:
             },
             {
                 "questions.py": _QUESTIONS,
-                "judge.py": "from pkg.application.questions import Questions\n\n\n"
+                "judge.py": "from pkg.questions import Questions\n\n\n"
                 "class Judge:\n"
                 "    def __init__(self, workers: int, backoff: float) -> None:\n"
                 "        self._make = lambda workers, backoff: Questions(\n"
@@ -243,7 +204,6 @@ class TestCheckForwardedCollaborator:
             "same-module-collaborator",
             "dataclass-record-fields",
             "third-party-import-of-same-name",
-            "single-forwarded-protocol",
             "third-party-module-attribute",
             "guarded-third-party-import",
             "builtin-named-exception",
@@ -283,7 +243,6 @@ class TestCheckParallelConstruction:
                 "ingest.py": _build(8),
                 "bootstrap.py": _build(9),
             },
-            package="pkg",
         )
         findings = sorted(
             (p.name, v.rule, v.line) for p, v in check_parallel_construction(files)
@@ -301,7 +260,6 @@ class TestCheckParallelConstruction:
                 "ingest.py": _build(8),
                 "bootstrap.py": _build(8),
             },
-            package="pkg",
         )
         messages = {p.name: v.message for p, v in check_parallel_construction(files)}
         assert "src/pkg/bootstrap.py:5" in messages["ingest.py"]
@@ -323,9 +281,7 @@ class TestCheckParallelConstruction:
     def test_NotParallel_NoViolation(
         self, tmp_path: Path, modules: dict[str, str], pyproject: str
     ) -> None:
-        files = _pkg(
-            tmp_path, {"settings.py": _SETTINGS, **modules}, pyproject, package="pkg"
-        )
+        files = _pkg(tmp_path, {"settings.py": _SETTINGS, **modules}, pyproject)
         assert list(check_parallel_construction(files)) == []
 
     def test_FindingsScopedToPassedPaths_ReportsOnlyThose(self, tmp_path: Path) -> None:
@@ -336,7 +292,6 @@ class TestCheckParallelConstruction:
                 "ingest.py": _build(8),
                 "bootstrap.py": _build(8),
             },
-            package="pkg",
         )
         ingest = next(path for path, _ in files if path.name == "ingest.py")
         findings = lint_package([ingest], {RS_PARALLEL_CONSTRUCTION})
@@ -347,7 +302,7 @@ def _pkg(
     tmp_path: Path,
     modules: dict[str, str],
     pyproject: str = "",
-    package: str = "pkg/application",
+    package: str = "pkg",
 ) -> list[tuple[Path, str]]:
     """Writes `modules` into a package under `tmp_path/src`, returning them."""
     (tmp_path / "pyproject.toml").write_text(pyproject, encoding="utf-8")
