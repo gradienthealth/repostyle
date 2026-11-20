@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.39.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.38.0...repostyle-v0.39.0) (2026-11-20)
+
+
+### Features
+
+* **PROC-4133:** flag collaborators built from forwarded settings ([#190](https://github.com/gradienthealth/repostyle/issues/190)) ([ad01211](https://github.com/gradienthealth/repostyle/commit/ad01211f940055009699e0672695a9a43cecbb9e))
+
 ## [0.38.0](https://github.com/gradienthealth/repostyle/compare/repostyle-v0.37.0...repostyle-v0.38.0) (2026-11-13)
 
 
