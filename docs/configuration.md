@@ -134,6 +134,15 @@ max-source-file-lines = 250
 
 RS062 and RS066 count physical code lines. Blank lines, comment-only lines, module, class, and function docstrings, and field docstrings do not count. Choose a larger positive limit only when a cohesive registry or matrix would become harder to navigate after a split.
 
+## Configure parallel construction
+
+```toml
+[tool.repostyle]
+parallel-construction-min-pairs = 8
+```
+
+`parallel-construction-min-pairs` sets how many identical `keyword=value` pairs two constructions of one class in different modules must share before RS074 reports them.
+
 ## Suppress a finding
 
 Use the narrowest directive that carries a durable reason:

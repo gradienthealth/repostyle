@@ -1,6 +1,6 @@
 # Rule reference
 
-`repostyle` ships 72 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
+`repostyle` ships 74 rules. Every rule has an `RSnnn` id and a default severity. Errors describe mechanical defects; warnings identify review points or newer checks whose false-positive rate still needs observation.
 
 Run `repostyle explain RSnnn` for a rule's full contract, rationale, examples, and references. The check-function docstring under `src/repostyle/rules/` is the canonical implementation specification.
 
@@ -99,6 +99,8 @@ These rules inspect docstrings and comments. Comment checks also cover TOML, YAM
 | RS052 | warning | Keep an exception tuple within one failure family. |
 | RS070 | warning | Explain an empty Java `catch` block in a comment inside it. |
 | RS066 | warning | Review source modules over their configured code-line limit. |
+| RS073 | warning | Accept a collaborator instead of building it from forwarded parameters. |
+| RS074 | warning | Build a class once instead of from the same settings in two modules. |
 
 ## Values and files
 
@@ -136,7 +138,7 @@ The other rules read Python syntax and do not read Java.
 
 ## Severity
 
-Under the defaults, 20 rules hard-fail and the other 52 report warnings. Those 20 are the mechanical rules:
+Under the defaults, 20 rules hard-fail and the other 54 report warnings. Those 20 are the mechanical rules:
 
 ```text
 RS001 RS002 RS003 RS004 RS005 RS006 RS007 RS008 RS009 RS010

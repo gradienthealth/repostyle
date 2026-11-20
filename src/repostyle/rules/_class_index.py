@@ -1,0 +1,226 @@
+"""An index resolving a call to the first-party class it constructs.
+
+The plumbing rules RS073 and RS074 resolve a callee by its simple name, and
+only when the calling module defines that name or imports it, or the module it
+is read from, out of the package itself. A name defined by more than one
+first-party class or function does not resolve, nor does an exception class, so
+both rules under- rather than over-report. Test modules are left out of the
+index, since a fake often shares the name of the class it stands in for.
+"""
+
+from __future__ import annotations
+
+import ast
+from collections.abc import Iterator, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from repostyle._shared import (
+    _is_test_file,
+    _parse_python,
+    _relative_to_pyproject,
+    find_config_file,
+)
+
+# A method definition, sync or async
+MethodDef = ast.FunctionDef | ast.AsyncFunctionDef
+
+
+@dataclass(frozen=True)
+class ClassFacts:
+    """One first-party class and the constructor a call to it reaches."""
+
+    path: Path
+    """The module defining the class."""
+    node: ast.ClassDef
+    """The class definition."""
+    params: tuple[str, ...]
+    """Constructor parameters in declaration order, without `self`."""
+    positional: tuple[str, ...]
+    """The parameters a positional argument binds, in order; empty when an
+    inherited or keyword-only field makes the order unknowable."""
+    init: MethodDef | None
+    """The class's own `__init__`, absent for a generated constructor."""
+
+
+@dataclass
+class PackageIndex:
+    """The package's resolvable first-party classes and module facts."""
+
+    classes: dict[str, ClassFacts] = field(default_factory=dict)
+    """Each resolvable class, keyed by its simple name."""
+    sources: list[tuple[Path, ast.Module, str]] = field(default_factory=list)
+    """Each non-test module with its tree and config-relative path."""
+    first_party_names: dict[Path, frozenset[str]] = field(default_factory=dict)
+    """Per module, the names it binds to first-party classes or modules."""
+
+    def resolve(self, call: ast.Call, path: Path) -> ClassFacts | None:
+        """Returns the first-party class `call` constructs, if it resolves."""
+        func, bound = call.func, self.first_party_names.get(path, frozenset())
+        if isinstance(func, ast.Name) and func.id in bound:
+            return self.classes.get(func.id)
+        if isinstance(func, ast.Attribute):
+            root = func.value
+            while isinstance(root, ast.Attribute):
+                root = root.value
+            if isinstance(root, ast.Name) and root.id in bound:
+                return self.classes.get(func.attr)
+        return None
+
+
+def build_index(files: Sequence[tuple[Path, str]]) -> PackageIndex:
+    """Indexes the resolvable first-party classes of the non-test `files`."""
+    index = PackageIndex()
+    class_defs: dict[str, list[ClassFacts]] = {}
+    function_names: set[str] = set()
+    roots = _first_party_roots(files)
+    for path, source in files:
+        tree = _parse_python(path, source)
+        relative = _relative_to_pyproject(path, find_config_file(path))
+        if not isinstance(tree, ast.Module) or _is_test_file(Path(relative)):
+            continue
+        index.sources.append((path, tree, relative))
+        index.first_party_names[path] = _first_party_names(tree, roots)
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                class_defs.setdefault(node.name, []).append(_class_facts(path, node))
+            elif isinstance(node, MethodDef):
+                function_names.add(node.name)
+    index.classes = {
+        name: defs[0]
+        for name, defs in class_defs.items()
+        if len(defs) == 1
+        and name not in function_names
+        and not _is_exception(defs[0].node)
+    }
+    return index
+
+
+def _class_facts(path: Path, node: ast.ClassDef) -> ClassFacts:
+    """Builds `ClassFacts` from an explicit `__init__` or dataclass fields."""
+    init = next((m for m in methods(node) if m.name == "__init__"), None)
+    if init is not None:
+        arguments = init.args
+        positional = [*arguments.posonlyargs, *arguments.args][1:]
+        declared = [*positional, *arguments.kwonlyargs]
+        params = tuple(argument.arg for argument in declared)
+        positional_params = tuple(argument.arg for argument in positional)
+    elif _is_dataclass(node):
+        params = tuple(
+            member.target.id
+            for member in node.body
+            if isinstance(member, ast.AnnAssign)
+            and isinstance(member.target, ast.Name)
+            and "ClassVar" not in set(_annotation_names(member.annotation))
+            and not _is_init_false(member.value)
+        )
+        is_ordered = not node.bases and not _is_keyword_only(node)
+        positional_params = params if is_ordered else ()
+    else:
+        params, positional_params = (), ()
+    return ClassFacts(path, node, params, positional_params, init)
+
+
+def methods(node: ast.ClassDef) -> Iterator[MethodDef]:
+    """Yields the methods defined directly in a class body."""
+    for member in node.body:
+        if isinstance(member, MethodDef):
+            yield member
+
+
+def _first_party_names(tree: ast.Module, roots: frozenset[str]) -> frozenset[str]:
+    """Names the classes a module defines and the first-party names it imports.
+
+    An import anywhere in the module counts, whether at the top level, under a
+    guard, or inside a function.
+    """
+    names = {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (
+            node.level > 0 or (node.module or "").split(".")[0] in roots
+        ):
+            names |= {alias.asname or alias.name for alias in node.names}
+        elif isinstance(node, ast.Import):
+            names |= {
+                alias.asname or alias.name.split(".")[0]
+                for alias in node.names
+                if alias.name.split(".")[0] in roots
+            }
+    return frozenset(names)
+
+
+def _first_party_roots(files: Sequence[tuple[Path, str]]) -> frozenset[str]:
+    """Names the top-level packages and modules the package's files form."""
+    roots: set[str] = set()
+    for path, _ in files:
+        top = path.parent if path.name == "__init__.py" else path
+        while (top.parent / "__init__.py").exists():
+            top = top.parent
+        roots.add(top.stem)
+    return frozenset(roots)
+
+
+def _is_dataclass(node: ast.ClassDef) -> bool:
+    """Reports whether a class carries a `dataclass` decorator."""
+    for decorator in node.decorator_list:
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        name = target.attr if isinstance(target, ast.Attribute) else None
+        if isinstance(target, ast.Name):
+            name = target.id
+        if name == "dataclass":
+            return True
+    return False
+
+
+def _is_exception(node: ast.ClassDef) -> bool:
+    """Reports whether a class names an exception or warning as a base."""
+    for base in node.bases:
+        name = base.attr if isinstance(base, ast.Attribute) else None
+        if isinstance(base, ast.Name):
+            name = base.id
+        if name and name.endswith(("Error", "Exception", "Warning")):
+            return True
+    return False
+
+
+def _is_init_false(value: ast.expr | None) -> bool:
+    """Reports whether a dataclass field default is `field(init=False)`."""
+    return isinstance(value, ast.Call) and any(
+        keyword.arg == "init"
+        and isinstance(keyword.value, ast.Constant)
+        and keyword.value.value is False
+        for keyword in value.keywords
+    )
+
+
+def _is_keyword_only(node: ast.ClassDef) -> bool:
+    """Reports whether a dataclass makes any field keyword-only."""
+    for decorator in node.decorator_list:
+        if isinstance(decorator, ast.Call) and any(
+            keyword.arg == "kw_only"
+            and not (
+                isinstance(keyword.value, ast.Constant) and keyword.value.value is False
+            )
+            for keyword in decorator.keywords
+        ):
+            return True
+    return any(
+        isinstance(member, ast.AnnAssign)
+        and "KW_ONLY" in set(_annotation_names(member.annotation))
+        for member in node.body
+    )
+
+
+def _annotation_names(note: ast.expr) -> Iterator[str]:
+    """Yields each simple name an annotation mentions, quoted ones included."""
+    for node in ast.walk(note):
+        if isinstance(node, ast.Name):
+            yield node.id
+        elif isinstance(node, ast.Attribute):
+            yield node.attr
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            try:
+                parsed = ast.parse(node.value, mode="eval")
+            except SyntaxError:
+                continue
+            yield from _annotation_names(parsed.body)

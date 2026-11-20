@@ -34,6 +34,7 @@ from repostyle.rules._violation import (
     RS_FIELD_DESCRIBED_IN_CLASS_DOCSTRING,
     RS_FILE_LITERAL_RESTATEMENT,
     RS_FILENAME_CONVENTION,
+    RS_FORWARDED_COLLABORATOR,
     RS_GCP_BARE_IDENTIFIER,
     RS_GLUED_CODE_SPAN,
     RS_IMPERATIVE_DOCSTRING_OPENING,
@@ -43,6 +44,7 @@ from repostyle.rules._violation import (
     RS_NO_NEGATED_BOOLEAN,
     RS_NONSTANDARD_DASH,
     RS_OVER_BROAD_EXCEPT,
+    RS_PARALLEL_CONSTRUCTION,
     RS_PREDICATE_FUNCTION_NAMING,
     RS_PRIVATE_IMPORT,
     RS_RAISE_DESCRIBED_IN_PROSE,
@@ -68,6 +70,10 @@ from repostyle.rules._violation import (
     Violation,
 )
 from repostyle.rules.java import RULES as JAVA_RULES
+from repostyle.rules.plumbing import (
+    check_forwarded_collaborator,
+    check_parallel_construction,
+)
 from repostyle.rules.testing_reuse import (
     check_shared_test_helper,
 )
@@ -103,6 +109,8 @@ LANGUAGE_RULES: dict[str, RuleTable] = {
 PACKAGE_RULES: dict[str, tuple[PackageCheck, ...]] = {
     RS_SHOULD_BE_PRIVATE: (check_should_be_private,),
     RS_SHARED_TEST_HELPER: (check_shared_test_helper,),
+    RS_FORWARDED_COLLABORATOR: (check_forwarded_collaborator,),
+    RS_PARALLEL_CONSTRUCTION: (check_parallel_construction,),
 }
 
 
@@ -120,6 +128,8 @@ RULE_SEVERITY: dict[str, Severity] = {
     RS_TEST_PARAMETRIZATION_CANDIDATE: Severity.WARNING,
     RS_REPEATED_TEST_SETUP: Severity.WARNING,
     RS_SOURCE_MODULE_SIZE: Severity.WARNING,
+    RS_FORWARDED_COLLABORATOR: Severity.WARNING,
+    RS_PARALLEL_CONSTRUCTION: Severity.WARNING,
     RS_DOC_VALUE_SIGNAL: Severity.WARNING,
     RS_ELEMENT_ORDER: Severity.WARNING,
     RS_SUMMARY_COMMENT_AS_DOCSTRING: Severity.WARNING,
